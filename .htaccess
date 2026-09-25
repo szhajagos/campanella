@@ -1,0 +1,9 @@
+# Olyan tárhelyekre, ahol a webgyökér nem állítható a public/ mappára:
+# minden kérést a public/ alá irányít, így a src/, config/, vendor/ stb.
+# mappák kívülről nem érhetők el.
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>

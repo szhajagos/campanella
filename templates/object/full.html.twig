@@ -1,0 +1,11 @@
+{# Egy objektum teljes megjelenítése. Blueprint-specifikus változat: object/<blueprint>--full.html.twig #}
+<article class="object object--full object--{{ object.blueprint }}">
+    <h1>{{ object.title }}</h1>
+    {% if object.published_at is defined and object.published_at %}
+        <p class="meta"><time datetime="{{ object.published_at|date('c') }}">{{ object.published_at|date }}</time></p>
+    {% endif %}
+    {% if object.lead is defined and object.lead %}
+        <p class="lead">{{ object.lead }}</p>
+    {% endif %}
+    <div class="body">{{ object|body }}</div>
+</article>

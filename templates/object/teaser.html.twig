@@ -1,0 +1,11 @@
+{# Rövid megjelenítés listákban. #}
+<article class="object object--teaser object--{{ object.blueprint }}">
+    <h2><a href="{{ url(object.path) }}">{{ object.title }}</a></h2>
+    {% if object.published_at is defined and object.published_at %}
+        <p class="meta"><time datetime="{{ object.published_at|date('c') }}">{{ object.published_at|date }}</time></p>
+    {% endif %}
+    {% if object.lead is defined and object.lead %}
+        <p>{{ object.lead }}</p>
+    {% endif %}
+    <a class="more" href="{{ url(object.path) }}">Tovább</a>
+</article>

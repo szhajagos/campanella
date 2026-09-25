@@ -1,0 +1,16 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Campanella\Cli\Console;
+use Campanella\Core\Kernel;
+
+if (PHP_VERSION_ID < 80300) {
+    fwrite(STDERR, 'A Campanella legalább PHP 8.3-at igényel. Jelenlegi verzió: ' . PHP_VERSION . PHP_EOL);
+    exit(1);
+}
+
+require dirname(__DIR__) . '/vendor/autoload.php';
+
+exit((new Console(new Kernel(dirname(__DIR__))))->run($argv));

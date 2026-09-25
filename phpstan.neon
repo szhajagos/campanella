@@ -1,0 +1,4 @@
+parameters:
+  phpVersion: 80300
+  level: 8
+  paths: [src, config, bin/campanella, public/index.php]

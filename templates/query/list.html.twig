@@ -1,0 +1,20 @@
+{# Egy Query eredménye listaként. Egyedi változat: query/<query-név>.html.twig #}
+<div class="result result--{{ name }}">
+    {% for item in result %}
+        {{ render_object(item, item_mode) }}
+    {% else %}
+        <p class="empty">Nincs megjeleníthető tartalom.</p>
+    {% endfor %}
+</div>
+
+{% if result.pageCount > 1 %}
+    <nav class="pager" aria-label="Lapozó">
+        {% for page in 1..result.pageCount %}
+            {% if page == result.currentPage %}
+                <span aria-current="page">{{ page }}</span>
+            {% else %}
+                <a href="{{ url(path) }}?page={{ page }}">{{ page }}</a>
+            {% endif %}
+        {% endfor %}
+    </nav>
+{% endif %}

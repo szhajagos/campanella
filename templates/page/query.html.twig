@@ -1,0 +1,13 @@
+{% extends 'base.html.twig' %}
+
+{% block content %}
+    {% if title %}
+        <h1 class="page-title">{{ title }}</h1>
+    {% else %}
+        <section class="intro">
+            <h1>{{ site.name }}</h1>
+            <p>{{ site.slogan }}</p>
+        </section>
+    {% endif %}
+    {{ content|raw }}
+{% endblock %}

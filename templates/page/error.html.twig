@@ -1,0 +1,9 @@
+{% extends 'base.html.twig' %}
+
+{% block content %}
+    <section class="error">
+        <h1>{{ status == 404 ? 'Az oldal nem található' : 'Hiba történt' }}</h1>
+        <p>{{ message }}</p>
+        <p><a href="{{ url('/') }}">Vissza a főoldalra</a></p>
+    </section>
+{% endblock %}
