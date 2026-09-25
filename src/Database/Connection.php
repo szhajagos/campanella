@@ -237,6 +237,8 @@ final class Connection
 
     public function tableExists(string $table): bool
     {
+        $this->pdo(); // a kapcsolódási hiba ne tűnjön „hiányzó táblának”
+
         try {
             $this->run(sprintf('SELECT 1 FROM %s LIMIT 1', $this->table($table)));
 

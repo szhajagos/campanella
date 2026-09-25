@@ -1,6 +1,6 @@
 {
     "name": "campanella/campanella",
-    "description": "Campanella – capability-driven CMS",
+    "description": "Campanella – capability-vezérelt CMS",
     "type": "project",
     "version": "0.0.1",
     "require": {
