@@ -51,6 +51,37 @@ final class FakeCapability extends \Campanella\Capability\Capability
 $passed = 0;
 $failed = 0;
 
+/** A docs/php-api/03-capability.md példája, változtatás nélkül. */
+#[\Campanella\Capability\AsCapability('weighted', label: 'Súlyozott')]
+final class Weighted extends \Campanella\Capability\Capability
+{
+    #[\Override]
+    public static function fields(): array
+    {
+        return [
+            new \Campanella\Model\Field('weight', \Campanella\Model\FieldType::Integer, required: true, default: 0, indexed: true, label: 'Súly'),
+        ];
+    }
+
+    #[\Override]
+    public static function scopes(): array
+    {
+        return [
+            'by_weight' => static fn (Query $q): Query => $q->orderBy('weight', 'ASC'),
+        ];
+    }
+
+    public function weight(): int
+    {
+        return (int) $this->object->get('weight');
+    }
+
+    public function setWeight(int $weight): void
+    {
+        $this->object->set('weight', $weight);
+    }
+}
+
 function test(string $name, callable $body): void
 {
     global $passed, $failed;
@@ -101,6 +132,7 @@ $anon = Actor::anonymous();
 
 $dropAll = static function () use ($db, $installer): void {
     $db->execute('SET FOREIGN_KEY_CHECKS = 0');
+    $db->execute('DROP TABLE IF EXISTS ' . $db->table('cap_weighted'));
     foreach (array_reverse($installer->tables()) as $table) {
         $db->execute('DROP TABLE IF EXISTS ' . $db->table($table->name));
     }
@@ -252,6 +284,55 @@ test('A Query megváltoztathatatlan', function (): void {
     $derived = $base->limit(10)->where('title', '=', 'x');
     check($base->getLimit() === 5 && $base->conditions()->conditions === []);
     check($derived->getLimit() === 10);
+});
+
+// --- A dokumentáció példái ---------------------------------------------------
+
+echo "\nDokumentációs példák\n";
+
+test('Új capability a docs példája szerint (Weighted)', function () use ($db, $admin): void {
+    $registry = new CapabilityRegistry([Titled::class, Textual::class, Routable::class, Publishable::class, Weighted::class]);
+    $blueprints = new BlueprintRegistry($registry, [
+        'page' => ['capabilities' => [Textual::class, Routable::class, Publishable::class, Weighted::class]],
+    ]);
+    (new Installer($db, $registry))->install();
+    $repository = new ObjectRepository($db, $registry, $blueprints);
+    $engine = new QueryEngine($db, new QueryCompiler($registry), $repository, $registry, new DefaultPolicy());
+    $service = new ObjectService($repository, new DefaultPolicy());
+
+    foreach (['Harmadik' => 30, 'Első' => 10, 'Második' => 20] as $title => $weight) {
+        $page = $service->create($admin, 'page', ['title' => "Súly {$title}"]);
+        $page->as(Weighted::class)->setWeight($weight);
+        $repository->save($page);
+    }
+    $titles = array_map(
+        fn ($o) => $o->get('title'),
+        $engine->execute(Query::objects()->having('weighted')->scope('by_weight'), $admin)->items,
+    );
+    check($titles === ['Súly Első', 'Súly Második', 'Súly Harmadik'], implode(', ', $titles));
+});
+
+test('Kernel: a felülírt szolgáltatás több kérésen át megmarad', function (): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $container = $kernel->container();
+    if ($container->get(Connection::class)->prefix() !== 'test_') {
+        echo "      (kihagyva: a config/local.php saját prefixet ad meg)\n";
+
+        return;
+    }
+    // A docs/php-api/05-jogosultsag.md mintájára: minden látható.
+    $container->set(\Campanella\Access\AccessPolicy::class, static fn () => new class implements \Campanella\Access\AccessPolicy {
+        public function constrain(Query $query, Actor $actor): Query { return $query; }
+        public function allows(Actor $actor, \Campanella\Access\Operation $operation, \Campanella\Model\CampanellaObject $object): bool { return true; }
+    });
+
+    $first = $kernel->handle(new Request('GET', '/idozitett', basePath: '/alkonyvtar'));
+    $second = $kernel->handle(new Request('GET', '/idozitett'));
+    check($first->status === 200 && $second->status === 200, "{$first->status} / {$second->status}");
+    check(str_contains($first->body, 'href="/alkonyvtar/hirek"'), 'az első kérés URL-előtagja hiányzik');
+    check(str_contains($second->body, 'href="/hirek"') && !str_contains($second->body, '/alkonyvtar'), 'a második kérés URL-előtagja rossz');
+    putenv('CAMPANELLA_DB_PREFIX');
 });
 
 // --- Eltakarítás ------------------------------------------------------------

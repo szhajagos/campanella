@@ -30,7 +30,8 @@
     },
     "scripts": {
         "test": "php tests/run.php",
-        "analyse": "phpstan analyse"
+        "analyse": "phpstan analyse",
+        "docs:check": "php tests/docs-check.php"
     },
     "require-dev": {
         "phpstan/phpstan": "^2.1"

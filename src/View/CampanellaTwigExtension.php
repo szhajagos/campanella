@@ -25,11 +25,12 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
 {
     /**
      * @param Closure(): Presentation $presentation Lustán, mert a Presentation is a Twig-re épül.
+     * @param Closure(): string $basePath Az aktuális kérés URL-előtagja (alkönyvtáras telepítéshez).
      * @param array<string, mixed> $globals
      */
     public function __construct(
         private readonly Closure $presentation,
-        private readonly string $basePath,
+        private readonly Closure $basePath,
         private readonly array $globals = [],
     ) {
     }
@@ -60,7 +61,7 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
 
     public function url(string $path): string
     {
-        return $this->basePath . '/' . ltrim($path, '/');
+        return ($this->basePath)() . '/' . ltrim($path, '/');
     }
 
     public function renderObject(CampanellaObject $object, string $mode = Presentation::TEASER): string

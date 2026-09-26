@@ -3,6 +3,9 @@
 Capability-vezérelt CMS. Nincsenek előre rögzített tartalomtípusok: az objektum
 viselkedését a rá szerelt képességek (capability-k) határozzák meg.
 
+A fejlesztői dokumentáció (PHP API, HTTP API) a [`docs/`](docs/README.md)
+mappában, a változások a [CHANGELOG](CHANGELOG.md)-ban találhatók.
+
 ## Követelmények
 
 - PHP 8.3 vagy újabb (`pdo_mysql`, `mbstring`, `json`)
@@ -82,6 +85,7 @@ Az adatbázis-beállításokat a `compose.yaml` környezeti változói adják me
 | `php bin/campanella status` | Capability-k, Blueprintek, objektumszám |
 | `composer test` | Tesztek (külön `test_` táblaprefixszel, valódi adatbázison) |
 | `composer analyse` | PHPStan, level 8, PHP 8.3-ra |
+| `composer docs:check` | Dokumentálatlan nyilvános osztályok és metódusok keresése |
 
 ## Felépítés (MVC + Service réteg)
 

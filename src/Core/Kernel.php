@@ -55,8 +55,9 @@ final class Kernel
 
     public function handle(Request $request): Response
     {
+        // Az URL-előtagot a Twig-kiterjesztés kérésenként innen olvassa, így a
+        // konténer (és a benne felülírt szolgáltatások) kérések között megmarad.
         $this->basePath = $request->basePath;
-        $this->container = null; // az URL-előtag a Twig-kiterjesztésbe kerül
 
         try {
             $container = $this->container();
@@ -119,7 +120,7 @@ final class Kernel
             $c->get(CapabilityRegistry::class),
         ));
 
-        $basePath = $this->basePath;
+        $basePath = fn (): string => $this->basePath;
         $c->set(Environment::class, static function (Container $c) use ($root, $basePath): Environment {
             $config = $c->get(Config::class);
             $debug = (bool) $config->get('debug', false);
