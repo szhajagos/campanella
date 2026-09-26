@@ -12,7 +12,7 @@ use Campanella\Capability\Titled;
  * config/local.php írja felül; mintának lásd: config/local.php.dist
  */
 return [
-    'debug' => false,
+    'debug' => filter_var(getenv('CAMPANELLA_DEBUG') ?: false, FILTER_VALIDATE_BOOL),
     'timezone' => 'Europe/Budapest',
 
     'site' => [
@@ -21,13 +21,14 @@ return [
         'language' => 'hu',
     ],
 
+    // Környezeti változókkal is megadható (pl. Dockerben), a local.php felülírja.
     'database' => [
-        'host' => 'localhost',
-        'port' => 3306,
-        'name' => 'campanella',
-        'user' => 'campanella',
-        'password' => '',
-        'prefix' => 'cc_',
+        'host' => getenv('CAMPANELLA_DB_HOST') ?: 'localhost',
+        'port' => (int) (getenv('CAMPANELLA_DB_PORT') ?: 3306),
+        'name' => getenv('CAMPANELLA_DB_NAME') ?: 'campanella',
+        'user' => getenv('CAMPANELLA_DB_USER') ?: 'campanella',
+        'password' => getenv('CAMPANELLA_DB_PASSWORD') ?: '',
+        'prefix' => getenv('CAMPANELLA_DB_PREFIX') ?: 'cc_',
     ],
 
     // A rendszerben elérhető capability-k. Egy modul később ide

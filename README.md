@@ -24,9 +24,39 @@ php -S localhost:8000 -t public public/index.php
 Ha a tárhelyen nincs parancssor, a `php bin/campanella install --sql` kimenetét
 phpMyAdminban is le lehet futtatni.
 
-Apache alatt a webgyökér legyen a `public/` mappa. Ha ezt a tárhely nem engedi,
-a gyökérben lévő `.htaccess` minden kérést a `public/` alá irányít. Alkönyvtárba
-telepítve (pl. `example.hu/campanella/`) is működik.
+### Hová kerüljenek a fájlok?
+
+A projekt mappái mindig együtt maradnak. A webszerver felé csak a `public/`
+mappa látszik, de az `index.php` onnan egy szinttel feljebb keresi a `vendor/`,
+`src/` és `config/` mappát. Ezért **nem elég csak a `public/` tartalmát a
+webgyökérbe másolni.** Két helyes felállás van:
+
+1. **A webgyökér a `public/` mappa** (ajánlott). A tárhely kezelőfelületén vagy
+   az Apache `DocumentRoot` beállításában a projekt `public/` mappáját kell
+   megadni.
+2. **Az egész projekt a webgyökérbe kerül**, ha a webgyökér nem állítható át.
+   Ilyenkor a gyökérben lévő `.htaccess` minden kérést a `public/` alá irányít,
+   a többi mappa pedig kívülről nem érhető el. Ehhez az Apache `mod_rewrite`
+   moduljának be kell kapcsolva lennie, és engedélyezni kell a `.htaccess`
+   használatát (`AllowOverride All`).
+
+Alkönyvtárba telepítve (pl. `example.hu/campanella/`) is működik.
+
+### Dockerrel
+
+```bash
+docker compose up -d --build
+docker compose exec web composer install          # ha a vendor/ még hiányzik
+docker compose exec web php bin/campanella install
+docker compose exec web php bin/campanella seed
+```
+
+Ezután a rendszer a <http://localhost:8080> címen érhető el. A `Dockerfile` a
+hivatalos `php:8.3-apache` image-re épül: telepíti a `pdo_mysql` bővítményt,
+bekapcsolja a `mod_rewrite` modult, és a webgyökeret a `public/` mappára állítja.
+Az adatbázis-beállításokat a `compose.yaml` környezeti változói adják meg
+(`CAMPANELLA_DB_HOST`, `CAMPANELLA_DB_NAME` stb.). Dockerben ne legyen
+`config/local.php`, mert az felülírná ezeket.
 
 ## Parancsok
 

@@ -1,0 +1,41 @@
+# Indítás:      docker compose up -d --build
+# Telepítés:    docker compose exec web php bin/campanella install
+# Példaadatok:  docker compose exec web php bin/campanella seed
+# Megnyitás:    http://localhost:8080
+services:
+  web:
+    build: .
+    ports:
+      - "8080:80"
+    environment:
+      CAMPANELLA_DEBUG: "1"
+      CAMPANELLA_DB_HOST: db
+      CAMPANELLA_DB_NAME: campanella
+      CAMPANELLA_DB_USER: campanella
+      CAMPANELLA_DB_PASSWORD: campanella
+    volumes:
+      # Fejlesztéshez: a gépeden lévő fájlok módosításai azonnal látszanak.
+      # Ilyenkor a vendor/ mappa is a gépedről jön: ha hiányzik, futtasd:
+      #   docker compose exec web composer install
+      - ./:/var/www/html
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: mariadb:10.11
+    environment:
+      MARIADB_DATABASE: campanella
+      MARIADB_USER: campanella
+      MARIADB_PASSWORD: campanella
+      MARIADB_ROOT_PASSWORD: root
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  db-data:

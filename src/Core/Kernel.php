@@ -124,8 +124,19 @@ final class Kernel
             $config = $c->get(Config::class);
             $debug = (bool) $config->get('debug', false);
 
+            // Ha a gyorsítótár mappája nem írható (gyakori jogosultsági gond tárhelyen
+            // és Dockerben), a Twig gyorsítótár nélkül fut tovább: lassabb, de működik.
+            $cacheDir = $root . '/var/cache/twig';
+            if (!is_dir($cacheDir)) {
+                @mkdir($cacheDir, 0775, true);
+            }
+            $cache = is_dir($cacheDir) && is_writable($cacheDir) ? $cacheDir : false;
+            if ($cache === false) {
+                error_log("Campanella: a {$cacheDir} mappa nem írható, a sablon-gyorsítótár ki van kapcsolva.");
+            }
+
             $twig = new Environment(new FilesystemLoader($root . '/templates'), [
-                'cache' => $root . '/var/cache/twig',
+                'cache' => $cache,
                 'debug' => $debug,
                 'auto_reload' => $debug,
                 'strict_variables' => $debug,
