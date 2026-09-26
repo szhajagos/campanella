@@ -18,8 +18,12 @@ composer install
 cp config/local.php.dist config/local.php   # add meg az adatbázis adatait
 php bin/campanella install                  # táblák létrehozása
 php bin/campanella seed                     # példatartalom (opcionális)
-php -S localhost:8000 -t public public/index.php
+php -S localhost:8000 -t public public/index.php   # csak helyi kipróbáláshoz
 ```
+
+Az utolsó sor a PHP beépített fejlesztői szerverét indítja a saját gépeden, a
+<http://localhost:8000> címen. Éles tárhelyen nem ezt kell használni, és a
+tárhely beállításaira sem következtethetsz belőle (lásd lent).
 
 Ha a tárhelyen nincs parancssor, a `php bin/campanella install --sql` kimenetét
 phpMyAdminban is le lehet futtatni.
@@ -31,14 +35,24 @@ mappa látszik, de az `index.php` onnan egy szinttel feljebb keresi a `vendor/`,
 `src/` és `config/` mappát. Ezért **nem elég csak a `public/` tartalmát a
 webgyökérbe másolni.** Két helyes felállás van:
 
-1. **A webgyökér a `public/` mappa** (ajánlott). A tárhely kezelőfelületén vagy
-   az Apache `DocumentRoot` beállításában a projekt `public/` mappáját kell
-   megadni.
-2. **Az egész projekt a webgyökérbe kerül**, ha a webgyökér nem állítható át.
+1. **A webgyökér a `public/` mappa.** Ez csak akkor működik, ha a PHP a
+   webgyökéren kívüli mappákat is látja: saját szerveren az Apache
+   `DocumentRoot` beállításával, vagy a mellékelt `Dockerfile` használatával.
+   **Figyelem:** sok Dockeres tárhely csak a webgyökérként kijelölt mappát teszi
+   be a konténerbe (`/var/www/html` néven). Ilyenkor a `public/` megadása
+   esetén a `vendor/`, `src/` és `config/` mappák a PHP számára láthatatlanok,
+   és a rendszer a „Hiányzik a vendor mappa” hibaoldalt mutatja.
+2. **Az egész projekt a webgyökérbe kerül.** Ez a megoldás, ha a webgyökér nem
+   állítható, vagy ha a tárhely csak a webgyökér mappáját látja.
    Ilyenkor a gyökérben lévő `.htaccess` minden kérést a `public/` alá irányít,
    a többi mappa pedig kívülről nem érhető el. Ehhez az Apache `mod_rewrite`
    moduljának be kell kapcsolva lennie, és engedélyezni kell a `.htaccess`
    használatát (`AllowOverride All`).
+
+   Telepítés után ellenőrizd, hogy a `…/composer.json` és a `…/config/app.php`
+   címen a Campanella „Az oldal nem található” oldala jelenik-e meg. Ha a
+   `composer.json` tartalma látszik, a `.htaccess` nem működik, és a projekt
+   fájljai kívülről olvashatók.
 
 Alkönyvtárba telepítve (pl. `example.hu/campanella/`) is működik.
 
