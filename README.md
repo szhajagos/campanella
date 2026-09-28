@@ -4,7 +4,8 @@ Capability-vezérelt CMS. Nincsenek előre rögzített tartalomtípusok: az obje
 viselkedését a rá szerelt képességek (capability-k) határozzák meg.
 
 A fejlesztői dokumentáció (PHP API, HTTP API) a [`docs/`](docs/README.md)
-mappában, a változások a [CHANGELOG](CHANGELOG.md)-ban találhatók.
+mappában, a változások a [CHANGELOG](CHANGELOG.md)-ban, a tervek a
+[ROADMAP](ROADMAP.md)-ban találhatók.
 
 ## Követelmények
 
