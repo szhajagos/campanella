@@ -1,6 +1,6 @@
 # PHP API
 
-A Campanella 0.0.1 PHP API-jának referenciája. Minden osztály a `Campanella\`
+A Campanella 0.0.2 PHP API-jának referenciája. Minden osztály a `Campanella\`
 névtérben van, a `src/` mappában (PSR-4).
 
 ## Fejezetek
@@ -14,6 +14,7 @@ névtérben van, a `src/` mappában (PSR-4).
 7. [HTTP és megjelenítés](07-http-es-view.md): `Request`, `Router`, controllerek, `Presentation`, Twig
 8. [Adatbázis](08-adatbazis.md): `Connection`, séma, telepítő
 9. [Rendszer](09-rendszer.md): `Kernel`, `Container`, konfiguráció, CLI, segédosztályok
+10. [Kapcsolatok](10-kapcsolatok.md): `Relation`, `Cardinality`, `whereRelated`, `RelationLoader`, Blueprint-listák
 
 ## Névterek
 
@@ -23,6 +24,7 @@ névtérben van, a `src/` mappában (PSR-4).
 | `Campanella\Capability` | Model | A Capability-szerződés és a beépített capability-k |
 | `Campanella\Query` | Model | Query, feltételek, fordító, végrehajtó |
 | `Campanella\Access` | Model | Szereplők, műveletek, szabályok |
+| `Campanella\Relation` | Model | Kapcsolatok definíciója és betöltése |
 | `Campanella\Service` | Service | Üzleti műveletek jogosultság-ellenőrzéssel |
 | `Campanella\Controller` | Controller | HTTP-kérések kiszolgálása |
 | `Campanella\View` | View | Megjelenítés, Twig-integráció |

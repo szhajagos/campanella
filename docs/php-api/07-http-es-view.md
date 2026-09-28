@@ -80,8 +80,13 @@ A controller vékony: fogadja a kérést, meghívja a Model vagy Service rétege
 
 Egy Routable objektum saját oldala. Az útvonalat normalizálja
 (`Routable::normalize`), a `QueryEngine`-nel keresi meg (így a jogosultság is
-érvényesül), és a `page/object.html.twig` sablonnal, `full` módban jeleníti meg.
-Ha nincs ilyen objektum, vagy az `Actor` nem láthatja: 404.
+érvényesül), betölti a kapcsolatait (`RelationLoader`), lefuttatja a Blueprint
+`lists` listáit, és a `page/object.html.twig` sablonnal, `full` módban jeleníti
+meg. Ha nincs ilyen objektum, vagy az `Actor` nem láthatja: 404.
+
+Konstruktor: `__construct(QueryEngine $queries, Presentation $presentation,
+BlueprintRegistry $blueprints, RelationLoader $relations)`. A sablon változói:
+`object`, `title`, `lists` (`array<string, array{label: string, result: ResultSet}>`).
 
 ### QueryController
 
@@ -96,6 +101,10 @@ Egy elnevezett Query eredménye lapozható listaként. A Query-definíciók a
 | `title` | Az oldal címe; üres esetén a nyitóoldali bevezető jelenik meg |
 | `per_page` | Elemszám oldalanként; alapból a Query limitje, ennek hiányában 10 |
 | `item_mode` | Az elemek megjelenítési módja, alapból `teaser` |
+
+Konstruktor: `__construct(QueryEngine $queries, Presentation $presentation,
+array $definitions, ?RelationLoader $relations = null)`; ha kapja, a lista
+elemeinek kapcsolatait is betölti.
 
 Az oldalszám a `?page=` paraméterből jön. Nem létező oldalnál (a 2. oldaltól,
 ha üres): 404.
@@ -142,6 +151,7 @@ A sablonok változói:
 | `{{ url('/hirek') }}` | `url(string $path)` | Alkönyvtár-biztos URL |
 | `{{ asset('campanella.css') }}` | | A `public/assets/` alatti fájl URL-je |
 | `{{ render_object(item, 'teaser') }}` | `renderObject(CampanellaObject $object, string $mode)` | Egy objektum egy módban |
+| `{{ related(object, 'categories') }}` | `related(CampanellaObject $object, string $relation)` | Egy kapcsolat betöltött célobjektumai, vagy üres lista |
 | `{{ object\|body }}` | `body(CampanellaObject $object)` | A Textual törzs HTML-je: `plain` formátumnál escape-elve, bekezdésekre bontva; `html` formátumnál változtatás nélkül |
 
 A kiterjesztés további metódusai (`getFunctions()`, `getFilters()`,

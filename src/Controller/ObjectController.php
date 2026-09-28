@@ -11,16 +11,26 @@ use Campanella\Http\HttpException;
 use Campanella\Http\Request;
 use Campanella\Http\Response;
 use Campanella\Http\RouteMatch;
+use Campanella\Model\BlueprintRegistry;
 use Campanella\Query\Query;
 use Campanella\Query\QueryEngine;
+use Campanella\Query\ResultSet;
+use Campanella\Relation\RelationLoader;
 use Campanella\View\Presentation;
 
-/** Egy Routable objektum saját oldala (Full megjelenítés). */
+/**
+ * Egy Routable objektum saját oldala (Full megjelenítés).
+ *
+ * A megjelenítés előtt betölti a kapcsolódó objektumokat, és lefuttatja a
+ * Blueprint 'lists' listáit (pl. egy kategória oldalán a cikkeit).
+ */
 final class ObjectController implements Controller
 {
     public function __construct(
         private readonly QueryEngine $queries,
         private readonly Presentation $presentation,
+        private readonly BlueprintRegistry $blueprints,
+        private readonly RelationLoader $relations,
     ) {
     }
 
@@ -32,10 +42,20 @@ final class ObjectController implements Controller
         // A lekérdezés access-aware: a nem látható objektum egyszerűen nincs meg (404).
         $object = $this->queries->first(Query::objects()->where('path', '=', $path), $actor)
             ?? throw HttpException::notFound();
+        $this->relations->resolve([$object], $actor);
+
+        /** @var array<string, array{label: string, result: ResultSet}> $lists */
+        $lists = [];
+        foreach ($this->blueprints->find($object->blueprint())->lists ?? [] as $name => $list) {
+            $result = $this->queries->execute(($list['query'])($object), $actor);
+            $this->relations->resolve($result, $actor);
+            $lists[$name] = ['label' => $list['label'] ?? '', 'result' => $result];
+        }
 
         return Response::html($this->presentation->render('page/object.html.twig', [
             'object' => $object,
             'title' => $object->has(Titled::class) ? $object->as(Titled::class)->title() : '',
+            'lists' => $lists,
         ]));
     }
 }

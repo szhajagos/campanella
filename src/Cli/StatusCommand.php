@@ -50,8 +50,18 @@ final class StatusCommand implements Command
         }
 
         $output->line();
-        if (!$container->get(Installer::class)->isInstalled()) {
+        $installer = $container->get(Installer::class);
+        if (!$installer->isInstalled()) {
             $output->line('Az adatbázis még nincs telepítve (php bin/campanella install).');
+
+            return 0;
+        }
+        if ($installer->needsUpgrade()) {
+            $output->line(sprintf(
+                'Az adatbázis sémája (%s) régebbi a kódnál (%s): futtasd a php bin/campanella install parancsot.',
+                $installer->systemValue('schema_version'),
+                Version::SCHEMA,
+            ));
 
             return 0;
         }

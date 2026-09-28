@@ -6,12 +6,14 @@ namespace Campanella\Query;
 
 use Campanella\Capability\CapabilityRegistry;
 use Campanella\Database\Connection;
+use Campanella\Model\BlueprintRegistry;
 use Campanella\Model\FieldStorage;
 use Campanella\Model\FieldType;
 use Campanella\Query\Condition\Condition;
 use Campanella\Query\Condition\FieldCondition;
 use Campanella\Query\Condition\Group;
 use Campanella\Query\Condition\HasCapability;
+use Campanella\Query\Condition\RelatedTo;
 
 /**
  * A Query-t SQL-re fordítja. A Connection mellett ez az egyetlen hely,
@@ -28,8 +30,17 @@ final class QueryCompiler
     /** @var array<string, mixed> */
     private array $params = [];
 
-    public function __construct(private readonly CapabilityRegistry $capabilities)
-    {
+    /** Hányadik kapcsolat-részlekérdezés (egyedi alias miatt). */
+    private int $relationCount = 0;
+
+    /**
+     * @param BlueprintRegistry|null $blueprints A kapcsolatnevek ellenőrzéséhez; nélküle
+     *        kapcsolat-feltétel (whereRelated) nem fordítható.
+     */
+    public function __construct(
+        private readonly CapabilityRegistry $capabilities,
+        private readonly ?BlueprintRegistry $blueprints = null,
+    ) {
     }
 
     /** SELECT o.id ... a rendezéssel és lapozással. */
@@ -72,6 +83,7 @@ final class QueryCompiler
     {
         $this->joins = [];
         $this->params = [];
+        $this->relationCount = 0;
     }
 
     private function compileCondition(Condition $condition): string
@@ -80,6 +92,7 @@ final class QueryCompiler
             $condition instanceof Group => $this->compileGroup($condition),
             $condition instanceof FieldCondition => $this->compileField($condition),
             $condition instanceof HasCapability => $this->compileHasCapability($condition),
+            $condition instanceof RelatedTo => $this->compileRelatedTo($condition),
             default => throw new QueryException('Ismeretlen feltételtípus: ' . $condition::class),
         };
     }
@@ -129,6 +142,25 @@ final class QueryCompiler
             $condition->negated ? 'NOT ' : '',
             $this->param($name),
         );
+    }
+
+    private function compileRelatedTo(RelatedTo $condition): string
+    {
+        if ($this->blueprints?->relation($condition->relation) === null) {
+            throw new QueryException("Ismeretlen kapcsolat: {$condition->relation}");
+        }
+        $alias = 'rl' . $this->relationCount++;
+        $sql = sprintf(
+            'EXISTS (SELECT 1 FROM {relationships} %1$s WHERE %1$s.`source_id` = o.`id` AND %1$s.`type` = %2$s',
+            $alias,
+            $this->param($condition->relation),
+        );
+        if ($condition->targets !== []) {
+            $placeholders = array_map($this->param(...), $condition->targets);
+            $sql .= sprintf(' AND %s.`target_id` IN (%s)', $alias, implode(', ', $placeholders));
+        }
+
+        return ($condition->negated ? 'NOT ' : '') . $sql . ')';
     }
 
     /** A mezőnévből oszlophivatkozás, szükség esetén JOIN-nal. */

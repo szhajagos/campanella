@@ -35,6 +35,9 @@ use Campanella\Query\QueryException;
 use Campanella\Service\ObjectService;
 use Campanella\Support\Slugger;
 use Campanella\Support\Uuid;
+use Campanella\Relation\Cardinality;
+use Campanella\Relation\Relation;
+use Campanella\Relation\RelationLoader;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
@@ -123,7 +126,8 @@ $capabilities = new CapabilityRegistry([Titled::class, Textual::class, Routable:
 $blueprints = new BlueprintRegistry($capabilities, require dirname(__DIR__) . '/config/blueprints.php');
 $repository = new ObjectRepository($db, $capabilities, $blueprints);
 $policy = new DefaultPolicy();
-$engine = new QueryEngine($db, new QueryCompiler($capabilities), $repository, $capabilities, $policy);
+$engine = new QueryEngine($db, new QueryCompiler($capabilities, $blueprints), $repository, $capabilities, $policy);
+$loader = new RelationLoader($engine);
 $service = new ObjectService($repository, $policy);
 $installer = new Installer($db, $capabilities);
 
@@ -286,6 +290,123 @@ test('A Query megváltoztathatatlan', function (): void {
     check($derived->getLimit() === 10);
 });
 
+// --- Kapcsolatok (0.0.2) -----------------------------------------------------
+
+echo "\nKapcsolatok\n";
+
+$science = $service->create($admin, 'category', ['title' => 'Kat Tudomány'], publish: true);
+$history = $service->create($admin, 'category', ['title' => 'Kat Történelem'], publish: true);
+$hidden = $service->create($admin, 'category', ['title' => 'Kat Rejtett']);   // piszkozat
+$tagged = $service->create($admin, 'article', ['title' => 'Kapcsolt cikk'], publish: true);
+
+test('Kapcsolat mentése és visszatöltése, sorrendben', function () use ($repository, $tagged, $science, $history, $hidden): void {
+    $tagged->setRelated('categories', [$history, $science->id(), $hidden]);
+    $repository->save($tagged);
+    $loaded = $repository->find((int) $tagged->id());
+    check($loaded?->relatedIds('categories') === [$history->id(), $science->id(), $hidden->id()], json_encode($loaded?->relatedIds('categories')));
+
+    $loaded->unrelate('categories', $history);
+    $loaded->relate('categories', $history);            // a végére kerül
+    $loaded->relate('categories', $science);            // már benne van: nem duplikál
+    $repository->save($loaded);
+    check($repository->find((int) $tagged->id())?->relatedIds('categories') === [$science->id(), $hidden->id(), $history->id()]);
+});
+
+test('whereRelated / whereNotRelated (jogosultsággal)', function () use ($engine, $admin, $anon, $science, $history): void {
+    $titles = fn ($q, $actor) => array_map(fn ($o) => $o->get('title'), $engine->execute($q, $actor)->items);
+    check($titles(Query::objects()->whereRelated('categories', $science), $anon) === ['Kapcsolt cikk']);
+    check($titles(Query::objects()->whereRelated('categories', $science, $history), $admin) === ['Kapcsolt cikk']);
+    check($titles(Query::objects()->blueprint('article')->whereRelated('categories'), $admin) === ['Kapcsolt cikk']);
+    check(!in_array('Kapcsolt cikk', $titles(Query::objects()->whereNotRelated('categories'), $admin), true));
+    throws(QueryException::class, fn () => $engine->execute(Query::objects()->whereRelated('nincs_ilyen'), $admin));
+});
+
+test('RelationLoader: egy lekérdezés, a piszkozat cél kimarad', function () use ($repository, $loader, $anon, $admin, $tagged): void {
+    $forAnon = $repository->find((int) $tagged->id());
+    $loader->resolve([$forAnon], $anon);
+    check(array_map(fn ($o) => $o->get('title'), $forAnon->relatedObjects('categories')) === ['Kat Tudomány', 'Kat Történelem']);
+
+    $forAdmin = $repository->find((int) $tagged->id());
+    $loader->resolve([$forAdmin], $admin);
+    check(count($forAdmin->relatedObjects('categories')) === 3);
+
+    $fresh = $repository->find((int) $tagged->id());
+    throws(LogicException::class, fn () => $fresh->relatedObjects('categories'));
+});
+
+test('Érvénytelen cél: rossz Blueprint, nem létező, mentetlen', function () use ($service, $repository, $admin): void {
+    $page = $service->create($admin, 'page', ['title' => 'Nem kategória']);
+    $article = $repository->create('article', ['title' => 'Hibás kapcsolat']);
+    $article->relate('categories', $page);
+    try {
+        $repository->save($article);
+        check(false, 'nem dobott kivételt');
+    } catch (ValidationException $e) {
+        check(isset($e->errors['categories']) && str_contains($e->errors['categories'], 'page'), json_encode($e->errors, JSON_UNESCAPED_UNICODE));
+    }
+    check($article->isNew(), 'a hibás objektum nem mentődhet el');
+
+    $article->setRelated('categories', [999999]);
+    throws(ValidationException::class, fn () => $repository->save($article));
+    throws(InvalidArgumentException::class, fn () => $article->relate('categories', $repository->create('category', ['title' => 'Mentetlen'])));
+});
+
+test('Egyes és kötelező kapcsolat', function () use ($blueprints, $repository, $admin, $service): void {
+    $blueprints->define('node', [
+        'capabilities' => [Titled::class],
+        'relations' => [
+            new Relation('parent_node', Cardinality::One, targetBlueprints: ['node']),
+            new Relation('owner_node', Cardinality::One, targetBlueprints: ['node'], required: true),
+        ],
+    ]);
+    $root = $repository->create('node', ['title' => 'Gyökér']);
+    try {
+        $repository->save($root);
+        check(false, 'nem dobott kivételt');
+    } catch (ValidationException $e) {
+        check(($e->errors['owner_node'] ?? '') === 'kötelező kapcsolat', json_encode($e->errors, JSON_UNESCAPED_UNICODE));
+    }
+
+    $node = $repository->create('node', ['title' => 'Node']);
+    throws(InvalidArgumentException::class, fn () => $node->setRelated('parent_node', [1, 2]));
+    $node->relate('parent_node', 1);
+    $node->relate('parent_node', 2);                  // egyes kapcsolatnál lecseréli
+    check($node->relatedIds('parent_node') === [2]);
+
+    $node->relate('owner_node', $service->create($admin, 'category', ['title' => 'Nem node']));
+    throws(ValidationException::class, fn () => $repository->save($node));   // rossz Blueprint
+});
+
+test('Önhivatkozás tiltott; a cél törlésekor a kapcsolat megszűnik', function () use ($blueprints, $repository, $service, $admin): void {
+    $blueprints->define('loose', ['capabilities' => [Titled::class], 'relations' => [new Relation('parent_loose', Cardinality::One)]]);
+    $loose = $repository->create('loose', ['title' => 'Laza']);
+    $repository->save($loose);
+    $loose->relate('parent_loose', $loose);
+    throws(ValidationException::class, fn () => $repository->save($loose));
+
+    $target = $service->create($admin, 'category', ['title' => 'Törlendő kategória'], publish: true);
+    $article = $service->create($admin, 'article', ['title' => 'Kaszkád cikk']);
+    $article->relate('categories', $target);
+    $repository->save($article);
+    $service->delete($admin, $target);
+    check($repository->find((int) $article->id())?->relatedIds('categories') === []);
+});
+
+test('Kapcsolatnév ütközései', function () use ($blueprints): void {
+    throws(CapabilityException::class, fn () => $blueprints->define('x', [
+        'capabilities' => [Titled::class],
+        'relations' => [new Relation('title')],                              // mezőnév
+    ]));
+    throws(CapabilityException::class, fn () => $blueprints->define('y', [
+        'capabilities' => [Titled::class],
+        'relations' => [new Relation('categories', Cardinality::One)],       // az 'article'-ben másként szerepel
+    ]));
+    $blueprints->define('z', [
+        'capabilities' => [Titled::class],
+        'relations' => [new Relation('categories', Cardinality::Many, targetBlueprints: ['category'], label: 'Kategóriák')],
+    ]);                                                                      // azonos definíció: megengedett
+});
+
 // --- A dokumentáció példái ---------------------------------------------------
 
 echo "\nDokumentációs példák\n";
@@ -332,6 +453,24 @@ test('Kernel: a felülírt szolgáltatás több kérésen át megmarad', functio
     check($first->status === 200 && $second->status === 200, "{$first->status} / {$second->status}");
     check(str_contains($first->body, 'href="/alkonyvtar/hirek"'), 'az első kérés URL-előtagja hiányzik');
     check(str_contains($second->body, 'href="/hirek"') && !str_contains($second->body, '/alkonyvtar'), 'a második kérés URL-előtagja rossz');
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('Kernel: kategóriaoldal a cikkeivel, cikkoldal a látható kategóriákkal', function (): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    if ($kernel->container()->get(Connection::class)->prefix() !== 'test_') {
+        echo "      (kihagyva: a config/local.php saját prefixet ad meg)\n";
+
+        return;
+    }
+    $category = $kernel->handle(new Request('GET', '/kat-tudomany'));
+    check($category->status === 200 && str_contains($category->body, 'Cikkek ebben a kategóriában'), (string) $category->status);
+    check(str_contains($category->body, 'Kapcsolt cikk'), 'a kategória cikke hiányzik');
+
+    $article = $kernel->handle(new Request('GET', '/kapcsolt-cikk'));
+    check(str_contains($article->body, 'href="/kat-tudomany"') && str_contains($article->body, 'href="/kat-tortenelem"'));
+    check(!str_contains($article->body, 'Kat Rejtett'), 'a piszkozat kategória látszik');
     putenv('CAMPANELLA_DB_PREFIX');
 });
 

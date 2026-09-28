@@ -1,4 +1,4 @@
-# Campanella 0.0.1
+# Campanella 0.0.2
 
 Capability-vezérelt CMS. Nincsenek előre rögzített tartalomtípusok: az objektum
 viselkedését a rá szerelt képességek (capability-k) határozzák meg.
@@ -75,6 +75,19 @@ Az adatbázis-beállításokat a `compose.yaml` környezeti változói adják me
 (`CAMPANELLA_DB_HOST`, `CAMPANELLA_DB_NAME` stb.). Dockerben ne legyen
 `config/local.php`, mert az felülírná ezeket.
 
+## Frissítés új verzióra
+
+```bash
+git pull                        # vagy az új csomag feltöltése
+composer install --no-dev       # ha a függőségek változtak
+php bin/campanella install      # új táblák létrehozása, sémaverzió frissítése
+php bin/campanella seed         # opcionális: az új példatartalmak hozzáadása
+```
+
+Ha a kód újabb, mint az adatbázis sémája, a weboldal 503-as oldalon, a
+`status` parancs pedig szövegesen jelzi, hogy az `install` futtatása szükséges.
+A változásokat verziónként a [CHANGELOG](CHANGELOG.md) sorolja fel.
+
 ## Parancsok
 
 | Parancs | Leírás |
@@ -142,6 +155,16 @@ kerülnek.
 szűrünk vagy rendezünk, az a capability saját táblájába kerül. Data mezőre
 szűrni a QueryCompiler nem is enged.
 
+**Kapcsolat (0.0.2).** Irányított, elnevezett kapcsolat objektumok között,
+pl. cikk → kategóriák. A mezőkhöz hasonlóan Blueprint vagy capability adja meg:
+
+```php
+$article->relate('categories', $science);
+Query::objects()->whereRelated('categories', $science);   // a kategória cikkei
+```
+
+Részletesen: [docs/php-api/10-kapcsolatok.md](docs/php-api/10-kapcsolatok.md).
+
 **Query.** Deklaratív és megváltoztathatatlan:
 
 ```php
@@ -161,8 +184,8 @@ az adatbázisból.
 `published_at` már elmúlt, így a jövőbeli dátummal publikált tartalom
 magától jelenik meg.
 
-## Ami szándékosan kimaradt a 0.0.1-ből
+## Ami még nincs benne
 
-Bejelentkezés és admin felület, Relationship, Hierarchical, Component / Region /
-Layout, Webform, Event / Action, cache, migrációk (meglévő tábla módosítása),
-többnyelvűség, WYSIWYG szerkesztő és HTML-szűrő.
+Bejelentkezés és admin felület, Hierarchical (menü, taxonómia-fa),
+Component / Region / Layout, Webform, Event / Action, cache, migrációk
+(meglévő tábla módosítása), többnyelvűség, WYSIWYG szerkesztő és HTML-szűrő.

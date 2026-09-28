@@ -19,6 +19,7 @@ use Twig\TwigFunction;
  *   {{ url('/hirek') }}                 alkönyvtár-biztos URL
  *   {{ asset('campanella.css') }}       public/assets/ alatti fájl
  *   {{ render_object(item, 'teaser') }} egy objektum egy megjelenítési módban
+ *   {{ related(object, 'categories') }} egy kapcsolat betöltött célobjektumai
  *   {{ object|body }}                   a Textual törzs biztonságos HTML-je
  */
 final class CampanellaTwigExtension extends AbstractExtension implements GlobalsInterface
@@ -42,6 +43,7 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
             new TwigFunction('url', $this->url(...)),
             new TwigFunction('asset', fn (string $path): string => $this->url('/assets/' . ltrim($path, '/'))),
             new TwigFunction('render_object', $this->renderObject(...), ['is_safe' => ['html']]),
+            new TwigFunction('related', $this->related(...)),
         ];
     }
 
@@ -67,6 +69,19 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
     public function renderObject(CampanellaObject $object, string $mode = Presentation::TEASER): string
     {
         return ($this->presentation)()->renderObject($object, $mode);
+    }
+
+    /**
+     * Egy kapcsolat betöltött célobjektumai. Ha a controller nem töltötte be
+     * őket (RelationLoader), vagy az objektumnak nincs ilyen kapcsolata: üres lista.
+     *
+     * @return list<CampanellaObject>
+     */
+    public function related(CampanellaObject $object, string $relation): array
+    {
+        return $object->hasRelation($relation) && $object->isResolved($relation)
+            ? $object->relatedObjects($relation)
+            : [];
     }
 
     public function body(CampanellaObject $object): string

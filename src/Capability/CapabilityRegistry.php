@@ -28,6 +28,9 @@ final class CapabilityRegistry
     /** @var array<string, Closure(Query): Query> */
     private array $scopes = [];
 
+    /** @var array<string, string> kapcsolatnév => capability-név */
+    private array $relationOwners = [];
+
     /** @param list<class-string<Capability>> $classes */
     public function __construct(array $classes = [])
     {
@@ -53,6 +56,17 @@ final class CapabilityRegistry
                 ));
             }
         }
+        foreach ($definition->relations as $relationName => $_) {
+            if (isset($this->relationOwners[$relationName]) || isset($this->fieldOwners[$relationName])
+                || isset($definition->fields[$relationName])) {
+                throw new CapabilityException("A(z) '{$relationName}' kapcsolatnév már foglalt (kapcsolat vagy mező).");
+            }
+        }
+        foreach ($definition->fields as $fieldName => $_) {
+            if (isset($this->relationOwners[$fieldName])) {
+                throw new CapabilityException("A(z) '{$fieldName}' mezőnév már egy kapcsolat neve.");
+            }
+        }
         foreach ($class::scopes() as $scopeName => $scope) {
             if (isset($this->scopes[$scopeName])) {
                 throw new CapabilityException("A(z) '{$scopeName}' scope már létezik.");
@@ -64,6 +78,9 @@ final class CapabilityRegistry
         $this->names[$class] = $definition->name;
         foreach ($definition->fields as $fieldName => $_) {
             $this->fieldOwners[$fieldName] = $definition->name;
+        }
+        foreach ($definition->relations as $relationName => $_) {
+            $this->relationOwners[$relationName] = $definition->name;
         }
 
         return $definition;
@@ -128,6 +145,14 @@ final class CapabilityRegistry
     public function fieldOwner(string $fieldName): ?CapabilityDefinition
     {
         $owner = $this->fieldOwners[$fieldName] ?? null;
+
+        return $owner === null ? null : $this->definitions[$owner];
+    }
+
+    /** Melyik capability-hez tartozik a kapcsolat (ha capability-kapcsolat). */
+    public function relationOwner(string $relationName): ?CapabilityDefinition
+    {
+        $owner = $this->relationOwners[$relationName] ?? null;
 
         return $owner === null ? null : $this->definitions[$owner];
     }

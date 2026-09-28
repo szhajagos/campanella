@@ -11,4 +11,5 @@ declare(strict_types=1);
 return [
     '/' => ['query', ['query' => 'frontpage', 'title' => '']],
     '/hirek' => ['query', ['query' => 'news', 'title' => 'Hírek', 'per_page' => 5]],
+    '/kategoriak' => ['query', ['query' => 'categories', 'title' => 'Kategóriák']],
 ];

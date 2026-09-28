@@ -19,7 +19,8 @@ csak a nyilvánosan látható tartalom jelenik meg.
 | `GET /` | `config/routes.php` → Query `frontpage` | A 3 legfrissebb publikált cikk |
 | `GET /hirek` | `config/routes.php` → Query `news` | Publikált cikkek, oldalanként 5 |
 | `GET /hirek?page=N` | | Lapozás; nem létező oldal: 404 |
-| `GET /<útvonal>` | Routable objektum | Az objektum saját oldala, pl. `/neumann-janos` |
+| `GET /kategoriak` | `config/routes.php` → Query `categories` | Publikált kategóriák ábécérendben (0.0.2) |
+| `GET /<útvonal>` | Routable objektum | Az objektum saját oldala, pl. `/neumann-janos`. A kapcsolatai linkként, a Blueprint `lists` listái alatta (pl. `/tudomany`: a kategória cikkei) |
 | `GET /assets/<fájl>` | `public/assets/` | Statikus fájlok |
 
 | Státusz | Mikor |
@@ -63,9 +64,15 @@ Minden válasz `X-Content-Type-Options: nosniff` fejlécet kap.
     "lead": "A számítógép-architektúra egyik atyja.",
     "body": "Neumann János 1903-ban született Budapesten.",
     "format": "plain"
+  },
+  "relations": {
+    "categories": ["01926f3a-6b2d-7c11-8e0f-1a2b3c4d5e6f"]
   }
 }
 ```
+
+A `relations` a kapcsolatok céljainak UUID-jait adja, a kapcsolat
+sorrendjében. Csak az olvasó által látható célok szerepelnek benne.
 
 ### Végpontok
 
@@ -95,6 +102,7 @@ GET /api/v1/objects?blueprint=article&having=routable,publishable
 | `blueprint=a,b` | `blueprint('a', 'b')` |
 | `having=x,y` | `having('x', 'y')` |
 | `filter[mező]=érték` | `where('mező', '=', 'érték')` |
+| `related[kapcsolat]=uuid,uuid` | `whereRelated('kapcsolat', …)` |
 | `filter[mező][op]=érték` | `where('mező', op, 'érték')`, ahol `op`: `eq`, `ne`, `lt`, `lte`, `gt`, `gte`, `in`, `like`, `null` |
 | `scope=published` | `scope('published')` |
 | `sort=mező`, `sort=-mező` | `orderBy('mező', 'ASC')`, illetve `'DESC'`; vesszővel több is megadható |
@@ -126,8 +134,11 @@ Válasz: `201 Created`, az új objektummal és `Location` fejléccel.
 `PATCH` esetén csak a megadott mezők változnak:
 
 ```json
-{ "fields": { "title": "Javított cím" } }
+{ "fields": { "title": "Javított cím" }, "relations": { "categories": ["01926f3a-…"] } }
 ```
+
+A megadott kapcsolat összes célja lecserélődik (`setRelated()`); a nem
+említett kapcsolatok nem változnak.
 
 ### Hibák
 
@@ -168,5 +179,5 @@ látogatóként. Utána:
 
 - CORS-beállítások (más domainről futó alkalmazásokhoz)
 - Kérésszám-korlátozás
-- Kapcsolódó objektumok beágyazása (`?include=author`), a Relationship után
+- Kapcsolódó objektumok beágyazása (`?include=categories`) a UUID-lista helyett
 - Többnyelvű mezők ábrázolása

@@ -7,6 +7,7 @@ namespace Campanella\Capability;
 use Campanella\Model\CampanellaObject;
 use Campanella\Model\Field;
 use Campanella\Query\Query;
+use Campanella\Relation\Relation;
 use Closure;
 
 /**
@@ -17,6 +18,7 @@ use Closure;
  *  1. Statikus leírást (a rendszer ebből épít sémát és lekérdezést):
  *     - AsCapability attribútum: név, függőségek
  *     - fields(): milyen mezőket hoz, és azok hol tárolódnak
+ *     - relations(): milyen kapcsolatokat hoz (pl. szerző, szülő)
  *     - scopes(): elnevezett lekérdezési szűrők (pl. 'published')
  *
  *  2. Viselkedést egy konkrét objektumon. A capability egy adapter,
@@ -35,6 +37,16 @@ abstract class Capability
 
     /** @return list<Field> */
     abstract public static function fields(): array;
+
+    /**
+     * A capability által hozott kapcsolatok.
+     *
+     * @return list<Relation>
+     */
+    public static function relations(): array
+    {
+        return [];
+    }
 
     /**
      * Elnevezett lekérdezési szűrők. A kulcs rendszerszinten egyedi.

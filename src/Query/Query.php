@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Campanella\Query;
 
+use Campanella\Model\CampanellaObject;
 use Campanella\Query\Condition\Condition;
 use Campanella\Query\Condition\FieldCondition;
 use Campanella\Query\Condition\Group;
 use Campanella\Query\Condition\HasCapability;
+use Campanella\Query\Condition\RelatedTo;
 
 /**
  * Deklaratív lekérdezés: „milyen objektumokat szeretnék?”
@@ -83,6 +85,23 @@ final class Query
         }
 
         return $this->whereCondition(new FieldCondition($field, $operator, $value));
+    }
+
+    /**
+     * Csak azok az objektumok, amelyeknek a kapcsolata a megadott célok
+     * valamelyikére mutat; cél nélkül: amelyeknek van ilyen kapcsolata.
+     *
+     *     Query::objects()->whereRelated('categories', $category)   // a kategória cikkei
+     */
+    public function whereRelated(string $relation, CampanellaObject|int ...$targets): self
+    {
+        return $this->whereCondition(new RelatedTo($relation, self::targetIds($targets)));
+    }
+
+    /** Csak azok, amelyeknek a kapcsolata nem mutat a célokra (cél nélkül: nincs ilyen kapcsolatuk). */
+    public function whereNotRelated(string $relation, CampanellaObject|int ...$targets): self
+    {
+        return $this->whereCondition(new RelatedTo($relation, self::targetIds($targets), negated: true));
     }
 
     public function whereCondition(Condition $condition): self
@@ -169,5 +188,19 @@ final class Query
     public function getOffset(): int
     {
         return $this->offset;
+    }
+
+    /**
+     * @param array<CampanellaObject|int> $targets
+     * @return list<int>
+     */
+    private static function targetIds(array $targets): array
+    {
+        return array_values(array_unique(array_map(
+            static fn (CampanellaObject|int $t): int => $t instanceof CampanellaObject
+                ? ($t->id() ?? throw new QueryException('Kapcsolat-feltételben csak elmentett objektum szerepelhet.'))
+                : $t,
+            $targets,
+        )));
     }
 }

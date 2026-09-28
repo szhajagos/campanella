@@ -70,6 +70,12 @@ final class Installer
         return $this->db->tableExists(CoreSchema::SYSTEM) && $this->systemValue('schema_version') !== null;
     }
 
+    /** Telepítve van, de a séma régebbi a kódnál: az install futtatása szükséges. */
+    public function needsUpgrade(): bool
+    {
+        return $this->isInstalled() && $this->systemValue('schema_version') !== Version::SCHEMA;
+    }
+
     public function systemValue(string $name): ?string
     {
         $value = $this->db->fetchValue('SELECT value FROM {system} WHERE name = :name', ['name' => $name]);

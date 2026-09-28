@@ -31,6 +31,8 @@ $search = $base->where('title', 'LIKE', 'Neumann%');   // $base változatlan
 | `having(string ...$capabilities)` | Csak az összes megadott capability-vel rendelkezők. Név vagy osztálynév |
 | `blueprint(string ...$blueprints)` | Egy névnél `=`, többnél `IN` |
 | `where(string $field, Operator\|string $operator, mixed $value = null)` | Mezőfeltétel, ÉS kapcsolattal a többihez |
+| `whereRelated(string $relation, CampanellaObject\|int ...$targets)` | Kapcsolat a célok valamelyikére; cél nélkül: van ilyen kapcsolata ([10. fejezet](10-kapcsolatok.md#lekérdezés-kapcsolat-szerint)) |
+| `whereNotRelated(string $relation, CampanellaObject\|int ...$targets)` | Az előző tagadása |
 | `whereCondition(Condition $condition)` | Tetszőleges feltétel, pl. VAGY-csoport |
 | `scope(string $name)` | Egy capability által definiált, elnevezett szűrő |
 | `orderBy(string $field, Direction\|string $direction = Direction::Asc)` | Többször hívható; a sorrend a hívások sorrendje |
@@ -118,6 +120,7 @@ nyelvben fogalmazhatók meg.
 | `FieldCondition(string $field, Operator $operator, mixed $value = null)` | `mező OPERÁTOR érték` |
 | `HasCapability(string $capability, bool $negated = false)` | Rendelkezik-e (vagy nem) a capability-vel |
 | `Group(bool $any, list<Condition> $conditions)` | `$any = false`: ÉS, `true`: VAGY. Egymásba ágyazható |
+| `RelatedTo(string $relation, list<int> $targets = [], bool $negated = false)` | Van-e kapcsolata a célok valamelyikével (üres lista: bármelyikkel) |
 
 `Group` segédmetódusai: `static all(Condition ...)`, `static any(Condition ...)`,
 `with(Condition): self` (új csoport a feltétellel kiegészítve).
@@ -193,7 +196,9 @@ RSS vagy CSV forrásául.
 
 `Campanella\Query\QueryCompiler`, `Campanella\Query\CompiledQuery` · **Belső**
 
-A `QueryCompiler` a Query-t SQL-re fordítja. `compile(Query): CompiledQuery` az
+A `QueryCompiler` a Query-t SQL-re fordítja. Konstruktora:
+`__construct(CapabilityRegistry $capabilities, ?BlueprintRegistry $blueprints = null)`;
+a `BlueprintRegistry` nélkül kapcsolat-feltétel nem fordítható. `compile(Query): CompiledQuery` az
 azonosítókat lekérdező `SELECT`-et adja rendezéssel és lapozással,
 `compileCount(Query): CompiledQuery` a `COUNT(*)`-ot. A `CompiledQuery` két
 mezője: `$sql` (táblanevek `{objects}` alakú helyőrzőkkel) és `$params`.
@@ -211,3 +216,4 @@ csak hibakereséshez érdemes használni.
 | `IN`/`NOT IN` üres vagy nem tömb értékkel | `QueryException` |
 | `limit` 1-nél kisebb; `offset` `limit` nélkül | `QueryException` |
 | Ismeretlen scope vagy capability | `CapabilityException` |
+| Ismeretlen kapcsolat, mentetlen cél a `whereRelated`-ben | `QueryException` |

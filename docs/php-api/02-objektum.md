@@ -51,6 +51,12 @@ vissza.
 
 A beállítás csak memóriában történik; az adatbázisba a mentés viszi.
 
+### Kapcsolatok
+
+A `relations()`, `hasRelation()`, `relatedIds()`, `setRelated()`, `relate()`,
+`unrelate()`, `relatedObjects()` és `isResolved()` metódusokat a
+[10. Kapcsolatok](10-kapcsolatok.md#az-objektumon) fejezet írja le.
+
 ### Sablonokból
 
 A `__get()` és `__isset()` csak olvasható hozzáférést ad, hogy a Twig-sablonok
@@ -150,7 +156,10 @@ return [
 | `$name`, `$label` | Név (`^[a-z][a-z0-9_]{0,62}$`) és felirat |
 | `$capabilities` | `array<string, CapabilityDefinition>`, a függőségekkel kiegészítve |
 | `$fields` | Csak a Blueprint saját mezői; mindig `FieldStorage::Data` tárolásúak |
+| `$relations` | Csak a Blueprint saját kapcsolatai (`array<string, Relation>`) |
+| `$lists` | Az objektum oldalán megjelenő listák ([10. fejezet](10-kapcsolatok.md#listák-az-objektum-oldalán)) |
 | `allFields()` | A capability-mezők és a saját mezők együtt |
+| `allRelations()` | A capability-kapcsolatok és a saját kapcsolatok együtt |
 
 A függőségeket nem kell felsorolni: a `page` Blueprint a `Routable` miatt
 automatikusan megkapja a `Titled`-et is.
@@ -165,10 +174,12 @@ automatikusan megkapja a `Titled`-et is.
 | `define(string $name, array $definition): Blueprint` | Új Blueprint felvétele futásidőben |
 | `get(string $name): Blueprint` | `CapabilityException`, ha nincs ilyen |
 | `find(string $name): ?Blueprint` | Ugyanez, de `null`, ha nincs ilyen |
+| `relation(string $name): ?Relation` | Egy kapcsolat definíciója név szerint, akár capability, akár Blueprint adja |
 | `all(): array<string, Blueprint>` | Az összes |
 
 A `define()` `CapabilityException`-t dob érvénytelen névre, ismeretlen
-capability-re, és ha egy saját mező neve ütközik egy capability-mezővel.
+capability-re, és ha egy saját mező vagy kapcsolat neve ütközik egy
+capability mezőjével vagy kapcsolatával.
 
 ## Ismert korlát (0.0.1)
 

@@ -11,6 +11,7 @@ use Campanella\Database\Schema\ForeignKey;
 use Campanella\Database\Schema\Table;
 use Campanella\Model\Field;
 use Campanella\Model\FieldStorage;
+use Campanella\Relation\Relation;
 use ReflectionClass;
 
 /**
@@ -22,6 +23,7 @@ final readonly class CapabilityDefinition
      * @param class-string<Capability> $class
      * @param list<class-string<Capability>> $requires
      * @param array<string, Field> $fields
+     * @param array<string, Relation> $relations
      */
     public function __construct(
         public string $name,
@@ -29,6 +31,7 @@ final readonly class CapabilityDefinition
         public array $requires,
         public array $fields,
         public string $label,
+        public array $relations = [],
     ) {
     }
 
@@ -51,8 +54,12 @@ final readonly class CapabilityDefinition
         foreach ($class::fields() as $field) {
             $fields[$field->name] = $field;
         }
+        $relations = [];
+        foreach ($class::relations() as $relation) {
+            $relations[$relation->name] = $relation;
+        }
 
-        return new self($meta->name, $class, $meta->requires, $fields, $meta->label ?: ucfirst($meta->name));
+        return new self($meta->name, $class, $meta->requires, $fields, $meta->label ?: ucfirst($meta->name), $relations);
     }
 
     /** A capability saját táblájának neve (prefix nélkül). */

@@ -21,6 +21,7 @@ use Campanella\Model\BlueprintRegistry;
 use Campanella\Model\ObjectRepository;
 use Campanella\Query\QueryCompiler;
 use Campanella\Query\QueryEngine;
+use Campanella\Relation\RelationLoader;
 use Campanella\Service\ObjectService;
 use Campanella\View\CampanellaTwigExtension;
 use Campanella\View\Presentation;
@@ -104,10 +105,14 @@ final class Kernel
 
         $c->set(QueryEngine::class, static fn (Container $c): QueryEngine => new QueryEngine(
             $c->get(Connection::class),
-            new QueryCompiler($c->get(CapabilityRegistry::class)),
+            new QueryCompiler($c->get(CapabilityRegistry::class), $c->get(BlueprintRegistry::class)),
             $c->get(ObjectRepository::class),
             $c->get(CapabilityRegistry::class),
             $c->get(AccessPolicy::class),
+        ));
+
+        $c->set(RelationLoader::class, static fn (Container $c): RelationLoader => new RelationLoader(
+            $c->get(QueryEngine::class),
         ));
 
         $c->set(ObjectService::class, static fn (Container $c): ObjectService => new ObjectService(
@@ -165,12 +170,15 @@ final class Kernel
         $c->set('controller.object', static fn (Container $c): Controller => new ObjectController(
             $c->get(QueryEngine::class),
             $c->get(Presentation::class),
+            $c->get(BlueprintRegistry::class),
+            $c->get(RelationLoader::class),
         ));
 
         $c->set('controller.query', static fn (Container $c): Controller => new QueryController(
             $c->get(QueryEngine::class),
             $c->get(Presentation::class),
             require $root . '/config/queries.php',
+            $c->get(RelationLoader::class),
         ));
 
         return $c;
@@ -181,11 +189,17 @@ final class Kernel
         $debug = false;
         try {
             $debug = (bool) $this->container()->get(Config::class)->get('debug', false);
-            if ($e instanceof \PDOException && !$this->container()->get(Installer::class)->isInstalled()) {
-                return $this->errorResponse(
-                    503,
-                    'A Campanella még nincs telepítve. Futtasd: php bin/campanella install',
-                );
+            if ($e instanceof \PDOException) {
+                $installer = $this->container()->get(Installer::class);
+                if (!$installer->isInstalled()) {
+                    return $this->errorResponse(503, 'A Campanella még nincs telepítve. Futtasd: php bin/campanella install');
+                }
+                if ($installer->needsUpgrade()) {
+                    return $this->errorResponse(
+                        503,
+                        'Az adatbázis frissítésre szorul (új verzió). Futtasd: php bin/campanella install',
+                    );
+                }
             }
         } catch (\Throwable) {
             // A hibakezelés maga ne dobjon hibát.

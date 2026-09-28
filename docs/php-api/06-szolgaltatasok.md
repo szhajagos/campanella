@@ -42,16 +42,17 @@ jogosultságot**: olvasáshoz a `QueryEngine`-t, íráshoz az `ObjectService`-t
 | `create(string $blueprint, array $values = []): CampanellaObject` | Új, még el nem mentett objektum a Blueprint capability-ivel, alapértékekkel. `OutOfBoundsException` ismeretlen mezőre, `CapabilityException` ismeretlen Blueprintre |
 | `find(int $id): ?CampanellaObject` | |
 | `findByUuid(string $uuid): ?CampanellaObject` | |
-| `loadMany(array $ids): array<int, CampanellaObject>` | Több objektum egyszerre, a bemenet sorrendjében, azonosító szerint kulcsolva. Capability-táblánként egyetlen lekérdezés fut |
+| `loadMany(array $ids): array<int, CampanellaObject>` | Több objektum egyszerre, a bemenet sorrendjében, azonosító szerint kulcsolva. Capability-táblánként egyetlen lekérdezés fut, a kapcsolatoké is egy |
 | `save(CampanellaObject $object): void` | Mentés (lásd lent) |
 | `delete(CampanellaObject $object): void` | Törlés; a capability-sorokat az adatbázis kaszkádolva törli. Mentetlen objektumnál nem csinál semmit |
 
 ### A mentés lépései
 
 1. Minden capability `prepareForSave()` metódusa lefut, függőségi sorrendben.
-2. Kötelező mezők ellenőrzése: hiány esetén `ValidationException`.
+2. Ellenőrzés: kötelező mezők, és a kapcsolatok (kötelező-e, létezik-e a cél,
+   megfelel-e a definíciónak). Hiba esetén `ValidationException`.
 3. Egy tranzakcióban: az `objects` sor (a `Data` mezők JSON-ként), az
-   `object_capabilities` sorok és a capability-táblák sorai.
+   `object_capabilities` sorok, a capability-táblák sorai és a kapcsolatok.
 4. Egyedi érték ütközésekor (pl. foglalt útvonal) a tranzakció visszagördül, és
    `ValidationException` keletkezik; félkész objektum nem marad az adatbázisban.
 5. Az objektum megkapja az azonosítóját és az `updated` időpontot.

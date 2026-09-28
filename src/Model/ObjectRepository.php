@@ -20,6 +20,7 @@ use PDOException;
  *   objects              – identitás + a data (JSON) oszlop
  *   object_capabilities  – milyen capability-kkel rendelkezik
  *   cap_<név>            – a capability-k lekérdezhető mezői
+ *   relationships        – kapcsolatok más objektumokkal
  *
  * Listák betöltésekor táblánként egyetlen lekérdezés fut (nincs N+1).
  * Később ide épül be az object cache is.
@@ -66,6 +67,7 @@ final class ObjectRepository
             $values,
             $now,
             $now,
+            $definition->allRelations(),
         );
     }
 
@@ -129,6 +131,18 @@ final class ObjectRepository
             }
         }
 
+        // Kapcsolatok: az összes betöltendő objektumé egyetlen lekérdezéssel, sorrendben.
+        /** @var array<int, array<string, list<int>>> $relatedIds */
+        $relatedIds = [];
+        $relationRows = $this->db->fetchAll(
+            "SELECT source_id, type, target_id FROM {relationships} WHERE source_id IN ({$in})"
+            . ' ORDER BY source_id, type, weight, id',
+            $params,
+        );
+        foreach ($relationRows as $row) {
+            $relatedIds[(int) $row['source_id']][(string) $row['type']][] = (int) $row['target_id'];
+        }
+
         $objects = [];
         foreach ($ids as $id) {
             if (!isset($rows[$id])) {
@@ -138,6 +152,7 @@ final class ObjectRepository
                 $rows[$id],
                 $this->orderCapabilities($objectCapabilities[$id] ?? []),
                 $tableValues,
+                $relatedIds[$id] ?? [],
             );
         }
 
@@ -187,6 +202,18 @@ final class ObjectRepository
             foreach ($object->capabilities() as $definition) {
                 if ($definition->hasTable()) {
                     $this->writeCapabilityRow($db, $definition, $id, $object);
+                }
+            }
+
+            foreach ($object->relations() as $name => $_) {
+                $db->delete(CoreSchema::RELATIONSHIPS, ['source_id' => $id, 'type' => $name]);
+                foreach ($object->relatedIds($name) as $weight => $targetId) {
+                    $db->insert(CoreSchema::RELATIONSHIPS, [
+                        'source_id' => $id,
+                        'type' => $name,
+                        'target_id' => $targetId,
+                        'weight' => $weight,
+                    ]);
                 }
             }
 
@@ -246,27 +273,97 @@ final class ObjectRepository
                 $errors[$name] = 'kötelező mező';
             }
         }
+        $errors += $this->validateRelations($object);
         if ($errors !== []) {
             throw new ValidationException($errors);
         }
     }
 
     /**
+     * A kapcsolatok ellenőrzése: kötelező kapcsolat, önhivatkozás, és hogy a
+     * célok léteznek-e, és megfelelnek-e a definíciónak (Blueprint, capability-k).
+     *
+     * @return array<string, string> kapcsolatnév => hibaüzenet
+     */
+    private function validateRelations(CampanellaObject $object): array
+    {
+        $errors = [];
+        $allTargets = [];
+        foreach ($object->relations() as $name => $relation) {
+            $ids = $object->relatedIds($name);
+            if ($relation->required && $ids === []) {
+                $errors[$name] = 'kötelező kapcsolat';
+            } elseif ($object->id() !== null && in_array($object->id(), $ids, true)) {
+                $errors[$name] = 'az objektum nem mutathat önmagára';
+            }
+            array_push($allTargets, ...$ids);
+        }
+        $allTargets = array_values(array_unique($allTargets));
+        if ($allTargets === []) {
+            return $errors;
+        }
+
+        [$in, $params] = self::inList($allTargets);
+        $blueprints = [];
+        foreach ($this->db->fetchAll("SELECT id, blueprint FROM {objects} WHERE id IN ({$in})", $params) as $row) {
+            $blueprints[(int) $row['id']] = (string) $row['blueprint'];
+        }
+        $capabilities = [];
+        $sql = "SELECT object_id, capability FROM {object_capabilities} WHERE object_id IN ({$in})";
+        foreach ($this->db->fetchAll($sql, $params) as $row) {
+            $capabilities[(int) $row['object_id']][(string) $row['capability']] = true;
+        }
+
+        foreach ($object->relations() as $name => $relation) {
+            if (isset($errors[$name])) {
+                continue;
+            }
+            $required = array_map(fn (string $c): string => $this->capabilities->get($c)->name, $relation->targetCapabilities);
+            foreach ($object->relatedIds($name) as $targetId) {
+                if (!isset($blueprints[$targetId])) {
+                    $errors[$name] = "a cél (#{$targetId}) nem létezik";
+                } elseif ($relation->targetBlueprints !== [] && !in_array($blueprints[$targetId], $relation->targetBlueprints, true)) {
+                    $errors[$name] = sprintf(
+                        'a cél (#%d) %s típusú, de csak ez lehet: %s',
+                        $targetId,
+                        $blueprints[$targetId],
+                        implode(', ', $relation->targetBlueprints),
+                    );
+                } else {
+                    $missing = array_diff($required, array_keys($capabilities[$targetId] ?? []));
+                    if ($missing !== []) {
+                        $errors[$name] = sprintf('a célnak (#%d) nincs ilyen capability-je: %s', $targetId, implode(', ', $missing));
+                    }
+                }
+                if (isset($errors[$name])) {
+                    break;
+                }
+            }
+        }
+
+        return $errors;
+    }
+
+    /**
      * @param array<string, mixed> $row
      * @param array<string, CapabilityDefinition> $capabilities
      * @param array<string, array<int, array<string, mixed>>> $tableValues
+     * @param array<string, list<int>> $relatedIds
      */
-    private function hydrate(array $row, array $capabilities, array $tableValues): CampanellaObject
+    private function hydrate(array $row, array $capabilities, array $tableValues, array $relatedIds): CampanellaObject
     {
         $id = (int) $row['id'];
         $blueprint = $this->blueprints->find((string) $row['blueprint']);
 
         $fields = [];
+        $relations = [];
         foreach ($capabilities as $definition) {
             $fields += $definition->fields;
+            $relations += $definition->relations;
         }
         if ($blueprint !== null) {
             $fields += $blueprint->fields;
+            $relations += $blueprint->relations;
         }
 
         $data = [];
@@ -300,6 +397,8 @@ final class ObjectRepository
             $values,
             new DateTimeImmutable((string) $row['created_at'], $utc),
             new DateTimeImmutable((string) $row['updated_at'], $utc),
+            $relations,
+            $relatedIds,
         );
     }
 

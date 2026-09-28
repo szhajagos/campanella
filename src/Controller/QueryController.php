@@ -11,6 +11,7 @@ use Campanella\Http\Response;
 use Campanella\Http\RouteMatch;
 use Campanella\Query\Query;
 use Campanella\Query\QueryEngine;
+use Campanella\Relation\RelationLoader;
 use Campanella\View\Presentation;
 use Closure;
 
@@ -25,6 +26,7 @@ final class QueryController implements Controller
         private readonly QueryEngine $queries,
         private readonly Presentation $presentation,
         private readonly array $definitions,
+        private readonly ?RelationLoader $relations = null,
     ) {
     }
 
@@ -42,6 +44,7 @@ final class QueryController implements Controller
         if ($page > 1 && $result->isEmpty()) {
             throw HttpException::notFound();
         }
+        $this->relations?->resolve($result, $actor);
 
         $list = $this->presentation->renderList($result, $name, (string) ($route->params['item_mode'] ?? 'teaser'), [
             'path' => $request->path,

@@ -36,3 +36,7 @@ h1, h2 { line-height: 1.25; }
 .pager { display: flex; gap: .75rem; margin-top: 1.5rem; font-family: system-ui, sans-serif; }
 .pager span { font-weight: bold; }
 .site-footer { border-top: 1px solid var(--line); color: var(--muted); font: .85rem system-ui, sans-serif; padding-block: 1.5rem; }
+.relations { font-family: system-ui, sans-serif; font-size: .85rem; color: var(--muted); }
+.relations__label { margin-right: .25rem; }
+.object-list { margin-top: 2.5rem; }
+.object-list__title { font-size: 1.2rem; border-bottom: 1px solid var(--line); padding-bottom: .5rem; }

@@ -1,0 +1,19 @@
+{# Az objektum kapcsolatai linkként, pl. „Kategóriák: Tudomány, Campanella”.
+   A céljait a controller tölti be (RelationLoader); a nem látható célok kimaradnak. #}
+{% for name, relation in object.relations %}
+    {% set items = related(object, name) %}
+    {% if items %}
+        <p class="relations relations--{{ name }}">
+            <span class="relations__label">{{ relation.label ?: name }}:</span>
+            {% for item in items -%}
+                {%- if not loop.first %}, {% endif -%}
+                {%- set label = item.title is defined and item.title ? item.title : '#' ~ item.id -%}
+                {%- if item.path is defined and item.path -%}
+                    <a href="{{ url(item.path) }}">{{ label }}</a>
+                {%- else -%}
+                    {{ label }}
+                {%- endif -%}
+            {%- endfor %}
+        </p>
+    {% endif %}
+{% endfor %}

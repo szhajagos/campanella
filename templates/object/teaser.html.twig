@@ -7,5 +7,6 @@
     {% if object.lead is defined and object.lead %}
         <p>{{ object.lead }}</p>
     {% endif %}
+    {{ include('object/_relations.html.twig') }}
     <a class="more" href="{{ url(object.path) }}">Tovább</a>
 </article>

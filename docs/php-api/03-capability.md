@@ -12,6 +12,7 @@ Egy capability két dolgot ad a rendszernek.
 |---|---|---|
 | `#[AsCapability(...)]` attribútum | igen | Név, függőségek, felirat |
 | `static fields(): list<Field>` | igen | Milyen mezőket hoz, és hol tárolódnak |
+| `static relations(): list<Relation>` | nem | Milyen kapcsolatokat hoz ([10. fejezet](10-kapcsolatok.md)) |
 | `static scopes(): array<string, Closure(Query): Query>` | nem | Elnevezett lekérdezési szűrők |
 
 **2. Viselkedés egy konkrét objektumon.** A capability egy adapter, amely az
@@ -52,6 +53,7 @@ Egy capability feldolgozott leírása. A `CapabilityRegistry` készíti.
 | `$name`, `$class`, `$label` | Név, osztálynév, felirat |
 | `$requires` | A függőségek osztálynevei |
 | `$fields` | `array<string, Field>` |
+| `$relations` | `array<string, Relation>` |
 | `static fromClass(string $class): self` | Beolvassa az attribútumot és a mezőket. `CapabilityException`, ha az osztály nem `Capability`, nincs rajta attribútum, vagy érvénytelen a név |
 | `tableName(): string` | `'cap_' . $name` (prefix nélkül) |
 | `tableFields()` / `dataFields()` | A `Table`, illetve a `Data` tárolású mezők |
@@ -72,13 +74,14 @@ kulcsából épül.
 | Metódus | Leírás |
 |---|---|
 | `__construct(array $classes = [])` | Osztálynevek listája |
-| `register(string $class): CapabilityDefinition` | Felvétel. `CapabilityException`, ha a név, egy mezőnév vagy egy scope-név már foglalt |
+| `register(string $class): CapabilityDefinition` | Felvétel. `CapabilityException`, ha a név, egy mező-, kapcsolat- vagy scope-név már foglalt |
 | `get(string $nameOrClass): CapabilityDefinition` | Név vagy osztálynév szerint; `CapabilityException`, ha ismeretlen |
 | `has(string $nameOrClass): bool` | |
 | `all(): array<string, CapabilityDefinition>` | |
 | `resolve(iterable $namesOrClasses): array` | A lista kiegészítve a függőségekkel, függőségi sorrendben. Körkörös függőségnél `CapabilityException` |
 | `fieldOwner(string $field): ?CapabilityDefinition` | Melyik capability-hez tartozik a mező |
 | `field(string $field): ?Field` | A mező definíciója |
+| `relationOwner(string $relation): ?CapabilityDefinition` | Melyik capability-hez tartozik a kapcsolat |
 | `scope(string $name): Closure` | Egy elnevezett szűrő; `CapabilityException`, ha ismeretlen |
 
 ```php
@@ -256,7 +259,7 @@ $pages = $queries->execute(
 
 ### Ellenőrzőlista
 
-- A név, a mezőnevek és a scope-nevek az egész rendszerben egyediek legyenek.
+- A név, a mező-, kapcsolat- és scope-nevek az egész rendszerben egyediek legyenek.
 - Amire szűrni vagy rendezni kell: `FieldStorage::Table`. Minden más: `Data`.
 - A capability ne tartalmazzon adatbázis-hozzáférést és külső szolgáltatást.
   Ami ilyet igényel, az a Service rétegbe kerül.

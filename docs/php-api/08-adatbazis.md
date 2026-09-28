@@ -94,13 +94,14 @@ adja, `create(Table $table): void` le is futtatja.
 `Campanella\Database\Schema\CoreSchema` · **Nyilvános**
 
 `static tables(): list<Table>`, valamint a táblanevek konstansai: `OBJECTS`,
-`OBJECT_CAPABILITIES`, `SYSTEM`.
+`OBJECT_CAPABILITIES`, `SYSTEM`, `RELATIONSHIPS`.
 
 | Tábla | Oszlopok | Szerepe |
 |---|---|---|
 | `cc_system` | `name` (PK), `value` | Rendszerértékek: `schema_version`, `installed_at` |
 | `cc_objects` | `id`, `uuid` (egyedi), `blueprint`, `data` (JSON), `created_at`, `updated_at` | Az objektum identitása és JSON-adatai |
 | `cc_object_capabilities` | `object_id`, `capability` (együtt PK) | Melyik objektum milyen capability-kkel rendelkezik |
+| `cc_relationships` | `id`, `source_id`, `type`, `target_id`, `weight`; egyedi: (`source_id`, `type`, `target_id`) | Kapcsolatok; mindkét oldal törlésekor kaszkád (0.0.2 óta) |
 | `cc_cap_<név>` | `object_id` (PK) + a capability `Table` mezői | Capability-nként egy tábla |
 
 MariaDB-n a `JSON` típus a `LONGTEXT` álneve, beépített `JSON_VALID`
@@ -117,6 +118,7 @@ kérdez le belőle, így a különbség nem számít.
 | `install(): list<string>` | Létrehozza a hiányzó táblákat, beírja a `schema_version` értéket. Ismételten futtatható |
 | `sql(): string` | A teljes DDL, pl. phpMyAdminhoz |
 | `isInstalled(): bool` | |
+| `needsUpgrade(): bool` | Telepítve van, de a `schema_version` régebbi a kódnál: az `install` futtatása szükséges |
 | `systemValue(string $name): ?string` | Egy `cc_system` érték |
 
 Meglévő tábla módosítását (új oszlop, típusváltás) az `install()` nem végzi el;

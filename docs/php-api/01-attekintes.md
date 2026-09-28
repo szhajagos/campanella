@@ -26,7 +26,7 @@ HTTP kérés
 
 | Réteg | Fő osztályok | Fejezet |
 |---|---|---|
-| Model | `CampanellaObject`, `Capability`, `Blueprint`, `ObjectRepository`, `Query`, `QueryEngine`, `AccessPolicy` | 2–5, 6 |
+| Model | `CampanellaObject`, `Capability`, `Blueprint`, `ObjectRepository`, `Query`, `QueryEngine`, `AccessPolicy`, `Relation`, `RelationLoader` | 2–6, 10 |
 | Service | `ObjectService` | 6 |
 | Controller | `ObjectController`, `QueryController` | 7 |
 | View | `Presentation`, `CampanellaTwigExtension`, sablonok | 7 |
@@ -44,6 +44,10 @@ HTTP kérés
 ```php
 $object->as(Publishable::class)->publish();
 ```
+
+**Kapcsolatok.** Az objektumok kapcsolatai (pl. cikk → kategóriák) a mezőkhöz
+hasonlóan definíciók, amelyeket capability vagy Blueprint ad meg. A sablon a
+kapcsolódó objektumokat már betöltve kapja; lásd [10. Kapcsolatok](10-kapcsolatok.md).
 
 **Egyedi mezőnevek.** Minden mezőnév rendszerszinten egyedi, ezért az objektum
 mezői egyszerűen név szerint érhetők el: `$object->get('title')`.
@@ -77,7 +81,9 @@ részhalmaza.
 | `Campanella\Http\HttpException` | HTTP-hiba (pl. 404) a controllerben | `RuntimeException` |
 | `Campanella\Capability\CapabilityException` | Hibás capability-, Blueprint- vagy scope-definíció, hiányzó capability | `LogicException` |
 | `Campanella\Query\QueryException` | Ismeretlen vagy nem lekérdezhető mező, hibás operátor | `LogicException` |
-| `OutOfBoundsException` | Nem létező mező olvasása vagy írása | (PHP) |
+| `OutOfBoundsException` | Nem létező mező vagy kapcsolat olvasása vagy írása | (PHP) |
+| `InvalidArgumentException` | Hibás érték, pl. egyes kapcsolatnál több cél, mentetlen célobjektum | (PHP) |
+| `LogicException` | Programozási hiba, pl. be nem töltött kapcsolat olvasása (`relatedObjects()`) | (PHP) |
 
 A `LogicException` leszármazottai programozási hibát jeleznek: ezeket javítani
 kell, nem elkapni. A `RuntimeException` leszármazottai futás közben, adatból

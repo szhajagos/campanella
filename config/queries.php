@@ -24,4 +24,10 @@ return [
         ->scope('published')
         ->orderBy('published_at', 'DESC')
         ->limit(10),
+
+    'categories' => static fn (): Query => Query::objects()
+        ->blueprint('category')
+        ->scope('published')
+        ->orderBy('title', 'ASC')
+        ->limit(50),
 ];

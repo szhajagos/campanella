@@ -19,6 +19,7 @@ Hibakezelés a `handle()`-ben:
 |---|---|
 | `HttpException` | Hibaoldal a kivétel státuszával |
 | Adatbázis-hiba, és a rendszer még nincs telepítve | 503, telepítési útmutatóval |
+| Adatbázis-hiba, és a séma régebbi a kódnál | 503: „futtasd az install parancsot” |
 | Bármi más | 500; debug módban a kivétel üzenetével. A részletek a PHP hibanaplóba kerülnek |
 
 Saját belépési pont (pl. teszthez):
@@ -52,6 +53,7 @@ a `Kernel` explicit gyártófüggvényei hozzák létre, első kéréskor, egysz
 | `ObjectRepository::class` | Tárolás |
 | `AccessPolicy::class` | Jogosultsági szabály (alapból `DefaultPolicy`) |
 | `QueryEngine::class` | Lekérdezések |
+| `RelationLoader::class` | Kapcsolatok betöltése |
 | `ObjectService::class` | Műveletek |
 | `Installer::class` | Telepítő |
 | `Twig\Environment::class`, `Presentation::class` | Megjelenítés |
@@ -112,8 +114,8 @@ meg van adva, az a projekt gyökere (alapból a `public/` szülőmappája).
 
 `Campanella\Core\Version` · **Nyilvános**
 
-`CAMPANELLA = '0.0.1'` (a rendszer verziója) és `SCHEMA = '1'` (az
-adatbázisséma verziója; migrációnál nő).
+`CAMPANELLA = '0.0.2'` (a rendszer verziója) és `SCHEMA = '2'` (az
+adatbázisséma verziója; új tábla vagy migráció esetén nő).
 
 ## CLI
 
@@ -122,8 +124,8 @@ adatbázisséma verziója; migrációnál nő).
 | Parancs | Leírás |
 |---|---|
 | `install` | Táblák létrehozása; `--sql`: csak kiírja az SQL-t |
-| `seed` | Példatartalom (csak üres adatbázisba) |
-| `status` | Verzió, capability-k, Blueprintek, objektumszám |
+| `seed` | Példatartalom. Ismételten futtatható: ami útvonal alapján már megvan, azt nem hozza létre újra |
+| `status` | Verzió, capability-k, Blueprintek, objektumszám; jelzi, ha az adatbázis frissítésre szorul |
 | `help` | Parancslista |
 
 ### Saját parancs
