@@ -4,7 +4,7 @@
 #   tesztek minden támogatott adatbázison (MariaDB 10.6+, MySQL 8.0+).
 # - Verziócímkénél (v*): telepítőcsomag a vendor/ mappával együtt, a
 #   GitHub-kiadáshoz csatolva. Már meglévő címkéhez kézzel is indítható
-#   (Actions › Ellenőrzés › Run workflow, a címke megadásával).
+#   (Actions → Ellenőrzés → Run workflow, a címke megadásával).
 
 name: Ellenőrzés
 
@@ -31,7 +31,7 @@ jobs:
     name: PHPStan és dokumentáció
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.tag || github.ref }}
 
@@ -52,7 +52,13 @@ jobs:
         run: composer docs:check
 
       - name: Markdown-linkek
-        run: composer docs:links
+        # A 0.0.3-as és korábbi címkékben még nincs linkellenőrző.
+        run: |
+          if [ -f tests/links-check.php ]; then
+            php tests/links-check.php
+          else
+            echo "Ebben a változatban nincs linkellenőrző, kihagyva."
+          fi
 
   tests:
     name: Tesztek – PHP ${{ matrix.php }}, ${{ matrix.db }}
@@ -86,7 +92,7 @@ jobs:
       CAMPANELLA_DB_PASSWORD: campanella
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.tag || github.ref }}
 
@@ -128,7 +134,7 @@ jobs:
       TAG: ${{ inputs.tag || github.ref_name }}
       GH_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.tag || github.ref }}
 
