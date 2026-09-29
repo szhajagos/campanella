@@ -21,6 +21,7 @@ use Campanella\Capability\Routable;
 use Campanella\Capability\Textual;
 use Campanella\Capability\TextFormat;
 use Campanella\Capability\Titled;
+use Campanella\Core\Version;
 use Campanella\Core\Config;
 use Campanella\Database\Connection;
 use Campanella\Database\Installer;
@@ -581,6 +582,8 @@ test('Kernel: belépés és kilépés végig, űrlapon át', function (): void {
     preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $form->body, $m);
     check(isset($m[1]) && str_contains($form->body, 'name="website"'), 'hiányzó CSRF- vagy honeypot-mező');
     check(($form->headers['Cache-Control'] ?? '') === 'private, no-store');
+    check(str_contains($form->body, 'class="hp" aria-hidden="true" style="position:absolute'), 'a honeypot nem rejtett a CSS nélkül');
+    check(str_contains($form->body, 'campanella.css?v=' . Version::CAMPANELLA), 'az asset() nem fűzi hozzá a verziót');
     $storage->endRequest();
 
     $login = $kernel->handle(new Request('POST', '/belepes', post: [
