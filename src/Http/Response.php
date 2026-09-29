@@ -24,6 +24,12 @@ final class Response
         return new self('', $status, ['Location' => $url]);
     }
 
+    /** Új válasz a megadott fejléccel kiegészítve (vagy felülírva). */
+    public function withHeader(string $name, string $value): self
+    {
+        return new self($this->body, $this->status, [$name => $value] + $this->headers);
+    }
+
     public function send(): void
     {
         if (!headers_sent()) {
@@ -32,6 +38,8 @@ final class Response
                 header($name . ': ' . $value);
             }
             header('X-Content-Type-Options: nosniff');
+            header('X-Frame-Options: SAMEORIGIN');
+            header('Referrer-Policy: same-origin');
         }
         echo $this->body;
     }

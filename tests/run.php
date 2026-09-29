@@ -38,6 +38,15 @@ use Campanella\Support\Uuid;
 use Campanella\Relation\Cardinality;
 use Campanella\Relation\Relation;
 use Campanella\Relation\RelationLoader;
+use Campanella\Auth\AuthService;
+use Campanella\Auth\Guard\HoneypotGuard;
+use Campanella\Capability\Authenticatable;
+use Campanella\Capability\Authorable;
+use Campanella\Controller\AuthController;
+use Campanella\Http\ArraySessionStorage;
+use Campanella\Http\Session;
+use Campanella\Security\Csrf;
+use Campanella\Security\Throttle;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
@@ -122,7 +131,7 @@ function throws(string $class, callable $body): void
 
 $config = Config::load(dirname(__DIR__) . '/config');
 $db = Connection::fromConfig(['prefix' => 'test_'] + $config->get('database'));
-$capabilities = new CapabilityRegistry([Titled::class, Textual::class, Routable::class, Publishable::class]);
+$capabilities = new CapabilityRegistry($config->get('capabilities'));
 $blueprints = new BlueprintRegistry($capabilities, require dirname(__DIR__) . '/config/blueprints.php');
 $repository = new ObjectRepository($db, $capabilities, $blueprints);
 $policy = new DefaultPolicy();
@@ -405,6 +414,191 @@ test('Kapcsolatnév ütközései', function () use ($blueprints): void {
         'capabilities' => [Titled::class],
         'relations' => [new Relation('categories', Cardinality::Many, targetBlueprints: ['category'], label: 'Kategóriák')],
     ]);                                                                      // azonos definíció: megengedett
+});
+
+// --- Felhasználók és belépés (0.0.3) ------------------------------------------
+
+echo "\nFelhasználók és belépés\n";
+
+$newUser = static function (string $email, string $password, array $roles = []) use ($repository) {
+    $user = $repository->create('user', ['title' => 'Teszt ' . $email, 'email' => $email]);
+    $user->as(Authenticatable::class)->setPassword($password);
+    $user->as(Authenticatable::class)->setRoles($roles);
+    $repository->save($user);
+
+    return $user;
+};
+$authFor = static function (ArraySessionStorage $storage, array $guards = []) use ($repository, $engine, $db) {
+    $session = new Session($storage, 7200);
+    $csrf = new Csrf($session);
+
+    return [new AuthService($repository, $engine, $session, new Throttle($db), $csrf, ['max_attempts' => 3, 'max_attempts_per_ip' => 50, 'decay_seconds' => 900], $guards), $csrf, $session];
+};
+$req = static fn (array $post = [], string $ip = '10.0.0.1') => new Request($post === [] ? 'GET' : 'POST', '/belepes', post: $post, ip: $ip);
+
+$editorUser = $newUser('Szerkeszto@Example.hu', 'szerkeszto-jelszo', ['editor']);
+
+test('Identifiable: normalizált, egyedi, érvényes e-mail-cím', function () use ($repository, $editorUser, $newUser): void {
+    check($editorUser->get('email') === 'szerkeszto@example.hu');
+    throws(ValidationException::class, fn () => $newUser('szerkeszto@example.hu', 'masik-jelszo-1'));
+    $bad = $repository->create('user', ['title' => 'Rossz', 'email' => 'nem-email']);
+    $bad->as(Authenticatable::class)->setPassword('eleg-hosszu-jelszo');
+    try {
+        $repository->save($bad);
+        check(false, 'nem dobott kivételt');
+    } catch (ValidationException $e) {
+        check(($e->errors['email'] ?? '') === 'érvénytelen e-mail-cím', json_encode($e->errors, JSON_UNESCAPED_UNICODE));
+    }
+});
+
+test('Authenticatable: jelszószabály, hash, rejtett mezők, szerepkörök', function () use ($repository, $editorUser): void {
+    $auth = $editorUser->as(Authenticatable::class);
+    throws(ValidationException::class, fn () => $auth->setPassword('rovid'));
+    throws(ValidationException::class, fn () => $auth->setPassword(str_repeat('x', 73)));
+    check($auth->verifyPassword('szerkeszto-jelszo') && !$auth->verifyPassword('mas-jelszo-1'));
+    check(str_starts_with((string) $editorUser->get('password_hash'), '$2y$') || str_starts_with((string) $editorUser->get('password_hash'), '$argon'));
+    check(!isset($editorUser->password_hash) && $editorUser->password_hash === null, 'a hash látszik a sablonnak');
+    check(!isset($editorUser->email), 'az e-mail-cím látszik a sablonnak');
+
+    $reloaded = $repository->find((int) $editorUser->id());
+    check($reloaded?->as(Authenticatable::class)->roles() === ['editor']);
+    $reloaded->as(Authenticatable::class)->setRoles(['Rossz Szerep']);
+    throws(ValidationException::class, fn () => $repository->save($reloaded));
+});
+
+test('Belépés: hibás adat, siker, új munkamenet-azonosító, Actor', function () use ($authFor, $req): void {
+    $storage = new ArraySessionStorage();
+    [$auth] = $authFor($storage);
+
+    $wrong = $auth->attempt($req(['x' => 1]), 'szerkeszto@example.hu', 'rossz-jelszo-1');
+    $unknown = $auth->attempt($req(['x' => 1]), 'nincs@example.hu', 'rossz-jelszo-1');
+    check(!$wrong->success && $wrong->error === AuthService::GENERIC_ERROR && $unknown->error === AuthService::GENERIC_ERROR);
+
+    $ok = $auth->attempt($req(['x' => 1]), '  SZERKESZTO@example.hu ', 'szerkeszto-jelszo');
+    check($ok->success && $storage->generation() === 1, 'nem cserélődött a munkamenet-azonosító');
+
+    $storage->endRequest();
+    [$next] = $authFor($storage);
+    $actor = $next->currentActor($req());
+    check($actor->kind === \Campanella\Access\ActorKind::User && $actor->hasRole('editor') && str_starts_with($actor->name, 'Teszt'));
+
+    $next->logout();
+    $storage->endRequest();
+    [$after] = $authFor($storage);
+    check($after->currentActor($req())->isAnonymous());
+});
+
+test('Belépés: próbálkozások korlátozása', function () use ($authFor, $req): void {
+    [$auth] = $authFor(new ArraySessionStorage());
+    for ($i = 0; $i < 3; $i++) {
+        $auth->attempt($req(['x' => 1], '10.9.9.9'), 'szerkeszto@example.hu', 'rossz-jelszo-1');
+    }
+    $blocked = $auth->attempt($req(['x' => 1], '10.9.9.9'), 'szerkeszto@example.hu', 'szerkeszto-jelszo');
+    check(!$blocked->success && str_contains($blocked->error, 'Túl sok'), $blocked->error);
+    // Más IP-címről ugyanaz a fiók továbbra is beléphet.
+    check($auth->attempt($req(['x' => 1], '10.8.8.8'), 'szerkeszto@example.hu', 'szerkeszto-jelszo')->success);
+});
+
+test('Belépés: letiltott fiók, és a letiltás a meglévő munkamenetet is megszünteti', function () use ($authFor, $req, $newUser, $repository): void {
+    $user = $newUser('tiltott@example.hu', 'tiltott-jelszo-1');
+    $storage = new ArraySessionStorage();
+    [$auth] = $authFor($storage);
+    check($auth->attempt($req(['x' => 1]), 'tiltott@example.hu', 'tiltott-jelszo-1')->success);
+
+    $user->as(Authenticatable::class)->block();
+    $repository->save($user);
+    $storage->endRequest();
+    [$next] = $authFor($storage);
+    check($next->currentActor($req())->isAnonymous(), 'a letiltott felhasználó belépve maradt');
+    $again = $next->attempt($req(['x' => 1]), 'tiltott@example.hu', 'tiltott-jelszo-1');
+    check(!$again->success && $again->error === 'A fiók le van tiltva.');
+});
+
+test('Honeypot guard és CSRF', function () use ($authFor, $req): void {
+    $storage = new ArraySessionStorage();
+    [$auth, $csrf] = $authFor($storage, [new HoneypotGuard()]);
+    $trap = $auth->attempt($req([HoneypotGuard::FIELD => 'http://spam.example']), 'szerkeszto@example.hu', 'szerkeszto-jelszo');
+    check(!$trap->success && $trap->error === AuthService::GENERIC_ERROR);
+    check(str_contains((new HoneypotGuard())->fields(), 'name="website"'));
+
+    $token = $csrf->token($req());
+    check(strlen($token) === 64);
+    check($csrf->isValid($req([Csrf::FIELD => $token])) && !$csrf->isValid($req([Csrf::FIELD => 'hamis'])));
+    check($auth->attempt($req([HoneypotGuard::FIELD => '']), 'szerkeszto@example.hu', 'szerkeszto-jelszo')->success);
+    check(!$csrf->isValid($req([Csrf::FIELD => $token])), 'a belépés előtti token belépés után is érvényes');
+});
+
+test('Munkamenet: tétlenségi időkorlát', function () use ($req): void {
+    $storage = new ArraySessionStorage();
+    $session = new Session($storage, 60);
+    $session->start($req());
+    $session->set('x', 1);
+    $storage->set('_last_activity', time() - 120);
+    $storage->endRequest();
+    check(!$session->resume($req()) && $session->get('x') === null);
+});
+
+test('Jogosultság: editor szerepkör', function () use ($policy, $engine, $editorUser, $service, $admin): void {
+    $editor = AuthService::actorFor($editorUser);
+    $draft = $service->create($admin, 'article', ['title' => 'Szerkesztői piszkozat']);
+    check($policy->allows($editor, \Campanella\Access\Operation::View, $draft));
+    check($policy->allows($editor, \Campanella\Access\Operation::Publish, $draft));
+    check(!$policy->allows($editor, \Campanella\Access\Operation::Delete, $draft));
+    check(!$policy->allows($editor, \Campanella\Access\Operation::Update, $editorUser), 'editor felhasználót módosíthat');
+    check($engine->count(Query::objects()->where('id', '=', (int) $draft->id()), $editor) === 1);
+});
+
+test('Szerző: a létrehozó felhasználó automatikusan szerző lesz', function () use ($service, $editorUser, $repository, $loader, $anon): void {
+    $article = $service->create(AuthService::actorFor($editorUser), 'article', ['title' => 'Saját cikk'], publish: true);
+    check($article->as(Authorable::class)->authorId() === $editorUser->id());
+    $loaded = $repository->find((int) $article->id());
+    $loader->resolve([$loaded], $anon);
+    check(($loaded->relatedObjects('author')[0] ?? null)?->get('title') === 'Teszt Szerkeszto@Example.hu');
+});
+
+test('Biztonságos visszairányítás', function (): void {
+    foreach (['/hirek' => '/hirek', '//gonosz.hu' => '/', 'https://gonosz.hu' => '/', '/\\gonosz' => '/', '' => '/', "/x\n" => '/'] as $in => $out) {
+        check(AuthController::safeTarget($in) === $out, json_encode($in));
+    }
+});
+
+test('Kernel: belépés és kilépés végig, űrlapon át', function (): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $container = $kernel->container();
+    if ($container->get(Connection::class)->prefix() !== 'test_') {
+        echo "      (kihagyva: a config/local.php saját prefixet ad meg)\n";
+
+        return;
+    }
+    $storage = new ArraySessionStorage();
+    $container->set(Session::class, static fn () => new Session($storage));
+
+    check($kernel->handle(new Request('GET', '/szerkesztoi-piszkozat'))->status === 404);
+    $storage->endRequest();
+
+    $form = $kernel->handle(new Request('GET', '/belepes'));
+    preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $form->body, $m);
+    check(isset($m[1]) && str_contains($form->body, 'name="website"'), 'hiányzó CSRF- vagy honeypot-mező');
+    check(($form->headers['Cache-Control'] ?? '') === 'private, no-store');
+    $storage->endRequest();
+
+    $login = $kernel->handle(new Request('POST', '/belepes', post: [
+        '_csrf' => $m[1], 'email' => 'szerkeszto@example.hu', 'password' => 'szerkeszto-jelszo',
+        'website' => '', 'vissza' => '/szerkesztoi-piszkozat',
+    ], ip: '10.7.7.7'));
+    check($login->status === 303 && ($login->headers['Location'] ?? '') === '/szerkesztoi-piszkozat', (string) $login->status);
+    $storage->endRequest();
+
+    $page = $kernel->handle(new Request('GET', '/szerkesztoi-piszkozat'));
+    check($page->status === 200 && str_contains($page->body, 'Kilépés'), 'belépve sem látszik a piszkozat');
+    preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $page->body, $m2);
+    $storage->endRequest();
+
+    $kernel->handle(new Request('POST', '/kilepes', post: ['_csrf' => $m2[1] ?? '']));
+    $storage->endRequest();
+    check($kernel->handle(new Request('GET', '/szerkesztoi-piszkozat'))->status === 404, 'kilépés után is látszik');
+    putenv('CAMPANELLA_DB_PREFIX');
 });
 
 // --- A dokumentáció példái ---------------------------------------------------

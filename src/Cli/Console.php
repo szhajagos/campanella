@@ -15,7 +15,15 @@ final class Console
 
     public function __construct(private readonly Kernel $kernel, private readonly Output $output = new Output())
     {
-        foreach ([new InstallCommand(), new SeedCommand(), new StatusCommand()] as $command) {
+        $commands = [
+            new InstallCommand(),
+            new SeedCommand(),
+            new StatusCommand(),
+            new UserCreateCommand(),
+            new UserPasswordCommand(),
+            new UserListCommand(),
+        ];
+        foreach ($commands as $command) {
             $this->commands[$command->name()] = $command;
         }
     }
@@ -48,7 +56,7 @@ final class Console
         $this->output->line('Használat: php bin/campanella <parancs>');
         $this->output->line();
         foreach ($this->commands as $command) {
-            $this->output->line(sprintf('  %-10s %s', $command->name(), $command->description()));
+            $this->output->line(sprintf('  %-14s %s', $command->name(), $command->description()));
         }
     }
 }

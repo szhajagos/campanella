@@ -11,8 +11,9 @@ bővítésekor lássuk, mire kell majd ráépülnie.
 
 ## HTML-felület ✅
 
-A böngészőknek szóló oldalak. Minden kérés anonymous látogatóként fut, így
-csak a nyilvánosan látható tartalom jelenik meg.
+A böngészőknek szóló oldalak. Belépés nélkül minden kérés anonymous
+látogatóként fut, így csak a nyilvánosan látható tartalom jelenik meg;
+belépve a felhasználó szerepkörei szerint (pl. az `editor` a piszkozatokat is látja).
 
 | Útvonal | Forrás | Leírás |
 |---|---|---|
@@ -20,6 +21,8 @@ csak a nyilvánosan látható tartalom jelenik meg.
 | `GET /hirek` | `config/routes.php` → Query `news` | Publikált cikkek, oldalanként 5 |
 | `GET /hirek?page=N` | | Lapozás; nem létező oldal: 404 |
 | `GET /kategoriak` | `config/routes.php` → Query `categories` | Publikált kategóriák ábécérendben (0.0.2) |
+| `GET /belepes`, `POST /belepes` | `AuthController` | Belépési űrlap és belépés (0.0.3); részletek: [PHP API 11. fejezet](../php-api/11-felhasznalok.md#webes-felület) |
+| `POST /kilepes` | `AuthController` | Kilépés CSRF-tokennel |
 | `GET /<útvonal>` | Routable objektum | Az objektum saját oldala, pl. `/neumann-janos`. A kapcsolatai linkként, a Blueprint `lists` listái alatta (pl. `/tudomany`: a kategória cikkei) |
 | `GET /assets/<fájl>` | `public/assets/` | Statikus fájlok |
 

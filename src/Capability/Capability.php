@@ -66,6 +66,18 @@ abstract class Capability
     {
     }
 
+    /**
+     * Mentés előtti ellenőrzés a prepareForSave() után. A kötelező mezőket
+     * a rendszer maga ellenőrzi; ide a capability saját szabályai kerülnek
+     * (pl. e-mail-cím formátuma).
+     *
+     * @return array<string, string> mezőnév => hibaüzenet
+     */
+    public function validate(): array
+    {
+        return [];
+    }
+
     public function object(): CampanellaObject
     {
         return $this->object;

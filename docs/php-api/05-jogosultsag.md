@@ -25,8 +25,9 @@ Aki cselekszik. A szerepkör nem Actor, hanem az Actor egyik tulajdonsága.
 $editor = new Actor(ActorKind::User, id: 12, roles: ['editor'], name: 'Kovács Anna');
 ```
 
-A 0.0.1-ben még nincs bejelentkezés: a webes kérések mind `Actor::anonymous()`
-nevében futnak, a CLI pedig `Actor::system()` nevében.
+A webes kérések a bejelentkezett felhasználó nevében futnak (`AuthService::currentActor()`,
+lásd [11. fejezet](11-felhasznalok.md)), belépés nélkül `Actor::anonymous()`
+nevében; a CLI `Actor::system()` nevében.
 
 ## ActorKind
 
@@ -61,14 +62,15 @@ tetszőleges PHP-logika nem kerülhet bele. Ez szándékos: csak így fordíthat
 
 `Campanella\Access\DefaultPolicy` · **Nyilvános** · `final class`
 
-A 0.0.1 szabálya, alapból tiltó (default deny):
+A beépített szabály, alapból tiltó (default deny):
 
 | Actor | View | Minden más művelet |
 |---|---|---|
 | `administrator` szerepkörrel | mindent | mindent |
+| `editor` szerepkörrel (`DefaultPolicy::EDITOR`, 0.0.3 óta) | mindent, a piszkozatokat is | Create, Update, Publish, Unpublish, de felhasználón (Authenticatable) nem; Delete tilos |
 | bárki más | ami nem Publishable, vagy publikált és a `published_at` már elmúlt | tilos |
 
-A `constrain()` ugyanezt a Query-ben így fejezi ki:
+A `constrain()` ugyanezt a Query-ben így fejezi ki (az `administrator` és az `editor` nem kap feltételt):
 
 ```
 (NOT HasCapability(publishable)) OR (status = 'published' AND published_at <= most)
@@ -80,7 +82,7 @@ A szabály cserélhető. A konténerben az `AccessPolicy::class` bejegyzést kel
 felülírni (lásd [9. Rendszer](09-rendszer.md#container)).
 
 ```php
-final class EditorPolicy implements AccessPolicy
+final class ModeratorPolicy implements AccessPolicy
 {
     public function __construct(private readonly AccessPolicy $fallback = new DefaultPolicy())
     {
@@ -88,13 +90,13 @@ final class EditorPolicy implements AccessPolicy
 
     public function constrain(Query $query, Actor $actor): Query
     {
-        // A szerkesztő a piszkozatokat is látja.
-        return $actor->hasRole('editor') ? $query : $this->fallback->constrain($query, $actor);
+        // A moderátor a piszkozatokat is látja.
+        return $actor->hasRole('moderator') ? $query : $this->fallback->constrain($query, $actor);
     }
 
     public function allows(Actor $actor, Operation $operation, CampanellaObject $object): bool
     {
-        if ($actor->hasRole('editor') && $operation !== Operation::Delete) {
+        if ($actor->hasRole('moderator') && $operation !== Operation::Delete) {
             return true;
         }
 

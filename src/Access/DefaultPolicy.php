@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Campanella\Access;
 
+use Campanella\Capability\Authenticatable;
 use Campanella\Capability\Publishable;
 use Campanella\Capability\PublishStatus;
 use Campanella\Model\CampanellaObject;
@@ -16,18 +17,26 @@ use DateTimeImmutable;
 use DateTimeZone;
 
 /**
- * A 0.0.1 szabálya, alapból tiltó (default deny):
+ * A beépített szabály, alapból tiltó (default deny):
  *
- *  - az administrator szerepkör mindent megtehet;
- *  - bárki megtekintheti azt, ami nem Publishable, illetve ami publikált;
- *  - minden más művelet tiltott.
+ *  - administrator: mindent megtehet;
+ *  - editor: mindent láthat (a piszkozatokat is), és tartalmat hozhat
+ *    létre, módosíthat, publikálhat; felhasználót (Authenticatable) nem
+ *    kezelhet, és nem törölhet;
+ *  - mindenki más: azt láthatja, ami nem Publishable, illetve ami publikált;
+ *    minden más művelet tiltott.
+ *
+ * A felhasználó-objektumok láthatók (a nevük szerzőként megjelenhet), de a
+ * jelszó-hash rejtett mező, a sablonokból nem érhető el.
  */
 final class DefaultPolicy implements AccessPolicy
 {
+    public const string EDITOR = 'editor';
+
     #[\Override]
     public function constrain(Query $query, Actor $actor): Query
     {
-        if ($actor->hasRole(Actor::ADMINISTRATOR)) {
+        if ($actor->hasRole(Actor::ADMINISTRATOR) || $actor->hasRole(self::EDITOR)) {
             return $query;
         }
 
@@ -45,6 +54,13 @@ final class DefaultPolicy implements AccessPolicy
     {
         if ($actor->hasRole(Actor::ADMINISTRATOR)) {
             return true;
+        }
+        if ($actor->hasRole(self::EDITOR)) {
+            return match ($operation) {
+                Operation::View => true,
+                Operation::Delete => false,
+                default => !$object->has(Authenticatable::class),
+            };
         }
         if ($operation !== Operation::View) {
             return false;

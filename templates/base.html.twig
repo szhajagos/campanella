@@ -16,6 +16,18 @@
                 <a href="{{ url('/kategoriak') }}">Kategóriák</a>
                 <a href="{{ url('/rolunk') }}">Rólunk</a>
             </nav>
+            {% set user = current_user() %}
+            <div class="site-user">
+                {% if user %}
+                    <span class="site-user__name">{{ user.title }}</span>
+                    <form method="post" action="{{ url('/kilepes') }}" class="inline-form">
+                        {{ csrf_field() }}
+                        <button type="submit" class="link-button">Kilépés</button>
+                    </form>
+                {% else %}
+                    <a href="{{ url('/belepes') }}">Belépés</a>
+                {% endif %}
+            </div>
         </div>
     </header>
 

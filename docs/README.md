@@ -6,7 +6,7 @@ fejezetet.
 
 | Rész | Tartalom | Állapot |
 |---|---|---|
-| [PHP API](php-api/README.md) | Az osztályok, szerződések és bővítési pontok leírása példákkal | 0.0.2-nek megfelel |
+| [PHP API](php-api/README.md) | Az osztályok, szerződések és bővítési pontok leírása példákkal | 0.0.3-nak megfelel |
 | [HTTP API](http-api/README.md) | A webes végpontok: a mostani HTML-útvonalak és a tervezett JSON API | HTML: kész · JSON: tervezet |
 | [Változásnapló](../CHANGELOG.md) | Verziónként mi került be, mi változott, mi szűnt meg | folyamatos |
 

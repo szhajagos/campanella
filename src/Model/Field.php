@@ -10,6 +10,9 @@ namespace Campanella\Model;
  *
  * A mezőnevek rendszerszinten egyediek, így az objektumon egyszerűen
  * `$object->get('title')` alakban érhetők el.
+ *
+ * A `hidden` mező (pl. jelszó-hash) a sablonokból nem érhető el
+ * `{{ object.mező }}` alakban; PHP-ból a get() továbbra is olvassa.
  */
 final readonly class Field
 {
@@ -23,6 +26,7 @@ final readonly class Field
         public bool $unique = false,
         public int $length = 255,
         public string $label = '',
+        public bool $hidden = false,
     ) {
         if (preg_match('/^[a-z][a-z0-9_]{0,62}$/', $name) !== 1) {
             throw new \InvalidArgumentException("Érvénytelen mezőnév: {$name}");
@@ -45,6 +49,7 @@ final readonly class Field
             default: $this->default,
             length: $this->length,
             label: $this->label,
+            hidden: $this->hidden,
         );
     }
 
@@ -55,6 +60,6 @@ final readonly class Field
 
     public function isEmpty(mixed $value): bool
     {
-        return $value === null || $value === '';
+        return $value === null || $value === '' || $value === [];
     }
 }

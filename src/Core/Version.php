@@ -6,8 +6,8 @@ namespace Campanella\Core;
 
 final class Version
 {
-    public const string CAMPANELLA = '0.0.2';
+    public const string CAMPANELLA = '0.0.3';
 
     /** Az adatbázisséma verziója; migrációnál nő. */
-    public const string SCHEMA = '2';
+    public const string SCHEMA = '3';
 }

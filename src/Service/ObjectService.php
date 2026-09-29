@@ -7,7 +7,9 @@ namespace Campanella\Service;
 use Campanella\Access\AccessDeniedException;
 use Campanella\Access\AccessPolicy;
 use Campanella\Access\Actor;
+use Campanella\Access\ActorKind;
 use Campanella\Access\Operation;
+use Campanella\Capability\Authorable;
 use Campanella\Capability\Publishable;
 use Campanella\Model\CampanellaObject;
 use Campanella\Model\ObjectRepository;
@@ -33,6 +35,12 @@ final class ObjectService
     {
         $object = $this->repository->create($blueprint, $values);
         $this->authorize($actor, Operation::Create, $object);
+
+        // A bejelentkezett felhasználó lesz a szerző, ha nincs más megadva.
+        if ($actor->kind === ActorKind::User && $actor->id !== null
+            && $object->has(Authorable::class) && $object->as(Authorable::class)->authorId() === null) {
+            $object->as(Authorable::class)->setAuthor($actor->id);
+        }
 
         if ($publish) {
             $this->authorize($actor, Operation::Publish, $object);

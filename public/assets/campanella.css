@@ -40,3 +40,14 @@ h1, h2 { line-height: 1.25; }
 .relations__label { margin-right: .25rem; }
 .object-list { margin-top: 2.5rem; }
 .object-list__title { font-size: 1.2rem; border-bottom: 1px solid var(--line); padding-bottom: .5rem; }
+.site-user { display: flex; gap: .75rem; align-items: baseline; font: .9rem system-ui, sans-serif; }
+.site-user__name { color: var(--muted); }
+.inline-form { display: inline; margin: 0; }
+.link-button { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; cursor: pointer; text-decoration: underline; }
+.login { max-width: 22rem; }
+.form { display: grid; gap: .4rem; font-family: system-ui, sans-serif; }
+.form label { margin-top: .6rem; font-size: .9rem; }
+.form input { padding: .55rem .6rem; font: inherit; border: 1px solid var(--line); border-radius: 4px; background: var(--paper); color: var(--ink); }
+.form button { margin-top: 1rem; padding: .6rem; font: inherit; border: 0; border-radius: 4px; background: var(--accent); color: #fff; cursor: pointer; }
+.form-error { padding: .6rem .8rem; border-left: 3px solid #b3261e; background: color-mix(in srgb, #b3261e 8%, transparent); font-family: system-ui, sans-serif; }
+.hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }

@@ -1,4 +1,4 @@
-# Campanella 0.0.2
+# Campanella 0.0.3
 
 Capability-vezérelt CMS. Nincsenek előre rögzített tartalomtípusok: az objektum
 viselkedését a rá szerelt képességek (capability-k) határozzák meg.
@@ -22,6 +22,7 @@ composer install
 cp config/local.php.dist config/local.php   # add meg az adatbázis adatait
 php bin/campanella install                  # táblák létrehozása
 php bin/campanella seed                     # példatartalom (opcionális)
+php bin/campanella user:create te@example.hu --name="A Neved" --role=administrator
 php -S localhost:8000 -t public public/index.php   # csak helyi kipróbáláshoz
 ```
 
@@ -166,6 +167,10 @@ Query::objects()->whereRelated('categories', $science);   // a kategória cikkei
 
 Részletesen: [docs/php-api/10-kapcsolatok.md](docs/php-api/10-kapcsolatok.md).
 
+**Felhasználók (0.0.3).** A felhasználó is objektum (`user` Blueprint). Belépés:
+`/belepes`. Az első adminisztrátort a `user:create` parancs hozza létre; alapértelmezett
+fiók vagy jelszó nincs. Részletesen: [docs/php-api/11-felhasznalok.md](docs/php-api/11-felhasznalok.md).
+
 **Query.** Deklaratív és megváltoztathatatlan:
 
 ```php
@@ -187,6 +192,10 @@ magától jelenik meg.
 
 ## Ami még nincs benne
 
-Bejelentkezés és admin felület, Hierarchical (menü, taxonómia-fa),
+Admin felület, Hierarchical (menü, taxonómia-fa),
 Component / Region / Layout, Webform, Event / Action, cache, migrációk
 (meglévő tábla módosítása), többnyelvűség, WYSIWYG szerkesztő és HTML-szűrő.
+
+## Licenc
+
+MIT. Lásd: [LICENSE](LICENSE).

@@ -8,20 +8,27 @@ use Campanella\Access\AccessPolicy;
 use Campanella\Access\Actor;
 use Campanella\Access\DefaultPolicy;
 use Campanella\Capability\CapabilityRegistry;
+use Campanella\Auth\AuthService;
+use Campanella\Auth\LoginGuard;
+use Campanella\Controller\AuthController;
 use Campanella\Controller\Controller;
 use Campanella\Controller\ObjectController;
 use Campanella\Controller\QueryController;
 use Campanella\Database\Connection;
 use Campanella\Database\Installer;
 use Campanella\Http\HttpException;
+use Campanella\Http\NativeSessionStorage;
 use Campanella\Http\Request;
 use Campanella\Http\Response;
 use Campanella\Http\Router;
+use Campanella\Http\Session;
 use Campanella\Model\BlueprintRegistry;
 use Campanella\Model\ObjectRepository;
 use Campanella\Query\QueryCompiler;
 use Campanella\Query\QueryEngine;
 use Campanella\Relation\RelationLoader;
+use Campanella\Security\Csrf;
+use Campanella\Security\Throttle;
 use Campanella\Service\ObjectService;
 use Campanella\View\CampanellaTwigExtension;
 use Campanella\View\Presentation;
@@ -39,6 +46,7 @@ final class Kernel
 {
     private ?Container $container = null;
     private string $basePath = '';
+    private ?Request $request = null;
 
     public function __construct(private readonly string $rootDir)
     {
@@ -59,15 +67,22 @@ final class Kernel
         // Az URL-előtagot a Twig-kiterjesztés kérésenként innen olvassa, így a
         // konténer (és a benne felülírt szolgáltatások) kérések között megmarad.
         $this->basePath = $request->basePath;
+        $this->request = $request;
 
         try {
             $container = $this->container();
             $route = $container->get(Router::class)->match($request);
             /** @var Controller $controller */
             $controller = $container->get('controller.' . $route->handler);
+            $actor = $container->get(AuthService::class)->currentActor($request);
 
-            // A 0.0.1-ben még nincs bejelentkezés: minden látogató anonymous.
-            return $controller->handle($request, $route, Actor::anonymous());
+            $response = $controller->handle($request, $route, $actor);
+
+            // Munkamenettel (belépve, vagy űrlap CSRF-tokennel) a válasz személyre
+            // szabott: köztes gyorsítótár (proxy, CDN) nem tárolhatja.
+            return $container->get(Session::class)->isStarted()
+                ? $response->withHeader('Cache-Control', 'private, no-store')
+                : $response;
         } catch (HttpException $e) {
             return $this->errorResponse($e->status, $e->getMessage());
         } catch (\Throwable $e) {
@@ -115,6 +130,33 @@ final class Kernel
             $c->get(QueryEngine::class),
         ));
 
+        $c->set(Session::class, static function (Container $c): Session {
+            $config = $c->get(Config::class);
+
+            return new Session(
+                new NativeSessionStorage(
+                    (string) $config->get('session.name', 'campanella_session'),
+                    $config->get('session.secure', 'auto'),
+                    (int) $config->get('session.idle_timeout', 7200),
+                ),
+                (int) $config->get('session.idle_timeout', 7200),
+            );
+        });
+
+        $c->set(Csrf::class, static fn (Container $c): Csrf => new Csrf($c->get(Session::class)));
+
+        $c->set(Throttle::class, static fn (Container $c): Throttle => new Throttle($c->get(Connection::class)));
+
+        $c->set(AuthService::class, static fn (Container $c): AuthService => new AuthService(
+            $c->get(ObjectRepository::class),
+            $c->get(QueryEngine::class),
+            $c->get(Session::class),
+            $c->get(Throttle::class),
+            $c->get(Csrf::class),
+            (array) $c->get(Config::class)->get('auth', []),
+            self::guards((array) $c->get(Config::class)->get('auth.guards', [])),
+        ));
+
         $c->set(ObjectService::class, static fn (Container $c): ObjectService => new ObjectService(
             $c->get(ObjectRepository::class),
             $c->get(AccessPolicy::class),
@@ -126,7 +168,8 @@ final class Kernel
         ));
 
         $basePath = fn (): string => $this->basePath;
-        $c->set(Environment::class, static function (Container $c) use ($root, $basePath): Environment {
+        $currentRequest = fn (): Request => $this->request ?? new Request('GET', '/');
+        $c->set(Environment::class, static function (Container $c) use ($root, $basePath, $currentRequest): Environment {
             $config = $c->get(Config::class);
             $debug = (bool) $config->get('debug', false);
 
@@ -156,6 +199,8 @@ final class Kernel
                 static fn (): Presentation => $c->get(Presentation::class),
                 $basePath,
                 ['site' => $config->get('site', []), 'campanella_version' => Version::CAMPANELLA],
+                static fn () => $c->get(AuthService::class)->currentUser($currentRequest()),
+                static fn (): string => $c->get(Csrf::class)->token($currentRequest()),
             ));
 
             return $twig;
@@ -174,6 +219,12 @@ final class Kernel
             $c->get(RelationLoader::class),
         ));
 
+        $c->set('controller.auth', static fn (Container $c): Controller => new AuthController(
+            $c->get(AuthService::class),
+            $c->get(Csrf::class),
+            $c->get(Presentation::class),
+        ));
+
         $c->set('controller.query', static fn (Container $c): Controller => new QueryController(
             $c->get(QueryEngine::class),
             $c->get(Presentation::class),
@@ -182,6 +233,24 @@ final class Kernel
         ));
 
         return $c;
+    }
+
+    /**
+     * @param array<mixed> $classes
+     * @return list<LoginGuard>
+     */
+    private static function guards(array $classes): array
+    {
+        $guards = [];
+        foreach ($classes as $class) {
+            $guard = is_string($class) && class_exists($class) ? new $class() : null;
+            if (!$guard instanceof LoginGuard) {
+                throw new \LogicException('Az auth.guards csak LoginGuard osztályokat tartalmazhat: ' . var_export($class, true));
+            }
+            $guards[] = $guard;
+        }
+
+        return $guards;
     }
 
     private function failure(\Throwable $e): Response

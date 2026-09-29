@@ -54,16 +54,17 @@ a `Kernel` explicit gyártófüggvényei hozzák létre, első kéréskor, egysz
 | `AccessPolicy::class` | Jogosultsági szabály (alapból `DefaultPolicy`) |
 | `QueryEngine::class` | Lekérdezések |
 | `RelationLoader::class` | Kapcsolatok betöltése |
+| `Session::class`, `Csrf::class`, `Throttle::class`, `AuthService::class` | Munkamenet, CSRF, korlátozás, belépés |
 | `ObjectService::class` | Műveletek |
 | `Installer::class` | Telepítő |
 | `Twig\Environment::class`, `Presentation::class` | Megjelenítés |
 | `Router::class` | Útválasztás |
-| `controller.object`, `controller.query` | Controllerek; a `controller.<handler>` minta szerint |
+| `controller.object`, `controller.query`, `controller.auth` | Controllerek; a `controller.<handler>` minta szerint |
 
 Szolgáltatás cseréje, például saját jogosultsági szabály:
 
 ```php
-$kernel->container()->set(AccessPolicy::class, static fn (): AccessPolicy => new EditorPolicy());
+$kernel->container()->set(AccessPolicy::class, static fn (): AccessPolicy => new ModeratorPolicy());
 ```
 
 Új controller: `controller.<név>` bejegyzés a konténerben, és egy útvonal a
@@ -103,7 +104,8 @@ $kernel->container()->set(AccessPolicy::class, static fn (): AccessPolicy => new
 | `database.user` | `'campanella'` | `CAMPANELLA_DB_USER` |
 | `database.password` | `''` | `CAMPANELLA_DB_PASSWORD` |
 | `database.prefix` | `'cc_'` | `CAMPANELLA_DB_PREFIX` |
-| `capabilities` | a négy beépített | |
+| `capabilities` | a hét beépített | |
+| `session.*`, `auth.*` | lásd [11. fejezet](11-felhasznalok.md#konfiguráció) | |
 
 Sorrend: az `app.php` alapértéke < környezeti változó < `local.php`.
 
@@ -114,7 +116,7 @@ meg van adva, az a projekt gyökere (alapból a `public/` szülőmappája).
 
 `Campanella\Core\Version` · **Nyilvános**
 
-`CAMPANELLA = '0.0.2'` (a rendszer verziója) és `SCHEMA = '2'` (az
+`CAMPANELLA = '0.0.3'` (a rendszer verziója) és `SCHEMA = '3'` (az
 adatbázisséma verziója; új tábla vagy migráció esetén nő).
 
 ## CLI
@@ -126,6 +128,7 @@ adatbázisséma verziója; új tábla vagy migráció esetén nő).
 | `install` | Táblák létrehozása; `--sql`: csak kiírja az SQL-t |
 | `seed` | Példatartalom. Ismételten futtatható: ami útvonal alapján már megvan, azt nem hozza létre újra |
 | `status` | Verzió, capability-k, Blueprintek, objektumszám; jelzi, ha az adatbázis frissítésre szorul |
+| `user:create`, `user:password`, `user:list` | Felhasználók kezelése ([11. fejezet](11-felhasznalok.md#parancssor)) |
 | `help` | Parancslista |
 
 ### Saját parancs

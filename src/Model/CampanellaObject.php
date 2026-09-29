@@ -192,14 +192,14 @@ final class CampanellaObject
             'blueprint' => $this->blueprint,
             'created' => $this->created,
             'updated' => $this->updated,
-            default => $this->values[$name] ?? null,
+            default => isset($this->fields[$name]) && $this->fields[$name]->hidden ? null : ($this->values[$name] ?? null),
         };
     }
 
     public function __isset(string $name): bool
     {
         return in_array($name, ['id', 'uuid', 'blueprint', 'created', 'updated'], true)
-            || array_key_exists($name, $this->values);
+            || (array_key_exists($name, $this->values) && !$this->fields[$name]->hidden);
     }
 
     // --- Kapcsolatok -----------------------------------------------------------

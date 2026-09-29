@@ -1,0 +1,25 @@
+{% extends 'base.html.twig' %}
+
+{% block content %}
+    <section class="login">
+        <h1>Belépés</h1>
+
+        {% if error %}
+            <p class="form-error" role="alert">{{ error }}</p>
+        {% endif %}
+
+        <form method="post" action="{{ url('/belepes') }}" class="form">
+            {{ csrf_field() }}
+            <input type="hidden" name="vissza" value="{{ target }}">
+            {{ guard_fields|raw }}
+
+            <label for="email">E-mail-cím</label>
+            <input type="email" id="email" name="email" value="{{ email }}" autocomplete="username" required autofocus>
+
+            <label for="password">Jelszó</label>
+            <input type="password" id="password" name="password" autocomplete="current-password" required>
+
+            <button type="submit">Belépés</button>
+        </form>
+    </section>
+{% endblock %}

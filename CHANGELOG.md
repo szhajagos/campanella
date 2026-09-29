@@ -10,6 +10,50 @@ visszafelé nem kompatibilisek lehetnek.
 
 ## [Kiadatlan]
 
+## [0.0.3] – 2026-09-29
+
+Felhasználók és bejelentkezés. A Campanella licence: MIT.
+
+### Új
+
+- `LICENSE` (MIT) és `"license": "MIT"` a `composer.json`-ban.
+- Capability-k: `Identifiable` (egyedi, normalizált e-mail-cím),
+  `Authenticatable` (jelszó-hash, fiókállapot, szerepkörök), `Authorable`
+  (`author` kapcsolat; új tartalomnál a létrehozó lesz a szerző).
+- `user` Blueprint; a cikkek `Authorable`-t kaptak.
+- `AuthService` és `LoginResult`: belépés egyforma hibaüzenettel és futásidővel,
+  próbálkozás-korlátozással, letiltott fiók kezelésével, automatikus
+  jelszó-újrahash-eléssel.
+- `LoginGuard` bővítési pont a jelszó-ellenőrzés előtti védelmekhez;
+  beépített `HoneypotGuard`.
+- `Session` lusta indítással és tétlenségi időkorláttal; `SessionStorage`,
+  `NativeSessionStorage` (HttpOnly, SameSite=Lax, Secure HTTPS-en, szigorú mód),
+  `ArraySessionStorage` (tesztekhez).
+- `Csrf` (Twig: `csrf_field()`), `Throttle` és a `cc_throttle` tábla.
+- `AuthController`: `/belepes`, `/kilepes`; nyílt átirányítás elleni védelem.
+- `DefaultPolicy`: `editor` szerepkör.
+- Twig: `current_user()`; a fejlécben belépés és kilépés.
+- `Field::$hidden`: sablonból el nem érhető mezők (jelszó-hash, e-mail-cím).
+- `FieldType::StringList`; `Capability::validate()` hook.
+- `Request`: `$cookies`, `$ip`, `$secure`, `isPost()`, `postString()`,
+  `queryString()`; `Response::withHeader()`; biztonsági fejlécek
+  (`X-Frame-Options`, `Referrer-Policy`).
+- CLI: `user:create`, `user:password` (letiltás/engedélyezés is), `user:list`.
+- Dokumentáció: [11. Felhasználók és bejelentkezés](docs/php-api/11-felhasznalok.md).
+
+### Megváltozott
+
+- Sémaverzió: `3` (új tábla: `cc_throttle`). Frissítés után `php bin/campanella install`.
+- Munkamenettel rendelkező kérések válasza `Cache-Control: private, no-store`
+  fejlécet kap.
+- `CampanellaTwigExtension::__construct()` két új, opcionális paramétert kapott.
+  **Belső** osztály.
+
+### Biztonság
+
+- Alapértelmezett fiók vagy jelszó nincs; az első adminisztrátort a
+  `user:create` parancs hozza létre.
+
 ## [0.0.2] – 2026-09-28
 
 Kapcsolatok (Relationship) objektumok között.

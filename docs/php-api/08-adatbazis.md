@@ -94,7 +94,7 @@ adja, `create(Table $table): void` le is futtatja.
 `Campanella\Database\Schema\CoreSchema` · **Nyilvános**
 
 `static tables(): list<Table>`, valamint a táblanevek konstansai: `OBJECTS`,
-`OBJECT_CAPABILITIES`, `SYSTEM`, `RELATIONSHIPS`.
+`OBJECT_CAPABILITIES`, `SYSTEM`, `RELATIONSHIPS`, `THROTTLE`.
 
 | Tábla | Oszlopok | Szerepe |
 |---|---|---|
@@ -102,6 +102,7 @@ adja, `create(Table $table): void` le is futtatja.
 | `cc_objects` | `id`, `uuid` (egyedi), `blueprint`, `data` (JSON), `created_at`, `updated_at` | Az objektum identitása és JSON-adatai |
 | `cc_object_capabilities` | `object_id`, `capability` (együtt PK) | Melyik objektum milyen capability-kkel rendelkezik |
 | `cc_relationships` | `id`, `source_id`, `type`, `target_id`, `weight`; egyedi: (`source_id`, `type`, `target_id`) | Kapcsolatok; mindkét oldal törlésekor kaszkád (0.0.2 óta) |
+| `cc_throttle` | `key_hash` (PK), `hits`, `reset_at` | Próbálkozások korlátozása (0.0.3 óta) |
 | `cc_cap_<név>` | `object_id` (PK) + a capability `Table` mezői | Capability-nként egy tábla |
 
 MariaDB-n a `JSON` típus a `LONGTEXT` álneve, beépített `JSON_VALID`

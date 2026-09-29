@@ -23,6 +23,7 @@ objektumot csomagolja be; a `CampanellaObject::as()` hozza létre:
 | `final __construct(CampanellaObject $object)` | A konstruktor végleges; a capability-nek nem lehetnek saját függőségei |
 | `protected readonly CampanellaObject $object` | A becsomagolt objektum |
 | `prepareForSave(): void` | Mentés előtt fut, függőségi sorrendben. Ide kerül a származtatott értékek kitöltése és a normalizálás |
+| `validate(): array<string, string>` | A `prepareForSave()` után fut; a capability saját szabályai (pl. e-mail-formátum). Mezőnév → hibaüzenet; a hibákból `ValidationException` lesz (0.0.3 óta) |
 | `object(): CampanellaObject` | A becsomagolt objektum |
 
 A capability nem ír adatbázisba: az értékeket az objektumon állítja
@@ -166,6 +167,11 @@ Scope: `published`, vagyis `status = published` és `published_at <= most`.
 
 **Időzített publikálás:** a jövőbeli időpontra publikált objektum addig nem
 látható, amíg az időpont el nem jön, és utána magától megjelenik.
+
+### Felhasználói capability-k
+
+Az `Identifiable`, `Authenticatable` és `Authorable` leírása a
+[11. Felhasználók és bejelentkezés](11-felhasznalok.md#capability-k) fejezetben van.
 
 ## Új capability írása
 

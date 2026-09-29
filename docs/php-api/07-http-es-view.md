@@ -11,6 +11,11 @@
 | `$query`, `$post` | `$_GET`, `$_POST` |
 | `$basePath` | URL-előtag alkönyvtáras telepítésnél, pl. `/campanella`; egyébként `''` |
 | `$headers` | Kisbetűs fejlécnevek szerint, pl. `'accept-language'` |
+| `$cookies` | `$_COOKIE` (csak szöveges értékek) |
+| `$ip` | `REMOTE_ADDR` |
+| `$secure` | HTTPS-en érkezett-e a kérés |
+| `isPost(): bool` | |
+| `postString(string $name): string`, `queryString(string $name): string` | Egy mező szövegként; ha hiányzik vagy nem szöveg: `''` |
 | `static fromGlobals(): self` | A PHP szuperglobálisaiból |
 | `static normalizePath(string $path): string` | `'/hirek/'` → `'/hirek'`; `'/index.php'` → `'/'` |
 | `queryInt(string $name, int $default = 0): int` | Egész szám a query stringből |
@@ -28,7 +33,8 @@ Ha a gyökérben lévő `.htaccess` irányítja a kérést a `public/` alá, a
 | `$body`, `$status`, `$headers` | Csak olvasható |
 | `static html(string $body, int $status = 200): self` | |
 | `static redirect(string $url, int $status = 302): self` | |
-| `send(): void` | Elküldi; minden válaszhoz `X-Content-Type-Options: nosniff` fejlécet is ad |
+| `withHeader(string $name, string $value): self` | Új válasz a fejléccel kiegészítve |
+| `send(): void` | Elküldi; minden válaszhoz `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN` és `Referrer-Policy: same-origin` fejlécet is ad |
 
 ## HttpException
 
@@ -152,6 +158,8 @@ A sablonok változói:
 | `{{ asset('campanella.css') }}` | | A `public/assets/` alatti fájl URL-je |
 | `{{ render_object(item, 'teaser') }}` | `renderObject(CampanellaObject $object, string $mode)` | Egy objektum egy módban |
 | `{{ related(object, 'categories') }}` | `related(CampanellaObject $object, string $relation)` | Egy kapcsolat betöltött célobjektumai, vagy üres lista |
+| `{{ current_user() }}` | `currentUser()` | A bejelentkezett felhasználó vagy `null` ([11. fejezet](11-felhasznalok.md#webes-felület)) |
+| `{{ csrf_field() }}` | `csrfField()` | Rejtett CSRF-mező a POST-űrlapokba |
 | `{{ object\|body }}` | `body(CampanellaObject $object)` | A Textual törzs HTML-je: `plain` formátumnál escape-elve, bekezdésekre bontva; `html` formátumnál változtatás nélkül |
 
 A kiterjesztés további metódusai (`getFunctions()`, `getFilters()`,

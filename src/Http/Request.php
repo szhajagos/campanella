@@ -16,6 +16,7 @@ final readonly class Request
      * @param array<string, mixed> $query
      * @param array<string, mixed> $post
      * @param array<string, string> $headers
+     * @param array<string, string> $cookies
      */
     public function __construct(
         public string $method,
@@ -24,6 +25,9 @@ final readonly class Request
         public array $post = [],
         public string $basePath = '',
         public array $headers = [],
+        public array $cookies = [],
+        public string $ip = '',
+        public bool $secure = false,
     ) {
     }
 
@@ -44,6 +48,14 @@ final readonly class Request
             }
         }
 
+        $cookies = [];
+        foreach ($_COOKIE as $name => $value) {
+            if (is_string($value)) {
+                $cookies[(string) $name] = $value;
+            }
+        }
+        $https = (string) ($_SERVER['HTTPS'] ?? '');
+
         return new self(
             strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET')),
             self::normalizePath($path),
@@ -51,6 +63,9 @@ final readonly class Request
             $_POST,
             $basePath,
             $headers,
+            $cookies,
+            (string) ($_SERVER['REMOTE_ADDR'] ?? ''),
+            ($https !== '' && strtolower($https) !== 'off') || (int) ($_SERVER['SERVER_PORT'] ?? 0) === 443,
         );
     }
 
@@ -59,6 +74,26 @@ final readonly class Request
         $path = '/' . trim($path, '/');
 
         return $path === '/index.php' ? '/' : $path;
+    }
+
+    public function isPost(): bool
+    {
+        return $this->method === 'POST';
+    }
+
+    /** Egy POST-mező szövegként (nem szöveges érték esetén üres szöveg). */
+    public function postString(string $name): string
+    {
+        $value = $this->post[$name] ?? '';
+
+        return is_string($value) ? $value : '';
+    }
+
+    public function queryString(string $name): string
+    {
+        $value = $this->query[$name] ?? '';
+
+        return is_string($value) ? $value : '';
     }
 
     public function queryInt(string $name, int $default = 0): int

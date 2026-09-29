@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use Campanella\Capability\Authenticatable;
+use Campanella\Capability\Authorable;
 use Campanella\Capability\Publishable;
 use Campanella\Capability\Routable;
 use Campanella\Capability\Textual;
@@ -27,7 +29,7 @@ use Campanella\Relation\Relation;
 return [
     'article' => [
         'label' => 'Cikk',
-        'capabilities' => [Titled::class, Textual::class, Routable::class, Publishable::class],
+        'capabilities' => [Titled::class, Textual::class, Routable::class, Publishable::class, Authorable::class],
         'fields' => [
             new Field('lead', FieldType::Text, label: 'Bevezető'),
         ],
@@ -39,6 +41,13 @@ return [
     'page' => [
         'label' => 'Oldal',
         'capabilities' => [Textual::class, Routable::class, Publishable::class],
+    ],
+
+    // Felhasználó: név (Titled), e-mail (az Authenticatable hozza az Identifiable-t),
+    // jelszó, fiókállapot, szerepkörök. Nincs saját nyilvános oldala.
+    'user' => [
+        'label' => 'Felhasználó',
+        'capabilities' => [Titled::class, Authenticatable::class],
     ],
 
     'category' => [

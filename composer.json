@@ -2,6 +2,7 @@
     "name": "campanella/campanella",
     "description": "Campanella – capability-vezérelt CMS",
     "type": "project",
+    "license": "MIT",
     "require": {
         "php": ">=8.3",
         "ext-json": "*",

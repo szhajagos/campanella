@@ -14,6 +14,7 @@ final class CoreSchema
     public const string OBJECT_CAPABILITIES = 'object_capabilities';
     public const string SYSTEM = 'system';
     public const string RELATIONSHIPS = 'relationships';
+    public const string THROTTLE = 'throttle';
 
     /** @return list<Table> */
     public static function tables(): array
@@ -77,6 +78,17 @@ final class CoreSchema
                     new ForeignKey('source_id', self::OBJECTS),
                     new ForeignKey('target_id', self::OBJECTS),
                 ],
+            ),
+            // Próbálkozások korlátozása (pl. belépés). A kulcs SHA-256 hash-e.
+            new Table(
+                name: self::THROTTLE,
+                columns: [
+                    new Column('key_hash', ColumnType::String, length: 64),
+                    new Column('hits', ColumnType::Integer, default: 0),
+                    new Column('reset_at', ColumnType::DateTime),
+                ],
+                primaryKey: ['key_hash'],
+                indexes: ['idx_reset' => ['reset_at']],
             ),
         ];
     }

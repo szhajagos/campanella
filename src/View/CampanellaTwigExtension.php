@@ -7,6 +7,7 @@ namespace Campanella\View;
 use Campanella\Capability\Textual;
 use Campanella\Capability\TextFormat;
 use Campanella\Model\CampanellaObject;
+use Campanella\Security\Csrf;
 use Closure;
 use Twig\Extension\AbstractExtension;
 use Twig\Extension\GlobalsInterface;
@@ -20,6 +21,8 @@ use Twig\TwigFunction;
  *   {{ asset('campanella.css') }}       public/assets/ alatti fájl
  *   {{ render_object(item, 'teaser') }} egy objektum egy megjelenítési módban
  *   {{ related(object, 'categories') }} egy kapcsolat betöltött célobjektumai
+ *   {{ current_user() }}                a bejelentkezett felhasználó vagy null
+ *   {{ csrf_field() }}                  rejtett CSRF-mező a POST-űrlapokba
  *   {{ object|body }}                   a Textual törzs biztonságos HTML-je
  */
 final class CampanellaTwigExtension extends AbstractExtension implements GlobalsInterface
@@ -28,11 +31,15 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
      * @param Closure(): Presentation $presentation Lustán, mert a Presentation is a Twig-re épül.
      * @param Closure(): string $basePath Az aktuális kérés URL-előtagja (alkönyvtáras telepítéshez).
      * @param array<string, mixed> $globals
+     * @param (Closure(): ?CampanellaObject)|null $currentUser A bejelentkezett felhasználó (lustán).
+     * @param (Closure(): string)|null $csrfToken Az aktuális CSRF-token (lustán; munkamenetet indít).
      */
     public function __construct(
         private readonly Closure $presentation,
         private readonly Closure $basePath,
         private readonly array $globals = [],
+        private readonly ?Closure $currentUser = null,
+        private readonly ?Closure $csrfToken = null,
     ) {
     }
 
@@ -44,6 +51,8 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
             new TwigFunction('asset', fn (string $path): string => $this->url('/assets/' . ltrim($path, '/'))),
             new TwigFunction('render_object', $this->renderObject(...), ['is_safe' => ['html']]),
             new TwigFunction('related', $this->related(...)),
+            new TwigFunction('current_user', $this->currentUser(...)),
+            new TwigFunction('csrf_field', $this->csrfField(...), ['is_safe' => ['html']]),
         ];
     }
 
@@ -82,6 +91,26 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
         return $object->hasRelation($relation) && $object->isResolved($relation)
             ? $object->relatedObjects($relation)
             : [];
+    }
+
+    /** A bejelentkezett felhasználó, vagy null. Névtelen látogatónál nem indít munkamenetet. */
+    public function currentUser(): ?CampanellaObject
+    {
+        return $this->currentUser === null ? null : ($this->currentUser)();
+    }
+
+    /** Rejtett mező a CSRF-tokennel; minden POST-űrlapba bele kell tenni. */
+    public function csrfField(): string
+    {
+        if ($this->csrfToken === null) {
+            return '';
+        }
+
+        return sprintf(
+            '<input type="hidden" name="%s" value="%s">',
+            Csrf::FIELD,
+            htmlspecialchars(($this->csrfToken)(), ENT_QUOTES, 'UTF-8'),
+        );
     }
 
     public function body(CampanellaObject $object): string

@@ -64,6 +64,10 @@ egyszerűen írhassák: `{{ object.title }}`, `{{ object.published_at|date }}`.
 Az `id`, `uuid`, `blueprint`, `created` és `updated` is így érhető el. PHP-kódban
 a `get()` az ajánlott, mert az hibát jelez elírt mezőnévre.
 
+A rejtett (`hidden: true`) mezők (pl. `password_hash`, `email`) így nem
+érhetők el: a `__get()` `null`-t ad, az `__isset()` hamisat. Sablonból, ha tényleg
+kell, csak kifejezetten, `{{ object.get('email') }}` formában olvashatók.
+
 ### Belső
 
 `markSaved(int $id, DateTimeImmutable $updated)`: csak az `ObjectRepository`
@@ -87,6 +91,7 @@ new Field(
     unique: false,                 // egyedi index (pl. útvonal)
     length: 255,                   // String típusnál a VARCHAR hossza
     label: 'Publikálás ideje',
+    hidden: false,                 // true: sablonból {{ object.mező }} alakban nem érhető el
 );
 ```
 
@@ -94,7 +99,7 @@ new Field(
 |---|---|
 | `asData(): self` | Ugyanez a mező `FieldStorage::Data` tárolással (index és egyediség nélkül) |
 | `isQueryable(): bool` | Igaz, ha `FieldStorage::Table`, vagyis szűrhető és rendezhető |
-| `isEmpty(mixed $value): bool` | `null` vagy üres szöveg; a kötelező mezők ellenőrzése ezt használja |
+| `isEmpty(mixed $value): bool` | `null`, üres szöveg vagy üres lista; a kötelező mezők ellenőrzése ezt használja |
 
 A konstruktor `InvalidArgumentException`-t dob hibás névre, és ha egy `Data`
 tárolású mező indexelt vagy egyedi lenne.
@@ -110,6 +115,7 @@ tárolású mező indexelt vagy egyedi lenne.
 | `Integer` | `int` | `INT` |
 | `Boolean` | `bool` | `TINYINT(1)` |
 | `DateTime` | `DateTimeImmutable` (UTC) | `DATETIME` |
+| `StringList` | `list<string>` (ismétlődés és üres elem nélkül) | `MEDIUMTEXT`, JSON-tömbként (0.0.3 óta) |
 
 | Metódus | Leírás |
 |---|---|

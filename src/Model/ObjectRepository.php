@@ -273,6 +273,9 @@ final class ObjectRepository
                 $errors[$name] = 'kötelező mező';
             }
         }
+        foreach ($object->capabilities() as $definition) {
+            $errors += $object->as($definition->class)->validate();
+        }
         $errors += $this->validateRelations($object);
         if ($errors !== []) {
             throw new ValidationException($errors);

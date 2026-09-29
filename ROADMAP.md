@@ -14,6 +14,7 @@ A már elkészült változásokat a [CHANGELOG](CHANGELOG.md) sorolja fel.
 |---|---|
 | 0.0.1 | Objektummodell, Capability-szerződés, Blueprint, Query, jogosultság-tudatos lekérdezés, Twig-megjelenítés, CLI |
 | 0.0.2 | Kapcsolatok (Relationship): cikk → kategóriák, `whereRelated`, `RelationLoader`, Blueprint-listák |
+| 0.0.3 | Felhasználók és bejelentkezés: `Identifiable`, `Authenticatable`, `Authorable`, munkamenet, CSRF, próbálkozás-korlátozás, `LoginGuard` + honeypot, `editor` szerepkör, `user:*` parancsok; MIT licenc |
 
 ## Következik
 
@@ -26,22 +27,6 @@ A már elkészült változásokat a [CHANGELOG](CHANGELOG.md) sorolja fel.
 **Kész, ha:** a GitHubon minden commit mellett látszik, hogy átment-e az
 ellenőrzésen, és a `v0.0.3` címke után letölthető csomag jelenik meg.
 
-### 0.0.3 – Felhasználók és bejelentkezés
-
-- `user` Blueprint: `Identifiable` (egyedi e-mail), `Authenticatable`
-  (jelszó `password_hash`/`password_verify`, újrahash-elés szükség esetén).
-- Belépés, kilépés; biztonságos munkamenet (HttpOnly, SameSite, Secure
-  cookie; munkamenet-azonosító cseréje belépéskor).
-- CSRF-védelem minden űrlaphoz.
-- Belépési próbálkozások korlátozása.
-- A bejelentkezett felhasználó `Actor`-ként, szerepköreivel érvényesül az
-  `AccessPolicy`-ben.
-- `Authorable` capability: `author` kapcsolat a felhasználóra.
-- CLI: `user:create`, `user:password`.
-
-**Kész, ha:** egy adminisztrátor be tud lépni, és belépve látja a
-piszkozatokat is; kilépve nem.
-
 ### 0.0.4 – Admin felület
 
 - Tartalmak listázása, szűrése, létrehozása, szerkesztése, törlése,
@@ -49,7 +34,16 @@ piszkozatokat is; kilépve nem.
 - Az űrlapok a mezők és kapcsolatok definícióiból készülnek, így egy új
   Blueprint vagy capability szerkesztőfelülete automatikusan létrejön.
 - Érthető hibaüzenetek a `ValidationException` alapján.
+- Megjelenés: Bootstrap 5.3, a Campanellával együtt szállítva
+  (`public/assets/vendor/bootstrap`), CDN nélkül. Az admin felület és az
+  alapértelmezett nyilvános téma is erre épül.
+- Egyszerű témarendszer: a téma mappájában lévő sablon elsőbbséget kap az
+  alapsablonnal szemben, így egy saját téma Bootstrap nélkül is készülhet.
 - HTML-szűrő a `html` formátumú szövegekhez (a WYSIWYG-szerkesztő előfeltétele).
+- WYSIWYG-szerkesztő a `html` formátumú szövegmezőkhöz: Jodit (MIT
+  alapváltozat), helyben szállítva, cserélhető illesztéssel és mezőnként
+  választható eszköztár-profillal. Képfeltöltés a Campanella saját
+  végpontjára (a Jodit PHP-connectora nélkül).
 
 **Kész, ha:** a példaoldal minden tartalma kezelhető böngészőből, parancssor nélkül.
 
@@ -90,12 +84,21 @@ rendszer valódi weboldal kezelésére alkalmas.
 - **JSON API** a [HTTP API tervezet](docs/http-api/README.md) szerint.
 - **Média:** fájltárolás, képek, képváltozatok.
 - **Többnyelvűség.**
-- **WYSIWYG-szerkesztő** (a licencdöntéstől függően CKEditor 5 vagy más).
 - **Keresés**, URL-aliasok és átirányítások, lomtár, audit-napló.
+- **Belépés kiegészítései:** kétlépcsős azonosítás (pl. TOTP) saját
+  capability-ként, a jelszó-ellenőrzés és a beléptetés közé illesztve;
+  további `LoginGuard`-ok (CAPTCHA); elfelejtett jelszó e-mailben (az
+  Event/Action és a levélküldés után); munkamenetek listája és kiléptetése.
 
-## Nyitott döntések
+## Elfogadott döntések
 
-- **A Campanella licence.** GPL-kompatibilis licenc esetén a CKEditor 5
-  használható; megengedőbb (pl. MIT) licencnél más szerkesztő kell.
-- **Alapértelmezett megjelenés:** saját CSS vagy Bootstrap 5, a nyilvános
-  oldalon és az admin felületen.
+- **Licenc: MIT** (2026-09-29). Csak MIT-tel kompatibilis licencű függőség
+  használható (MIT, BSD, Apache 2.0 stb.); GPL-es nem.
+- **PHP 8.3** a minimum; MariaDB 10.6+ / MySQL 8.0+ közös részhalmaza.
+- **Megjelenés: Bootstrap 5.3** az admin felülethez és az alapértelmezett
+  témához, helyben szállítva, cserélhető témával (2026-09-29).
+- **WYSIWYG: Jodit**, csak az ingyenes MIT változat; a PRO nem opció. Ha egy
+  fontos funkció csak a PRO-ban érhető el, és nem pótolható saját
+  bővítménnyel, a tartalék a SunEditor (2026-09-29). A beküldött HTML-t a
+  szerkesztőtől függetlenül mindig a szerver szűri.
+- **jQuery-függő komponens nem használható.**
