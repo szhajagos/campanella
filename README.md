@@ -1,5 +1,7 @@
 # Campanella 0.0.3
 
+[![Ellenőrzés](https://github.com/szhajagos/campanella/actions/workflows/ci.yml/badge.svg)](https://github.com/szhajagos/campanella/actions/workflows/ci.yml)
+
 Capability-vezérelt CMS. Nincsenek előre rögzített tartalomtípusok: az objektum
 viselkedését a rá szerelt képességek (capability-k) határozzák meg.
 
@@ -16,6 +18,11 @@ mappában, a változások a [CHANGELOG](CHANGELOG.md)-ban, a tervek a
 Külső függőség csak a Twig. A PHPStan kizárólag fejlesztéshez kell.
 
 ## Telepítés
+
+**Composer nélkül:** a [GitHub-kiadások](https://github.com/szhajagos/campanella/releases)
+oldalán minden verzióhoz letölthető egy `campanella-<verzió>.zip`, amely a
+`vendor/` mappát is tartalmazza. Kicsomagolva ugyanúgy folytatható, mint lent,
+csak a `composer install` lépés marad ki.
 
 ```bash
 composer install
@@ -101,6 +108,18 @@ A változásokat verziónként a [CHANGELOG](CHANGELOG.md) sorolja fel.
 | `composer test` | Tesztek (külön `test_` táblaprefixszel, valódi adatbázison) |
 | `composer analyse` | PHPStan, level 8, PHP 8.3-ra |
 | `composer docs:check` | Dokumentálatlan nyilvános osztályok és metódusok keresése |
+| `composer docs:links` | Hibás relatív linkek keresése a markdown-fájlokban |
+
+### Automatikus ellenőrzés
+
+A GitHub minden pushnál lefuttatja a fenti ellenőrzéseket
+([`.github/workflows/ci.yml`](.github/workflows/ci.yml)): a PHPStant, a
+dokumentáció-ellenőrzést, és a teszteket MariaDB 10.6, 11.4, valamint MySQL 8.0
+és 8.4 alatt. Az eredmény a commitok mellett és az Actions fülön látszik.
+
+Verziócímke (`git tag v0.0.4 && git push --tags`) után a GitHub elkészíti a
+telepítőcsomagot, és csatolja a kiadáshoz. Meglévő címkéhez kézzel is
+indítható: Actions → Ellenőrzés → Run workflow, a címke megadásával.
 
 ## Felépítés (MVC + Service réteg)
 

@@ -2,7 +2,7 @@
 
 A Campanella kis lépésekben fejlődik: minden funkció saját verziót kap
 (0.0.3, 0.0.4, …), saját tesztekkel, dokumentációval és CHANGELOG-bejegyzéssel.
-Amikor a rendszer valódi, böngészőből kezelhető weboldalra alkalmas (a 0.0.6
+Amikor a rendszer valódi, böngészőből kezelhető weboldalra alkalmas (a 0.0.7
 végére), a verzió 0.1.0 lesz.
 
 Az ütemterv irány, nem ígéret: a sorrend a tapasztalatok alapján változhat.
@@ -15,17 +15,9 @@ A már elkészült változásokat a [CHANGELOG](CHANGELOG.md) sorolja fel.
 | 0.0.1 | Objektummodell, Capability-szerződés, Blueprint, Query, jogosultság-tudatos lekérdezés, Twig-megjelenítés, CLI |
 | 0.0.2 | Kapcsolatok (Relationship): cikk → kategóriák, `whereRelated`, `RelationLoader`, Blueprint-listák |
 | 0.0.3 | Felhasználók és bejelentkezés: `Identifiable`, `Authenticatable`, `Authorable`, munkamenet, CSRF, próbálkozás-korlátozás, `LoginGuard` + honeypot, `editor` szerepkör, `user:*` parancsok; MIT licenc |
+| – | Automatikus ellenőrzés (GitHub Actions): PHPStan, dokumentáció, tesztek MariaDB 10.6/11.4 és MySQL 8.0/8.4 alatt; telepítőcsomag `vendor/`-ral minden verziócímkéhez |
 
 ## Következik
-
-### Közbülső lépés: automatikus ellenőrzés (GitHub Actions)
-
-- Minden pushnál: tesztek MariaDB-vel, PHPStan, `docs:check`, PHP 8.3-on.
-- Verziócímkénél (`v*`): a `vendor` mappát is tartalmazó telepítőcsomag
-  elkészítése és csatolása a GitHub-kiadáshoz.
-
-**Kész, ha:** a GitHubon minden commit mellett látszik, hogy átment-e az
-ellenőrzésen, és a `v0.0.3` címke után letölthető csomag jelenik meg.
 
 ### 0.0.4 – Admin felület
 

@@ -16,3 +16,9 @@
 *.eot   binary
 *.pdf   binary
 *.zip   binary
+
+# A kiadási csomagba (git archive) nem kerülnek bele: fejlesztői eszközök.
+/.github        export-ignore
+/tests          export-ignore
+/phpstan.neon   export-ignore
+/.gitattributes export-ignore

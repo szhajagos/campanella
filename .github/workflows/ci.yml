@@ -1,0 +1,176 @@
+# Automatikus ellenőrzés és kiadás.
+#
+# - Minden pushnál és pull requestnél: PHPStan, dokumentáció-ellenőrzés, és a
+#   tesztek minden támogatott adatbázison (MariaDB 10.6+, MySQL 8.0+).
+# - Verziócímkénél (v*): telepítőcsomag a vendor/ mappával együtt, a
+#   GitHub-kiadáshoz csatolva. Már meglévő címkéhez kézzel is indítható
+#   (Actions › Ellenőrzés › Run workflow, a címke megadásával).
+
+name: Ellenőrzés
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Meglévő címke, amelyhez a kiadási csomag készüljön (pl. v0.0.3)'
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ inputs.tag || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: PHPStan és dokumentáció
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_mysql, mbstring
+          coverage: none
+          tools: composer
+
+      - run: composer validate --no-check-publish
+      - run: composer install --no-interaction --no-progress
+
+      - name: PHPStan (level 8)
+        run: vendor/bin/phpstan analyse --no-progress --memory-limit=1G
+
+      - name: Dokumentált-e minden nyilvános osztály és metódus
+        run: composer docs:check
+
+      - name: Markdown-linkek
+        run: composer docs:links
+
+  tests:
+    name: Tesztek – PHP ${{ matrix.php }}, ${{ matrix.db }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3']
+        db: ['mariadb:10.6', 'mariadb:11.4', 'mysql:8.0', 'mysql:8.4']
+        include:
+          - php: '8.4'
+            db: 'mariadb:11.4'
+
+    services:
+      db:
+        image: ${{ matrix.db }}
+        env:
+          # A MariaDB-image is elfogadja a MYSQL_* neveket.
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: campanella
+          MYSQL_USER: campanella
+          MYSQL_PASSWORD: campanella
+        ports:
+          - 3306:3306
+
+    env:
+      CAMPANELLA_DB_HOST: 127.0.0.1
+      CAMPANELLA_DB_PORT: 3306
+      CAMPANELLA_DB_NAME: campanella
+      CAMPANELLA_DB_USER: campanella
+      CAMPANELLA_DB_PASSWORD: campanella
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo_mysql, mbstring
+          coverage: none
+          tools: composer
+
+      - run: composer install --no-interaction --no-progress
+
+      - name: Várakozás az adatbázisra
+        run: |
+          for i in $(seq 1 60); do
+            php -r 'new PDO("mysql:host=127.0.0.1;port=3306;dbname=campanella", "campanella", "campanella");' 2>/dev/null && exit 0
+            sleep 2
+          done
+          echo "Az adatbázis nem indult el." >&2
+          exit 1
+
+      - name: Tesztek
+        run: composer test
+
+      - name: Telepítés és státusz a parancssorból
+        run: |
+          php bin/campanella install
+          php bin/campanella seed
+          php bin/campanella status
+
+  release:
+    name: Kiadási csomag
+    if: startsWith(github.ref, 'refs/tags/v') || inputs.tag != ''
+    needs: [checks, tests]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_mysql, mbstring
+          coverage: none
+          tools: composer
+
+      - name: A címke és a kód verziója egyezik-e
+        run: |
+          VERSION="${TAG#v}"
+          CODE=$(php -r 'require "src/Core/Version.php"; echo Campanella\Core\Version::CAMPANELLA;')
+          if [ "$VERSION" != "$CODE" ]; then
+            echo "A címke ($TAG) nem egyezik a Version::CAMPANELLA értékével ($CODE)." >&2
+            exit 1
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Csomag összeállítása (vendor/ mappával)
+        run: |
+          NAME="campanella-$VERSION"
+          mkdir -p build
+          # A git archive a .gitattributes export-ignore szabályait követi.
+          git archive --format=tar --prefix="$NAME/" HEAD | tar -x -C build
+          composer install --working-dir="build/$NAME" --no-dev --prefer-dist --optimize-autoloader --no-interaction --no-progress
+          (cd build && zip -qr "$NAME.zip" "$NAME" && sha256sum "$NAME.zip" > "$NAME.zip.sha256")
+          ls -l build
+
+      - name: Kiadási megjegyzés a CHANGELOG-ból
+        run: |
+          awk -v v="$VERSION" '
+            index($0, "## [" v "]") == 1 { found = 1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > build/notes.md
+          if [ ! -s build/notes.md ]; then echo "Lásd a CHANGELOG.md-t." > build/notes.md; fi
+
+      - name: GitHub-kiadás
+        run: |
+          if ! gh release view "$TAG" > /dev/null 2>&1; then
+            gh release create "$TAG" --title "Campanella $VERSION" --notes-file build/notes.md --verify-tag
+          fi
+          gh release upload "$TAG" "build/campanella-$VERSION.zip" "build/campanella-$VERSION.zip.sha256" --clobber

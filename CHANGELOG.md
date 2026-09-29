@@ -13,6 +13,14 @@ visszafelé nem kompatibilisek lehetnek.
 ### Új
 
 - `.gitattributes`: minden szöveges fájl LF sorvéggel, Windowson is.
+- Automatikus ellenőrzés GitHub Actionsszel (`.github/workflows/ci.yml`):
+  minden pushnál PHPStan, `docs:check`, `docs:links`, és a tesztek MariaDB
+  10.6, 11.4, MySQL 8.0 és 8.4 alatt (PHP 8.3; MariaDB 11.4-en PHP 8.4 is).
+- Verziócímkénél (`v*`) telepítőcsomag készül a `vendor/` mappával együtt
+  (`campanella-<verzió>.zip` és SHA-256), a GitHub-kiadáshoz csatolva; a
+  kiadási megjegyzés a CHANGELOG megfelelő szakasza. Ha a címke és a
+  `Version::CAMPANELLA` nem egyezik, a kiadás leáll.
+- `composer docs:links`: a markdown-fájlok relatív linkjeinek ellenőrzése.
 
 ### Javítva
 
