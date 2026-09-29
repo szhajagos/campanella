@@ -1,0 +1,18 @@
+# Minden szöveges fájl LF sorvéggel él a tárolóban és a munkakönyvtárban is,
+# Windowson is (a core.autocrlf beállítástól függetlenül). A Campanella Linuxon
+# fut: a CRLF pl. a bin/campanella futtatását is elrontaná ("php\r").
+* text=auto eol=lf
+
+# Bináris fájlok: soha ne alakítsa át.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.webp  binary
+*.ico   binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.eot   binary
+*.pdf   binary
+*.zip   binary

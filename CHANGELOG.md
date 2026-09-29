@@ -10,6 +10,13 @@ visszafelé nem kompatibilisek lehetnek.
 
 ## [Kiadatlan]
 
+### Javítva
+
+- A belépőűrlap rejtett honeypot-mezője („Weboldal”) látszott, ha a böngésző
+  a 0.0.2-es `campanella.css`-t tartotta gyorsítótárban. A mezőt mostantól
+  beágyazott stílus rejti, és az `asset()` a verziószámot is az URL-hez fűzi
+  (`?v=0.0.3`), így frissítés után az új CSS töltődik be.
+
 ## [0.0.3] – 2026-09-29
 
 Felhasználók és bejelentkezés. A Campanella licence: MIT.
