@@ -29,25 +29,64 @@ ellenőrzésen, és a `v0.0.3` címke után letölthető csomag jelenik meg.
 
 ### 0.0.4 – Admin felület
 
+A 0.0.4 és a 0.0.5 eredetileg egy lépés volt; a HTML-szerkesztés biztonsági
+okból külön kiadásba került (2026-09-29).
+
+Első lépésként, még az űrlapok előtt:
+
+- **Mezők értékeinek száma (számosság).** A `Field` új `cardinality`
+  tulajdonsága: `1` (alapérték, a meglévő mezők nem változnak), egy felső
+  korlát (pl. `3`), vagy `Field::UNLIMITED`. Többértékű mezőnél a `get()`
+  listát ad; a típus minden elemre érvényes, a `required` legalább egy értéket
+  jelent, a darabszám nem lépheti túl a korlátot.
+- Tárolás: a nem lekérdezhető (`Data`) többértékű mező a data JSON-ban
+  listaként él; a lekérdezhető (`Table`/`indexed`) egy új, közös
+  `cc_field_values` táblában (`object_id`, `field`, `delta`, típusonkénti
+  érték-oszlopok, indexekkel). Többértékű mező nem kaphat saját oszlopot.
+- Query: a feltétel többértékű mezőn `EXISTS` al-lekérdezésre fordul
+  („bármelyik értéke”); a Query-nyelv nem változik. Többértékű mező szerinti
+  rendezés nem megengedett.
+- A számosságot a capability határozza meg; a Blueprint szűkítheti (pl. 3 → 2),
+  de egyértékűből többértékűt (vagy fordítva) nem csinálhat.
+- Kapcsolatoknál felső korlát: `new Relation(..., Cardinality::Many, max: 3)`.
+- A `StringList` a „többértékű String, `Data` tárolással” rövidítése lesz.
+- Sémafrissítés: a `cc_field_values` tábla.
+
+Utána:
+
 - Tartalmak listázása, szűrése, létrehozása, szerkesztése, törlése,
   publikálása böngészőből.
 - Az űrlapok a mezők és kapcsolatok definícióiból készülnek, így egy új
   Blueprint vagy capability szerkesztőfelülete automatikusan létrejön.
+  Többértékű mezőnél „Még egy érték” gomb és sorrendezés, a számosság
+  korlátjáig.
 - Érthető hibaüzenetek a `ValidationException` alapján.
 - Megjelenés: Bootstrap 5.3, a Campanellával együtt szállítva
   (`public/assets/vendor/bootstrap`), CDN nélkül. Az admin felület és az
   alapértelmezett nyilvános téma is erre épül.
 - Egyszerű témarendszer: a téma mappájában lévő sablon elsőbbséget kap az
   alapsablonnal szemben, így egy saját téma Bootstrap nélkül is készülhet.
-- HTML-szűrő a `html` formátumú szövegekhez (a WYSIWYG-szerkesztő előfeltétele).
-- WYSIWYG-szerkesztő a `html` formátumú szövegmezőkhöz: Jodit (MIT
-  alapváltozat), helyben szállítva, cserélhető illesztéssel és mezőnként
-  választható eszköztár-profillal. Képfeltöltés a Campanella saját
-  végpontjára (a Jodit PHP-connectora nélkül).
+- A `html` formátumú szövegmezők ebben a lépésben még sima szövegdobozt
+  kapnak; a szerkesztő és a szűrő a 0.0.5-ben jön.
 
 **Kész, ha:** a példaoldal minden tartalma kezelhető böngészőből, parancssor nélkül.
 
-### 0.0.5 – Migrációk
+### 0.0.5 – HTML-szerkesztés
+
+- HTML-szűrő a `html` formátumú szövegekhez, szerveroldalon, engedélyezőlista
+  alapján (jelölt: `symfony/html-sanitizer`, MIT; a HTMLPurifier LGPL, ezért
+  nem). A szűrő mentéskor fut, a szerkesztőtől függetlenül.
+- WYSIWYG-szerkesztő a `html` formátumú szövegmezőkhöz: Jodit (MIT
+  alapváltozat), helyben szállítva, cserélhető illesztéssel és mezőnként
+  választható eszköztár-profillal.
+- Képfeltöltés a Campanella saját végpontjára (a Jodit PHP-connectora
+  nélkül), a média-témakör legszükségesebb részeként: fájltárolás,
+  típus- és méretellenőrzés.
+
+**Kész, ha:** egy cikk törzse böngészőben formázható, képpel együtt, és a
+beküldött HTML-ből a szűrő minden nem engedélyezett elemet eltávolít.
+
+### 0.0.6 – Migrációk
 
 - Verziózott migrációs lépések (pl. új oszlop, új capability meglévő
   objektumokra, adatátalakítás), a `cc_system` táblában nyilvántartva.
@@ -57,7 +96,7 @@ ellenőrzésen, és a `v0.0.3` címke után letölthető csomag jelenik meg.
 **Kész, ha:** egy capability új mezője vagy egy Blueprinthez adott
 capability kézi SQL nélkül átvezethető a meglévő tartalomra.
 
-### 0.0.6 – Hierarchia és menü
+### 0.0.7 – Hierarchia és menü
 
 - `Hierarchical` capability: `parent` kapcsolat, a fa gyors lekérdezése
   (materialized path), körkörös hivatkozás tiltása.
@@ -69,7 +108,7 @@ capability kézi SQL nélkül átvezethető a meglévő tartalomra.
 
 ### 0.1.0 – Első mérföldkő
 
-Az 1–4. lépés együtt: bejelentkezés, admin, migrációk, menü. Innentől a
+A 0.0.3–0.0.7 együtt: bejelentkezés, admin, HTML-szerkesztés, migrációk, menü. Innentől a
 rendszer valódi weboldal kezelésére alkalmas.
 
 ## Később
@@ -102,3 +141,7 @@ rendszer valódi weboldal kezelésére alkalmas.
   bővítménnyel, a tartalék a SunEditor (2026-09-29). A beküldött HTML-t a
   szerkesztőtől függetlenül mindig a szerver szűri.
 - **jQuery-függő komponens nem használható.**
+- **Többértékű mezők:** a mező számossága a `Field`-en van; lekérdezhető
+  többértékű mező a közös `cc_field_values` táblában él, soha nem JSON-ban
+  keresünk (2026-09-29). Ami hivatkozás más dologra (címke, kép, szerző), az
+  objektum és kapcsolat, nem többértékű mező.

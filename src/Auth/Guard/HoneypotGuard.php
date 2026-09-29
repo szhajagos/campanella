@@ -27,9 +27,11 @@ final class HoneypotGuard implements LoginGuard
     #[\Override]
     public function fields(): string
     {
-        // Képernyőolvasók és billentyűzetes navigáció elől is rejtett.
+        // Képernyőolvasók és billentyűzetes navigáció elől is rejtett. A rejtés
+        // beágyazott stílussal történik, hogy ne függjön a téma CSS-étől (vagy
+        // attól, hogy a böngésző egy régebbi CSS-t tart gyorsítótárban).
         return sprintf(
-            '<div class="hp" aria-hidden="true"><label for="hp-%1$s">Weboldal</label>'
+            '<div class="hp" aria-hidden="true" style="position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden"><label for="hp-%1$s">Weboldal</label>'
             . '<input type="text" id="hp-%1$s" name="%1$s" value="" tabindex="-1" autocomplete="off"></div>',
             self::FIELD,
         );

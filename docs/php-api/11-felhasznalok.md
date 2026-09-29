@@ -144,7 +144,9 @@ futnak; az első elutasítás megállítja a belépést.
 Egy ember számára láthatatlan `website` mező. Ha a robot kitölti, a kérés
 elutasítódik, ugyanazzal az üzenettel, mint a hibás jelszónál. `FIELD =
 'website'`; `fields()` adja az űrlapba kerülő HTML-t, amelyet a képernyőolvasók
-és a billentyűzetes navigáció is átugranak.
+és a billentyűzetes navigáció is átugranak. A mezőt beágyazott stílus rejti el,
+így a téma CSS-étől függetlenül sem látszik; ha egy saját sablonban mégis
+megjelenne („Weboldal”), üresen kell hagyni.
 
 ### Kétlépcsős azonosítás (később)
 

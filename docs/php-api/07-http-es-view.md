@@ -155,7 +155,7 @@ A sablonok változói:
 | Sablonban | PHP-metódus | Leírás |
 |---|---|---|
 | `{{ url('/hirek') }}` | `url(string $path)` | Alkönyvtár-biztos URL |
-| `{{ asset('campanella.css') }}` | | A `public/assets/` alatti fájl URL-je |
+| `{{ asset('campanella.css') }}` | `asset(string $path)` | A `public/assets/` alatti fájl URL-je, a verzióval mint gyorsítótár-törővel (`…/campanella.css?v=0.0.3`) |
 | `{{ render_object(item, 'teaser') }}` | `renderObject(CampanellaObject $object, string $mode)` | Egy objektum egy módban |
 | `{{ related(object, 'categories') }}` | `related(CampanellaObject $object, string $relation)` | Egy kapcsolat betöltött célobjektumai, vagy üres lista |
 | `{{ current_user() }}` | `currentUser()` | A bejelentkezett felhasználó vagy `null` ([11. fejezet](11-felhasznalok.md#webes-felület)) |

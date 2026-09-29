@@ -6,6 +6,7 @@ namespace Campanella\View;
 
 use Campanella\Capability\Textual;
 use Campanella\Capability\TextFormat;
+use Campanella\Core\Version;
 use Campanella\Model\CampanellaObject;
 use Campanella\Security\Csrf;
 use Closure;
@@ -48,7 +49,7 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
     {
         return [
             new TwigFunction('url', $this->url(...)),
-            new TwigFunction('asset', fn (string $path): string => $this->url('/assets/' . ltrim($path, '/'))),
+            new TwigFunction('asset', $this->asset(...)),
             new TwigFunction('render_object', $this->renderObject(...), ['is_safe' => ['html']]),
             new TwigFunction('related', $this->related(...)),
             new TwigFunction('current_user', $this->currentUser(...)),
@@ -73,6 +74,16 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
     public function url(string $path): string
     {
         return ($this->basePath)() . '/' . ltrim($path, '/');
+    }
+
+    /**
+     * Egy public/assets alatti fájl URL-je, a Campanella verziójával mint
+     * gyorsítótár-törővel (?v=0.0.3): frissítés után a böngésző biztosan az új
+     * CSS-t és JS-t tölti le, nem a korábban eltároltat.
+     */
+    public function asset(string $path): string
+    {
+        return $this->url('/assets/' . ltrim($path, '/')) . '?v=' . rawurlencode(Version::CAMPANELLA);
     }
 
     public function renderObject(CampanellaObject $object, string $mode = Presentation::TEASER): string

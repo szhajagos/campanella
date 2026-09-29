@@ -10,6 +10,10 @@ visszafelé nem kompatibilisek lehetnek.
 
 ## [Kiadatlan]
 
+### Új
+
+- `.gitattributes`: minden szöveges fájl LF sorvéggel, Windowson is.
+
 ### Javítva
 
 - A belépőűrlap rejtett honeypot-mezője („Weboldal”) látszott, ha a böngésző
