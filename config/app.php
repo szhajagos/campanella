@@ -19,10 +19,12 @@ return [
     'debug' => filter_var(getenv('CAMPANELLA_DEBUG') ?: false, FILTER_VALIDATE_BOOL),
     'timezone' => 'Europe/Budapest',
 
+    // The language of user-facing texts: a file in lang/ (en, hu). English is the fallback.
+    'locale' => getenv('CAMPANELLA_LOCALE') ?: 'hu',
+
     'site' => [
         'name' => 'Campanella',
         'slogan' => 'Capability-vezérelt CMS',
-        'language' => 'hu',
     ],
 
     // Can also be set via environment variables (e.g. in Docker); local.php overrides them.

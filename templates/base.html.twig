@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="{{ site.language|default('hu') }}">
+<html lang="{{ locale() }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -10,11 +10,11 @@
     <header class="site-header">
         <div class="wrap">
             <a class="site-name" href="{{ url('/') }}">{{ site.name }}</a>
-            <nav class="site-nav" aria-label="Főmenü">
-                <a href="{{ url('/') }}">Főoldal</a>
-                <a href="{{ url('/hirek') }}">Hírek</a>
-                <a href="{{ url('/kategoriak') }}">Kategóriák</a>
-                <a href="{{ url('/rolunk') }}">Rólunk</a>
+            <nav class="site-nav" aria-label="{{ t('site.nav.label') }}">
+                <a href="{{ url('/') }}">{{ t('site.nav.home') }}</a>
+                <a href="{{ url('/hirek') }}">{{ t('site.nav.news') }}</a>
+                <a href="{{ url('/kategoriak') }}">{{ t('site.nav.categories') }}</a>
+                <a href="{{ url('/rolunk') }}">{{ t('site.nav.about') }}</a>
             </nav>
             {% set user = current_user() %}
             <div class="site-user">
@@ -22,10 +22,10 @@
                     <span class="site-user__name">{{ user.title }}</span>
                     <form method="post" action="{{ url('/kilepes') }}" class="inline-form">
                         {{ csrf_field() }}
-                        <button type="submit" class="link-button">Kilépés</button>
+                        <button type="submit" class="link-button">{{ t('auth.logout') }}</button>
                     </form>
                 {% else %}
-                    <a href="{{ url('/belepes') }}">Belépés</a>
+                    <a href="{{ url('/belepes') }}">{{ t('auth.login') }}</a>
                 {% endif %}
             </div>
         </div>

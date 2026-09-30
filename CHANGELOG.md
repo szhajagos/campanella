@@ -38,6 +38,12 @@ backward-incompatible.
   `'cardinality' => ['phones' => 2]`.
 - `Relation` has a new `max` parameter for Many relations (at most this many
   targets; checked on save: `legfeljebb 2 kapcsolat adható meg`).
+- **Translation layer, part 1.** User-facing texts are referenced by key and
+  live in `lang/en.php` and `lang/hu.php` (English is the base language and
+  the fallback). New `Campanella\I18n\Translator` service, `t()` and
+  `locale()` Twig functions, `locale` setting (`CAMPANELLA_LOCALE`, default
+  `hu`), and `composer lang:check`. The templates, the login messages and the
+  error pages use it; validation messages and CLI output follow in part 2.
 - `php bin/campanella status` marks multi-valued fields with their limit
   (`phones[3]`, `tags[*]`).
 
@@ -50,6 +56,12 @@ backward-incompatible.
   `11-felhasznalok.md` → `11-users.md`).
 - Schema version 4 (new `cc_field_values` table): after upgrading, run
   `php bin/campanella install`.
+- `AuthService::GENERIC_ERROR`, the `LoginResult` error and the
+  `LoginGuard::check()` result are message keys (e.g.
+  `auth.invalid_credentials`); `LoginResult` has a new `$errorParams`. A guard
+  may still return a ready-made text: an unknown key is shown as it is.
+- `HttpException::notFound()`'s default message is the key `error.not_found`.
+- The `site.language` setting is replaced by `locale`.
 - `CapabilityDefinition::tableFields()` returns only the single-valued `Table`
   fields; the multi-valued ones are returned by the new `valueTableFields()`.
 

@@ -41,8 +41,8 @@ If the `.htaccess` in the root directs the request under `public/`,
 `Campanella\Http\HttpException` · **Public** · `RuntimeException`
 
 `__construct(int $status, string $message = '')`, `$status`, and
-`static notFound(string $message = 'Az oldal nem található.'): self` (default
-message: "Page not found."). When thrown from a controller, the `Kernel`
+`static notFound(string $message = 'error.not_found'): self` (the default is
+a message key, see [chapter 12](12-translation.md#in-php-code)). When thrown from a controller, the `Kernel`
 renders an error page with the given status.
 
 ## Router and RouteMatch
@@ -161,6 +161,8 @@ Template variables:
 | `{{ related(object, 'categories') }}` | `related(CampanellaObject $object, string $relation)` | The loaded target objects of a relation, or an empty list |
 | `{{ current_user() }}` | `currentUser()` | The logged-in user or `null` ([chapter 11](11-users.md#web-interface)) |
 | `{{ csrf_field() }}` | `csrfField()` | Hidden CSRF field for POST forms |
+| `{{ t('auth.login', {…}) }}` | `translate(string $key, array $params = [])` | A user-facing text in the current language ([chapter 12](12-translation.md)) |
+| `{{ locale() }}` | `locale()` | The current language code |
 | `{{ object\|body }}` | `body(CampanellaObject $object)` | The HTML of the Textual body: escaped and split into paragraphs for the `plain` format; unchanged for the `html` format |
 
 The extension's other methods (`getFunctions()`, `getFilters()`,

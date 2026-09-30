@@ -55,6 +55,10 @@ Then:
   `lang/hu.php`; English is the base language, Hungarian a full translation.
   A `lang:check` script reports missing keys. Existing hard-coded Hungarian
   texts move there; the admin UI is built on it from the start.
+  - ✅ Part 1: the `Translator`, the language files, `t()` in templates, and
+    the web texts (templates, login, error pages).
+  - Part 2: validation messages (`ValidationException` gets keys and
+    parameters) and the command-line output.
 - Listing, filtering, creating, editing, deleting and publishing content from
   the browser.
 - Forms are generated from the field and relation definitions, so the editing

@@ -3,12 +3,12 @@
     {% for item in result %}
         {{ render_object(item, item_mode) }}
     {% else %}
-        <p class="empty">Nincs megjeleníthető tartalom.</p>
+        <p class="empty">{{ t('content.empty') }}</p>
     {% endfor %}
 </div>
 
 {% if result.pageCount > 1 %}
-    <nav class="pager" aria-label="Lapozó">
+    <nav class="pager" aria-label="{{ t('content.pager') }}">
         {% for page in 1..result.pageCount %}
             {% if page == result.currentPage %}
                 <span aria-current="page">{{ page }}</span>

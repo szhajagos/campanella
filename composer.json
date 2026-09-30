@@ -32,7 +32,8 @@
         "test": "php tests/run.php",
         "analyse": "phpstan analyse",
         "docs:check": "php tests/docs-check.php",
-        "docs:links": "php tests/links-check.php"
+        "docs:links": "php tests/links-check.php",
+        "lang:check": "php tests/lang-check.php"
     },
     "require-dev": {
         "phpstan/phpstan": "^2.1"

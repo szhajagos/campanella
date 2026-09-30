@@ -10,7 +10,7 @@
             {% for item in list.result %}
                 {{ render_object(item, 'teaser') }}
             {% else %}
-                <p class="empty">Nincs megjeleníthető tartalom.</p>
+                <p class="empty">{{ t('content.empty') }}</p>
             {% endfor %}
         </section>
     {% endfor %}

@@ -97,7 +97,7 @@ Constants: `Actor::ADMINISTRATOR`, `DefaultPolicy::EDITOR`.
 | `static actorFor(CampanellaObject $user): Actor` | `ActorKind::User`, ID, roles, name |
 | `findUserByEmail(string $email): ?CampanellaObject` | |
 | `guards(): list<LoginGuard>` | The configured guards |
-| `GENERIC_ERROR` | `'Hibás e-mail-cím vagy jelszó.'` ("Invalid e-mail address or password.") |
+| `GENERIC_ERROR` | The message key `'auth.invalid_credentials'` ("Invalid e-mail address or password."; see [chapter 12](12-translation.md)) |
 
 **Security behavior:**
 
@@ -108,11 +108,14 @@ Constants: `Actor::ADMINISTRATOR`, `DefaultPolicy::EDITOR`.
   e-mail address and IP address pair, and 20 attempts per IP address, within
   15 minutes. On success the counter of the e-mail and IP pair is reset.
 - A blocked account cannot log in even with the correct password
-  ('A fiók le van tiltva.', "The account is blocked."), and its existing
+  (key `auth.account_blocked`, "The account is blocked."), and its existing
   session ends on the next request.
 
-`LoginResult` (`final readonly class`): `$success`, `$user`, `$error`;
-`static success(CampanellaObject $user)`, `static failure(string $error)`.
+`LoginResult` (`final readonly class`): `$success`, `$user`, `$error` (a
+message key, or a ready-made text), `$errorParams`;
+`static success(CampanellaObject $user)`,
+`static failure(string $error, array $params = [])`. The `AuthController`
+translates the error for display.
 
 ## Extension: LoginGuard
 
@@ -123,7 +126,7 @@ CAPTCHA, IP blocklist, etc.
 
 | Method | Description |
 |---|---|
-| `check(Request $request): ?string` | An error message to reject, `null` to let through |
+| `check(Request $request): ?string` | An error message key (or text) to reject, `null` to let through |
 | `fields(): string` | Additional HTML for the form (or an empty string) |
 
 The list of guards is in the `auth.guards` key of `config/app.php`; they run in

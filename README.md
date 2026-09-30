@@ -110,6 +110,7 @@ The [CHANGELOG](CHANGELOG.md) lists the changes version by version.
 | `composer analyse` | PHPStan, level 8, targeting PHP 8.3 |
 | `composer docs:check` | Find undocumented public classes and methods |
 | `composer docs:links` | Find broken relative links in the markdown files |
+| `composer lang:check` | Check that every language file in `lang/` has the same keys |
 
 ### Continuous integration
 
@@ -144,6 +145,7 @@ src/
   Cli/          bin/campanella commands
 config/         app.php, blueprints.php, routes.php, queries.php, local.php
 templates/      Twig templates
+lang/           User-facing texts per language (en.php, hu.php)
 public/         index.php (single entry point), assets/
 ```
 

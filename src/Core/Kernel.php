@@ -22,6 +22,7 @@ use Campanella\Http\Request;
 use Campanella\Http\Response;
 use Campanella\Http\Router;
 use Campanella\Http\Session;
+use Campanella\I18n\Translator;
 use Campanella\Model\BlueprintRegistry;
 use Campanella\Model\ObjectRepository;
 use Campanella\Query\QueryCompiler;
@@ -145,6 +146,11 @@ final class Kernel
 
         $c->set(Csrf::class, static fn (Container $c): Csrf => new Csrf($c->get(Session::class)));
 
+        $c->set(Translator::class, static fn (Container $c): Translator => Translator::fromDirectory(
+            $root . '/lang',
+            (string) $c->get(Config::class)->get('locale', Translator::BASE_LOCALE),
+        ));
+
         $c->set(Throttle::class, static fn (Container $c): Throttle => new Throttle($c->get(Connection::class)));
 
         $c->set(AuthService::class, static fn (Container $c): AuthService => new AuthService(
@@ -201,6 +207,7 @@ final class Kernel
                 ['site' => $config->get('site', []), 'campanella_version' => Version::CAMPANELLA],
                 static fn () => $c->get(AuthService::class)->currentUser($currentRequest()),
                 static fn (): string => $c->get(Csrf::class)->token($currentRequest()),
+                static fn (): Translator => $c->get(Translator::class),
             ));
 
             return $twig;
@@ -223,6 +230,7 @@ final class Kernel
             $c->get(AuthService::class),
             $c->get(Csrf::class),
             $c->get(Presentation::class),
+            $c->get(Translator::class),
         ));
 
         $c->set('controller.query', static fn (Container $c): Controller => new QueryController(
@@ -261,13 +269,10 @@ final class Kernel
             if ($e instanceof \PDOException) {
                 $installer = $this->container()->get(Installer::class);
                 if (!$installer->isInstalled()) {
-                    return $this->errorResponse(503, 'A Campanella még nincs telepítve. Futtasd: php bin/campanella install');
+                    return $this->errorResponse(503, 'error.not_installed');
                 }
                 if ($installer->needsUpgrade()) {
-                    return $this->errorResponse(
-                        503,
-                        'Az adatbázis frissítésre szorul (új verzió). Futtasd: php bin/campanella install',
-                    );
+                    return $this->errorResponse(503, 'error.needs_upgrade');
                 }
             }
         } catch (\Throwable) {
@@ -275,11 +280,17 @@ final class Kernel
         }
         error_log((string) $e);
 
-        return $this->errorResponse(500, $debug ? get_class($e) . ': ' . $e->getMessage() : 'Belső hiba történt.');
+        return $this->errorResponse(500, $debug ? get_class($e) . ': ' . $e->getMessage() : 'error.internal');
     }
 
+    /** @param string $message A message key (see lang/) or a ready-made text. */
     private function errorResponse(int $status, string $message): Response
     {
+        try {
+            $message = $this->container()->get(Translator::class)->translate($message);
+        } catch (\Throwable) {
+            // Without a working translator, the key is shown.
+        }
         try {
             $html = $this->container()->get(Presentation::class)->render('page/error.html.twig', [
                 'status' => $status,

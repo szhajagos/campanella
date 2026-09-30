@@ -8,5 +8,5 @@
         <p>{{ object.lead }}</p>
     {% endif %}
     {{ include('object/_relations.html.twig') }}
-    <a class="more" href="{{ url(object.path) }}">Tovább</a>
+    <a class="more" href="{{ url(object.path) }}">{{ t('content.more') }}</a>
 </article>

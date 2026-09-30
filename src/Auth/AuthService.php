@@ -37,7 +37,8 @@ use Campanella\Security\Throttle;
 final class AuthService
 {
     public const string SESSION_USER = 'auth_user_id';
-    public const string GENERIC_ERROR = 'Hibás e-mail-cím vagy jelszó.';
+    /** Message key of the generic login error (the same for a wrong e-mail address and a wrong password). */
+    public const string GENERIC_ERROR = 'auth.invalid_credentials';
 
     private ?Request $resolvedFor = null;
     private ?CampanellaObject $current = null;
@@ -81,7 +82,7 @@ final class AuthService
             || $this->throttle->tooManyAttempts($ipKey, $this->config['max_attempts_per_ip'] ?? 20)) {
             $minutes = (int) ceil(max($this->throttle->availableIn($pairKey), $this->throttle->availableIn($ipKey)) / 60);
 
-            return LoginResult::failure(sprintf('Túl sok sikertelen próbálkozás. Próbáld újra %d perc múlva.', max(1, $minutes)));
+            return LoginResult::failure('auth.too_many_attempts', ['minutes' => max(1, $minutes)]);
         }
 
         $user = $email === '' ? null : $this->findUserByEmail($email);
@@ -101,7 +102,7 @@ final class AuthService
             return LoginResult::failure(self::GENERIC_ERROR);
         }
         if (!$auth->isActive()) {
-            return LoginResult::failure('A fiók le van tiltva.');
+            return LoginResult::failure('auth.account_blocked');
         }
 
         if ($auth->needsRehash()) {

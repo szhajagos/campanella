@@ -11,7 +11,7 @@ final class HttpException extends \RuntimeException
         parent::__construct($message, $status);
     }
 
-    public static function notFound(string $message = 'Az oldal nem található.'): self
+    public static function notFound(string $message = 'error.not_found'): self
     {
         return new self(404, $message);
     }

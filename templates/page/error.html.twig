@@ -2,8 +2,8 @@
 
 {% block content %}
     <section class="error">
-        <h1>{{ status == 404 ? 'Az oldal nem található' : 'Hiba történt' }}</h1>
+        <h1>{{ status == 404 ? t('error.not_found_title') : t('error.title') }}</h1>
         <p>{{ message }}</p>
-        <p><a href="{{ url('/') }}">Vissza a főoldalra</a></p>
+        <p><a href="{{ url('/') }}">{{ t('error.back_home') }}</a></p>
     </section>
 {% endblock %}

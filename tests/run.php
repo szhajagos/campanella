@@ -49,6 +49,7 @@ use Campanella\Capability\Authorable;
 use Campanella\Controller\AuthController;
 use Campanella\Http\ArraySessionStorage;
 use Campanella\Http\Session;
+use Campanella\I18n\Translator;
 use Campanella\Security\Csrf;
 use Campanella\Security\Throttle;
 
@@ -528,7 +529,7 @@ test('Login: login throttling', function () use ($authFor, $req): void {
         $auth->attempt($req(['x' => 1], '10.9.9.9'), 'szerkeszto@example.hu', 'rossz-jelszo-1');
     }
     $blocked = $auth->attempt($req(['x' => 1], '10.9.9.9'), 'szerkeszto@example.hu', 'szerkeszto-jelszo');
-    check(!$blocked->success && str_contains($blocked->error, 'Túl sok'), $blocked->error);
+    check(!$blocked->success && $blocked->error === 'auth.too_many_attempts' && ($blocked->errorParams['minutes'] ?? 0) >= 1, $blocked->error);
     // The same account can still log in from another IP address.
     check($auth->attempt($req(['x' => 1], '10.8.8.8'), 'szerkeszto@example.hu', 'szerkeszto-jelszo')->success);
 });
@@ -545,7 +546,7 @@ test('Login: blocked account, and blocking also ends the existing session', func
     [$next] = $authFor($storage);
     check($next->currentActor($req())->isAnonymous(), 'the blocked user stayed logged in');
     $again = $next->attempt($req(['x' => 1]), 'tiltott@example.hu', 'tiltott-jelszo-1');
-    check(!$again->success && $again->error === 'A fiók le van tiltva.');
+    check(!$again->success && $again->error === 'auth.account_blocked');
 });
 
 test('Honeypot guard and CSRF', function () use ($authFor, $req): void {
@@ -873,6 +874,62 @@ test('Relation limit (max)', function () use ($contactRepository): void {
     $contact->unrelate('friends', $friends[2]);
     $contactRepository->save($contact);
     check(count($contact->relatedIds('friends')) === 2);
+});
+
+// --- Translation (0.0.4) -----------------------------------------------------
+
+echo "\nTranslation\n";
+
+test('Translator: current language, English fallback, parameters, plain text', function (): void {
+    $translator = new Translator([
+        'en' => ['a.hello' => 'Hello {name}!', 'a.only_en' => 'Only English'],
+        'hu' => ['a.hello' => 'Szia {name}!'],
+    ], 'hu');
+    check($translator->translate('a.hello', ['name' => 'Anna']) === 'Szia Anna!');
+    check($translator->translate('a.only_en') === 'Only English', 'falls back to English');
+    check($translator->translate('Kész szöveg.') === 'Kész szöveg.', 'unknown key / plain text passes through');
+    check($translator->has('a.only_en') && !$translator->has('a.nothing'));
+    check($translator->locale() === 'hu' && $translator->locales() === ['en', 'hu']);
+    throws(InvalidArgumentException::class, fn () => new Translator([], 'hungarian'));
+});
+
+test('Language files: every language has the same keys (lang:check)', function (): void {
+    $catalogs = Translator::loadCatalogs(dirname(__DIR__) . '/lang');
+    check(isset($catalogs['en'], $catalogs['hu']), 'lang/en.php and lang/hu.php are required');
+    foreach (Translator::compare($catalogs) as $locale => $diff) {
+        check($diff['missing'] === [] && $diff['extra'] === [], "{$locale}: missing " . implode(', ', $diff['missing'])
+            . '; extra ' . implode(', ', $diff['extra']));
+    }
+    // Every t('...') key used in the templates exists in English.
+    $templates = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(dirname(__DIR__) . '/templates', FilesystemIterator::SKIP_DOTS));
+    foreach ($templates as $file) {
+        preg_match_all("/\\bt\\('([a-z0-9_.]+)'/", (string) file_get_contents((string) $file), $m);
+        foreach ($m[1] as $key) {
+            check(isset($catalogs['en'][$key]), "unknown key in {$file->getFilename()}: {$key}");
+        }
+    }
+});
+
+test('Kernel: the login page in English (CAMPANELLA_LOCALE=en)', function (): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    putenv('CAMPANELLA_LOCALE=en');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $locale = $kernel->container()->get(Translator::class)->locale();
+    putenv('CAMPANELLA_LOCALE');
+    if ($locale !== 'en') {
+        echo "      (skipped: config/local.php sets its own locale)\n";
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $kernel->container()->set(Session::class, static fn (): Session => new Session(new ArraySessionStorage()));
+    $page = $kernel->handle(new Request('GET', '/belepes'));
+    check($page->status === 200 && str_contains($page->body, '<html lang="en">'), 'lang attribute');
+    check(str_contains($page->body, '<h1>Log in</h1>') && str_contains($page->body, 'E-mail address'), 'English texts');
+    check(!str_contains($page->body, 'Belépés'), 'Hungarian text left on the page');
+    $missing = $kernel->handle(new Request('GET', '/nincs-ilyen-oldal'));
+    check($missing->status === 404 && str_contains($missing->body, 'The page was not found.'), 'English 404');
+    putenv('CAMPANELLA_DB_PREFIX');
 });
 
 // --- Documentation examples -------------------------------------------------

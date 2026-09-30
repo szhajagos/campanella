@@ -9,6 +9,7 @@ use Campanella\Auth\AuthService;
 use Campanella\Http\Request;
 use Campanella\Http\Response;
 use Campanella\Http\RouteMatch;
+use Campanella\I18n\Translator;
 use Campanella\Security\Csrf;
 use Campanella\View\Presentation;
 
@@ -24,6 +25,7 @@ final class AuthController implements Controller
         private readonly AuthService $auth,
         private readonly Csrf $csrf,
         private readonly Presentation $presentation,
+        private readonly Translator $translator,
     ) {
     }
 
@@ -49,11 +51,11 @@ final class AuthController implements Controller
 
         $email = $request->postString('email');
         if (!$this->csrf->isValid($request)) {
-            return $this->form($request, $target, $email, 'Az űrlap lejárt. Kérjük, próbáld újra.', 400);
+            return $this->form($request, $target, $email, $this->translator->translate('auth.form_expired'), 400);
         }
         $result = $this->auth->attempt($request, $email, $request->postString('password'));
         if (!$result->success) {
-            return $this->form($request, $target, $email, $result->error, 422);
+            return $this->form($request, $target, $email, $this->translator->translate($result->error, $result->errorParams), 422);
         }
 
         return Response::redirect($request->basePath . $target, 303);
@@ -71,7 +73,7 @@ final class AuthController implements Controller
     private function form(Request $request, string $target, string $email = '', string $error = '', int $status = 200): Response
     {
         return Response::html($this->presentation->render('page/login.html.twig', [
-            'title' => 'Belépés',
+            'title' => $this->translator->translate('auth.login'),
             'email' => $email,
             'error' => $error,
             'target' => $target,

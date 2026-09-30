@@ -7,6 +7,7 @@ namespace Campanella\View;
 use Campanella\Capability\Textual;
 use Campanella\Capability\TextFormat;
 use Campanella\Core\Version;
+use Campanella\I18n\Translator;
 use Campanella\Model\CampanellaObject;
 use Campanella\Security\Csrf;
 use Closure;
@@ -24,6 +25,8 @@ use Twig\TwigFunction;
  *   {{ related(object, 'categories') }} the loaded target objects of a relation
  *   {{ current_user() }}                the logged-in user or null
  *   {{ csrf_field() }}                  hidden CSRF field for POST forms
+ *   {{ t('auth.login') }}               a user-facing text in the current language
+ *   {{ locale() }}                      the current language code
  *   {{ object|body }}                   the safe HTML of the Textual body
  */
 final class CampanellaTwigExtension extends AbstractExtension implements GlobalsInterface
@@ -34,6 +37,7 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
      * @param array<string, mixed> $globals
      * @param (Closure(): ?CampanellaObject)|null $currentUser The logged-in user (lazy).
      * @param (Closure(): string)|null $csrfToken The current CSRF token (lazy; starts a session).
+     * @param (Closure(): Translator)|null $translator For t() and locale() (lazy).
      */
     public function __construct(
         private readonly Closure $presentation,
@@ -41,6 +45,7 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
         private readonly array $globals = [],
         private readonly ?Closure $currentUser = null,
         private readonly ?Closure $csrfToken = null,
+        private readonly ?Closure $translator = null,
     ) {
     }
 
@@ -54,6 +59,8 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
             new TwigFunction('related', $this->related(...)),
             new TwigFunction('current_user', $this->currentUser(...)),
             new TwigFunction('csrf_field', $this->csrfField(...), ['is_safe' => ['html']]),
+            new TwigFunction('t', $this->translate(...)),
+            new TwigFunction('locale', $this->locale(...)),
         ];
     }
 
@@ -108,6 +115,23 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
     public function currentUser(): ?CampanellaObject
     {
         return $this->currentUser === null ? null : ($this->currentUser)();
+    }
+
+    /**
+     * A user-facing text by key in the current language: {{ t('auth.login') }},
+     * {{ t('auth.too_many_attempts', {minutes: 5}) }}. Without a translator, the key itself.
+     *
+     * @param array<string, string|int|float> $params
+     */
+    public function translate(string $key, array $params = []): string
+    {
+        return $this->translator === null ? $key : ($this->translator)()->translate($key, $params);
+    }
+
+    /** The current language code (e.g. for <html lang="...">). */
+    public function locale(): string
+    {
+        return $this->translator === null ? Translator::BASE_LOCALE : ($this->translator)()->locale();
     }
 
     /** Hidden field with the CSRF token; it must be put into every POST form. */

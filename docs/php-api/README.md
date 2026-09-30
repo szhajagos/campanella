@@ -16,6 +16,7 @@ namespace, in the `src/` folder (PSR-4).
 9. [System](09-system.md): `Kernel`, `Container`, configuration, CLI, helper classes
 10. [Relations](10-relations.md): `Relation`, `Cardinality`, `whereRelated`, `RelationLoader`, Blueprint lists
 11. [Users and login](11-users.md): `Identifiable`, `Authenticatable`, `Authorable`, `AuthService`, session, CSRF, `LoginGuard`
+12. [Translation](12-translation.md): `Translator`, language files, `t()` in templates
 
 ## Namespaces
 
@@ -28,6 +29,7 @@ namespace, in the `src/` folder (PSR-4).
 | `Campanella\Relation` | Model | Relation definitions and loading |
 | `Campanella\Auth` | Service | Login, logout, current user, login guards |
 | `Campanella\Security` | Infrastructure | CSRF token, login throttling |
+| `Campanella\I18n` | Infrastructure | Translation of user-facing texts |
 | `Campanella\Service` | Service | Business operations with access control checks |
 | `Campanella\Controller` | Controller | Handling HTTP requests |
 | `Campanella\View` | View | Presentation, Twig integration |
