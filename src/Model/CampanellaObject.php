@@ -52,7 +52,7 @@ final class CampanellaObject
     ) {
         foreach ($fields as $name => $field) {
             $value = array_key_exists($name, $values) ? $values[$name] : $field->default;
-            $this->values[$name] = $field->type->cast($value);
+            $this->values[$name] = $field->cast($value);
         }
         foreach ($relations as $name => $_) {
             $this->relatedIds[$name] = array_map(intval(...), $relatedIds[$name] ?? []);
@@ -153,7 +153,7 @@ final class CampanellaObject
     {
         $definition = $this->fields[$field]
             ?? throw new \OutOfBoundsException("The object has no such field: {$field}");
-        $this->values[$field] = $definition->type->cast($value);
+        $this->values[$field] = $definition->cast($value);
     }
 
     /** @param array<string, mixed> $values */

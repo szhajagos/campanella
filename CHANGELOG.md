@@ -22,6 +22,24 @@ backward-incompatible.
   If the tag and `Version::CAMPANELLA` do not match, the release is aborted.
 - `composer docs:links`: checks that the relative links in the markdown files
   point to existing files and that their `#anchors` point to existing headings.
+- **Multi-valued fields (cardinality).** `Field` has a new `cardinality`
+  parameter: `1` (the default; existing fields are unchanged), an upper limit
+  (e.g. `3`), or `Field::UNLIMITED`. The value of a multi-valued field is
+  always a list; `required` means at least one value, and more values than the
+  limit are rejected on save (`legfeljebb 3 érték adható meg`).
+- Queryable multi-valued fields are stored in the new `cc_field_values` table,
+  one row per value, in order; `Data` ones in the `data` JSON column as a list.
+  A condition on a multi-valued field matches if any of its values matches
+  (`EXISTS` subquery; `!=` and `NOT IN`: the object has the field and none of
+  its values matches; `IS NULL`: no value); sorting on one is rejected with
+  `QueryException`. Items of a multi-valued `String` field are checked against
+  the field's `length` on save.
+- A Blueprint can narrow the limit of a capability's multi-valued field:
+  `'cardinality' => ['phones' => 2]`.
+- `Relation` has a new `max` parameter for Many relations (at most this many
+  targets; checked on save: `legfeljebb 2 kapcsolat adható meg`).
+- `php bin/campanella status` marks multi-valued fields with their limit
+  (`phones[3]`, `tags[*]`).
 
 ### Changed
 
@@ -30,6 +48,10 @@ backward-incompatible.
   Hungarian; a translation layer is planned for 0.0.4.
 - The `docs/php-api` chapter files have English names (e.g.
   `11-felhasznalok.md` → `11-users.md`).
+- Schema version 4 (new `cc_field_values` table): after upgrading, run
+  `php bin/campanella install`.
+- `CapabilityDefinition::tableFields()` returns only the single-valued `Table`
+  fields; the multi-valued ones are returned by the new `valueTableFields()`.
 
 ### Fixed
 

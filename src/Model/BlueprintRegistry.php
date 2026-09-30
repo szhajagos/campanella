@@ -20,7 +20,7 @@ final class BlueprintRegistry
     private array $blueprintRelations = [];
 
     /**
-     * @param array<string, array{label?: string, capabilities: list<class-string<Capability>|string>, fields?: list<Field>, relations?: list<Relation>, lists?: array<string, array{label?: string, query: Closure(CampanellaObject): Query}>}> $config
+     * @param array<string, array{label?: string, capabilities: list<class-string<Capability>|string>, fields?: list<Field>, relations?: list<Relation>, cardinality?: array<string, mixed>, lists?: array<string, array{label?: string, query: Closure(CampanellaObject): Query}>}> $config
      */
     public function __construct(private readonly CapabilityRegistry $capabilities, array $config = [])
     {
@@ -30,7 +30,7 @@ final class BlueprintRegistry
     }
 
     /**
-     * @param array{label?: string, capabilities: list<class-string<Capability>|string>, fields?: list<Field>, relations?: list<Relation>, lists?: array<string, array{label?: string, query: Closure(CampanellaObject): Query}>} $definition
+     * @param array{label?: string, capabilities: list<class-string<Capability>|string>, fields?: list<Field>, relations?: list<Relation>, cardinality?: array<string, mixed>, lists?: array<string, array{label?: string, query: Closure(CampanellaObject): Query}>} $definition
      */
     public function define(string $name, array $definition): Blueprint
     {
@@ -53,6 +53,26 @@ final class BlueprintRegistry
             $fields[$field->name] = $field->asData();
         }
 
+        // Narrowing the cardinality of capability fields, e.g. 'cardinality' => ['phones' => 2].
+        $narrowed = [];
+        $capabilityFields = [];
+        foreach ($capabilities as $capability) {
+            $capabilityFields += $capability->fields;
+        }
+        foreach ($definition['cardinality'] ?? [] as $fieldName => $cardinality) {
+            $field = $capabilityFields[$fieldName] ?? throw new CapabilityException(isset($fields[$fieldName])
+                ? "Blueprint '{$name}': set the cardinality of the custom field '{$fieldName}' on the field itself."
+                : "Blueprint '{$name}': unknown field in 'cardinality': {$fieldName}");
+            if (!is_int($cardinality)) {
+                throw new CapabilityException("Blueprint '{$name}': the cardinality of '{$fieldName}' must be an integer.");
+            }
+            try {
+                $narrowed[$fieldName] = $field->withCardinality($cardinality);
+            } catch (\InvalidArgumentException $e) {
+                throw new CapabilityException("Blueprint '{$name}': " . $e->getMessage(), 0, $e);
+            }
+        }
+
         $relations = [];
         foreach ($definition['relations'] ?? [] as $relation) {
             $this->checkRelation($name, $relation, $fields);
@@ -69,6 +89,7 @@ final class BlueprintRegistry
             $fields,
             $relations,
             $definition['lists'] ?? [],
+            $narrowed,
         );
     }
 

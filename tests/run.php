@@ -28,6 +28,9 @@ use Campanella\Database\Installer;
 use Campanella\Http\Request;
 use Campanella\Model\BlueprintRegistry;
 use Campanella\Model\ObjectRepository;
+use Campanella\Model\FieldStorage;
+use Campanella\Model\FieldType;
+use Campanella\Model\Field;
 use Campanella\Model\ValidationException;
 use Campanella\Query\Query;
 use Campanella\Query\QueryCompiler;
@@ -92,6 +95,36 @@ final class Weighted extends \Campanella\Capability\Capability
     public function setWeight(int $weight): void
     {
         $this->object->set('weight', $weight);
+    }
+}
+
+/** A test capability with multi-valued fields only (so it has no table of its own). */
+#[\Campanella\Capability\AsCapability('contactable', label: 'Elérhető')]
+final class Contactable extends \Campanella\Capability\Capability
+{
+    #[\Override]
+    public static function fields(): array
+    {
+        return [
+            new Field('phones', FieldType::String, required: true, length: 32, cardinality: 3),
+            new Field('tags', FieldType::String, length: 64, cardinality: Field::UNLIMITED),
+            new Field('lucky_numbers', FieldType::Integer, cardinality: Field::UNLIMITED),
+            new Field('event_dates', FieldType::DateTime, cardinality: Field::UNLIMITED),
+            new Field('notes', FieldType::Text, storage: FieldStorage::Data, cardinality: Field::UNLIMITED),
+            new Field('flags', FieldType::Boolean, cardinality: Field::UNLIMITED),
+            new Field('bios', FieldType::Text, cardinality: 2),
+        ];
+    }
+}
+
+/** Invalid: a queryable multi-valued String longer than the field_values column. */
+#[\Campanella\Capability\AsCapability('too_long')]
+final class TooLong extends \Campanella\Capability\Capability
+{
+    #[\Override]
+    public static function fields(): array
+    {
+        return [new Field('long_tags', FieldType::String, length: 300, cardinality: 2)];
     }
 }
 
@@ -602,6 +635,244 @@ test('Kernel: full login and logout through the form', function (): void {
     $storage->endRequest();
     check($kernel->handle(new Request('GET', '/szerkesztoi-piszkozat'))->status === 404, 'still visible after logout');
     putenv('CAMPANELLA_DB_PREFIX');
+});
+
+// --- Field cardinality (0.0.4) ----------------------------------------------
+
+echo "\nField cardinality\n";
+
+$contacts = (function () use ($db): array {
+    $registry = new CapabilityRegistry([Titled::class, Contactable::class]);
+    $blueprints = new BlueprintRegistry($registry, [
+        'contact' => [
+            'capabilities' => [Titled::class, Contactable::class],
+            'fields' => [new Field('aliases', FieldType::String, cardinality: 2)],
+            'relations' => [new Relation('friends', Cardinality::Many, targetBlueprints: ['contact', 'contact_free'], max: 2)],
+            'cardinality' => ['tags' => 5],
+        ],
+        'contact_free' => ['capabilities' => [Titled::class, Contactable::class]],
+        'note' => ['capabilities' => [Titled::class]],
+    ]);
+    (new Installer($db, $registry))->install();
+    $repository = new ObjectRepository($db, $registry, $blueprints);
+    $engine = new QueryEngine($db, new QueryCompiler($registry, $blueprints), $repository, $registry, new DefaultPolicy());
+
+    return [$registry, $blueprints, $repository, $engine];
+})();
+[$contactRegistry, $contactBlueprints, $contactRepository, $contactEngine] = $contacts;
+
+test('Field definition: cardinality rules', function (): void {
+    throws(InvalidArgumentException::class, fn () => new Field('x', FieldType::String, cardinality: 0));
+    throws(InvalidArgumentException::class, fn () => new Field('x', FieldType::StringList, cardinality: 3));
+    throws(InvalidArgumentException::class, fn () => new Field('x', FieldType::String, unique: true, cardinality: 2));
+    // Longer than the field_values column: rejected when the capability is registered,
+    // but fine as a Blueprint's own field (those are stored in data).
+    throws(CapabilityException::class, fn () => new CapabilityRegistry([TooLong::class]));
+    new Field('x', FieldType::String, length: 300, cardinality: 2);
+
+    $three = new Field('x', FieldType::String, cardinality: 3);
+    check($three->isMultiple() && !$three->isUnlimited() && $three->usesValueTable());
+    check($three->withCardinality(2)->cardinality === 2);
+    throws(InvalidArgumentException::class, fn () => $three->withCardinality(4));   // an increase
+    throws(InvalidArgumentException::class, fn () => $three->withCardinality(1));   // would become single-valued
+    throws(InvalidArgumentException::class, fn () => (new Field('y', FieldType::String))->withCardinality(2));
+    check((new Field('z', FieldType::String, cardinality: Field::UNLIMITED))->withCardinality(50)->cardinality === 50);
+    check($three->asData()->cardinality === 3 && !$three->asData()->usesValueTable());
+});
+
+test('Multi-valued field values are always lists', function () use ($contactRepository): void {
+    $contact = $contactRepository->create('contact', ['title' => 'Kovács Béla']);
+    check($contact->get('phones') === [] && $contact->get('tags') === [] && $contact->get('aliases') === []);
+    $contact->set('phones', '+36 1 111 1111');
+    check($contact->get('phones') === ['+36 1 111 1111'], 'a single value becomes a one-element list');
+    $contact->set('lucky_numbers', ['7', 13, '', null]);
+    check($contact->get('lucky_numbers') === [7, 13], 'items are cast, empty items are dropped');
+    $contact->set('tags', null);
+    check($contact->get('tags') === []);
+    $contact->set('tags', new ArrayIterator(['a', 'b']));
+    check($contact->get('tags') === ['a', 'b'], 'an iterable is accepted');
+    $contact->set('flags', [true, false, 0, '1']);
+    check($contact->get('flags') === [true, false, false, true], 'booleans');
+    check($contact->tags === ['a', 'b'], 'visible from templates as a list');
+});
+
+test('Multi-valued fields: save and load, in order', function () use ($contactRepository): void {
+    $contact = $contactRepository->create('contact', [
+        'title' => 'Nagy Anna',
+        'phones' => ['+36 30 222 2222', '+36 1 333 3333'],
+        'tags' => ['php', 'sql', 'php'],
+        'lucky_numbers' => [42, 7],
+        'event_dates' => ['2026-10-01 10:00:00', new DateTimeImmutable('2025-01-01 12:30:00', new DateTimeZone('Europe/Budapest'))],
+        'notes' => ['első jegyzet', 'második jegyzet'],
+        'aliases' => ['Anni'],
+        'flags' => [false, true],
+        'bios' => ["Hosszú\nszöveg", 'Második'],
+    ]);
+    $contactRepository->save($contact);
+
+    $loaded = $contactRepository->find((int) $contact->id());
+    check($loaded !== null);
+    check($loaded->get('phones') === ['+36 30 222 2222', '+36 1 333 3333'], 'order of phones');
+    check($loaded->get('tags') === ['php', 'sql', 'php'], 'duplicates and order are kept');
+    check($loaded->get('lucky_numbers') === [42, 7]);
+    $dates = array_map(fn (DateTimeImmutable $d): string => $d->format('Y-m-d H:i'), $loaded->get('event_dates'));
+    check($dates === ['2026-10-01 10:00', '2025-01-01 11:30'], implode(', ', $dates) . ' (dates are stored in UTC)');
+    check($loaded->get('notes') === ['első jegyzet', 'második jegyzet'], 'data (JSON) list');
+    check($loaded->get('aliases') === ['Anni'], 'multi-valued Blueprint field');
+    check($loaded->get('flags') === [false, true], 'booleans roundtrip');
+    check($loaded->get('bios') === ["Hosszú\nszöveg", 'Második'], 'queryable text values');
+
+    // Updating replaces the values; fewer values leave no leftovers.
+    $loaded->set('phones', ['+36 20 444 4444']);
+    $loaded->set('tags', []);
+    $contactRepository->save($loaded);
+    $again = $contactRepository->find((int) $contact->id());
+    check($again !== null && $again->get('phones') === ['+36 20 444 4444'] && $again->get('tags') === []);
+});
+
+test('Multi-valued fields: required and value limits', function () use ($contactRepository): void {
+    $contact = $contactRepository->create('contact', ['title' => 'Limit']);
+    try {
+        $contactRepository->save($contact);
+        check(false, 'a contact without phones was saved');
+    } catch (ValidationException $e) {
+        check(($e->errors['phones'] ?? '') === 'kötelező mező', json_encode($e->errors, JSON_UNESCAPED_UNICODE) ?: '');
+    }
+
+    $contact->set('phones', ['1', '2', '3', '4']);
+    $contact->set('tags', ['a', 'b', 'c', 'd', 'e', 'f']);      // narrowed to 5 in 'contact'
+    $contact->set('aliases', ['x', 'y', 'z']);
+    try {
+        $contactRepository->save($contact);
+        check(false, 'too many values were saved');
+    } catch (ValidationException $e) {
+        check(($e->errors['phones'] ?? '') === 'legfeljebb 3 érték adható meg', $e->errors['phones'] ?? '-');
+        check(($e->errors['tags'] ?? '') === 'legfeljebb 5 érték adható meg', $e->errors['tags'] ?? '-');
+        check(($e->errors['aliases'] ?? '') === 'legfeljebb 2 érték adható meg', $e->errors['aliases'] ?? '-');
+    }
+
+    // The narrowing also applies to a reloaded object.
+    $contact->set('phones', ['1']);
+    $contact->set('tags', []);
+    $contact->set('aliases', []);
+    $contactRepository->save($contact);
+    $reloaded = $contactRepository->find((int) $contact->id());
+    check($reloaded !== null && $reloaded->fields()['tags']->cardinality === 5, 'narrowed after loading');
+    $reloaded->set('tags', ['a', 'b', 'c', 'd', 'e', 'f']);
+    throws(ValidationException::class, fn () => $contactRepository->save($reloaded));
+
+    // An item longer than the field's length (phones: 32 characters).
+    $reloaded->set('tags', []);
+    $reloaded->set('phones', [str_repeat('9', 33)]);
+    try {
+        $contactRepository->save($reloaded);
+        check(false, 'a too long phone number was saved');
+    } catch (ValidationException $e) {
+        check(($e->errors['phones'] ?? '') === 'egy érték legfeljebb 32 karakter lehet', $e->errors['phones'] ?? '-');
+    }
+
+    // The same six tags are fine in the Blueprint that does not narrow the field.
+    $free = $contactRepository->create('contact_free', ['title' => 'Szabad', 'phones' => ['1'], 'tags' => ['a', 'b', 'c', 'd', 'e', 'f']]);
+    $contactRepository->save($free);
+    $loaded = $contactRepository->find((int) $free->id());
+    check($loaded !== null && count($loaded->get('tags')) === 6);
+    $narrowed = $contactRepository->find((int) $free->id());
+    check($narrowed !== null && $narrowed->fields()['tags']->isUnlimited(), 'no narrowing on contact_free');
+});
+
+test('Blueprint narrowing is checked when the Blueprint is defined', function () use ($contactRegistry): void {
+    $blueprints = new BlueprintRegistry($contactRegistry);
+    throws(CapabilityException::class, fn () => $blueprints->define('a', [
+        'capabilities' => [Contactable::class], 'cardinality' => ['phones' => 4],          // an increase
+    ]));
+    throws(CapabilityException::class, fn () => $blueprints->define('b', [
+        'capabilities' => [Contactable::class], 'cardinality' => ['title' => 2],           // not its capability field
+    ]));
+    throws(CapabilityException::class, fn () => $blueprints->define('c', [
+        'capabilities' => [Titled::class, Contactable::class], 'cardinality' => ['title' => 2],   // single-valued
+    ]));
+    throws(CapabilityException::class, fn () => $blueprints->define('d', [
+        'capabilities' => [Contactable::class],
+        'fields' => [new Field('nicknames', FieldType::String, cardinality: 3)],
+        'cardinality' => ['nicknames' => 2],                                                 // custom field
+    ]));
+    $ok = $blueprints->define('e', ['capabilities' => [Contactable::class], 'cardinality' => ['phones' => 2]]);
+    check($ok->allFields()['phones']->cardinality === 2);
+});
+
+test('Queries on multi-valued fields', function () use ($contactRepository, $contactEngine, $admin): void {
+    $make = function (string $title, array $values) use ($contactRepository): int {
+        $object = $contactRepository->create('contact_free', ['title' => $title, 'phones' => ['1']] + $values);
+        $contactRepository->save($object);
+
+        return (int) $object->id();
+    };
+    $alpha = $make('Q Alfa', ['tags' => ['php', 'sql'], 'lucky_numbers' => [3, 30], 'event_dates' => ['2026-01-15 00:00:00']]);
+    $beta = $make('Q Béta', ['tags' => ['go'], 'lucky_numbers' => [5]]);
+    $gamma = $make('Q Gamma', ['flags' => [false]]);
+    $note = $contactRepository->create('note', ['title' => 'Q Jegyzet']);   // does not have the fields at all
+    $contactRepository->save($note);
+
+    $ids = function (Query $query) use ($contactEngine, $admin): array {
+        $query = $query->where('title', 'LIKE', 'Q %');
+        $ids = array_map(fn ($o) => (int) $o->id(), $contactEngine->execute($query, $admin)->items);
+        sort($ids);
+
+        return $ids;
+    };
+
+    check($ids(Query::objects()->where('tags', '=', 'php')) === [$alpha], 'any value equals');
+    check($ids(Query::objects()->where('tags', 'IN', ['go', 'sql'])) === [$alpha, $beta], 'IN');
+    check($ids(Query::objects()->where('tags', 'LIKE', 's%')) === [$alpha], 'LIKE');
+    check($ids(Query::objects()->where('tags', '!=', 'php')) === [$beta, $gamma], 'no value equals (objects without the field excluded)');
+    check($ids(Query::objects()->where('tags', 'NOT IN', ['php', 'go', 'go'])) === [$gamma], 'NOT IN');
+    check($ids(Query::objects()->where('tags', 'IS NULL')) === [$gamma, (int) $note->id()], 'no value at all (like a single-valued field)');
+    check($ids(Query::objects()->where('flags', '=', false)) === [$gamma], 'boolean value');
+    check($ids(Query::objects()->where('tags', 'IS NOT NULL')) === [$alpha, $beta], 'at least one value');
+    check($ids(Query::objects()->where('lucky_numbers', '>', 20)) === [$alpha], 'integer comparison');
+    check($ids(Query::objects()->where('event_dates', '>=', '2026-01-01 00:00:00')) === [$alpha], 'date comparison');
+    check($ids(Query::objects()->where('tags', '=', 'php')->where('lucky_numbers', '=', 5)) === [], 'two subqueries together');
+
+    $count = $contactEngine->count(Query::objects()->where('title', 'LIKE', 'Q %')->where('tags', 'IS NOT NULL'), $admin);
+    check($count === 2, "count: {$count} (values must not multiply the rows)");
+    $count = $contactEngine->count(Query::objects()->where('title', 'LIKE', 'Q %')->where('tags', '!=', 'php'), $admin);
+    check($count === 2, "count with a negated condition: {$count}");
+
+    throws(QueryException::class, fn () => $contactEngine->execute(Query::objects()->orderBy('tags'), $admin));
+    throws(QueryException::class, fn () => $contactEngine->execute(Query::objects()->where('notes', '=', 'x'), $admin));
+});
+
+test('Deleting an object deletes its field values', function () use ($contactRepository, $db): void {
+    $object = $contactRepository->create('contact_free', ['title' => 'Törlendő', 'phones' => ['1', '2'], 'tags' => ['x']]);
+    $contactRepository->save($object);
+    $id = (int) $object->id();
+    $count = fn (): int => (int) $db->fetchValue('SELECT COUNT(*) FROM {field_values} WHERE object_id = :id', ['id' => $id]);
+    check($count() === 3, (string) $count());
+    $contactRepository->delete($object);
+    check($count() === 0, 'field values left behind: ' . $count());
+});
+
+test('Relation limit (max)', function () use ($contactRepository): void {
+    throws(InvalidArgumentException::class, fn () => new Relation('boss', Cardinality::One, max: 1));
+    throws(InvalidArgumentException::class, fn () => new Relation('pals', Cardinality::Many, max: 0));
+
+    $friends = [];
+    foreach (['F1', 'F2', 'F3'] as $title) {
+        $friend = $contactRepository->create('contact_free', ['title' => $title, 'phones' => ['1']]);
+        $contactRepository->save($friend);
+        $friends[] = $friend;
+    }
+    $contact = $contactRepository->create('contact', ['title' => 'Barátkozó', 'phones' => ['1']]);
+    $contact->setRelated('friends', $friends);
+    try {
+        $contactRepository->save($contact);
+        check(false, 'three friends were saved');
+    } catch (ValidationException $e) {
+        check(($e->errors['friends'] ?? '') === 'legfeljebb 2 kapcsolat adható meg', $e->errors['friends'] ?? '-');
+    }
+    $contact->unrelate('friends', $friends[2]);
+    $contactRepository->save($contact);
+    check(count($contact->relatedIds('friends')) === 2);
 });
 
 // --- Documentation examples -------------------------------------------------

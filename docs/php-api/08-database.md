@@ -94,7 +94,7 @@ statement; `create(Table $table): void` also executes it.
 `Campanella\Database\Schema\CoreSchema` · **Public**
 
 `static tables(): list<Table>`, plus constants for the table names: `OBJECTS`,
-`OBJECT_CAPABILITIES`, `SYSTEM`, `RELATIONSHIPS`, `THROTTLE`.
+`OBJECT_CAPABILITIES`, `SYSTEM`, `RELATIONSHIPS`, `THROTTLE`, `FIELD_VALUES`.
 
 | Table | Columns | Purpose |
 |---|---|---|
@@ -103,7 +103,8 @@ statement; `create(Table $table): void` also executes it.
 | `cc_object_capabilities` | `object_id`, `capability` (together the PK) | Which object has which capabilities |
 | `cc_relationships` | `id`, `source_id`, `type`, `target_id`, `weight`; unique: (`source_id`, `type`, `target_id`) | Relations; cascade on deletion of either side (since 0.0.2) |
 | `cc_throttle` | `key_hash` (PK), `hits`, `reset_at` | Login throttling (since 0.0.3) |
-| `cc_cap_<name>` | `object_id` (PK) + the fields of the capability's `Table` | One table per capability |
+| `cc_field_values` | `id`, `object_id`, `field`, `delta` (order), `value_string`, `value_text`, `value_int`, `value_datetime`; unique key on (`object_id`, `field`, `delta`); covering indexes (`field`, value, `object_id`) for `value_string`, `value_int` and `value_datetime` (`value_text` is not indexed) | The values of the multi-valued queryable fields, one row per value; only the column matching the field's type is filled; cascade on deletion of the object (since 0.0.4, schema version 4) |
+| `cc_cap_<name>` | `object_id` (PK) + the capability's single-valued `Table` fields | One table per capability (a capability with only multi-valued or `Data` fields has none) |
 
 On MariaDB the `JSON` type is an alias of `LONGTEXT` with a built-in
 `JSON_VALID` check; on MySQL it is native JSON. Campanella only stores JSON and

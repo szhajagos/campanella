@@ -24,7 +24,7 @@ Completed changes are listed in the [CHANGELOG](CHANGELOG.md).
 0.0.4 and 0.0.5 were originally a single step; HTML editing was moved to a
 separate release for security reasons (2026-09-29).
 
-As a first step, before the forms:
+As a first step, before the forms (✅ done, see the CHANGELOG):
 
 - **Number of field values (cardinality).** A new `cardinality` property on
   `Field`: `1` (the default; existing fields do not change), an upper limit
@@ -42,8 +42,11 @@ As a first step, before the forms:
   3 → 2), but it cannot turn a single-value field into a multi-value one (or
   vice versa).
 - Upper limit for relations: `new Relation(..., Cardinality::Many, max: 3)`.
-- `StringList` becomes shorthand for "multi-value String with `Data` storage".
 - Schema upgrade: the `cc_field_values` table.
+- Deferred to 0.0.6: `StringList` (and with it the users' `roles` field)
+  becomes a multi-value `String` field. This moves existing values to a new
+  storage place, so it needs a data migration; without one, existing users
+  would lose their roles.
 
 Then:
 
@@ -92,6 +95,9 @@ submitted HTML.
   objects, data transformation), tracked in the `cc_system` table.
 - `install` also runs the pending migrations.
 - A warning to back up the database before migrating.
+- First migration: `roles` (and `StringList` in general) becomes a
+  multi-value `String` field; the existing values are moved to
+  `cc_field_values`, so users can be queried by role.
 
 **Done when:** a new field of a capability, or a capability added to a
 Blueprint, can be applied to existing content without manual SQL.

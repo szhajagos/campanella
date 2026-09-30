@@ -116,7 +116,7 @@ set, it is the project root (by default the parent directory of `public/`).
 
 `Campanella\Core\Version` · **Public**
 
-`CAMPANELLA = '0.0.3'` (the system version) and `SCHEMA = '3'` (the database
+`CAMPANELLA = '0.0.3'` (the system version) and `SCHEMA = '4'` (the database
 schema version; incremented for a new table or migration).
 
 ## CLI

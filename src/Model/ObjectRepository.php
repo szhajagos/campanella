@@ -19,7 +19,8 @@ use PDOException;
  * An object lives in several tables:
  *   objects              – identity + the data (JSON) column
  *   object_capabilities  – which capabilities it has
- *   cap_<name>           – the capabilities' queryable fields
+ *   cap_<name>           – the capabilities' queryable single-valued fields
+ *   field_values         – the values of the queryable multi-valued fields
  *   relationships        – relationships to other objects
  *
  * When loading lists, a single query runs per table (no N+1).
@@ -131,6 +132,23 @@ final class ObjectRepository
             }
         }
 
+        // Multi-valued queryable fields: for all objects being loaded, in a single query, ordered.
+        /** @var array<int, array<string, list<mixed>>> $multiValues */
+        $multiValues = [];
+        $multiFields = [];
+        foreach ($involved as $definition) {
+            $multiFields += $definition->valueTableFields();
+        }
+        if ($multiFields !== []) {
+            $sql = "SELECT * FROM {field_values} WHERE object_id IN ({$in}) ORDER BY object_id, field, delta, id";
+            foreach ($this->db->fetchAll($sql, $params) as $row) {
+                $field = $multiFields[(string) $row['field']] ?? null;
+                if ($field !== null) {
+                    $multiValues[(int) $row['object_id']][$field->name][] = $row[$field->type->valueColumn()];
+                }
+            }
+        }
+
         // Relations: for all objects being loaded, in a single query, ordered.
         /** @var array<int, array<string, list<int>>> $relatedIds */
         $relatedIds = [];
@@ -153,6 +171,7 @@ final class ObjectRepository
                 $this->orderCapabilities($objectCapabilities[$id] ?? []),
                 $tableValues,
                 $relatedIds[$id] ?? [],
+                $multiValues[$id] ?? [],
             );
         }
 
@@ -170,7 +189,7 @@ final class ObjectRepository
         $data = [];
         foreach ($object->fields() as $name => $field) {
             if ($field->storage === FieldStorage::Data) {
-                $data[$name] = $field->type->toStorage($object->get($name));
+                $data[$name] = $field->toStorage($object->get($name));
             }
         }
         $json = json_encode($data, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
@@ -203,6 +222,9 @@ final class ObjectRepository
                 if ($definition->hasTable()) {
                     $this->writeCapabilityRow($db, $definition, $id, $object);
                 }
+                foreach ($definition->valueTableFields() as $name => $field) {
+                    $this->writeFieldValues($db, $field, $id, $object->get($name));
+                }
             }
 
             foreach ($object->relations() as $name => $_) {
@@ -230,6 +252,21 @@ final class ObjectRepository
         }
         // Rows in the capability tables are deleted by ON DELETE CASCADE.
         $this->db->delete(CoreSchema::OBJECTS, ['id' => $object->id()]);
+    }
+
+    /** Replaces the rows of a multi-valued field in the field_values table. */
+    private function writeFieldValues(Connection $db, Field $field, int $id, mixed $value): void
+    {
+        $db->delete(CoreSchema::FIELD_VALUES, ['object_id' => $id, 'field' => $field->name]);
+        $column = $field->type->valueColumn();
+        foreach ((array) $field->toStorage($value) as $delta => $item) {
+            $db->insert(CoreSchema::FIELD_VALUES, [
+                'object_id' => $id,
+                'field' => $field->name,
+                'delta' => $delta,
+                $column => $item,
+            ]);
+        }
     }
 
     private function writeCapabilityRow(
@@ -269,8 +306,13 @@ final class ObjectRepository
     {
         $errors = [];
         foreach ($object->fields() as $name => $field) {
-            if ($field->required && $field->isEmpty($object->get($name))) {
+            $value = $object->get($name);
+            if ($field->required && $field->isEmpty($value)) {
                 $errors[$name] = 'kötelező mező';
+            } elseif ($field->exceedsCardinality($value)) {
+                $errors[$name] = sprintf('legfeljebb %d érték adható meg', $field->cardinality);
+            } elseif ($field->hasTooLongItem($value)) {
+                $errors[$name] = sprintf('egy érték legfeljebb %d karakter lehet', $field->length);
             }
         }
         foreach ($object->capabilities() as $definition) {
@@ -296,6 +338,8 @@ final class ObjectRepository
             $ids = $object->relatedIds($name);
             if ($relation->required && $ids === []) {
                 $errors[$name] = 'kötelező kapcsolat';
+            } elseif ($relation->exceedsMax(count($ids))) {
+                $errors[$name] = sprintf('legfeljebb %d kapcsolat adható meg', (int) $relation->max);
             } elseif ($object->id() !== null && in_array($object->id(), $ids, true)) {
                 $errors[$name] = 'az objektum nem mutathat önmagára';
             }
@@ -352,8 +396,15 @@ final class ObjectRepository
      * @param array<string, CapabilityDefinition> $capabilities
      * @param array<string, array<int, array<string, mixed>>> $tableValues
      * @param array<string, list<int>> $relatedIds
+     * @param array<string, list<mixed>> $multiValues field name => stored values, in order
      */
-    private function hydrate(array $row, array $capabilities, array $tableValues, array $relatedIds): CampanellaObject
+    private function hydrate(
+        array $row,
+        array $capabilities,
+        array $tableValues,
+        array $relatedIds,
+        array $multiValues,
+    ): CampanellaObject
     {
         $id = (int) $row['id'];
         $blueprint = $this->blueprints->find((string) $row['blueprint']);
@@ -365,7 +416,7 @@ final class ObjectRepository
             $relations += $definition->relations;
         }
         if ($blueprint !== null) {
-            $fields += $blueprint->fields;
+            $fields = $blueprint->narrow($fields) + $blueprint->fields;
             $relations += $blueprint->relations;
         }
 
@@ -379,13 +430,17 @@ final class ObjectRepository
         foreach ($fields as $name => $field) {
             if ($field->storage === FieldStorage::Data) {
                 if (array_key_exists($name, $data)) {
-                    $values[$name] = $field->type->fromStorage($data[$name]);
+                    $values[$name] = $field->fromStorage($data[$name]);
                 }
+                continue;
+            }
+            if ($field->isMultiple()) {
+                $values[$name] = $field->fromStorage($multiValues[$name] ?? []);
                 continue;
             }
             $owner = $this->capabilities->fieldOwner($name);
             if ($owner !== null && isset($tableValues[$owner->name][$id])) {
-                $values[$name] = $field->type->fromStorage($tableValues[$owner->name][$id][$name] ?? null);
+                $values[$name] = $field->fromStorage($tableValues[$owner->name][$id][$name] ?? null);
             }
         }
 

@@ -9,7 +9,9 @@ use Campanella\Capability\CapabilityRegistry;
 use Campanella\Core\Container;
 use Campanella\Core\Version;
 use Campanella\Database\Installer;
+use Campanella\Database\Schema\CoreSchema;
 use Campanella\Model\BlueprintRegistry;
+use Campanella\Model\Field;
 use Campanella\Query\Query;
 use Campanella\Query\QueryEngine;
 
@@ -35,11 +37,20 @@ final class StatusCommand implements Command
         $output->line();
         $output->line('Capability-k:');
         foreach ($container->get(CapabilityRegistry::class)->all() as $definition) {
+            // Multi-valued fields are marked with their limit: phones[3], tags[*].
+            $fields = array_map(
+                static fn (Field $f): string => $f->name . ($f->isMultiple() ? '[' . ($f->isUnlimited() ? '*' : $f->cardinality) . ']' : ''),
+                array_values($definition->fields),
+            );
+            $tables = array_filter([
+                $definition->hasTable() ? $definition->tableName() : null,
+                $definition->valueTableFields() !== [] ? CoreSchema::FIELD_VALUES : null,
+            ]);
             $output->line(sprintf(
                 '  %-12s mezők: %-26s tábla: %s',
                 $definition->name,
-                implode(', ', array_keys($definition->fields)),
-                $definition->hasTable() ? $definition->tableName() : '– (data)',
+                implode(', ', $fields),
+                $tables === [] ? '– (data)' : implode(', ', $tables),
             ));
         }
 

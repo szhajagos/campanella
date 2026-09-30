@@ -72,6 +72,27 @@ Used by `QueryEngine` and `QueryCompiler`:
 a `QueryException` with a message saying the field has to be promoted to an
 own-table column.
 
+### Multi-valued fields
+
+A multi-valued `Table` field ([chapter 2](02-objects.md#multi-valued-fields))
+can be filtered on; the condition becomes an `EXISTS` subquery on the
+`field_values` table, so values never multiply the result rows:
+
+| Operator | Matches if |
+|---|---|
+| `=`, `<`, `<=`, `>`, `>=`, `LIKE`, `IN` | at least one value matches |
+| `!=`, `NOT IN` | the object has the field (its capability), and no value matches; an empty list counts as "no value matches" |
+| `IS NULL` | the field has no value at all (also true for objects without the field, as for a single-valued field) |
+| `IS NOT NULL` | the field has at least one value |
+
+```php
+Query::objects()->where('keywords', '=', 'php');          // has the keyword "php"
+Query::objects()->where('keywords', 'NOT IN', ['a', 'b']); // has neither "a" nor "b"
+```
+
+Sorting on a multi-valued field is not possible (`QueryException`), because
+it has no single value to sort by.
+
 Values are converted according to the field's type: a date accepts
 `DateTimeImmutable` or a string, and an enum-backed field accepts the enum
 itself (`->where('status', '=', PublishStatus::Published)`).
@@ -213,6 +234,7 @@ directly only for debugging.
 |---|---|
 | Unknown field in `where` or `orderBy` | `QueryException` |
 | Filtering or sorting on a field with `Data` storage | `QueryException` |
+| Sorting on a multi-valued field | `QueryException` |
 | Unknown operator or direction | `QueryException` |
 | `IN`/`NOT IN` with an empty or non-array value | `QueryException` |
 | `limit` less than 1; `offset` without `limit` | `QueryException` |

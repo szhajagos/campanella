@@ -24,14 +24,17 @@ new Relation(
     targetBlueprints: ['category'],      // the target was made from one of these; empty: any
     required: false,                     // whether at least one target is required
     label: 'Kategóriák',
+    max: null,                           // Many only: at most this many targets (since 0.0.4)
 );
 ```
 
 | Method | Description |
 |---|---|
 | `isMany(): bool` | Whether the relation is to-many |
+| `exceedsMax(int $count): bool` | Whether the given number of targets is over the `max` limit |
 
-The constructor throws `InvalidArgumentException` for an invalid name.
+The constructor throws `InvalidArgumentException` for an invalid name, for a
+`max` on a `One` relation, and for a `max` less than 1.
 
 ## Cardinality
 
@@ -119,6 +122,7 @@ On save, the `ObjectRepository` validates and, on failure, throws
 | Error | Message |
 |---|---|
 | A required relation is empty | `kötelező kapcsolat` ("required relation") |
+| More targets than `max` | `legfeljebb 2 kapcsolat adható meg` ("at most 2 relations can be given") |
 | The object points to itself | `az objektum nem mutathat önmagára` ("the object cannot point to itself") |
 | Non-existent target | `a cél (#12) nem létezik` ("target (#12) does not exist") |
 | Target made from the wrong Blueprint | `a cél (#12) page típusú, de csak ez lehet: category` ("target (#12) is of type page, but it can only be: category") |

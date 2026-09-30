@@ -55,10 +55,11 @@ The processed description of a capability. Created by `CapabilityRegistry`.
 | `$requires` | Class names of the dependencies |
 | `$fields` | `array<string, Field>` |
 | `$relations` | `array<string, Relation>` |
-| `static fromClass(string $class): self` | Reads the attribute and the fields. `CapabilityException` if the class is not a `Capability`, has no attribute, or the name is invalid |
+| `static fromClass(string $class): self` | Reads the attribute and the fields. `CapabilityException` if the class is not a `Capability`, has no attribute, the name is invalid, or a queryable multi-valued `String` field is longer than 255 characters |
 | `tableName(): string` | `'cap_' . $name` (without prefix) |
-| `tableFields()` / `dataFields()` | The fields with `Table` and `Data` storage, respectively |
-| `hasTable(): bool` | Whether there is at least one `Table` field, i.e. whether an own table is needed |
+| `tableFields()` / `dataFields()` | The single-valued fields with `Table` storage (the columns of `cc_cap_<name>`), and the fields with `Data` storage, respectively |
+| `valueTableFields()` | The multi-valued fields with `Table` storage, stored in `cc_field_values` (since 0.0.4) |
+| `hasTable(): bool` | Whether there is at least one single-valued `Table` field, i.e. whether an own table is needed (a capability with only multi-valued or `Data` fields has none) |
 | `table(): ?Table` | The schema of the own table derived from the fields, or `null` |
 
 The table: `object_id` primary key (foreign key to the `objects` table, cascade

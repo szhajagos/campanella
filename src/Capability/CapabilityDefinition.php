@@ -11,6 +11,7 @@ use Campanella\Database\Schema\ForeignKey;
 use Campanella\Database\Schema\Table;
 use Campanella\Model\Field;
 use Campanella\Model\FieldStorage;
+use Campanella\Model\FieldType;
 use Campanella\Relation\Relation;
 use ReflectionClass;
 
@@ -52,6 +53,15 @@ final readonly class CapabilityDefinition
 
         $fields = [];
         foreach ($class::fields() as $field) {
+            if ($field->usesValueTable() && $field->type === FieldType::String
+                && $field->length > Field::MAX_MULTI_STRING_LENGTH) {
+                throw new CapabilityException(sprintf(
+                    '%s: the queryable multi-valued String field %s can be at most %d characters long.',
+                    $class,
+                    $field->name,
+                    Field::MAX_MULTI_STRING_LENGTH,
+                ));
+            }
             $fields[$field->name] = $field;
         }
         $relations = [];
@@ -68,10 +78,27 @@ final readonly class CapabilityDefinition
         return 'cap_' . $this->name;
     }
 
-    /** @return array<string, Field> */
+    /**
+     * The single-valued queryable fields: the columns of the capability's own table.
+     *
+     * @return array<string, Field>
+     */
     public function tableFields(): array
     {
-        return array_filter($this->fields, static fn (Field $f): bool => $f->storage === FieldStorage::Table);
+        return array_filter(
+            $this->fields,
+            static fn (Field $f): bool => $f->storage === FieldStorage::Table && !$f->isMultiple(),
+        );
+    }
+
+    /**
+     * The multi-valued queryable fields: their values live in the shared `field_values` table.
+     *
+     * @return array<string, Field>
+     */
+    public function valueTableFields(): array
+    {
+        return array_filter($this->fields, static fn (Field $f): bool => $f->usesValueTable());
     }
 
     /** @return array<string, Field> */

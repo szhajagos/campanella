@@ -15,6 +15,7 @@ final class CoreSchema
     public const string SYSTEM = 'system';
     public const string RELATIONSHIPS = 'relationships';
     public const string THROTTLE = 'throttle';
+    public const string FIELD_VALUES = 'field_values';
 
     /** @return list<Table> */
     public static function tables(): array
@@ -78,6 +79,30 @@ final class CoreSchema
                     new ForeignKey('source_id', self::OBJECTS),
                     new ForeignKey('target_id', self::OBJECTS),
                 ],
+            ),
+            // The values of the multi-valued queryable fields: one row per value, in
+            // order (delta). Only the column matching the field's type is filled.
+            new Table(
+                name: self::FIELD_VALUES,
+                columns: [
+                    new Column('id', ColumnType::Id, autoIncrement: true),
+                    new Column('object_id', ColumnType::Id),
+                    new Column('field', ColumnType::String, length: 64),
+                    new Column('delta', ColumnType::Integer, default: 0),
+                    new Column('value_string', ColumnType::String, nullable: true, length: 255),
+                    new Column('value_text', ColumnType::Text, nullable: true),
+                    new Column('value_int', ColumnType::Integer, nullable: true),
+                    new Column('value_datetime', ColumnType::DateTime, nullable: true),
+                ],
+                primaryKey: ['id'],
+                indexes: [
+                    // Covering indexes for the EXISTS subqueries of the Query engine.
+                    'idx_string' => ['field', 'value_string', 'object_id'],
+                    'idx_int' => ['field', 'value_int', 'object_id'],
+                    'idx_datetime' => ['field', 'value_datetime', 'object_id'],
+                ],
+                uniques: ['uniq_value' => ['object_id', 'field', 'delta']],
+                foreignKeys: [new ForeignKey('object_id', self::OBJECTS)],
             ),
             // Throttling of attempts (e.g. login). The SHA-256 hash of the key.
             new Table(

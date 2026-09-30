@@ -26,6 +26,7 @@ final readonly class Blueprint
      * @param array<string, array{label?: string, query: Closure(CampanellaObject): Query}> $lists
      *        Lists shown on the object's own page: a label and a function that builds
      *        a Query from the object (e.g. the articles of a category).
+     * @param array<string, Field> $narrowed Capability fields whose cardinality this Blueprint narrows.
      */
     public function __construct(
         public string $name,
@@ -34,10 +35,16 @@ final readonly class Blueprint
         public array $fields,
         public array $relations = [],
         public array $lists = [],
+        public array $narrowed = [],
     ) {
     }
 
-    /** @return array<string, Field> The capability fields and the custom fields together. */
+    /**
+     * The capability fields (with this Blueprint's narrowed cardinalities) and
+     * the custom fields together.
+     *
+     * @return array<string, Field>
+     */
     public function allFields(): array
     {
         $fields = [];
@@ -45,7 +52,24 @@ final readonly class Blueprint
             $fields += $capability->fields;
         }
 
-        return $fields + $this->fields;
+        return $this->narrow($fields) + $this->fields;
+    }
+
+    /**
+     * Applies the narrowed cardinalities to the given fields (those the Blueprint does not narrow stay as they are).
+     *
+     * @param array<string, Field> $fields
+     * @return array<string, Field>
+     */
+    public function narrow(array $fields): array
+    {
+        foreach ($this->narrowed as $name => $field) {
+            if (isset($fields[$name])) {
+                $fields[$name] = $field;
+            }
+        }
+
+        return $fields;
     }
 
     /** @return array<string, Relation> The capability relations and the own relations together. */

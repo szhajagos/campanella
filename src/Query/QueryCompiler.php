@@ -7,6 +7,7 @@ namespace Campanella\Query;
 use Campanella\Capability\CapabilityRegistry;
 use Campanella\Database\Connection;
 use Campanella\Model\BlueprintRegistry;
+use Campanella\Model\Field;
 use Campanella\Model\FieldStorage;
 use Campanella\Model\FieldType;
 use Campanella\Query\Condition\Condition;
@@ -32,6 +33,9 @@ final class QueryCompiler
 
     /** Counter of relation subqueries (for unique aliases). */
     private int $relationCount = 0;
+
+    /** Counter of multi-valued field subqueries (for unique aliases). */
+    private int $valueCount = 0;
 
     /**
      * @param BlueprintRegistry|null $blueprints For checking relation names; without it,
@@ -84,6 +88,7 @@ final class QueryCompiler
         $this->joins = [];
         $this->params = [];
         $this->relationCount = 0;
+        $this->valueCount = 0;
     }
 
     private function compileCondition(Condition $condition): string
@@ -113,6 +118,11 @@ final class QueryCompiler
 
     private function compileField(FieldCondition $condition): string
     {
+        $multi = isset(Query::BASE_FIELDS[$condition->field]) ? null : $this->capabilities->field($condition->field);
+        if ($multi !== null && $multi->usesValueTable()) {
+            return $this->compileMultiField($condition, $multi);
+        }
+
         $column = $this->column($condition->field);
         $operator = $condition->operator;
 
@@ -131,6 +141,60 @@ final class QueryCompiler
         }
 
         return sprintf('%s %s %s', $column, $operator->sql(), $this->param($type->toStorage($condition->value)));
+    }
+
+    /**
+     * A condition on a multi-valued field, as a subquery on the field_values table:
+     *
+     *   =, <, <=, >, >=, LIKE, IN   – at least one value matches (EXISTS)
+     *   !=, NOT IN                  – the object has the field's capability, and no value matches
+     *   IS NULL                     – the field has no value at all
+     *   IS NOT NULL                 – the field has at least one value
+     *
+     * The capability check keeps != and NOT IN consistent with single-valued fields:
+     * an object that does not have the field at all is not a match.
+     */
+    private function compileMultiField(FieldCondition $condition, Field $field): string
+    {
+        $alias = 'fv' . $this->valueCount++;
+        $column = $alias . '.' . Connection::quoteIdentifier($field->type->valueColumn());
+        $operator = $condition->operator;
+
+        $negated = in_array($operator, [Operator::NotEquals, Operator::NotIn, Operator::IsNull], true);
+        $match = match ($operator) {
+            Operator::IsNull, Operator::IsNotNull => '',
+            Operator::In, Operator::NotIn => sprintf(' AND %s IN (%s)', $column, implode(', ', array_map(
+                fn (mixed $value): string => $this->param($field->type->toStorage($value)),
+                (array) $condition->value,
+            ))),
+            Operator::NotEquals => sprintf(' AND %s = %s', $column, $this->param($field->type->toStorage($condition->value))),
+            default => sprintf(
+                ' AND %s %s %s',
+                $column,
+                $operator->sql(),
+                $this->param($field->type->toStorage($condition->value)),
+            ),
+        };
+
+        $sql = sprintf(
+            '%1$sEXISTS (SELECT 1 FROM {field_values} %2$s WHERE %2$s.`object_id` = o.`id` AND %2$s.`field` = %3$s%4$s)',
+            $negated ? 'NOT ' : '',
+            $alias,
+            $this->param($field->name),
+            $match,
+        );
+        if ($operator === Operator::NotEquals || $operator === Operator::NotIn) {
+            $owner = $this->capabilities->fieldOwner($field->name)
+                ?? throw new QueryException("Unknown field: {$field->name}");
+            $sql = sprintf(
+                '(EXISTS (SELECT 1 FROM {object_capabilities} %1$s WHERE %1$s.`object_id` = o.`id` AND %1$s.`capability` = %2$s) AND %3$s)',
+                $alias . 'c',
+                $this->param($owner->name),
+                $sql,
+            );
+        }
+
+        return $sql;
     }
 
     private function compileHasCapability(HasCapability $condition): string
@@ -173,6 +237,12 @@ final class QueryCompiler
         $owner = $this->capabilities->fieldOwner($field)
             ?? throw new QueryException("Unknown or non-queryable field: {$field}");
         $definition = $owner->fields[$field];
+
+        if ($definition->isMultiple() && $forOrdering) {
+            throw new QueryException(
+                "Field '{$field}' is multi-valued, so it cannot be sorted on.",
+            );
+        }
 
         if ($definition->storage === FieldStorage::Data) {
             throw new QueryException(sprintf(

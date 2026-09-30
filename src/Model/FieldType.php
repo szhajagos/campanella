@@ -38,6 +38,21 @@ enum FieldType: string
         };
     }
 
+    /**
+     * The column of the `field_values` table that holds the values of a
+     * multi-valued field of this type.
+     */
+    public function valueColumn(): string
+    {
+        return match ($this) {
+            self::String => 'value_string',
+            self::Text => 'value_text',
+            self::Integer, self::Boolean => 'value_int',
+            self::DateTime => 'value_datetime',
+            self::StringList => throw new \LogicException('A StringList field cannot be multi-valued.'),
+        };
+    }
+
     /** Converts to a uniform PHP-side value. */
     public function cast(mixed $value): mixed
     {
