@@ -17,17 +17,17 @@ use DateTimeImmutable;
 use DateTimeZone;
 
 /**
- * A beépített szabály, alapból tiltó (default deny):
+ * The built-in policy, default deny:
  *
- *  - administrator: mindent megtehet;
- *  - editor: mindent láthat (a piszkozatokat is), és tartalmat hozhat
- *    létre, módosíthat, publikálhat; felhasználót (Authenticatable) nem
- *    kezelhet, és nem törölhet;
- *  - mindenki más: azt láthatja, ami nem Publishable, illetve ami publikált;
- *    minden más művelet tiltott.
+ *  - administrator: may do anything;
+ *  - editor: may view everything (drafts too), and may create, update and
+ *    publish content; may not manage users (Authenticatable) and may not
+ *    delete;
+ *  - everyone else: may view what is not Publishable, or what is published;
+ *    every other operation is denied.
  *
- * A felhasználó-objektumok láthatók (a nevük szerzőként megjelenhet), de a
- * jelszó-hash rejtett mező, a sablonokból nem érhető el.
+ * User objects are visible (their name may appear as author), but the
+ * password hash is a hidden field, not accessible from templates.
  */
 final class DefaultPolicy implements AccessPolicy
 {

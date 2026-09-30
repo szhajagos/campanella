@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Campanella\Access;
 
-/** A rendszer műveleti nyelve. */
+/** The system's vocabulary of operations. */
 enum Operation: string
 {
     case View = 'view';

@@ -3,11 +3,12 @@
 declare(strict_types=1);
 
 /*
- * Az egyetlen belépési pont. Minden kérés ide fut be (lásd .htaccess).
+ * The single entry point. Every request ends up here (see .htaccess).
  *
- * A projekt gyökere alapesetben ennek a mappának (public/) a szülője.
- * Ha a public/ tartalma máshová került (pl. egy tárhely webgyökerébe),
- * a CAMPANELLA_ROOT környezeti változóval adható meg a gyökér helye.
+ * By default the project root is the parent of this folder (public/).
+ * If the contents of public/ were moved elsewhere (e.g. into a web host's
+ * web root), the root location can be set with the CAMPANELLA_ROOT
+ * environment variable.
  */
 
 use Campanella\Core\Kernel;
@@ -18,7 +19,7 @@ if (PHP_VERSION_ID < 80300) {
     exit('A Campanella legalább PHP 8.3-at igényel. Jelenlegi verzió: ' . PHP_VERSION);
 }
 
-// Fejlesztéshez (php -S): a létező fájlokat (CSS, képek) a beépített szerver adja ki.
+// For development (php -S): existing files (CSS, images) are served by the built-in server.
 if (PHP_SAPI === 'cli-server') {
     $file = __DIR__ . parse_url((string) $_SERVER['REQUEST_URI'], PHP_URL_PATH);
     if ($file !== __FILE__ && is_file($file)) {

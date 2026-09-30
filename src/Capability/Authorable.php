@@ -9,10 +9,10 @@ use Campanella\Relation\Cardinality;
 use Campanella\Relation\Relation;
 
 /**
- * Az objektumnak szerzője van: egy `author` kapcsolat egy felhasználóra.
+ * The object has an author: an `author` relation to a user.
  *
- * Új objektum létrehozásakor az ObjectService automatikusan a létrehozó
- * felhasználót állítja be szerzőnek, ha még nincs megadva.
+ * When a new object is created, ObjectService automatically sets the
+ * creating user as the author if none is given yet.
  */
 #[AsCapability('authorable', label: 'Szerzővel rendelkező')]
 final class Authorable extends Capability

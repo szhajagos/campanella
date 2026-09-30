@@ -14,20 +14,20 @@ use DateTimeZone;
 use PDOException;
 
 /**
- * Az objektumok betöltése és mentése (Data Mapper).
+ * Loading and saving objects (Data Mapper).
  *
- * Egy objektum több táblában él:
- *   objects              – identitás + a data (JSON) oszlop
- *   object_capabilities  – milyen capability-kkel rendelkezik
- *   cap_<név>            – a capability-k lekérdezhető mezői
- *   relationships        – kapcsolatok más objektumokkal
+ * An object lives in several tables:
+ *   objects              – identity + the data (JSON) column
+ *   object_capabilities  – which capabilities it has
+ *   cap_<name>           – the capabilities' queryable fields
+ *   relationships        – relationships to other objects
  *
- * Listák betöltésekor táblánként egyetlen lekérdezés fut (nincs N+1).
- * Később ide épül be az object cache is.
+ * When loading lists, a single query runs per table (no N+1).
+ * The object cache will also be built in here later.
  */
 final class ObjectRepository
 {
-    /** A MySQL/MariaDB hibakódja egyedi kulcs megsértésekor. */
+    /** The MySQL/MariaDB error code for a unique key violation. */
     private const int DUPLICATE_KEY = 1062;
 
     public function __construct(
@@ -38,7 +38,7 @@ final class ObjectRepository
     }
 
     /**
-     * Új, még el nem mentett objektum a Blueprint alapján.
+     * A new, not yet saved object based on the Blueprint.
      *
      * @param array<string, mixed> $values
      */
@@ -50,7 +50,7 @@ final class ObjectRepository
         $unknown = array_diff_key($values, $fields);
         if ($unknown !== []) {
             throw new \OutOfBoundsException(sprintf(
-                "A(z) '%s' Blueprintnek nincs ilyen mezője: %s",
+                "Blueprint '%s' has no such field: %s",
                 $blueprint,
                 implode(', ', array_keys($unknown)),
             ));
@@ -85,7 +85,7 @@ final class ObjectRepository
 
     /**
      * @param list<int> $ids
-     * @return array<int, CampanellaObject> A bemenet sorrendjében, azonosító szerint kulcsolva.
+     * @return array<int, CampanellaObject> In input order, keyed by ID.
      */
     public function loadMany(array $ids): array
     {
@@ -109,8 +109,8 @@ final class ObjectRepository
             $params,
         );
         foreach ($capabilityRows as $row) {
-            // Ismeretlen (pl. eltávolított modulhoz tartozó) capability: az adat
-            // megmarad az adatbázisban, de az objektum nem kapja meg.
+            // Unknown capability (e.g. from a removed module): the data stays
+            // in the database, but the object does not get it.
             if (!$this->capabilities->has($row['capability'])) {
                 continue;
             }
@@ -131,7 +131,7 @@ final class ObjectRepository
             }
         }
 
-        // Kapcsolatok: az összes betöltendő objektumé egyetlen lekérdezéssel, sorrendben.
+        // Relations: for all objects being loaded, in a single query, ordered.
         /** @var array<int, array<string, list<int>>> $relatedIds */
         $relatedIds = [];
         $relationRows = $this->db->fetchAll(
@@ -228,7 +228,7 @@ final class ObjectRepository
         if ($object->isNew()) {
             return;
         }
-        // A capability-táblák sorait az ON DELETE CASCADE törli.
+        // Rows in the capability tables are deleted by ON DELETE CASCADE.
         $this->db->delete(CoreSchema::OBJECTS, ['id' => $object->id()]);
     }
 
@@ -283,10 +283,10 @@ final class ObjectRepository
     }
 
     /**
-     * A kapcsolatok ellenőrzése: kötelező kapcsolat, önhivatkozás, és hogy a
-     * célok léteznek-e, és megfelelnek-e a definíciónak (Blueprint, capability-k).
+     * Validates the relations: required relation, self-reference, and whether the
+     * targets exist and match the definition (Blueprint, capabilities).
      *
-     * @return array<string, string> kapcsolatnév => hibaüzenet
+     * @return array<string, string> relation name => error message
      */
     private function validateRelations(CampanellaObject $object): array
     {
@@ -406,7 +406,7 @@ final class ObjectRepository
     }
 
     /**
-     * Függőségi sorrend, hogy a prepareForSave() hívások is jó sorrendben fussanak.
+     * Dependency order, so that the prepareForSave() calls also run in the right order.
      *
      * @param array<string, CapabilityDefinition> $capabilities
      * @return array<string, CapabilityDefinition>
@@ -432,7 +432,7 @@ final class ObjectRepository
 
     private static function now(): DateTimeImmutable
     {
-        // Másodperc pontosság, mert a DATETIME oszlop is ennyit tárol.
+        // Second precision, because the DATETIME column stores that much too.
         $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
 
         return $now->setTime((int) $now->format('H'), (int) $now->format('i'), (int) $now->format('s'));

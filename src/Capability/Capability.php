@@ -11,23 +11,23 @@ use Campanella\Relation\Relation;
 use Closure;
 
 /**
- * A Capability-szerződés.
+ * The Capability contract.
  *
- * Egy capability két dolgot ad:
+ * A capability provides two things:
  *
- *  1. Statikus leírást (a rendszer ebből épít sémát és lekérdezést):
- *     - AsCapability attribútum: név, függőségek
- *     - fields(): milyen mezőket hoz, és azok hol tárolódnak
- *     - relations(): milyen kapcsolatokat hoz (pl. szerző, szülő)
- *     - scopes(): elnevezett lekérdezési szűrők (pl. 'published')
+ *  1. A static description (the system builds schema and queries from it):
+ *     - AsCapability attribute: name, dependencies
+ *     - fields(): which fields it brings, and where they are stored
+ *     - relations(): which relations it brings (e.g. author, parent)
+ *     - scopes(): named query filters (e.g. 'published')
  *
- *  2. Viselkedést egy konkrét objektumon. A capability egy adapter,
- *     amely az objektumot csomagolja be:
+ *  2. Behavior on a concrete object. The capability is an adapter
+ *     that wraps the object:
  *
  *         $object->as(Publishable::class)->publish();
  *
- * A capability maga nem ír adatbázisba; az értékeket az objektumon
- * állítja, a mentést az ObjectRepository végzi.
+ * The capability itself does not write to the database; it sets values
+ * on the object, and ObjectRepository does the saving.
  */
 abstract class Capability
 {
@@ -39,7 +39,7 @@ abstract class Capability
     abstract public static function fields(): array;
 
     /**
-     * A capability által hozott kapcsolatok.
+     * The relations brought by the capability.
      *
      * @return list<Relation>
      */
@@ -49,7 +49,7 @@ abstract class Capability
     }
 
     /**
-     * Elnevezett lekérdezési szűrők. A kulcs rendszerszinten egyedi.
+     * Named query filters. The key is unique system-wide.
      *
      * @return array<string, Closure(Query): Query>
      */
@@ -59,19 +59,19 @@ abstract class Capability
     }
 
     /**
-     * Mentés előtt fut: származtatott értékek kitöltése, normalizálás
-     * (pl. a Routable itt készít útvonalat a címből).
+     * Runs before saving: fills in derived values, normalizes
+     * (e.g. Routable builds the path from the title here).
      */
     public function prepareForSave(): void
     {
     }
 
     /**
-     * Mentés előtti ellenőrzés a prepareForSave() után. A kötelező mezőket
-     * a rendszer maga ellenőrzi; ide a capability saját szabályai kerülnek
-     * (pl. e-mail-cím formátuma).
+     * Validation before saving, after prepareForSave(). The system itself
+     * checks required fields; the capability's own rules go here
+     * (e.g. e-mail address format).
      *
-     * @return array<string, string> mezőnév => hibaüzenet
+     * @return array<string, string> field name => error message
      */
     public function validate(): array
     {

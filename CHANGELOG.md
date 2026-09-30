@@ -1,161 +1,170 @@
-# Változásnapló
+# Changelog
 
-Minden jelentős változás ide kerül. A formátum a
-[Keep a Changelog](https://keepachangelog.com/hu/1.1.0/) ajánlását követi, a
-verziózás a [szemantikus verziózást](https://semver.org/lang/hu/).
+All notable changes are recorded here. The format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
+adheres to [Semantic Versioning](https://semver.org/).
 
-Szakaszok: **Új**, **Megváltozott**, **Elavult**, **Megszűnt**, **Javítva**,
-**Biztonság**. A 0.x verziókban a **Megváltozott** és **Megszűnt** tételek
-visszafelé nem kompatibilisek lehetnek.
+Sections: **Added**, **Changed**, **Deprecated**, **Removed**, **Fixed**,
+**Security**. In 0.x versions, items under **Changed** and **Removed** may be
+backward-incompatible.
 
-## [Kiadatlan]
+## [Unreleased]
 
-### Új
+### Added
 
-- `.gitattributes`: minden szöveges fájl LF sorvéggel, Windowson is.
-- Automatikus ellenőrzés GitHub Actionsszel (`.github/workflows/ci.yml`):
-  minden pushnál PHPStan, `docs:check`, `docs:links`, és a tesztek MariaDB
-  10.6, 11.4, MySQL 8.0 és 8.4 alatt (PHP 8.3; MariaDB 11.4-en PHP 8.4 is).
-- Verziócímkénél (`v*`) telepítőcsomag készül a `vendor/` mappával együtt
-  (`campanella-<verzió>.zip` és SHA-256), a GitHub-kiadáshoz csatolva; a
-  kiadási megjegyzés a CHANGELOG megfelelő szakasza. Ha a címke és a
-  `Version::CAMPANELLA` nem egyezik, a kiadás leáll.
-- `composer docs:links`: a markdown-fájlok relatív linkjeinek ellenőrzése.
+- `.gitattributes`: all text files use LF line endings, on Windows too.
+- Continuous integration with GitHub Actions (`.github/workflows/ci.yml`):
+  PHPStan, `docs:check`, `docs:links` and the tests on every push, on MariaDB
+  10.6, 11.4, MySQL 8.0 and 8.4 (PHP 8.3; on MariaDB 11.4 also PHP 8.4).
+- On a version tag (`v*`), an installation package is built including the
+  `vendor/` folder (`campanella-<version>.zip` and SHA-256) and attached to the
+  GitHub release; the release notes are the matching section of the CHANGELOG.
+  If the tag and `Version::CAMPANELLA` do not match, the release is aborted.
+- `composer docs:links`: checks that the relative links in the markdown files
+  point to existing files and that their `#anchors` point to existing headings.
 
-### Javítva
+### Changed
 
-- A belépőűrlap rejtett honeypot-mezője („Weboldal”) látszott, ha a böngésző
-  a 0.0.2-es `campanella.css`-t tartotta gyorsítótárban. A mezőt mostantól
-  beágyazott stílus rejti, és az `asset()` a verziószámot is az URL-hez fűzi
-  (`?v=0.0.3`), így frissítés után az új CSS töltődik be.
+- Documentation, code comments and developer-facing messages are now in
+  English. User-facing texts (UI, CLI output, validation messages) are still
+  Hungarian; a translation layer is planned for 0.0.4.
+- The `docs/php-api` chapter files have English names (e.g.
+  `11-felhasznalok.md` → `11-users.md`).
+
+### Fixed
+
+- The hidden honeypot field ("Weboldal") of the login form was visible if the
+  browser had the 0.0.2 `campanella.css` cached. The field is now hidden by an
+  inline style, and `asset()` also appends the version number to the URL
+  (`?v=0.0.3`), so the new CSS is loaded after an upgrade.
 
 ## [0.0.3] – 2026-09-29
 
-Felhasználók és bejelentkezés. A Campanella licence: MIT.
+Users and login. Campanella is licensed under MIT.
 
-### Új
+### Added
 
-- `LICENSE` (MIT) és `"license": "MIT"` a `composer.json`-ban.
-- Capability-k: `Identifiable` (egyedi, normalizált e-mail-cím),
-  `Authenticatable` (jelszó-hash, fiókállapot, szerepkörök), `Authorable`
-  (`author` kapcsolat; új tartalomnál a létrehozó lesz a szerző).
-- `user` Blueprint; a cikkek `Authorable`-t kaptak.
-- `AuthService` és `LoginResult`: belépés egyforma hibaüzenettel és futásidővel,
-  próbálkozás-korlátozással, letiltott fiók kezelésével, automatikus
-  jelszó-újrahash-eléssel.
-- `LoginGuard` bővítési pont a jelszó-ellenőrzés előtti védelmekhez;
-  beépített `HoneypotGuard`.
-- `Session` lusta indítással és tétlenségi időkorláttal; `SessionStorage`,
-  `NativeSessionStorage` (HttpOnly, SameSite=Lax, Secure HTTPS-en, szigorú mód),
-  `ArraySessionStorage` (tesztekhez).
-- `Csrf` (Twig: `csrf_field()`), `Throttle` és a `cc_throttle` tábla.
-- `AuthController`: `/belepes`, `/kilepes`; nyílt átirányítás elleni védelem.
-- `DefaultPolicy`: `editor` szerepkör.
-- Twig: `current_user()`; a fejlécben belépés és kilépés.
-- `Field::$hidden`: sablonból el nem érhető mezők (jelszó-hash, e-mail-cím).
+- `LICENSE` (MIT) and `"license": "MIT"` in `composer.json`.
+- Capabilities: `Identifiable` (unique, normalized e-mail address),
+  `Authenticatable` (password hash, account status, roles), `Authorable`
+  (`author` relation; for new content the creator becomes the author).
+- `user` Blueprint; articles now have `Authorable`.
+- `AuthService` and `LoginResult`: login with a uniform error message and
+  running time, login throttling, handling of blocked accounts, and automatic
+  password rehashing.
+- `LoginGuard` extension point for protections that run before password
+  verification; built-in `HoneypotGuard`.
+- `Session` with lazy start and an idle timeout; `SessionStorage`,
+  `NativeSessionStorage` (HttpOnly, SameSite=Lax, Secure over HTTPS, strict mode),
+  `ArraySessionStorage` (for tests).
+- `Csrf` (Twig: `csrf_field()`), `Throttle` and the `cc_throttle` table.
+- `AuthController`: `/belepes`, `/kilepes`; protection against open redirects.
+- `DefaultPolicy`: `editor` role.
+- Twig: `current_user()`; login and logout in the header.
+- `Field::$hidden`: fields not accessible from templates (password hash, e-mail address).
 - `FieldType::StringList`; `Capability::validate()` hook.
 - `Request`: `$cookies`, `$ip`, `$secure`, `isPost()`, `postString()`,
-  `queryString()`; `Response::withHeader()`; biztonsági fejlécek
+  `queryString()`; `Response::withHeader()`; security headers
   (`X-Frame-Options`, `Referrer-Policy`).
-- CLI: `user:create`, `user:password` (letiltás/engedélyezés is), `user:list`.
-- Dokumentáció: [11. Felhasználók és bejelentkezés](docs/php-api/11-felhasznalok.md).
+- CLI: `user:create`, `user:password` (also blocking/unblocking), `user:list`.
+- Documentation: [11. Users and login](docs/php-api/11-users.md).
 
-### Megváltozott
+### Changed
 
-- Sémaverzió: `3` (új tábla: `cc_throttle`). Frissítés után `php bin/campanella install`.
-- Munkamenettel rendelkező kérések válasza `Cache-Control: private, no-store`
-  fejlécet kap.
-- `CampanellaTwigExtension::__construct()` két új, opcionális paramétert kapott.
-  **Belső** osztály.
+- Schema version: `3` (new table: `cc_throttle`). After upgrading, run `php bin/campanella install`.
+- Responses to requests with a session get a `Cache-Control: private, no-store`
+  header.
+- `CampanellaTwigExtension::__construct()` has two new optional parameters.
+  **Internal** class.
 
-### Biztonság
+### Security
 
-- Alapértelmezett fiók vagy jelszó nincs; az első adminisztrátort a
-  `user:create` parancs hozza létre.
+- There is no default account or password; the first administrator is created
+  with the `user:create` command.
 
 ## [0.0.2] – 2026-09-28
 
-Kapcsolatok (Relationship) objektumok között.
+Relations (relationships) between objects.
 
-### Új
+### Added
 
-- `Relation` és `Cardinality` (`Campanella\Relation`): elnevezett, irányított
-  kapcsolatok definíciója számossággal, célfeltételekkel (Blueprint,
-  capability) és kötelezőséggel.
-- Kapcsolatot a capability `relations()` metódusa vagy a Blueprint
-  `relations` kulcsa adhat meg.
+- `Relation` and `Cardinality` (`Campanella\Relation`): definition of named,
+  directed relations with cardinality, target constraints (Blueprint,
+  capability) and a required flag.
+- Relations can be declared by a capability's `relations()` method or by a
+  Blueprint's `relations` key.
 - `CampanellaObject`: `relations()`, `hasRelation()`, `relatedIds()`,
   `setRelated()`, `relate()`, `unrelate()`, `relatedObjects()`, `isResolved()`.
-- `cc_relationships` tábla; mentéskor ellenőrzés (létező, megfelelő cél,
-  kötelező kapcsolat, önhivatkozás tiltása), törléskor kaszkád.
-- `Query::whereRelated()`, `Query::whereNotRelated()` és a `RelatedTo` feltétel.
-- `RelationLoader`: a kapcsolódó objektumok betöltése egyetlen,
-  jogosultság-tudatos lekérdezéssel; a controllerek automatikusan használják.
-- Blueprint `lists`: listák az objektum saját oldalán (pl. egy kategória cikkei).
-- Twig: `related(object, 'név')` függvény és `object/_relations.html.twig` részlet.
-- Példa: `category` Blueprint, a cikkek `categories` kapcsolata, `/kategoriak`
-  oldal, kategóriaoldalak a cikkeikkel.
-- `Installer::needsUpgrade()`; a `status` parancs és a weboldal (503) jelzi,
-  ha az adatbázis sémája régebbi a kódnál.
-- A `seed` ismételten futtatható: a meglévő tartalmat nem hozza létre újra,
-  a hiányzó példákat (pl. kategóriák) hozzáadja.
-- Dokumentáció: [10. Kapcsolatok](docs/php-api/10-kapcsolatok.md) fejezet.
+- `cc_relationships` table; validation on save (target exists and matches,
+  required relations, no self-references), cascade on delete.
+- `Query::whereRelated()`, `Query::whereNotRelated()` and the `RelatedTo` condition.
+- `RelationLoader`: loads related objects with a single access-aware query;
+  the controllers use it automatically.
+- Blueprint `lists`: lists on the object's own page (e.g. the articles of a category).
+- Twig: `related(object, 'name')` function and the `object/_relations.html.twig` partial.
+- Example: `category` Blueprint, the `categories` relation of articles, the
+  `/kategoriak` page, and category pages with their articles.
+- `Installer::needsUpgrade()`; the `status` command and the website (503)
+  report when the database schema is older than the code.
+- `seed` can be run repeatedly: it does not recreate existing content, and it
+  adds missing examples (e.g. categories).
+- Documentation: the [10. Relations](docs/php-api/10-relations.md) chapter.
 
-### Megváltozott
+### Changed
 
-- Sémaverzió: `2` (új tábla). Frissítés után `php bin/campanella install`.
-- `QueryCompiler::__construct()` második, opcionális paramétere a
-  `BlueprintRegistry` (kapcsolat-feltételekhez). **Belső** osztály.
-- `ObjectController::__construct()` új paraméterei: `BlueprintRegistry`,
-  `RelationLoader`; `QueryController::__construct()` opcionális
-  `RelationLoader` paramétert kapott.
-- `CampanellaObject::__construct()` és a `Blueprint` új, opcionális
-  paramétereket kapott (kapcsolatok, listák).
+- Schema version: `2` (new table). After upgrading, run `php bin/campanella install`.
+- The second, optional parameter of `QueryCompiler::__construct()` is the
+  `BlueprintRegistry` (for relation conditions). **Internal** class.
+- New parameters of `ObjectController::__construct()`: `BlueprintRegistry`,
+  `RelationLoader`; `QueryController::__construct()` has a new optional
+  `RelationLoader` parameter.
+- `CampanellaObject::__construct()` and `Blueprint` have new optional
+  parameters (relations, lists).
 
-### Korábbi, kiadatlan változások (0.0.1 után)
+### Earlier unreleased changes (after 0.0.1)
 
-- Fejlesztői dokumentáció a `docs/` mappában: PHP API referencia 9 fejezetben,
-  HTTP API (a HTML-felület és a tervezett JSON API).
-- `composer docs:check`: jelzi a dokumentálatlan nyilvános osztályokat és
-  metódusokat.
-- `Dockerfile` és `compose.yaml` (PHP 8.3 + Apache + MariaDB).
-- Az adatbázis-beállítások környezeti változókkal is megadhatók
-  (`CAMPANELLA_DB_*`, `CAMPANELLA_DEBUG`); a projekt gyökere a
-  `CAMPANELLA_ROOT` változóval.
-- Érthető hibaoldal, ha hiányzik a `vendor/` mappa.
+- Developer documentation in the `docs/` folder: PHP API reference in 9
+  chapters, HTTP API (the HTML interface and the planned JSON API).
+- `composer docs:check`: reports undocumented public classes and methods.
+- `Dockerfile` and `compose.yaml` (PHP 8.3 + Apache + MariaDB).
+- Database settings can also be given as environment variables
+  (`CAMPANELLA_DB_*`, `CAMPANELLA_DEBUG`); the project root via the
+  `CAMPANELLA_ROOT` variable.
+- A clear error page if the `vendor/` folder is missing.
 
-#### Megváltozott
+#### Changed
 
-- `CampanellaTwigExtension::__construct()` második paramétere `string` helyett
-  `Closure(): string` (az aktuális kérés URL-előtagja). **Belső** osztály.
+- The second parameter of `CampanellaTwigExtension::__construct()` is now
+  `Closure(): string` instead of `string` (the URL prefix of the current
+  request). **Internal** class.
 
-#### Javítva
+#### Fixed
 
-- A `Kernel::handle()` már nem építi újra a konténert minden kérésnél, így a
-  konténerben felülírt szolgáltatások (pl. saját `AccessPolicy`) megmaradnak.
-- A `status` parancs kapcsolódási hibánál a valódi hibát jelzi, nem azt, hogy
-  „nincs telepítve” (`Connection::tableExists()` kapcsolódási hibát dob).
-- Ha a Twig gyorsítótár mappája nem írható, a rendszer gyorsítótár nélkül fut
-  tovább.
-- A beépített fejlesztői szerver (`php -S`) kiszolgálja a statikus fájlokat.
+- `Kernel::handle()` no longer rebuilds the container on every request, so
+  services overridden in the container (e.g. a custom `AccessPolicy`) are kept.
+- On a connection error, the `status` command reports the actual error instead
+  of "not installed" (`Connection::tableExists()` throws on connection errors).
+- If the Twig cache folder is not writable, the system keeps running without
+  a cache.
+- The built-in development server (`php -S`) serves static files.
 
 ## [0.0.1] – 2026-09-25
 
-Az első, minimális mag.
+The first, minimal core.
 
-### Új
+### Added
 
-- Általános objektummodell: `CampanellaObject`, `Field`, `FieldType`,
+- Generic object model: `CampanellaObject`, `Field`, `FieldType`,
   `FieldStorage`.
-- Capability-szerződés (`Capability`, `#[AsCapability]`,
-  `CapabilityRegistry`) és négy beépített capability: `Titled`, `Textual`,
-  `Routable`, `Publishable` (időzített publikálással).
-- Blueprintek konfigurációból (`config/blueprints.php`).
-- `ObjectRepository` (Data Mapper, kötegelt betöltés) és `ObjectService`.
-- Deklaratív, megváltoztathatatlan `Query`, feltétel-AST, scope-ok,
-  `QueryCompiler`, jogosultság-tudatos `QueryEngine`, `ResultSet`.
-- Jogosultság: `Actor`, `Operation`, `AccessPolicy`, `DefaultPolicy`.
+- Capability contract (`Capability`, `#[AsCapability]`,
+  `CapabilityRegistry`) and four built-in capabilities: `Titled`, `Textual`,
+  `Routable`, `Publishable` (with scheduled publishing).
+- Blueprints from configuration (`config/blueprints.php`).
+- `ObjectRepository` (Data Mapper, batch loading) and `ObjectService`.
+- Declarative, immutable `Query`, condition AST, scopes,
+  `QueryCompiler`, access-aware `QueryEngine`, `ResultSet`.
+- Access control: `Actor`, `Operation`, `AccessPolicy`, `DefaultPolicy`.
 - HTTP: `Request`, `Response`, `Router`, `ObjectController`, `QueryController`.
-- Megjelenítés: `Presentation`, Twig-sablonok, `CampanellaTwigExtension`.
-- Adatbázis: `Connection`, sémaleírók, `Installer` (MariaDB 10.6+ / MySQL 8.0+).
+- Presentation: `Presentation`, Twig templates, `CampanellaTwigExtension`.
+- Database: `Connection`, schema descriptors, `Installer` (MariaDB 10.6+ / MySQL 8.0+).
 - CLI: `install`, `seed`, `status`.

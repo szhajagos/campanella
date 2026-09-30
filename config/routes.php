@@ -3,10 +3,10 @@
 declare(strict_types=1);
 
 /*
- * Statikus útvonalak: útvonal => [handler, paraméterek].
+ * Static routes: path => [handler, parameters].
  *
- * Ami itt nem szerepel, azt a Router egy Routable objektum útvonalaként
- * próbálja meg (pl. /neumann-janos → ObjectController).
+ * Anything not listed here is tried by the Router as the path of a
+ * Routable object (e.g. /neumann-janos → ObjectController).
  */
 return [
     '/' => ['query', ['query' => 'frontpage', 'title' => '']],

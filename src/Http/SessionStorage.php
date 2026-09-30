@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace Campanella\Http;
 
 /**
- * A munkamenet tárolója. Élesben a PHP saját munkamenet-kezelése
- * (NativeSessionStorage), tesztekben egy memóriabeli változat
+ * The session store. In production PHP's own session handling
+ * (NativeSessionStorage), in tests an in-memory variant
  * (ArraySessionStorage).
  */
 interface SessionStorage
 {
-    /** Hozott-e a kérés munkamenetet (cookie-t)? */
+    /** Did the request bring a session (cookie)? */
     public function exists(Request $request): bool;
 
     public function start(Request $request): void;
@@ -24,9 +24,9 @@ interface SessionStorage
 
     public function remove(string $key): void;
 
-    /** Új munkamenet-azonosító, az adatok megtartásával (belépéskor). */
+    /** A new session ID, keeping the data (on login). */
     public function regenerate(): void;
 
-    /** A munkamenet és a cookie törlése (kilépéskor). */
+    /** Deletes the session and the cookie (on logout). */
     public function destroy(): void;
 }

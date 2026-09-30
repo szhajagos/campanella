@@ -10,22 +10,22 @@ use Campanella\Relation\Relation;
 use Closure;
 
 /**
- * Elnevezett capability-csomag, a „típus” adatként.
+ * A named bundle of capabilities: the "type" as data.
  *
- * Nem PHP-osztály, hanem konfiguráció (config/blueprints.php), ezért
- * git-ben verziózható. A Blueprint adja meg, milyen capability-kkel
- * jön létre egy új objektum, milyen egyedi mezői és kapcsolatai vannak,
- * és milyen listák tartoznak az objektum oldalához.
+ * Not a PHP class but configuration (config/blueprints.php), so it can be
+ * versioned in git. The Blueprint defines which capabilities a new object
+ * is created with, which custom fields and relations it has, and which
+ * lists belong to the object's page.
  */
 final readonly class Blueprint
 {
     /**
-     * @param array<string, CapabilityDefinition> $capabilities Feloldva, függőségekkel együtt.
-     * @param array<string, Field> $fields Csak a Blueprint saját (egyedi) mezői.
-     * @param array<string, Relation> $relations Csak a Blueprint saját kapcsolatai.
+     * @param array<string, CapabilityDefinition> $capabilities Resolved, including dependencies.
+     * @param array<string, Field> $fields Only the Blueprint's own (custom) fields.
+     * @param array<string, Relation> $relations Only the Blueprint's own relations.
      * @param array<string, array{label?: string, query: Closure(CampanellaObject): Query}> $lists
-     *        Az objektum saját oldalán megjelenő listák: felirat és egy függvény, amely az
-     *        objektumból Query-t készít (pl. egy kategória cikkei).
+     *        Lists shown on the object's own page: a label and a function that builds
+     *        a Query from the object (e.g. the articles of a category).
      */
     public function __construct(
         public string $name,
@@ -37,7 +37,7 @@ final readonly class Blueprint
     ) {
     }
 
-    /** @return array<string, Field> A capability-mezők és az egyedi mezők együtt. */
+    /** @return array<string, Field> The capability fields and the custom fields together. */
     public function allFields(): array
     {
         $fields = [];
@@ -48,7 +48,7 @@ final readonly class Blueprint
         return $fields + $this->fields;
     }
 
-    /** @return array<string, Relation> A capability-kapcsolatok és a saját kapcsolatok együtt. */
+    /** @return array<string, Relation> The capability relations and the own relations together. */
     public function allRelations(): array
     {
         $relations = [];

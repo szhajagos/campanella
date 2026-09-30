@@ -8,6 +8,6 @@ final class Version
 {
     public const string CAMPANELLA = '0.0.3';
 
-    /** Az adatbázisséma verziója; migrációnál nő. */
+    /** The database schema version; incremented with migrations. */
     public const string SCHEMA = '3';
 }

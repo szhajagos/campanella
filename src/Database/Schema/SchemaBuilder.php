@@ -7,8 +7,8 @@ namespace Campanella\Database\Schema;
 use Campanella\Database\Connection;
 
 /**
- * A Table-leírásokból DDL-t készít. Ez az egyetlen hely, ahol
- * CREATE TABLE utasítás keletkezik.
+ * Builds DDL from Table descriptions. This is the only place where
+ * CREATE TABLE statements are generated.
  */
 final class SchemaBuilder
 {

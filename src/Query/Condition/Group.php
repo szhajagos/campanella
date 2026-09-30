@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Campanella\Query\Condition;
 
-/** Feltételek ÉS / VAGY kapcsolatban. Egymásba ágyazható. */
+/** Conditions combined with AND / OR. Can be nested. */
 final readonly class Group implements Condition
 {
     /** @param list<Condition> $conditions */

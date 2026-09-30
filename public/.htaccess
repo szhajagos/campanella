@@ -1,4 +1,4 @@
-# Minden nem létező fájlra irányuló kérés az index.php-hez kerül.
+# Every request for a non-existent file is routed to index.php.
 Options -Indexes
 DirectoryIndex index.php
 

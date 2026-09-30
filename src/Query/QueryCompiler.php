@@ -16,26 +16,26 @@ use Campanella\Query\Condition\HasCapability;
 use Campanella\Query\Condition\RelatedTo;
 
 /**
- * A Query-t SQL-re fordítja. A Connection mellett ez az egyetlen hely,
- * ahol SQL keletkezik.
+ * Compiles a Query to SQL. Besides the Connection, this is the only
+ * place where SQL is generated.
  *
- * A lekérdezés csak azonosítókat ad vissza; az objektumokat utána az
- * ObjectRepository tölti be kötegelten.
+ * The query returns only IDs; the objects are then batch-loaded by the
+ * ObjectRepository.
  */
 final class QueryCompiler
 {
-    /** @var array<string, string> capability-név => JOIN-sor */
+    /** @var array<string, string> capability name => JOIN clause */
     private array $joins = [];
 
     /** @var array<string, mixed> */
     private array $params = [];
 
-    /** Hányadik kapcsolat-részlekérdezés (egyedi alias miatt). */
+    /** Counter of relation subqueries (for unique aliases). */
     private int $relationCount = 0;
 
     /**
-     * @param BlueprintRegistry|null $blueprints A kapcsolatnevek ellenőrzéséhez; nélküle
-     *        kapcsolat-feltétel (whereRelated) nem fordítható.
+     * @param BlueprintRegistry|null $blueprints For checking relation names; without it,
+     *        relation conditions (whereRelated) cannot be compiled.
      */
     public function __construct(
         private readonly CapabilityRegistry $capabilities,
@@ -43,7 +43,7 @@ final class QueryCompiler
     ) {
     }
 
-    /** SELECT o.id ... a rendezéssel és lapozással. */
+    /** SELECT o.id ... with ordering and pagination. */
     public function compile(Query $query): CompiledQuery
     {
         $this->reset();
@@ -53,7 +53,7 @@ final class QueryCompiler
         foreach ($query->ordering() as [$field, $direction]) {
             $order[] = $this->column($field, forOrdering: true) . ' ' . $direction->value;
         }
-        $order[] = 'o.`id` ' . ($query->ordering()[0][1] ?? Direction::Asc)->value; // stabil sorrend
+        $order[] = 'o.`id` ' . ($query->ordering()[0][1] ?? Direction::Asc)->value; // stable ordering
 
         $sql = 'SELECT o.`id` FROM {objects} o' . $this->joinSql()
             . ($where === '' ? '' : ' WHERE ' . $where)
@@ -62,18 +62,18 @@ final class QueryCompiler
         if ($query->getLimit() !== null) {
             $sql .= sprintf(' LIMIT %d OFFSET %d', $query->getLimit(), $query->getOffset());
         } elseif ($query->getOffset() > 0) {
-            throw new QueryException('Offset csak limittel együtt adható meg.');
+            throw new QueryException('Offset can only be given together with a limit.');
         }
 
         return new CompiledQuery($sql, $this->params);
     }
 
-    /** SELECT COUNT(*) ... ugyanazokkal a feltételekkel, lapozás nélkül. */
+    /** SELECT COUNT(*) ... with the same conditions, without pagination. */
     public function compileCount(Query $query): CompiledQuery
     {
         $this->reset();
         $where = $this->compileCondition($query->conditions());
-        // A capability-táblák object_id szerint 1:1 kapcsolódnak, így a JOIN nem sokszoroz.
+        // Capability tables join 1:1 on object_id, so the JOIN does not multiply rows.
         $sql = 'SELECT COUNT(*) FROM {objects} o' . $this->joinSql() . ($where === '' ? '' : ' WHERE ' . $where);
 
         return new CompiledQuery($sql, $this->params);
@@ -93,7 +93,7 @@ final class QueryCompiler
             $condition instanceof FieldCondition => $this->compileField($condition),
             $condition instanceof HasCapability => $this->compileHasCapability($condition),
             $condition instanceof RelatedTo => $this->compileRelatedTo($condition),
-            default => throw new QueryException('Ismeretlen feltételtípus: ' . $condition::class),
+            default => throw new QueryException('Unknown condition type: ' . $condition::class),
         };
     }
 
@@ -147,7 +147,7 @@ final class QueryCompiler
     private function compileRelatedTo(RelatedTo $condition): string
     {
         if ($this->blueprints?->relation($condition->relation) === null) {
-            throw new QueryException("Ismeretlen kapcsolat: {$condition->relation}");
+            throw new QueryException("Unknown relation: {$condition->relation}");
         }
         $alias = 'rl' . $this->relationCount++;
         $sql = sprintf(
@@ -163,7 +163,7 @@ final class QueryCompiler
         return ($condition->negated ? 'NOT ' : '') . $sql . ')';
     }
 
-    /** A mezőnévből oszlophivatkozás, szükség esetén JOIN-nal. */
+    /** Column reference from the field name, with a JOIN if needed. */
     private function column(string $field, bool $forOrdering = false): string
     {
         if (isset(Query::BASE_FIELDS[$field])) {
@@ -171,15 +171,15 @@ final class QueryCompiler
         }
 
         $owner = $this->capabilities->fieldOwner($field)
-            ?? throw new QueryException("Ismeretlen vagy nem lekérdezhető mező: {$field}");
+            ?? throw new QueryException("Unknown or non-queryable field: {$field}");
         $definition = $owner->fields[$field];
 
         if ($definition->storage === FieldStorage::Data) {
             throw new QueryException(sprintf(
-                "A(z) '%s' mező a data (JSON) oszlopban él, ezért nem lehet rá %s. "
-                . 'Ha erre szükség van, a mezőt saját táblás oszloppá kell előléptetni.',
+                "Field '%s' lives in the data (JSON) column, so it cannot be %s. "
+                . 'If this is needed, the field must be promoted to a column in its own table.',
                 $field,
-                $forOrdering ? 'rendezni' : 'szűrni',
+                $forOrdering ? 'sorted on' : 'filtered on',
             ));
         }
 
@@ -200,7 +200,7 @@ final class QueryCompiler
             'id' => FieldType::Integer,
             'created', 'updated' => FieldType::DateTime,
             'uuid', 'blueprint' => FieldType::String,
-            default => ($this->capabilities->field($field) ?? throw new QueryException("Ismeretlen mező: {$field}"))->type,
+            default => ($this->capabilities->field($field) ?? throw new QueryException("Unknown field: {$field}"))->type,
         };
     }
 

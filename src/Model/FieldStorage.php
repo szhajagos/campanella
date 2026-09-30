@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Campanella\Model;
 
 /**
- * Hol él egy mező értéke?
+ * Where does a field's value live?
  *
- *  - Table: a capability saját táblájában, indexelhető oszlopként.
- *           Csak ilyen mezőre lehet szűrni és rendezni.
- *  - Data:  az objektum `data` JSON oszlopában. Csak tárolás, lekérdezés nem.
+ *  - Table: in the capability's own table, as an indexable column.
+ *           Only such fields can be filtered and sorted on.
+ *  - Data:  in the object's `data` JSON column. Storage only, no querying.
  */
 enum FieldStorage
 {

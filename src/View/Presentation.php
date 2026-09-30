@@ -9,17 +9,17 @@ use Campanella\Query\ResultSet;
 use Twig\Environment;
 
 /**
- * Megmondja, HOGYAN jelenjen meg valami, és ehhez kiválasztja a sablont.
+ * Decides HOW something is rendered, and picks the template for it.
  *
- * Objektum-módok: full, teaser (később card, table_row, hero…).
- * A sablonkeresés a legspecifikusabbtól halad az általános felé:
+ * Object modes: full, teaser (later card, table_row, hero…).
+ * Template lookup goes from the most specific to the general:
  *
- *   object/article--teaser.html.twig   (Blueprint + mód)
- *   object/teaser.html.twig            (csak mód)
+ *   object/article--teaser.html.twig   (Blueprint + mode)
+ *   object/teaser.html.twig            (mode only)
  *
- * Listáknál ugyanígy: query/news.html.twig → query/list.html.twig
+ * Likewise for lists: query/news.html.twig → query/list.html.twig
  *
- * A Presentation nem kérdez adatbázist, csak azt jeleníti meg, amit kap.
+ * Presentation does not query the database; it only renders what it gets.
  */
 final class Presentation
 {

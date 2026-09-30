@@ -1,43 +1,43 @@
 # PHP API
 
-A Campanella 0.0.3 PHP API-jának referenciája. Minden osztály a `Campanella\`
-névtérben van, a `src/` mappában (PSR-4).
+Reference for the Campanella 0.0.3 PHP API. Every class is in the `Campanella\`
+namespace, in the `src/` folder (PSR-4).
 
-## Fejezetek
+## Chapters
 
-1. [Áttekintés](01-attekintes.md): rétegek, egy kérés útja, alapelvek
-2. [Objektum, mező, Blueprint](02-objektum.md): `CampanellaObject`, `Field`, `FieldType`, `FieldStorage`, `Blueprint`
-3. [Capability](03-capability.md): a szerződés, a négy beépített capability, új capability írása
-4. [Query](04-query.md): lekérdezések, feltételek, scope-ok, `QueryEngine`, `ResultSet`
-5. [Jogosultság](05-jogosultsag.md): `Actor`, `Operation`, `AccessPolicy`
-6. [Szolgáltatások és tárolás](06-szolgaltatasok.md): `ObjectService`, `ObjectRepository`, validáció
-7. [HTTP és megjelenítés](07-http-es-view.md): `Request`, `Router`, controllerek, `Presentation`, Twig
-8. [Adatbázis](08-adatbazis.md): `Connection`, séma, telepítő
-9. [Rendszer](09-rendszer.md): `Kernel`, `Container`, konfiguráció, CLI, segédosztályok
-10. [Kapcsolatok](10-kapcsolatok.md): `Relation`, `Cardinality`, `whereRelated`, `RelationLoader`, Blueprint-listák
-11. [Felhasználók és bejelentkezés](11-felhasznalok.md): `Identifiable`, `Authenticatable`, `Authorable`, `AuthService`, munkamenet, CSRF, `LoginGuard`
+1. [Overview](01-overview.md): layers, the path of a request, principles
+2. [Objects](02-objects.md): `CampanellaObject`, `Field`, `FieldType`, `FieldStorage`, `Blueprint`
+3. [Capabilities](03-capabilities.md): the contract, the four built-in capabilities, writing a new capability
+4. [Query](04-query.md): queries, conditions, scopes, `QueryEngine`, `ResultSet`
+5. [Access control](05-access.md): `Actor`, `Operation`, `AccessPolicy`
+6. [Services](06-services.md): `ObjectService`, `ObjectRepository`, validation
+7. [HTTP and view](07-http-and-view.md): `Request`, `Router`, controllers, `Presentation`, Twig
+8. [Database](08-database.md): `Connection`, schema, installer
+9. [System](09-system.md): `Kernel`, `Container`, configuration, CLI, helper classes
+10. [Relations](10-relations.md): `Relation`, `Cardinality`, `whereRelated`, `RelationLoader`, Blueprint lists
+11. [Users and login](11-users.md): `Identifiable`, `Authenticatable`, `Authorable`, `AuthService`, session, CSRF, `LoginGuard`
 
-## Névterek
+## Namespaces
 
-| Névtér | Réteg | Tartalom |
+| Namespace | Layer | Contents |
 |---|---|---|
-| `Campanella\Model` | Model | Objektum, mezők, Blueprint, Repository |
-| `Campanella\Capability` | Model | A Capability-szerződés és a beépített capability-k |
-| `Campanella\Query` | Model | Query, feltételek, fordító, végrehajtó |
-| `Campanella\Access` | Model | Szereplők, műveletek, szabályok |
-| `Campanella\Relation` | Model | Kapcsolatok definíciója és betöltése |
-| `Campanella\Auth` | Service | Belépés, kilépés, aktuális felhasználó, belépési guardok |
-| `Campanella\Security` | Infrastruktúra | CSRF-token, próbálkozások korlátozása |
-| `Campanella\Service` | Service | Üzleti műveletek jogosultság-ellenőrzéssel |
-| `Campanella\Controller` | Controller | HTTP-kérések kiszolgálása |
-| `Campanella\View` | View | Megjelenítés, Twig-integráció |
-| `Campanella\Http` | Infrastruktúra | Kérés, válasz, útválasztás |
-| `Campanella\Database` | Infrastruktúra | PDO-réteg, séma, telepítő |
-| `Campanella\Core` | Infrastruktúra | Kernel, konténer, konfiguráció |
-| `Campanella\Cli` | Infrastruktúra | Parancssori eszköz |
-| `Campanella\Support` | Segéd | Slug, UUID |
+| `Campanella\Model` | Model | Object, fields, Blueprint, Repository |
+| `Campanella\Capability` | Model | The Capability contract and the built-in capabilities |
+| `Campanella\Query` | Model | Query, conditions, compiler, executor |
+| `Campanella\Access` | Model | Actors, operations, policies |
+| `Campanella\Relation` | Model | Relation definitions and loading |
+| `Campanella\Auth` | Service | Login, logout, current user, login guards |
+| `Campanella\Security` | Infrastructure | CSRF token, login throttling |
+| `Campanella\Service` | Service | Business operations with access control checks |
+| `Campanella\Controller` | Controller | Handling HTTP requests |
+| `Campanella\View` | View | Presentation, Twig integration |
+| `Campanella\Http` | Infrastructure | Request, response, routing |
+| `Campanella\Database` | Infrastructure | PDO layer, schema, installer |
+| `Campanella\Core` | Infrastructure | Kernel, container, configuration |
+| `Campanella\Cli` | Infrastructure | Command-line tool |
+| `Campanella\Support` | Helper | Slug, UUID |
 
-## Gyors példa
+## Quick example
 
 ```php
 use Campanella\Access\Actor;
@@ -50,17 +50,17 @@ $c = $kernel->container();
 $service = $c->get(ObjectService::class);
 $queries = $c->get(QueryEngine::class);
 
-// Létrehozás és publikálás
+// Create and publish
 $article = $service->create(Actor::system(), 'article', [
     'title' => 'Neumann János',
-    'lead'  => 'A számítógép-architektúra egyik atyja.',
-    'body'  => "Budapesten született 1903-ban.\n\nNevéhez fűződik…",
+    'lead'  => 'One of the fathers of computer architecture.',
+    'body'  => "Born in Budapest in 1903.\n\nHis name is associated with…",
 ], publish: true);
 
 $article->get('path');                                   // '/neumann-janos'
 $article->as(Publishable::class)->isPublished();         // true
 
-// Lekérdezés: amit az adott Actor láthat
+// Query: what the given Actor is allowed to see
 $news = $queries->execute(
     Query::objects()->blueprint('article')->scope('published')->orderBy('published_at', 'DESC')->limit(10),
     Actor::anonymous(),

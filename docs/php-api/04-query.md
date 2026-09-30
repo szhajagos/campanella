@@ -1,62 +1,62 @@
 # 4. Query
 
-A Query azt írja le, *milyen objektumokat* szeretnénk. Ez váltja ki a Drupal
-Views mögötti lekérdező mechanizmust. A leírásból a `QueryCompiler` SQL-t
-készít, a `QueryEngine` pedig végrehajtja, jogosultsággal együtt.
+A Query describes *which objects* we want. It replaces the query mechanism
+behind Drupal Views. `QueryCompiler` builds SQL from the description, and
+`QueryEngine` executes it, together with access control.
 
 ```
-Query → scope-ok feloldása → AccessPolicy (secured query) → SQL (azonosítók)
-      → ObjectRepository (kötegelt betöltés) → ResultSet
+Query → resolve scopes → AccessPolicy (secured query) → SQL (IDs)
+      → ObjectRepository (batch loading) → ResultSet
 ```
 
 ## Query
 
-`Campanella\Query\Query` · **Nyilvános** · `final class`, megváltoztathatatlan
+`Campanella\Query\Query` · **Public** · `final class`, immutable
 
-Minden metódus új példányt ad vissza, az eredeti nem változik. Egy definíció
-ezért biztonságosan újrahasználható és kiegészíthető.
+Every method returns a new instance; the original is left unchanged. A
+definition can therefore be safely reused and extended.
 
 ```php
 $base = Query::objects()->blueprint('article')->scope('published');
 
 $latest = $base->orderBy('published_at', 'DESC')->limit(3);
-$search = $base->where('title', 'LIKE', 'Neumann%');   // $base változatlan
+$search = $base->where('title', 'LIKE', 'Neumann%');   // $base is unchanged
 ```
 
-### Építő metódusok
+### Builder methods
 
-| Metódus | Leírás |
+| Method | Description |
 |---|---|
-| `static objects(): self` | Üres lekérdezés: minden objektum |
-| `having(string ...$capabilities)` | Csak az összes megadott capability-vel rendelkezők. Név vagy osztálynév |
-| `blueprint(string ...$blueprints)` | Egy névnél `=`, többnél `IN` |
-| `where(string $field, Operator\|string $operator, mixed $value = null)` | Mezőfeltétel, ÉS kapcsolattal a többihez |
-| `whereRelated(string $relation, CampanellaObject\|int ...$targets)` | Kapcsolat a célok valamelyikére; cél nélkül: van ilyen kapcsolata ([10. fejezet](10-kapcsolatok.md#lekérdezés-kapcsolat-szerint)) |
-| `whereNotRelated(string $relation, CampanellaObject\|int ...$targets)` | Az előző tagadása |
-| `whereCondition(Condition $condition)` | Tetszőleges feltétel, pl. VAGY-csoport |
-| `scope(string $name)` | Egy capability által definiált, elnevezett szűrő |
-| `orderBy(string $field, Direction\|string $direction = Direction::Asc)` | Többször hívható; a sorrend a hívások sorrendje |
-| `limit(?int $limit)` | Legalább 1, vagy `null` (nincs korlát) |
-| `offset(int $offset)` | Csak `limit`-tel együtt érvényes |
-| `page(int $page, int $perPage)` | Lapozás; az 1. oldal az első |
+| `static objects(): self` | Empty query: every object |
+| `having(string ...$capabilities)` | Only objects that have all the given capabilities. Name or class name |
+| `blueprint(string ...$blueprints)` | `=` for one name, `IN` for several |
+| `where(string $field, Operator\|string $operator, mixed $value = null)` | Field condition, joined to the others with AND |
+| `whereRelated(string $relation, CampanellaObject\|int ...$targets)` | Related to any of the targets; without targets: has such a relation at all ([chapter 10](10-relations.md#querying-by-relation)) |
+| `whereNotRelated(string $relation, CampanellaObject\|int ...$targets)` | The negation of the previous one |
+| `whereCondition(Condition $condition)` | Any condition, e.g. an OR group |
+| `scope(string $name)` | A named filter defined by a capability |
+| `orderBy(string $field, Direction\|string $direction = Direction::Asc)` | Can be called several times; the order is the order of the calls |
+| `limit(?int $limit)` | At least 1, or `null` (no limit) |
+| `offset(int $offset)` | Only valid together with `limit` |
+| `page(int $page, int $perPage)` | Pagination; page 1 is the first |
 
-### Lekérdező metódusok
+### Accessor methods
 
-A `QueryEngine` és a `QueryCompiler` használja őket:
+Used by `QueryEngine` and `QueryCompiler`:
 
-| Metódus | Visszatérés |
+| Method | Returns |
 |---|---|
-| `conditions()` | `Group`: a gyökér ÉS-csoport |
+| `conditions()` | `Group`: the root AND group |
 | `scopes()` | `list<string>` |
-| `withoutScopes()` | Másolat scope-ok nélkül |
+| `withoutScopes()` | A copy without scopes |
 | `ordering()` | `list<array{string, Direction}>` |
 | `getLimit()`, `getOffset()` | `?int`, `int` |
 
-### Mezők a lekérdezésben
+### Fields in a query
 
-**Alapmezők** (minden objektumon; a `BASE_FIELDS` konstans tartalmazza):
+**Base fields** (present on every object; listed in the `BASE_FIELDS` constant):
 
-| Mező | Oszlop | Típus |
+| Field | Column | Type |
 |---|---|---|
 | `id` | `objects.id` | Integer |
 | `uuid` | `objects.uuid` | String |
@@ -64,111 +64,111 @@ A `QueryEngine` és a `QueryCompiler` használja őket:
 | `created` | `objects.created_at` | DateTime |
 | `updated` | `objects.updated_at` | DateTime |
 
-**Capability-mezők:** bármely `FieldStorage::Table` tárolású mező a neve szerint
-(`title`, `path`, `status`, `published_at`…). A fordító automatikusan hozzáfűzi a
-szükséges `LEFT JOIN`-t.
+**Capability fields:** any field with `FieldStorage::Table` storage, by name
+(`title`, `path`, `status`, `published_at`…). The compiler adds the necessary
+`LEFT JOIN` automatically.
 
-**Nem használható:** `FieldStorage::Data` mező (pl. `body`, `lead`). Ilyenkor
-`QueryException` keletkezik azzal az üzenettel, hogy a mezőt saját táblás
-oszloppá kell előléptetni.
+**Not usable:** `FieldStorage::Data` fields (e.g. `body`, `lead`). These raise
+a `QueryException` with a message saying the field has to be promoted to an
+own-table column.
 
-Az értékek a mező típusa szerint alakulnak át: dátumhoz `DateTimeImmutable`
-vagy szöveg, enumos mezőhöz maga az enum is megadható
-(`->where('status', '=', PublishStatus::Published)`).
+Values are converted according to the field's type: a date accepts
+`DateTimeImmutable` or a string, and an enum-backed field accepts the enum
+itself (`->where('status', '=', PublishStatus::Published)`).
 
 ## Operator
 
-`Campanella\Query\Operator` · **Nyilvános** · `enum: string`
+`Campanella\Query\Operator` · **Public** · `enum: string`
 
-| Eset | Szöveges alak | Érték |
+| Case | String form | Value |
 |---|---|---|
-| `Equals` | `=` | egy érték |
-| `NotEquals` | `!=` (vagy `<>`) | egy érték |
-| `LessThan`, `LessOrEqual` | `<`, `<=` | egy érték |
-| `GreaterThan`, `GreaterOrEqual` | `>`, `>=` | egy érték |
-| `In`, `NotIn` | `IN`, `NOT IN` | nem üres tömb |
-| `Like` | `LIKE` | minta (`%`, `_`) |
-| `IsNull`, `IsNotNull` | `IS NULL`, `IS NOT NULL` | nincs |
+| `Equals` | `=` | a single value |
+| `NotEquals` | `!=` (or `<>`) | a single value |
+| `LessThan`, `LessOrEqual` | `<`, `<=` | a single value |
+| `GreaterThan`, `GreaterOrEqual` | `>`, `>=` | a single value |
+| `In`, `NotIn` | `IN`, `NOT IN` | a non-empty array |
+| `Like` | `LIKE` | a pattern (`%`, `_`) |
+| `IsNull`, `IsNotNull` | `IS NULL`, `IS NOT NULL` | none |
 
-| Metódus | Leírás |
+| Method | Description |
 |---|---|
-| `static parse(self\|string $operator): self` | Szövegből (kis- és nagybetű mindegy). `QueryException`, ha ismeretlen |
-| `sql(): string` | Az SQL-alak (`!=` helyett `<>`) |
-| `takesValue(): bool`, `takesList(): bool` | Kell-e érték, illetve lista |
+| `static parse(self\|string $operator): self` | From a string (case-insensitive). `QueryException` if unknown |
+| `sql(): string` | The SQL form (`<>` instead of `!=`) |
+| `takesValue(): bool`, `takesList(): bool` | Whether it needs a value, or a list |
 
 ## Direction
 
-`Campanella\Query\Direction` · **Nyilvános** · `enum: string` · `Asc = 'ASC'`, `Desc = 'DESC'`
+`Campanella\Query\Direction` · **Public** · `enum: string` · `Asc = 'ASC'`, `Desc = 'DESC'`
 
-`static parse(self|string $direction): self`: kis- és nagybetű mindegy;
-`QueryException`, ha ismeretlen.
+`static parse(self|string $direction): self`: case-insensitive;
+`QueryException` if unknown.
 
-A rendezés mindig stabil: a megadott mezők után a fordító az `id` szerint is
-rendez (az első rendezés irányában).
+Ordering is always stable: after the given fields, the compiler also orders by
+`id` (in the direction of the first ordering).
 
-## Feltételek
+## Conditions
 
-`Campanella\Query\Condition\*` · **Nyilvános** · megváltoztathatatlan
+`Campanella\Query\Condition\*` · **Public** · immutable
 
-A feltételek egy kis, deklaratív fát (AST-t) alkotnak, nem PHP-kódot. Így a
-fordító SQL-re tudja alakítani őket, és a jogosultsági szabályok ugyanebben a
-nyelvben fogalmazhatók meg.
+Conditions form a small, declarative tree (an AST), not PHP code. This lets
+the compiler turn them into SQL, and lets access policies be expressed in the
+same language.
 
-| Osztály | Jelentés |
+| Class | Meaning |
 |---|---|
-| `Condition` | Közös interfész (jelölő) |
-| `FieldCondition(string $field, Operator $operator, mixed $value = null)` | `mező OPERÁTOR érték` |
-| `HasCapability(string $capability, bool $negated = false)` | Rendelkezik-e (vagy nem) a capability-vel |
-| `Group(bool $any, list<Condition> $conditions)` | `$any = false`: ÉS, `true`: VAGY. Egymásba ágyazható |
-| `RelatedTo(string $relation, list<int> $targets = [], bool $negated = false)` | Van-e kapcsolata a célok valamelyikével (üres lista: bármelyikkel) |
+| `Condition` | Common (marker) interface |
+| `FieldCondition(string $field, Operator $operator, mixed $value = null)` | `field OPERATOR value` |
+| `HasCapability(string $capability, bool $negated = false)` | Whether the object has (or does not have) the capability |
+| `Group(bool $any, list<Condition> $conditions)` | `$any = false`: AND, `true`: OR. Can be nested |
+| `RelatedTo(string $relation, list<int> $targets = [], bool $negated = false)` | Whether it is related to any of the targets (empty list: to any object) |
 
-`Group` segédmetódusai: `static all(Condition ...)`, `static any(Condition ...)`,
-`with(Condition): self` (új csoport a feltétellel kiegészítve).
+`Group` helper methods: `static all(Condition ...)`, `static any(Condition ...)`,
+`with(Condition): self` (a new group extended with the condition).
 
 ```php
 use Campanella\Query\Condition\{FieldCondition, Group, HasCapability};
 use Campanella\Query\Operator;
 
-// Ami nem publikálható, VAGY már publikált
+// Not publishable, OR already published
 $query = Query::objects()->whereCondition(Group::any(
     new HasCapability('publishable', negated: true),
     new FieldCondition('status', Operator::Equals, 'published'),
 ));
 ```
 
-Ismeretlen capability-névnél a `HasCapability` fordításakor
-`CapabilityException` keletkezik.
+For an unknown capability name, compiling `HasCapability` raises a
+`CapabilityException`.
 
-## Scope-ok
+## Scopes
 
-Egy capability elnevezett szűrőket adhat a `scopes()` metódusában. A scope egy
-`Closure(Query): Query`, amelyet a `QueryEngine` a végrehajtás előtt alkalmaz.
+A capability can provide named filters in its `scopes()` method. A scope is a
+`Closure(Query): Query` that `QueryEngine` applies before execution.
 
-| Scope | Capability | Hatása |
+| Scope | Capability | Effect |
 |---|---|---|
-| `published` | Publishable | `status = published` és `published_at <= most` |
+| `published` | Publishable | `status = published` and `published_at <= now` |
 
 ```php
 Query::objects()->scope('published');
 ```
 
-A scope a lekérdezés építésekor csak a nevével kerül a Query-be, a feloldása
-végrehajtáskor történik. Így a „most” időpont mindig a futtatás pillanata,
-akkor is, ha a Query-definíció régebben készült.
+When the query is built, a scope is added to the Query by name only; it is
+resolved at execution time. This way "now" is always the moment of execution,
+even if the Query definition was created earlier.
 
 ## QueryEngine
 
-`Campanella\Query\QueryEngine` · **Nyilvános** · `final class` · konténer: `QueryEngine::class`
+`Campanella\Query\QueryEngine` · **Public** · `final class` · container: `QueryEngine::class`
 
-| Metódus | Leírás |
+| Method | Description |
 |---|---|
-| `execute(Query $query, Actor $actor, bool $withTotal = false): ResultSet` | Végrehajtás. `$withTotal` esetén külön `COUNT` lekérdezés adja az összes találat számát |
-| `first(Query $query, Actor $actor): ?CampanellaObject` | Az első találat (a limitet 1-re állítja) |
-| `count(Query $query, Actor $actor): int` | Találatok száma lapozás nélkül |
-| `secure(Query $query, Actor $actor): Query` | A ténylegesen futó lekérdezés: scope-ok feloldva, jogosultsági feltételekkel kiegészítve. Hibakereséshez hasznos |
+| `execute(Query $query, Actor $actor, bool $withTotal = false): ResultSet` | Executes the query. With `$withTotal`, a separate `COUNT` query provides the total number of matches |
+| `first(Query $query, Actor $actor): ?CampanellaObject` | The first match (sets the limit to 1) |
+| `count(Query $query, Actor $actor): int` | Number of matches without pagination |
+| `secure(Query $query, Actor $actor): Query` | The query that actually runs: scopes resolved, access conditions added. Useful for debugging |
 
-Az `Actor` kötelező: ugyanaz a Query más eredményt ad szerkesztőnek és
-anonymous látogatónak.
+The `Actor` is required: the same Query gives different results for an editor
+and for an anonymous visitor.
 
 ```php
 $result = $queries->execute(Query::objects()->blueprint('article')->page(2, 10), $actor, withTotal: true);
@@ -176,44 +176,45 @@ $result = $queries->execute(Query::objects()->blueprint('article')->page(2, 10),
 
 ## ResultSet
 
-`Campanella\Query\ResultSet` · **Nyilvános** · `final readonly class` · `IteratorAggregate`, `Countable`
+`Campanella\Query\ResultSet` · **Public** · `final readonly class` · `IteratorAggregate`, `Countable`
 
-A lekérdezés eredménye, még megjelenítés nélkül. Ugyanez szolgálhat HTML, JSON,
-RSS vagy CSV forrásául.
+The result of a query, not yet rendered. The same result can serve as the
+source for HTML, JSON, RSS or CSV.
 
-| Tag | Leírás |
+| Member | Description |
 |---|---|
 | `$items` | `list<CampanellaObject>` |
-| `$total` | Összes találat, ha `withTotal: true` volt; egyébként `null` |
-| `$limit`, `$offset` | A lekérdezés lapozási adatai |
-| `getIterator()`, `count()` | `foreach` és `count()` az aktuális oldal elemein |
+| `$total` | Total number of matches if `withTotal: true` was given; otherwise `null` |
+| `$limit`, `$offset` | The pagination data of the query |
+| `getIterator()`, `count()` | `foreach` and `count()` over the items of the current page |
 | `isEmpty(): bool` | |
 | `first(): ?CampanellaObject` | |
-| `currentPage(): int` | 1-től számozva |
-| `pageCount(): int` | Legalább 1; `$total` nélkül mindig 1 |
+| `currentPage(): int` | Numbered from 1 |
+| `pageCount(): int` | At least 1; always 1 without `$total` |
 
-## QueryCompiler és CompiledQuery
+## QueryCompiler and CompiledQuery
 
-`Campanella\Query\QueryCompiler`, `Campanella\Query\CompiledQuery` · **Belső**
+`Campanella\Query\QueryCompiler`, `Campanella\Query\CompiledQuery` · **Internal**
 
-A `QueryCompiler` a Query-t SQL-re fordítja. Konstruktora:
+`QueryCompiler` compiles a Query into SQL. Its constructor:
 `__construct(CapabilityRegistry $capabilities, ?BlueprintRegistry $blueprints = null)`;
-a `BlueprintRegistry` nélkül kapcsolat-feltétel nem fordítható. `compile(Query): CompiledQuery` az
-azonosítókat lekérdező `SELECT`-et adja rendezéssel és lapozással,
-`compileCount(Query): CompiledQuery` a `COUNT(*)`-ot. A `CompiledQuery` két
-mezője: `$sql` (táblanevek `{objects}` alakú helyőrzőkkel) és `$params`.
+without the `BlueprintRegistry`, relation conditions cannot be compiled.
+`compile(Query): CompiledQuery` returns the `SELECT` that fetches the IDs, with
+ordering and pagination; `compileCount(Query): CompiledQuery` returns the
+`COUNT(*)`. `CompiledQuery` has two fields: `$sql` (table names as
+placeholders like `{objects}`) and `$params`.
 
-A fordító sosem alkalmaz jogosultságot; ezt a `QueryEngine` teszi. Közvetlenül
-csak hibakereséshez érdemes használni.
+The compiler never applies access control; `QueryEngine` does that. Use it
+directly only for debugging.
 
-## Hibák
+## Errors
 
-| Helyzet | Kivétel |
+| Situation | Exception |
 |---|---|
-| Ismeretlen mező a `where`-ben vagy `orderBy`-ban | `QueryException` |
-| `Data` tárolású mezőre szűrés vagy rendezés | `QueryException` |
-| Ismeretlen operátor vagy irány | `QueryException` |
-| `IN`/`NOT IN` üres vagy nem tömb értékkel | `QueryException` |
-| `limit` 1-nél kisebb; `offset` `limit` nélkül | `QueryException` |
-| Ismeretlen scope vagy capability | `CapabilityException` |
-| Ismeretlen kapcsolat, mentetlen cél a `whereRelated`-ben | `QueryException` |
+| Unknown field in `where` or `orderBy` | `QueryException` |
+| Filtering or sorting on a field with `Data` storage | `QueryException` |
+| Unknown operator or direction | `QueryException` |
+| `IN`/`NOT IN` with an empty or non-array value | `QueryException` |
+| `limit` less than 1; `offset` without `limit` | `QueryException` |
+| Unknown scope or capability | `CapabilityException` |
+| Unknown relation, unsaved target in `whereRelated` | `QueryException` |

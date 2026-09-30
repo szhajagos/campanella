@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Campanella\Access;
 
 /**
- * Aki cselekszik. A szerepkör (role) nem Actor, hanem az Actor egyik
- * tulajdonsága, amit a Policy vizsgál.
+ * Whoever acts. A role is not an Actor but one of the Actor's
+ * properties, which the Policy inspects.
  */
 final readonly class Actor
 {
@@ -26,7 +26,7 @@ final readonly class Actor
         return new self(ActorKind::Anonymous, name: 'anonymous');
     }
 
-    /** A rendszer maga (telepítő, CLI, ütemezett feladatok). */
+    /** The system itself (installer, CLI, scheduled tasks). */
     public static function system(): self
     {
         return new self(ActorKind::Service, roles: [self::ADMINISTRATOR], name: 'system');

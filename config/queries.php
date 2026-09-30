@@ -5,11 +5,11 @@ declare(strict_types=1);
 use Campanella\Query\Query;
 
 /*
- * Elnevezett lekérdezések (a Drupal Views helyett).
+ * Named queries (instead of Drupal Views).
  *
- * Nem kell külön jogosultsági feltételt írni: a QueryEngine minden
- * lekérdezéshez hozzáfűzi az aktuális Actorra vonatkozó szabályokat.
- * A 'published' scope-ot a Publishable capability definiálja.
+ * No separate access control condition is needed: the QueryEngine appends
+ * the policies for the current Actor to every query.
+ * The 'published' scope is defined by the Publishable capability.
  */
 return [
     'frontpage' => static fn (): Query => Query::objects()

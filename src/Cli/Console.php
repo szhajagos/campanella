@@ -7,7 +7,7 @@ namespace Campanella\Cli;
 use Campanella\Core\Kernel;
 use Campanella\Core\Version;
 
-/** A bin/campanella parancssori eszköz. */
+/** The bin/campanella command-line tool. */
 final class Console
 {
     /** @var array<string, Command> */

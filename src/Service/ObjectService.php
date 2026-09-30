@@ -16,11 +16,11 @@ use Campanella\Model\ObjectRepository;
 use DateTimeImmutable;
 
 /**
- * Az objektumokon végzett műveletek üzleti logikája.
+ * The business logic of operations on objects.
  *
- * A controller, a CLI (és később az API, a Webform) mind ezt hívja,
- * így a jogosultság-ellenőrzés (és később az Eventek kiváltása)
- * egyetlen helyen történik.
+ * The controller, the CLI (and later the API, the Webform) all call this,
+ * so access control checks (and later dispatching Events) happen
+ * in a single place.
  */
 final class ObjectService
 {
@@ -36,7 +36,7 @@ final class ObjectService
         $object = $this->repository->create($blueprint, $values);
         $this->authorize($actor, Operation::Create, $object);
 
-        // A bejelentkezett felhasználó lesz a szerző, ha nincs más megadva.
+        // The logged-in user becomes the author if no other is given.
         if ($actor->kind === ActorKind::User && $actor->id !== null
             && $object->has(Authorable::class) && $object->as(Authorable::class)->authorId() === null) {
             $object->as(Authorable::class)->setAuthor($actor->id);
@@ -82,7 +82,7 @@ final class ObjectService
     private function authorize(Actor $actor, Operation $operation, CampanellaObject $object): void
     {
         if (!$this->policy->allows($actor, $operation, $object)) {
-            throw AccessDeniedException::for($actor, $operation, $object->blueprint() . ' #' . ($object->id() ?? 'új'));
+            throw AccessDeniedException::for($actor, $operation, $object->blueprint() . ' #' . ($object->id() ?? 'new'));
         }
     }
 }

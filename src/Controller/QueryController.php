@@ -16,8 +16,8 @@ use Campanella\View\Presentation;
 use Closure;
 
 /**
- * Egy elnevezett Query eredménye listaként (a Drupal Views helyett).
- * A Query-definíciók a config/queries.php fájlban élnek.
+ * The result of a named Query as a list (instead of Drupal Views).
+ * Query definitions live in config/queries.php.
  */
 final class QueryController implements Controller
 {
@@ -34,7 +34,7 @@ final class QueryController implements Controller
     public function handle(Request $request, RouteMatch $route, Actor $actor): Response
     {
         $name = (string) ($route->params['query'] ?? '');
-        $definition = $this->definitions[$name] ?? throw new \LogicException("Ismeretlen Query: {$name}");
+        $definition = $this->definitions[$name] ?? throw new \LogicException("Unknown Query: {$name}");
         $query = $definition();
 
         $perPage = (int) ($route->params['per_page'] ?? $query->getLimit() ?? 10);

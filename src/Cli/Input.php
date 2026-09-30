@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Campanella\Cli;
 
 /**
- * Parancssori bemenet: kérdés és rejtett (jelszó) bekérés.
+ * Command-line input: questions and hidden (password) prompts.
  *
- * Ha a bemenet nem terminál (pl. `echo … | php bin/campanella …`), a
- * sorokat egyszerűen beolvassa, így szkriptből is használható.
+ * If the input is not a terminal (e.g. `echo … | php bin/campanella …`),
+ * it simply reads the lines, so it can also be used from scripts.
  */
 final class Input
 {

@@ -16,7 +16,7 @@ final class BlueprintRegistry
     /** @var array<string, Blueprint> */
     private array $blueprints = [];
 
-    /** @var array<string, Relation> A Blueprintek saját kapcsolatai, név szerint. */
+    /** @var array<string, Relation> The Blueprints' own relations, by name. */
     private array $blueprintRelations = [];
 
     /**
@@ -35,7 +35,7 @@ final class BlueprintRegistry
     public function define(string $name, array $definition): Blueprint
     {
         if (preg_match('/^[a-z][a-z0-9_]{0,62}$/', $name) !== 1) {
-            throw new CapabilityException("Érvénytelen Blueprint-név: {$name}");
+            throw new CapabilityException("Invalid Blueprint name: {$name}");
         }
 
         $capabilities = $this->capabilities->resolve($definition['capabilities']);
@@ -45,11 +45,11 @@ final class BlueprintRegistry
             if ($this->capabilities->fieldOwner($field->name) !== null
                 || $this->capabilities->relationOwner($field->name) !== null) {
                 throw new CapabilityException(
-                    "A(z) '{$name}' Blueprint '{$field->name}' mezője ütközik egy capability mezőjével.",
+                    "Blueprint '{$name}': field '{$field->name}' conflicts with a capability field.",
                 );
             }
-            // Az egyedi mezők a data oszlopban élnek. Ha egyszer szűrni kell rájuk,
-            // capability-mezővé (saját táblás oszloppá) kell előléptetni őket.
+            // Custom fields live in the data column. If they ever need to be filtered on,
+            // they must be promoted to capability fields (columns in their own table).
             $fields[$field->name] = $field->asData();
         }
 
@@ -73,7 +73,7 @@ final class BlueprintRegistry
     }
 
     /**
-     * Egy kapcsolat definíciója név szerint, akár capability, akár Blueprint adja.
+     * The definition of a relation by name, whether a capability or a Blueprint provides it.
      */
     public function relation(string $name): ?Relation
     {
@@ -81,7 +81,7 @@ final class BlueprintRegistry
     }
 
     /**
-     * @param array<string, Field> $fields A Blueprint saját mezői.
+     * @param array<string, Field> $fields The Blueprint's own fields.
      */
     private function checkRelation(string $blueprint, Relation $relation, array $fields): void
     {
@@ -89,21 +89,21 @@ final class BlueprintRegistry
         if ($this->capabilities->fieldOwner($name) !== null || $this->capabilities->relationOwner($name) !== null
             || isset($fields[$name])) {
             throw new CapabilityException(
-                "A(z) '{$blueprint}' Blueprint '{$name}' kapcsolata ütközik egy mezővel vagy capability-kapcsolattal.",
+                "Blueprint '{$blueprint}': relation '{$name}' conflicts with a field or a capability relation.",
             );
         }
-        // Több Blueprint is használhatja ugyanazt a kapcsolatnevet, de csak azonos definícióval.
+        // Several Blueprints may use the same relation name, but only with an identical definition.
         if (isset($this->blueprintRelations[$name]) && $this->blueprintRelations[$name] != $relation) {
-            throw new CapabilityException("A(z) '{$name}' kapcsolat egy másik Blueprintben eltérő definícióval szerepel.");
+            throw new CapabilityException("Relation '{$name}' is defined differently in another Blueprint.");
         }
         foreach ($relation->targetCapabilities as $capability) {
-            $this->capabilities->get($capability); // ismeretlen capability esetén hibát dob
+            $this->capabilities->get($capability); // throws for an unknown capability
         }
     }
 
     public function get(string $name): Blueprint
     {
-        return $this->blueprints[$name] ?? throw new CapabilityException("Ismeretlen Blueprint: {$name}");
+        return $this->blueprints[$name] ?? throw new CapabilityException("Unknown Blueprint: {$name}");
     }
 
     public function find(string $name): ?Blueprint

@@ -3,15 +3,15 @@
 declare(strict_types=1);
 
 /*
- * Ellenőrzi, hogy a docs/php-api fejezetei minden nyilvános osztályt és
- * metódust említenek-e.
+ * Checks that the docs/php-api chapters mention every public class and
+ * method.
  *
- *   php tests/docs-check.php      (vagy: composer docs:check)
+ *   php tests/docs-check.php      (or: composer docs:check)
  *
- * Egyszerű szöveges keresés: az osztály rövid nevének és minden saját
- * nyilvános metódus `név(` alakjának szerepelnie kell valamelyik fejezetben.
- * Nem helyettesíti az átolvasást, de jelzi, ha egy új osztály vagy metódus
- * dokumentálatlanul maradt.
+ * A simple text search: the class's short name and the `name(` form of each
+ * of its own public methods must appear in one of the chapters.
+ * It does not replace proofreading, but it flags a new class or method
+ * that was left undocumented.
  */
 
 $root = dirname(__DIR__);
@@ -39,7 +39,7 @@ foreach ($files as $file) {
     $classCount++;
 
     if (preg_match('/\b' . preg_quote($short, '/') . '\b/', $docs) !== 1) {
-        $missing[] = "osztály:  {$class}";
+        $missing[] = "class:  {$class}";
         continue;
     }
 
@@ -49,14 +49,14 @@ foreach ($files as $file) {
         }
         $methodCount++;
         if (!str_contains($docs, $method->getName() . '(')) {
-            $missing[] = "metódus: {$short}::{$method->getName()}()";
+            $missing[] = "method: {$short}::{$method->getName()}()";
         }
     }
 }
 
 if ($missing !== []) {
-    echo "Dokumentálatlan nyilvános elemek (docs/php-api):\n\n  " . implode("\n  ", $missing) . "\n";
+    echo "Undocumented public elements (docs/php-api):\n\n  " . implode("\n  ", $missing) . "\n";
     exit(1);
 }
 
-echo "Rendben: {$classCount} osztály és {$methodCount} metódus szerepel a docs/php-api fejezeteiben.\n";
+echo "OK: {$classCount} classes and {$methodCount} methods are documented in the docs/php-api chapters.\n";

@@ -1,196 +1,198 @@
 # Campanella 0.0.3
 
-[![Ellenőrzés](https://github.com/szhajagos/campanella/actions/workflows/ci.yml/badge.svg)](https://github.com/szhajagos/campanella/actions/workflows/ci.yml)
+[![CI](https://github.com/szhajagos/campanella/actions/workflows/ci.yml/badge.svg)](https://github.com/szhajagos/campanella/actions/workflows/ci.yml)
 
-Capability-vezérelt CMS. Nincsenek előre rögzített tartalomtípusok: az objektum
-viselkedését a rá szerelt képességek (capability-k) határozzák meg.
+A capability-driven CMS. There are no predefined content types: an object's
+behavior is determined by the capabilities attached to it.
 
-A fejlesztői dokumentáció (PHP API, HTTP API) a [`docs/`](docs/README.md)
-mappában, a változások a [CHANGELOG](CHANGELOG.md)-ban, a tervek a
-[ROADMAP](ROADMAP.md)-ban találhatók.
+The developer documentation (PHP API, HTTP API) is in the [`docs/`](docs/README.md)
+folder, changes are listed in the [CHANGELOG](CHANGELOG.md), and plans in the
+[ROADMAP](ROADMAP.md).
 
-## Követelmények
+## Requirements
 
-- PHP 8.3 vagy újabb (`pdo_mysql`, `mbstring`, `json`)
-- MariaDB 10.6+ vagy MySQL 8.0+ (InnoDB, utf8mb4)
-- Composer (a függőségek letöltéséhez; a tárhelyre a `vendor/` mappával együtt is feltölthető)
+- PHP 8.3 or newer (`pdo_mysql`, `mbstring`, `json`)
+- MariaDB 10.6+ or MySQL 8.0+ (InnoDB, utf8mb4)
+- Composer (to download the dependencies; you can also upload the project to your web host together with the `vendor/` folder)
 
-Külső függőség csak a Twig. A PHPStan kizárólag fejlesztéshez kell.
+The only runtime dependency is Twig. PHPStan is needed for development only.
 
-## Telepítés
+## Installation
 
-**Composer nélkül:** a [GitHub-kiadások](https://github.com/szhajagos/campanella/releases)
-oldalán minden verzióhoz letölthető egy `campanella-<verzió>.zip`, amely a
-`vendor/` mappát is tartalmazza. Kicsomagolva ugyanúgy folytatható, mint lent,
-csak a `composer install` lépés marad ki.
+**Without Composer:** every version on the [GitHub releases](https://github.com/szhajagos/campanella/releases)
+page has a downloadable `campanella-<version>.zip` that includes the `vendor/`
+folder. After unpacking it, continue as below, just skip the `composer install`
+step.
 
 ```bash
 composer install
-cp config/local.php.dist config/local.php   # add meg az adatbázis adatait
-php bin/campanella install                  # táblák létrehozása
-php bin/campanella seed                     # példatartalom (opcionális)
+cp config/local.php.dist config/local.php   # enter your database credentials
+php bin/campanella install                  # create the tables
+php bin/campanella seed                     # sample content (optional)
 php bin/campanella user:create te@example.hu --name="A Neved" --role=administrator
-php -S localhost:8000 -t public public/index.php   # csak helyi kipróbáláshoz
+php -S localhost:8000 -t public public/index.php   # for local testing only
 ```
 
-Az utolsó sor a PHP beépített fejlesztői szerverét indítja a saját gépeden, a
-<http://localhost:8000> címen. Éles tárhelyen nem ezt kell használni, és a
-tárhely beállításaira sem következtethetsz belőle (lásd lent).
+The last line starts PHP's built-in development server on your own machine, at
+<http://localhost:8000>. Do not use it on a production host, and do not infer
+your web host's configuration from it (see below).
 
-Ha a tárhelyen nincs parancssor, a `php bin/campanella install --sql` kimenetét
-phpMyAdminban is le lehet futtatni.
+If your web host has no command line, you can run the output of
+`php bin/campanella install --sql` in phpMyAdmin instead.
 
-### Hová kerüljenek a fájlok?
+### Where do the files go?
 
-A projekt mappái mindig együtt maradnak. A webszerver felé csak a `public/`
-mappa látszik, de az `index.php` onnan egy szinttel feljebb keresi a `vendor/`,
-`src/` és `config/` mappát. Ezért **nem elég csak a `public/` tartalmát a
-webgyökérbe másolni.** Két helyes felállás van:
+The project's folders always stay together. Only the `public/` folder is
+exposed to the web server, but `index.php` looks for the `vendor/`, `src/` and
+`config/` folders one level above it. Therefore **copying only the contents of
+`public/` into the web root is not enough.** There are two correct setups:
 
-1. **A webgyökér a `public/` mappa.** Ez csak akkor működik, ha a PHP a
-   webgyökéren kívüli mappákat is látja: saját szerveren az Apache
-   `DocumentRoot` beállításával, vagy a mellékelt `Dockerfile` használatával.
-   **Figyelem:** sok Dockeres tárhely csak a webgyökérként kijelölt mappát teszi
-   be a konténerbe (`/var/www/html` néven). Ilyenkor a `public/` megadása
-   esetén a `vendor/`, `src/` és `config/` mappák a PHP számára láthatatlanok,
-   és a rendszer a „Hiányzik a vendor mappa” hibaoldalt mutatja.
-2. **Az egész projekt a webgyökérbe kerül.** Ez a megoldás, ha a webgyökér nem
-   állítható, vagy ha a tárhely csak a webgyökér mappáját látja.
-   Ilyenkor a gyökérben lévő `.htaccess` minden kérést a `public/` alá irányít,
-   a többi mappa pedig kívülről nem érhető el. Ehhez az Apache `mod_rewrite`
-   moduljának be kell kapcsolva lennie, és engedélyezni kell a `.htaccess`
-   használatát (`AllowOverride All`).
+1. **The web root is the `public/` folder.** This only works if PHP can also
+   see folders outside the web root: on your own server via Apache's
+   `DocumentRoot` setting, or by using the included `Dockerfile`.
+   **Note:** many Docker-based web hosts put only the folder designated as the
+   web root into the container (as `/var/www/html`). In that case, if you
+   choose `public/`, the `vendor/`, `src/` and `config/` folders are invisible
+   to PHP, and the system shows the "Hiányzik a vendor mappa" ("The vendor
+   folder is missing") error page.
+2. **The whole project goes into the web root.** Use this when the web root
+   cannot be changed, or when the web host can only see the web root folder.
+   In this case the `.htaccess` in the project root routes every request under
+   `public/`, and the other folders are not reachable from outside. This
+   requires Apache's `mod_rewrite` module to be enabled and `.htaccess` files
+   to be allowed (`AllowOverride All`).
 
-   Telepítés után ellenőrizd, hogy a `…/composer.json` és a `…/config/app.php`
-   címen a Campanella „Az oldal nem található” oldala jelenik-e meg. Ha a
-   `composer.json` tartalma látszik, a `.htaccess` nem működik, és a projekt
-   fájljai kívülről olvashatók.
+   After installation, check that the URLs `…/composer.json` and
+   `…/config/app.php` show Campanella's "Az oldal nem található" ("Page not
+   found") page. If you see the contents of `composer.json`, the `.htaccess`
+   is not working and the project's files are readable from outside.
 
-Alkönyvtárba telepítve (pl. `example.hu/campanella/`) is működik.
+Installing into a subdirectory (e.g. `example.hu/campanella/`) also works.
 
-### Dockerrel
+### With Docker
 
 ```bash
 docker compose up -d --build
-docker compose exec web composer install          # ha a vendor/ még hiányzik
+docker compose exec web composer install          # if vendor/ is still missing
 docker compose exec web php bin/campanella install
 docker compose exec web php bin/campanella seed
 ```
 
-Ezután a rendszer a <http://localhost:8080> címen érhető el. A `Dockerfile` a
-hivatalos `php:8.3-apache` image-re épül: telepíti a `pdo_mysql` bővítményt,
-bekapcsolja a `mod_rewrite` modult, és a webgyökeret a `public/` mappára állítja.
-Az adatbázis-beállításokat a `compose.yaml` környezeti változói adják meg
-(`CAMPANELLA_DB_HOST`, `CAMPANELLA_DB_NAME` stb.). Dockerben ne legyen
-`config/local.php`, mert az felülírná ezeket.
+The system is then available at <http://localhost:8080>. The `Dockerfile` is
+based on the official `php:8.3-apache` image: it installs the `pdo_mysql`
+extension, enables the `mod_rewrite` module, and sets the web root to the
+`public/` folder. The database settings come from environment variables in
+`compose.yaml` (`CAMPANELLA_DB_HOST`, `CAMPANELLA_DB_NAME`, etc.). Do not create
+a `config/local.php` under Docker, because it would override them.
 
-## Frissítés új verzióra
+## Upgrading to a new version
 
 ```bash
-git pull                        # vagy az új csomag feltöltése
-composer install --no-dev       # ha a függőségek változtak
-php bin/campanella install      # új táblák létrehozása, sémaverzió frissítése
-php bin/campanella seed         # opcionális: az új példatartalmak hozzáadása
+git pull                        # or upload the new package
+composer install --no-dev       # if the dependencies changed
+php bin/campanella install      # create new tables, update the schema version
+php bin/campanella seed         # optional: add the new sample content
 ```
 
-Ha a kód újabb, mint az adatbázis sémája, a weboldal 503-as oldalon, a
-`status` parancs pedig szövegesen jelzi, hogy az `install` futtatása szükséges.
-A változásokat verziónként a [CHANGELOG](CHANGELOG.md) sorolja fel.
+If the code is newer than the database schema, the website shows a 503 page,
+and the `status` command reports in text that `install` needs to be run.
+The [CHANGELOG](CHANGELOG.md) lists the changes version by version.
 
-## Parancsok
+## Commands
 
-| Parancs | Leírás |
+| Command | Description |
 |---|---|
-| `php bin/campanella install` | Táblák létrehozása (ismételten futtatható) |
-| `php bin/campanella install --sql` | Csak kiírja a DDL-t |
-| `php bin/campanella seed` | Példatartalom |
-| `php bin/campanella status` | Capability-k, Blueprintek, objektumszám |
-| `composer test` | Tesztek (külön `test_` táblaprefixszel, valódi adatbázison) |
-| `composer analyse` | PHPStan, level 8, PHP 8.3-ra |
-| `composer docs:check` | Dokumentálatlan nyilvános osztályok és metódusok keresése |
-| `composer docs:links` | Hibás relatív linkek keresése a markdown-fájlokban |
+| `php bin/campanella install` | Create the tables (safe to run repeatedly) |
+| `php bin/campanella install --sql` | Only print the DDL |
+| `php bin/campanella seed` | Sample content |
+| `php bin/campanella status` | Capabilities, Blueprints, object count |
+| `composer test` | Tests (on a real database, with a separate `test_` table prefix) |
+| `composer analyse` | PHPStan, level 8, targeting PHP 8.3 |
+| `composer docs:check` | Find undocumented public classes and methods |
+| `composer docs:links` | Find broken relative links in the markdown files |
 
-### Automatikus ellenőrzés
+### Continuous integration
 
-A GitHub minden pushnál lefuttatja a fenti ellenőrzéseket
-([`.github/workflows/ci.yml`](.github/workflows/ci.yml)): a PHPStant, a
-dokumentáció-ellenőrzést, és a teszteket MariaDB 10.6, 11.4, valamint MySQL 8.0
-és 8.4 alatt. Az eredmény a commitok mellett és az Actions fülön látszik.
+On every push, GitHub runs the checks above
+([`.github/workflows/ci.yml`](.github/workflows/ci.yml)): PHPStan, the
+documentation checks, and the tests on MariaDB 10.6 and 11.4, and MySQL 8.0
+and 8.4. The results are shown next to the commits and on the Actions tab.
 
-Verziócímke (`git tag v0.0.4 && git push --tags`) után a GitHub elkészíti a
-telepítőcsomagot, és csatolja a kiadáshoz. Meglévő címkéhez kézzel is
-indítható: Actions → Ellenőrzés → Run workflow, a címke megadásával.
+After a version tag (`git tag v0.0.4 && git push --tags`), GitHub builds the
+installation package and attaches it to the release. For an existing tag it
+can also be started manually: Actions → CI → Run workflow, entering the tag.
 
-## Felépítés (MVC + Service réteg)
+## Architecture (MVC + service layer)
 
 ```
-HTTP kérés → Router → Controller → Service / QueryEngine (Model)
-           → Presentation + Twig (View) → HTTP válasz
+HTTP request → Router → Controller → Service / QueryEngine (Model)
+             → Presentation + Twig (View) → HTTP response
 ```
 
 ```
 src/
   Core/         Kernel, Container, Config, Version
   Http/         Request, Response, Router
-  Controller/   ObjectController (egy objektum), QueryController (lista)
-  Service/      ObjectService: létrehozás, módosítás, publikálás + jogosultság
+  Controller/   ObjectController (single object), QueryController (list)
+  Service/      ObjectService: create, update, publish + access control
   Model/        CampanellaObject, Field, Blueprint, ObjectRepository
-  Capability/   A Capability-szerződés és a négy alap capability
-  Query/        Query, Condition-ek, QueryCompiler (SQL), QueryEngine, ResultSet
+  Capability/   The Capability contract and the four core capabilities
+  Query/        Query, Conditions, QueryCompiler (SQL), QueryEngine, ResultSet
   Access/       Actor, Operation, AccessPolicy, DefaultPolicy
   Database/     Connection (PDO), Schema, Installer
-  View/         Presentation, Twig-kiterjesztés
-  Cli/          bin/campanella parancsai
+  View/         Presentation, Twig extension
+  Cli/          bin/campanella commands
 config/         app.php, blueprints.php, routes.php, queries.php, local.php
-templates/      Twig-sablonok
-public/         index.php (egyetlen belépési pont), assets/
+templates/      Twig templates
+public/         index.php (single entry point), assets/
 ```
 
-## Alapfogalmak a kódban
+## Core concepts in the code
 
-**Object.** Egyetlen általános osztály (`CampanellaObject`), típusonkénti
-alosztályok nélkül. Data Mapper minta: az objektum nem ment magáról, ezt az
-`ObjectRepository` végzi.
+**Object.** A single generic class (`CampanellaObject`), with no per-type
+subclasses. Data Mapper pattern: the object does not save itself; the
+`ObjectRepository` does that.
 
-**Capability.** Egy osztály `#[AsCapability]` attribútummal. Megadja a mezőit
-és a függőségeit, opcionálisan elnevezett lekérdezési szűrőket (scope) és
-mentés előtti logikát. Az objektumon adapterként működik:
+**Capability.** A class with the `#[AsCapability]` attribute. It declares its
+fields and dependencies, and optionally named query filters (scopes) and
+pre-save logic. It acts as an adapter on the object:
 
 ```php
 $object->as(Publishable::class)->publish();
 $object->as(Routable::class)->route();     // '/neumann-janos'
 ```
 
-| Capability | Mezők | Tárolás | Függ |
+| Capability | Fields | Storage | Depends on |
 |---|---|---|---|
 | Titled | title | `cap_titled` | – |
 | Textual | body, format | data (JSON) | – |
-| Routable | path (egyedi) | `cap_routable` | Titled |
+| Routable | path (unique) | `cap_routable` | Titled |
 | Publishable | status, published_at | `cap_publishable` | – |
 
-**Blueprint.** Elnevezett capability-csomag, konfigurációban
-(`config/blueprints.php`). Egyedi mezőket is adhat, ezek a data oszlopba
-kerülnek.
+**Blueprint.** A named bundle of capabilities, defined in configuration
+(`config/blueprints.php`). It can also add its own fields; these go into the
+data column.
 
-**Tárolási szabály.** A JSON (`objects.data`) csak tárolásra szolgál. Ami szerint
-szűrünk vagy rendezünk, az a capability saját táblájába kerül. Data mezőre
-szűrni a QueryCompiler nem is enged.
+**Storage rule.** The JSON column (`objects.data`) is for storage only. Anything
+we filter or sort by goes into the capability's own table. The QueryCompiler
+does not even allow filtering on a data field.
 
-**Kapcsolat (0.0.2).** Irányított, elnevezett kapcsolat objektumok között,
-pl. cikk → kategóriák. A mezőkhöz hasonlóan Blueprint vagy capability adja meg:
+**Relation (0.0.2).** A directed, named relation between objects, e.g.
+article → categories. Like fields, relations are declared by a Blueprint or a
+capability:
 
 ```php
 $article->relate('categories', $science);
-Query::objects()->whereRelated('categories', $science);   // a kategória cikkei
+Query::objects()->whereRelated('categories', $science);   // the category's articles
 ```
 
-Részletesen: [docs/php-api/10-kapcsolatok.md](docs/php-api/10-kapcsolatok.md).
+Details: [docs/php-api/10-relations.md](docs/php-api/10-relations.md).
 
-**Felhasználók (0.0.3).** A felhasználó is objektum (`user` Blueprint). Belépés:
-`/belepes`. Az első adminisztrátort a `user:create` parancs hozza létre; alapértelmezett
-fiók vagy jelszó nincs. Részletesen: [docs/php-api/11-felhasznalok.md](docs/php-api/11-felhasznalok.md).
+**Users (0.0.3).** A user is an object too (`user` Blueprint). Login:
+`/belepes`. The first administrator is created with the `user:create` command;
+there is no default account or password. Details: [docs/php-api/11-users.md](docs/php-api/11-users.md).
 
-**Query.** Deklaratív és megváltoztathatatlan:
+**Query.** Declarative and immutable:
 
 ```php
 Query::objects()
@@ -200,21 +202,21 @@ Query::objects()
     ->limit(10);
 ```
 
-**Access-aware lekérdezés.** A `QueryEngine::execute()` kötelezően megkapja az
-Actort, és a Policy feltételeit még az SQL előtt a lekérdezéshez fűzi. Egy
-piszkozat anonymous látogatónak nem „kiszűrve”, hanem egyáltalán nem jön le
-az adatbázisból.
+**Access-aware queries.** `QueryEngine::execute()` always requires the Actor,
+and appends the policy's conditions to the query before it is compiled to SQL.
+A draft is not "filtered out" for an anonymous visitor; it is never fetched
+from the database at all.
 
-**Időzített publikálás.** Egy objektum akkor látható, ha `published` és a
-`published_at` már elmúlt, így a jövőbeli dátummal publikált tartalom
-magától jelenik meg.
+**Scheduled publishing.** An object is visible if it is `published` and its
+`published_at` is in the past, so content published with a future date appears
+on its own.
 
-## Ami még nincs benne
+## Not included yet
 
-Admin felület, Hierarchical (menü, taxonómia-fa),
-Component / Region / Layout, Webform, Event / Action, cache, migrációk
-(meglévő tábla módosítása), többnyelvűség, WYSIWYG szerkesztő és HTML-szűrő.
+Admin UI, Hierarchical (menu, taxonomy tree),
+Component / Region / Layout, Webform, Event / Action, cache, migrations
+(altering existing tables), multilingual content, WYSIWYG editor and HTML sanitizer.
 
-## Licenc
+## License
 
-MIT. Lásd: [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).

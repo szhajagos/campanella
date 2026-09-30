@@ -1,7 +1,7 @@
-# Indítás:      docker compose up -d --build
-# Telepítés:    docker compose exec web php bin/campanella install
-# Példaadatok:  docker compose exec web php bin/campanella seed
-# Megnyitás:    http://localhost:8080
+# Start:        docker compose up -d --build
+# Install:      docker compose exec web php bin/campanella install
+# Sample data:  docker compose exec web php bin/campanella seed
+# Open:         http://localhost:8080
 services:
   web:
     build: .
@@ -14,8 +14,8 @@ services:
       CAMPANELLA_DB_USER: campanella
       CAMPANELLA_DB_PASSWORD: campanella
     volumes:
-      # Fejlesztéshez: a gépeden lévő fájlok módosításai azonnal látszanak.
-      # Ilyenkor a vendor/ mappa is a gépedről jön: ha hiányzik, futtasd:
+      # For development: changes to the files on your machine show up immediately.
+      # In this case the vendor/ folder also comes from your machine; if it is missing, run:
       #   docker compose exec web composer install
       - ./:/var/www/html
     depends_on:

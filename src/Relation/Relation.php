@@ -5,20 +5,20 @@ declare(strict_types=1);
 namespace Campanella\Relation;
 
 /**
- * Egy kapcsolat definíciója: egy objektumból (forrás) más objektumokra
- * (célok) mutató, elnevezett, irányított kapcsolat.
+ * The definition of a relation: a named, directed link from one object
+ * (the source) to other objects (the targets).
  *
  *     new Relation('categories', Cardinality::Many, targetBlueprints: ['category'], label: 'Kategóriák')
  *
- * A kapcsolatot, a mezőkhöz hasonlóan, egy capability (relations())
- * vagy egy Blueprint ('relations' kulcs) adja meg. A név rendszerszinten
- * egyedi, és nem ütközhet mezőnévvel.
+ * Like fields, a relation is provided by a capability (relations()) or by
+ * a Blueprint (the 'relations' key). The name is unique system-wide and
+ * must not conflict with a field name.
  */
 final readonly class Relation
 {
     /**
-     * @param list<string> $targetCapabilities A célnak mindegyikkel rendelkeznie kell (név vagy osztálynév).
-     * @param list<string> $targetBlueprints A cél ezek egyikéből készült; üres lista: bármelyik.
+     * @param list<string> $targetCapabilities The target must have all of them (name or class name).
+     * @param list<string> $targetBlueprints The target was created from one of these; empty list: any.
      */
     public function __construct(
         public string $name,
@@ -29,7 +29,7 @@ final readonly class Relation
         public string $label = '',
     ) {
         if (preg_match('/^[a-z][a-z0-9_]{0,62}$/', $name) !== 1) {
-            throw new \InvalidArgumentException("Érvénytelen kapcsolatnév: {$name}");
+            throw new \InvalidArgumentException("Invalid relation name: {$name}");
         }
     }
 

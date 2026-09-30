@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace Campanella\Model;
 
 /**
- * Egy mező definíciója. A mezőt vagy egy capability hozza (pl. a Titled
- * a `title`-t), vagy egy Blueprint ad hozzá egyedi mezőként.
+ * The definition of a field. A field is either provided by a capability
+ * (e.g. Titled provides `title`) or added by a Blueprint as a custom field.
  *
- * A mezőnevek rendszerszinten egyediek, így az objektumon egyszerűen
- * `$object->get('title')` alakban érhetők el.
+ * Field names are unique system-wide, so on the object they are simply
+ * accessible as `$object->get('title')`.
  *
- * A `hidden` mező (pl. jelszó-hash) a sablonokból nem érhető el
- * `{{ object.mező }}` alakban; PHP-ból a get() továbbra is olvassa.
+ * A `hidden` field (e.g. a password hash) is not accessible from templates
+ * as `{{ object.field }}`; from PHP, get() still reads it.
  */
 final readonly class Field
 {
@@ -29,16 +29,16 @@ final readonly class Field
         public bool $hidden = false,
     ) {
         if (preg_match('/^[a-z][a-z0-9_]{0,62}$/', $name) !== 1) {
-            throw new \InvalidArgumentException("Érvénytelen mezőnév: {$name}");
+            throw new \InvalidArgumentException("Invalid field name: {$name}");
         }
         if ($storage === FieldStorage::Data && ($indexed || $unique)) {
             throw new \InvalidArgumentException(
-                "A(z) {$name} mező a data oszlopban él, ezért nem lehet indexelt vagy egyedi.",
+                "Field {$name} lives in the data column, so it cannot be indexed or unique.",
             );
         }
     }
 
-    /** Ugyanez a mező, de a data (JSON) oszlopban tárolva. */
+    /** The same field, but stored in the data (JSON) column. */
     public function asData(): self
     {
         return new self(

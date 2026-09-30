@@ -1,5 +1,5 @@
-{# Az objektum kapcsolatai linkként, pl. „Kategóriák: Tudomány, Campanella”.
-   A céljait a controller tölti be (RelationLoader); a nem látható célok kimaradnak. #}
+{# The object's relations as links, e.g. "Kategóriák: Tudomány, Campanella".
+   The targets are loaded by the controller (RelationLoader); targets that are not visible are left out. #}
 {% for name, relation in object.relations %}
     {% set items = related(object, name) %}
     {% if items %}

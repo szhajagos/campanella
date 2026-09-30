@@ -16,15 +16,15 @@ use Campanella\Relation\Cardinality;
 use Campanella\Relation\Relation;
 
 /*
- * Blueprintek: elnevezett capability-csomagok. A „típus” így adat
- * marad, nem PHP-osztály.
+ * Blueprints: named capability bundles. This way the "type" stays data,
+ * not a PHP class.
  *
- * A függőségeket nem kell felsorolni: a Routable magával hozza a Titled-et.
- * A 'fields' alatti egyedi mezők a data (JSON) oszlopba kerülnek, ezért
- * szűrni és rendezni nem lehet rájuk.
+ * Dependencies need not be listed: Routable brings Titled along with it.
+ * Custom fields under 'fields' are stored in the data (JSON) column, so
+ * they cannot be filtered or sorted on.
  *
- * 'relations': a Blueprint saját kapcsolatai más objektumokkal.
- * 'lists':     az objektum saját oldalán megjelenő listák (felirat + Query).
+ * 'relations': the Blueprint's own relations to other objects.
+ * 'lists':     lists shown on the object's own page (label + Query).
  */
 return [
     'article' => [
@@ -43,8 +43,8 @@ return [
         'capabilities' => [Textual::class, Routable::class, Publishable::class],
     ],
 
-    // Felhasználó: név (Titled), e-mail (az Authenticatable hozza az Identifiable-t),
-    // jelszó, fiókállapot, szerepkörök. Nincs saját nyilvános oldala.
+    // User: name (Titled), e-mail (Authenticatable brings Identifiable),
+    // password, account status, roles. Has no public page of its own.
     'user' => [
         'label' => 'Felhasználó',
         'capabilities' => [Titled::class, Authenticatable::class],

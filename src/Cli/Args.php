@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Campanella\Cli;
 
 /**
- * Egyszerű argumentumfeldolgozás: pozicionális értékek és --kulcs=érték
- * (vagy --kapcsoló) opciók.
+ * Simple argument parsing: positional values and --key=value
+ * (or --flag) options.
  */
 final readonly class Args
 {

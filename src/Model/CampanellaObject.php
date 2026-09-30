@@ -11,32 +11,32 @@ use Campanella\Relation\Relation;
 use DateTimeImmutable;
 
 /**
- * Az általános objektum. Nincsenek típusonkénti alosztályai: amit tud,
- * azt a capability-jei határozzák meg.
+ * The generic object. It has no per-type subclasses: what it can do is
+ * determined by its capabilities.
  *
- * Data Mapper minta: az objektum nem tud magáról menteni, ezt az
- * ObjectRepository végzi.
+ * Data Mapper pattern: the object cannot save itself; the
+ * ObjectRepository does that.
  */
 final class CampanellaObject
 {
-    /** @var array<string, mixed> mezőnév => érték */
+    /** @var array<string, mixed> field name => value */
     private array $values = [];
 
     /** @var array<class-string<Capability>, Capability> */
     private array $adapters = [];
 
-    /** @var array<string, list<int>> kapcsolatnév => célobjektumok azonosítói, sorrendben */
+    /** @var array<string, list<int>> relation name => target object IDs, in order */
     private array $relatedIds = [];
 
-    /** @var array<string, list<CampanellaObject>> A RelationLoader által betöltött célobjektumok */
+    /** @var array<string, list<CampanellaObject>> Target objects loaded by the RelationLoader */
     private array $resolved = [];
 
     /**
-     * @param array<string, CapabilityDefinition> $capabilities név => definíció
-     * @param array<string, Field> $fields Az objektumon értelmezett összes mező
+     * @param array<string, CapabilityDefinition> $capabilities name => definition
+     * @param array<string, Field> $fields All fields defined on the object
      * @param array<string, mixed> $values
-     * @param array<string, Relation> $relations Az objektumon értelmezett kapcsolatok
-     * @param array<string, list<int>> $relatedIds Kapcsolatnév => célazonosítók
+     * @param array<string, Relation> $relations The relations defined on the object
+     * @param array<string, list<int>> $relatedIds Relation name => target IDs
      */
     public function __construct(
         private ?int $id,
@@ -89,7 +89,7 @@ final class CampanellaObject
         return $this->id === null;
     }
 
-    /** Rendelkezik-e a capability-vel (név vagy osztálynév alapján). */
+    /** Whether it has the capability (by name or class name). */
     public function has(string $capability): bool
     {
         if (isset($this->capabilities[$capability])) {
@@ -117,7 +117,7 @@ final class CampanellaObject
     }
 
     /**
-     * Az objektum egy capability „szemüvegén” keresztül.
+     * The object seen through the "lens" of a capability.
      *
      *     $object->as(Publishable::class)->publish();
      *
@@ -129,8 +129,8 @@ final class CampanellaObject
     {
         if (!$this->has($class)) {
             throw new CapabilityException(sprintf(
-                'A(z) #%s (%s) objektum nem rendelkezik ezzel a capability-vel: %s',
-                $this->id ?? 'új',
+                'Object #%s (%s) does not have this capability: %s',
+                $this->id ?? 'new',
                 $this->blueprint,
                 $class,
             ));
@@ -143,7 +143,7 @@ final class CampanellaObject
     public function get(string $field): mixed
     {
         if (!array_key_exists($field, $this->values)) {
-            throw new \OutOfBoundsException("Az objektumon nincs ilyen mező: {$field}");
+            throw new \OutOfBoundsException("The object has no such field: {$field}");
         }
 
         return $this->values[$field];
@@ -152,7 +152,7 @@ final class CampanellaObject
     public function set(string $field, mixed $value): void
     {
         $definition = $this->fields[$field]
-            ?? throw new \OutOfBoundsException("Az objektumon nincs ilyen mező: {$field}");
+            ?? throw new \OutOfBoundsException("The object has no such field: {$field}");
         $this->values[$field] = $definition->type->cast($value);
     }
 
@@ -182,7 +182,7 @@ final class CampanellaObject
     }
 
     /**
-     * Csak olvasható hozzáférés a sablonokból: {{ object.title }}.
+     * Read-only access from templates: {{ object.title }}.
      */
     public function __get(string $name): mixed
     {
@@ -202,9 +202,9 @@ final class CampanellaObject
             || (array_key_exists($name, $this->values) && !$this->fields[$name]->hidden);
     }
 
-    // --- Kapcsolatok -----------------------------------------------------------
+    // --- Relations -------------------------------------------------------------
 
-    /** @return array<string, Relation> Az objektumon értelmezett kapcsolatok definíciói. */
+    /** @return array<string, Relation> Definitions of the relations defined on the object. */
     public function relations(): array
     {
         return $this->relations;
@@ -216,9 +216,9 @@ final class CampanellaObject
     }
 
     /**
-     * A kapcsolat célobjektumainak azonosítói, sorrendben. Nem ellenőrzi,
-     * hogy az aktuális látogató láthatja-e őket; megjelenítéshez a
-     * relatedObjects() való.
+     * The IDs of the relation's target objects, in order. Does not check
+     * whether the current visitor may see them; for rendering, use
+     * relatedObjects().
      *
      * @return list<int>
      */
@@ -230,7 +230,7 @@ final class CampanellaObject
     }
 
     /**
-     * A kapcsolat összes célja egyszerre, a megadott sorrendben.
+     * Sets all targets of the relation at once, in the given order.
      *
      * @param iterable<CampanellaObject|int> $targets
      */
@@ -245,15 +245,15 @@ final class CampanellaObject
             }
         }
         if (!$relation->isMany() && count($ids) > 1) {
-            throw new \InvalidArgumentException("A(z) '{$name}' kapcsolatnak legfeljebb egy célja lehet.");
+            throw new \InvalidArgumentException("Relation '{$name}' can have at most one target.");
         }
         $this->relatedIds[$name] = $ids;
         unset($this->resolved[$name]);
     }
 
     /**
-     * Új cél hozzáadása. Egyes (One) kapcsolatnál lecseréli a korábbit;
-     * többesnél a végére fűzi, ha még nincs benne.
+     * Adds a new target. For a single (One) relation it replaces the previous one;
+     * for a Many relation it appends it if not already present.
      */
     public function relate(string $name, CampanellaObject|int $target): void
     {
@@ -280,8 +280,8 @@ final class CampanellaObject
     }
 
     /**
-     * A kapcsolat célobjektumai, ahogy a RelationLoader betöltötte őket: csak
-     * azok, amelyeket az adott Actor láthat, sorrendben.
+     * The relation's target objects as loaded by the RelationLoader: only
+     * those the given Actor may see, in order.
      *
      * @return list<CampanellaObject>
      */
@@ -290,7 +290,7 @@ final class CampanellaObject
         $this->relation($name);
 
         return $this->resolved[$name] ?? throw new \LogicException(
-            "A(z) '{$name}' kapcsolat céljai nincsenek betöltve. Megjelenítés előtt a RelationLoader::resolve() tölti be őket.",
+            "The targets of relation '{$name}' are not loaded. RelationLoader::resolve() loads them before rendering.",
         );
     }
 
@@ -300,7 +300,7 @@ final class CampanellaObject
     }
 
     /**
-     * @internal Csak a RelationLoader hívja.
+     * @internal Called only by the RelationLoader.
      * @param list<CampanellaObject> $objects
      */
     public function attachResolved(string $name, array $objects): void
@@ -312,21 +312,21 @@ final class CampanellaObject
     private function relation(string $name): Relation
     {
         return $this->relations[$name]
-            ?? throw new \OutOfBoundsException("Az objektumon nincs ilyen kapcsolat: {$name}");
+            ?? throw new \OutOfBoundsException("The object has no such relation: {$name}");
     }
 
     private static function targetId(CampanellaObject|int $target): int
     {
         if ($target instanceof self) {
             return $target->id() ?? throw new \InvalidArgumentException(
-                'Kapcsolat célja csak már elmentett objektum lehet.',
+                'A relation target must be an already saved object.',
             );
         }
 
         return $target;
     }
 
-    /** @internal Csak az ObjectRepository hívja mentés után. */
+    /** @internal Called only by the ObjectRepository after saving. */
     public function markSaved(int $id, DateTimeImmutable $updated): void
     {
         $this->id = $id;

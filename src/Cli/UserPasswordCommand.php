@@ -11,8 +11,8 @@ use Campanella\Model\ObjectRepository;
 use Campanella\Model\ValidationException;
 
 /**
- * Jelszó beállítása (pl. elfelejtett jelszó), és a fiók letiltása vagy
- * újraengedélyezése.
+ * Sets a password (e.g. a forgotten password), and blocks or re-activates
+ * the account.
  *
  *   php bin/campanella user:password anna@example.hu
  *   php bin/campanella user:password anna@example.hu --block

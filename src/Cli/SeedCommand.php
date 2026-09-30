@@ -18,11 +18,11 @@ use DateTimeImmutable;
 use DateTimeZone;
 
 /**
- * Példatartalom létrehozása, hogy legyen mit megnézni.
+ * Creates sample content, so there is something to look at.
  *
- * Ismételten futtatható: amit útvonal alapján már talál, azt nem hozza
- * létre újra. Így egy frissítés után az új példák (pl. a 0.0.2 kategóriái)
- * a meglévő tartalom mellé kerülnek.
+ * Can be run repeatedly: whatever it already finds by path is not created
+ * again. So after an upgrade the new samples (e.g. the 0.0.2 categories)
+ * are added next to the existing content.
  */
 final class SeedCommand implements Command
 {
@@ -72,7 +72,7 @@ final class SeedCommand implements Command
 
         foreach ($articles as [$title, $when, $lead, $body, $categoryKeys]) {
             $article = $this->ensure('article', $title, ['lead' => $lead, 'body' => $body], new DateTimeImmutable($when, $utc));
-            // A kategóriák csak akkor kerülnek rá, ha még nincs egy sem (a kézi beállítást nem írja felül).
+            // Categories are only added if it has none yet (manual settings are not overwritten).
             if ($article->relatedIds('categories') === []) {
                 $article->setRelated('categories', array_map(static fn (string $k) => $categories[$k], $categoryKeys));
                 $repository->save($article);
@@ -98,10 +98,10 @@ final class SeedCommand implements Command
     }
 
     /**
-     * Megkeresi az objektumot a címből képzett útvonal alapján; ha nincs, létrehozza.
+     * Looks up the object by the path derived from its title; creates it if it does not exist.
      *
      * @param array<string, mixed> $values
-     * @param DateTimeImmutable|null $publishAt Publikálás ideje; null esetén piszkozat marad.
+     * @param DateTimeImmutable|null $publishAt Publication time; if null, it stays a draft.
      */
     private function ensure(string $blueprint, string $title, array $values, ?DateTimeImmutable $publishAt = null): CampanellaObject
     {

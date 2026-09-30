@@ -6,7 +6,7 @@ namespace Campanella\Auth;
 
 use Campanella\Model\CampanellaObject;
 
-/** Egy belépési kísérlet eredménye. */
+/** The result of a login attempt. */
 final readonly class LoginResult
 {
     private function __construct(

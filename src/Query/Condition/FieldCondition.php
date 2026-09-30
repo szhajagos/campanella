@@ -6,7 +6,7 @@ namespace Campanella\Query\Condition;
 
 use Campanella\Query\Operator;
 
-/** mező OPERÁTOR érték, pl. status = 'published' */
+/** field OPERATOR value, e.g. status = 'published' */
 final readonly class FieldCondition implements Condition
 {
     public function __construct(

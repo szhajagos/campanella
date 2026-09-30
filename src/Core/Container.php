@@ -7,9 +7,9 @@ namespace Campanella\Core;
 use Closure;
 
 /**
- * Minimális szolgáltatás-konténer. A szolgáltatásokat explicit gyártó
- * függvények hozzák létre (lásd Kernel::services()), első kéréskor, egyszer.
- * Nincs „mágikus” autowiring: a függőségek a kódban látszanak.
+ * A minimal service container. Services are created by explicit factory
+ * functions (see Kernel::services()), once, on first request.
+ * No "magic" autowiring: the dependencies are visible in the code.
  */
 final class Container
 {
@@ -42,7 +42,7 @@ final class Container
             return $this->instances[$id];
         }
         $factory = $this->factories[$id]
-            ?? throw new \OutOfBoundsException("Ismeretlen szolgáltatás: {$id}");
+            ?? throw new \OutOfBoundsException("Unknown service: {$id}");
 
         return $this->instances[$id] = $factory($this);
     }

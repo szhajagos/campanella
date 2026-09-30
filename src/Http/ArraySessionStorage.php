@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Campanella\Http;
 
 /**
- * Memóriabeli munkamenet tesztekhez és parancssorhoz. Egy példány egyetlen
- * „böngészőt” játszik el: a kérések között megőrzi az adatokat.
+ * In-memory session for tests and the command line. One instance plays a
+ * single "browser": it keeps the data between requests.
  */
 final class ArraySessionStorage implements SessionStorage
 {
@@ -67,13 +67,13 @@ final class ArraySessionStorage implements SessionStorage
         $this->exists = false;
     }
 
-    /** Hányszor cserélődött a munkamenet-azonosító (tesztekhez). */
+    /** How many times the session ID was replaced (for tests). */
     public function generation(): int
     {
         return $this->generation;
     }
 
-    /** Egy új kérés előtt: a munkamenet „lezárul”, de a cookie megmarad. */
+    /** Before a new request: the session is "closed", but the cookie remains. */
     public function endRequest(): void
     {
         $this->started = false;

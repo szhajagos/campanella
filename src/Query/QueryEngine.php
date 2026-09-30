@@ -12,13 +12,13 @@ use Campanella\Model\CampanellaObject;
 use Campanella\Model\ObjectRepository;
 
 /**
- * Lekérdezések végrehajtása.
+ * Executes queries.
  *
- * Az Actor kötelező paraméter: jogosultság nélküli lekérdezés nem
- * létezik. A folyamat:
+ * The Actor is a required parameter: there is no query without access
+ * control. The pipeline:
  *
- *   Query → scope-ok feloldása → Policy (secured query) → SQL (id-k)
- *         → ObjectRepository (kötegelt betöltés) → ResultSet
+ *   Query → resolve scopes → Policy (secured query) → SQL (ids)
+ *         → ObjectRepository (batch loading) → ResultSet
  */
 final class QueryEngine
 {
@@ -64,7 +64,7 @@ final class QueryEngine
         return (int) $this->db->fetchValue($compiled->sql, $compiled->params);
     }
 
-    /** A futtatandó lekérdezés: scope-ok feloldva, jogosultsági feltételekkel. */
+    /** The query to run: scopes resolved, with access control conditions. */
     public function secure(Query $query, Actor $actor): Query
     {
         $resolved = $query->withoutScopes();

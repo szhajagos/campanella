@@ -5,19 +5,19 @@ declare(strict_types=1);
 namespace Campanella\Support;
 
 /**
- * UUID v7 (RFC 9562): az első 48 bit ezredmásodperces időbélyeg, így az
- * azonosítók időrendben nőnek, ami az indexeknek kedvez.
+ * UUID v7 (RFC 9562): the first 48 bits are a millisecond timestamp, so
+ * the IDs grow in chronological order, which benefits indexes.
  */
 final class Uuid
 {
     public static function v7(): string
     {
         $ms = (int) floor(microtime(true) * 1000);
-        $bytes = pack('J', $ms);                    // 8 bájt, big-endian
-        $bytes = substr($bytes, 2) . random_bytes(10); // 6 bájt idő + 10 bájt véletlen
+        $bytes = pack('J', $ms);                    // 8 bytes, big-endian
+        $bytes = substr($bytes, 2) . random_bytes(10); // 6 bytes of time + 10 random bytes
 
-        $bytes[6] = chr((ord($bytes[6]) & 0x0F) | 0x70); // verzió: 7
-        $bytes[8] = chr((ord($bytes[8]) & 0x3F) | 0x80); // variáns: RFC
+        $bytes[6] = chr((ord($bytes[6]) & 0x0F) | 0x70); // version: 7
+        $bytes[8] = chr((ord($bytes[8]) & 0x3F) | 0x80); // variant: RFC
 
         $hex = bin2hex($bytes);
 

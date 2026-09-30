@@ -9,14 +9,14 @@ use PDOException;
 use PDOStatement;
 
 /**
- * Vékony réteg a PDO fölött.
+ * A thin layer over PDO.
  *
- * Minden SQL vagy ezen az osztályon, vagy a QueryCompileren keresztül
- * fut, más osztály nem nyúl közvetlenül a PDO-hoz. A táblanevek
- * `{objects}` alakban szerepelnek az SQL-ben, a Connection ezeket
- * cseréli le a prefixszel ellátott, idézőjelezett névre.
+ * All SQL runs either through this class or through the QueryCompiler;
+ * no other class touches PDO directly. Table names appear in SQL as
+ * `{objects}`, and the Connection replaces them with the prefixed,
+ * quoted name.
  *
- * Cél: MariaDB 10.6+ és MySQL 8.0+ közös részhalmaza.
+ * Target: the common subset of MariaDB 10.6+ and MySQL 8.0+.
  */
 final class Connection
 {
@@ -57,7 +57,7 @@ final class Connection
                 PDO::ATTR_EMULATE_PREPARES => false,
                 PDO::ATTR_STRINGIFY_FETCHES => false,
             ]);
-            // Egységes munkamenet minden tárhelyen, a szerver alapbeállításaitól függetlenül.
+            // A uniform session on every web host, regardless of the server's default settings.
             $this->pdo->exec("SET time_zone = '+00:00'");
             $this->pdo->exec(
                 "SET SESSION sql_mode = 'STRICT_TRANS_TABLES,ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,"
@@ -73,7 +73,7 @@ final class Connection
         return $this->prefix;
     }
 
-    /** A prefixszel ellátott, idézőjelezett táblanév. */
+    /** The prefixed, quoted table name. */
     public function table(string $name): string
     {
         return self::quoteIdentifier($this->prefix . $name);
@@ -82,13 +82,13 @@ final class Connection
     public static function quoteIdentifier(string $name): string
     {
         if (preg_match('/^[A-Za-z0-9_]+$/', $name) !== 1) {
-            throw new \InvalidArgumentException("Érvénytelen azonosító: {$name}");
+            throw new \InvalidArgumentException("Invalid identifier: {$name}");
         }
 
         return '`' . $name . '`';
     }
 
-    /** A `{tabla}` helyőrzőket valódi táblanévre cseréli. */
+    /** Replaces `{table}` placeholders with real table names. */
     public function expand(string $sql): string
     {
         return (string) preg_replace_callback(
@@ -155,7 +155,7 @@ final class Connection
 
     /**
      * @param array<string, mixed> $row
-     * @return int Az új sor azonosítója (AUTO_INCREMENT esetén).
+     * @return int The ID of the new row (with AUTO_INCREMENT).
      */
     public function insert(string $table, array $row): int
     {
@@ -173,7 +173,7 @@ final class Connection
 
     /**
      * @param array<string, mixed> $row
-     * @param array<string, mixed> $where Egyenlőségi feltételek, ÉS kapcsolattal.
+     * @param array<string, mixed> $where Equality conditions, combined with AND.
      */
     public function update(string $table, array $row, array $where): int
     {
@@ -203,8 +203,8 @@ final class Connection
     }
 
     /**
-     * Tranzakcióban futtatja a műveletet. Egymásba ágyazható: csak a
-     * legkülső hívás indít és zár tranzakciót.
+     * Runs the operation in a transaction. Can be nested: only the
+     * outermost call starts and ends a transaction.
      *
      * @template T
      * @param callable(self): T $work
@@ -237,7 +237,7 @@ final class Connection
 
     public function tableExists(string $table): bool
     {
-        $this->pdo(); // a kapcsolódási hiba ne tűnjön „hiányzó táblának”
+        $this->pdo(); // so that a connection error does not look like a "missing table"
 
         try {
             $this->run(sprintf('SELECT 1 FROM %s LIMIT 1', $this->table($table)));
@@ -260,7 +260,7 @@ final class Connection
     private function whereClause(array $where, array &$params): string
     {
         if ($where === []) {
-            throw new \InvalidArgumentException('Feltétel nélküli UPDATE/DELETE nem engedélyezett.');
+            throw new \InvalidArgumentException('UPDATE/DELETE without a condition is not allowed.');
         }
         $parts = [];
         foreach ($where as $column => $value) {

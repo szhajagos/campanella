@@ -10,8 +10,8 @@ use DateTimeInterface;
 use DateTimeZone;
 
 /**
- * Mezőtípusok. Mindegyik tudja, hogyan normalizálja a PHP-oldali értéket
- * (cast), és hogyan alakítja tárolható formára és vissza.
+ * Field types. Each knows how to normalize the PHP-side value (cast) and
+ * how to convert it to a storable form and back.
  */
 enum FieldType: string
 {
@@ -21,7 +21,7 @@ enum FieldType: string
     case Boolean = 'boolean';
     case DateTime = 'datetime';
 
-    /** Rövid szövegek listája (pl. szerepkörök); JSON-tömbként tárolva. */
+    /** A list of short strings (e.g. roles); stored as a JSON array. */
     case StringList = 'list';
 
     public const string STORAGE_DATE_FORMAT = 'Y-m-d H:i:s';
@@ -38,7 +38,7 @@ enum FieldType: string
         };
     }
 
-    /** PHP-oldali, egységes értékre alakít. */
+    /** Converts to a uniform PHP-side value. */
     public function cast(mixed $value): mixed
     {
         if ($value === null) {
@@ -51,17 +51,17 @@ enum FieldType: string
         return match ($this) {
             self::String, self::Text => is_scalar($value) || $value instanceof \Stringable
                 ? (string) $value
-                : throw new \InvalidArgumentException('Szöveges érték várt.'),
+                : throw new \InvalidArgumentException('Expected a string value.'),
             self::Integer => is_numeric($value)
                 ? (int) $value
-                : throw new \InvalidArgumentException('Egész szám várt.'),
+                : throw new \InvalidArgumentException('Expected an integer.'),
             self::Boolean => (bool) $value,
             self::DateTime => self::toUtc($value),
             self::StringList => self::toList($value),
         };
     }
 
-    /** Adatbázisba (vagy JSON-ba) írható forma. */
+    /** A form that can be written to the database (or to JSON). */
     public function toStorage(mixed $value): string|int|null
     {
         $value = $this->cast($value);
@@ -88,12 +88,12 @@ enum FieldType: string
             $value = is_array($decoded) ? $decoded : explode(',', $value);
         }
         if (!is_array($value)) {
-            throw new \InvalidArgumentException('Szöveglista várt.');
+            throw new \InvalidArgumentException('Expected a string list.');
         }
         $items = [];
         foreach ($value as $item) {
             if (!is_scalar($item) && !$item instanceof \Stringable) {
-                throw new \InvalidArgumentException('Szöveglista várt.');
+                throw new \InvalidArgumentException('Expected a string list.');
             }
             $item = trim((string) $item);
             if ($item !== '' && !in_array($item, $items, true)) {
@@ -114,6 +114,6 @@ enum FieldType: string
             return (new DateTimeImmutable($value, $utc))->setTimezone($utc);
         }
 
-        throw new \InvalidArgumentException('Dátum várt.');
+        throw new \InvalidArgumentException('Expected a date.');
     }
 }

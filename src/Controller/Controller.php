@@ -10,8 +10,8 @@ use Campanella\Http\Response;
 use Campanella\Http\RouteMatch;
 
 /**
- * A controllerek vékonyak: fogadják a kérést, meghívják a Model/Service
- * réteget, és az eredményt átadják a View-nak.
+ * Controllers are thin: they receive the request, call the Model/Service
+ * layer, and pass the result to the View.
  */
 interface Controller
 {

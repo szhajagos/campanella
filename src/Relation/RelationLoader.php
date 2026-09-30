@@ -10,14 +10,15 @@ use Campanella\Query\Query;
 use Campanella\Query\QueryEngine;
 
 /**
- * Betölti a kapcsolatok célobjektumait megjelenítés előtt.
+ * Loads the target objects of relations before rendering.
  *
- * Az objektumok már tudják a kapcsolataik célazonosítóit; a loader ezeket
- * egyetlen, jogosultság-tudatos lekérdezéssel tölti be, akárhány objektumról
- * és kapcsolatról van szó. Amit az Actor nem láthat (pl. egy piszkozat
- * kategória), az kimarad. Az eredményt a relatedObjects() adja vissza.
+ * The objects already know their relations' target IDs; the loader loads
+ * them with a single, access-control-aware query, however many objects and
+ * relations are involved. Whatever the Actor may not see (e.g. a draft
+ * category) is left out. The result is returned by relatedObjects().
  *
- * Így a View (sablon) nem kérdez adatbázist, csak kész adatot kap.
+ * This way the View (template) never queries the database; it only gets
+ * ready data.
  */
 final class RelationLoader
 {
@@ -27,7 +28,7 @@ final class RelationLoader
 
     /**
      * @param iterable<CampanellaObject> $objects
-     * @param list<string>|null $relations Mely kapcsolatokat; null: mindet, ami az objektumon értelmezett.
+     * @param list<string>|null $relations Which relations; null: all relations defined on the object.
      */
     public function resolve(iterable $objects, Actor $actor, ?array $relations = null): void
     {

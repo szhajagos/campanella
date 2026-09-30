@@ -24,7 +24,7 @@ final class Response
         return new self('', $status, ['Location' => $url]);
     }
 
-    /** Új válasz a megadott fejléccel kiegészítve (vagy felülírva). */
+    /** A new response with the given header added (or overwritten). */
     public function withHeader(string $name, string $value): self
     {
         return new self($this->body, $this->status, [$name => $value] + $this->headers);

@@ -12,7 +12,7 @@ use Campanella\Query\Condition\HasCapability;
 use Campanella\Query\Condition\RelatedTo;
 
 /**
- * Deklaratív lekérdezés: „milyen objektumokat szeretnék?”
+ * A declarative query: "which objects do I want?"
  *
  *     Query::objects()
  *         ->having('textual', 'routable', 'publishable')
@@ -20,13 +20,13 @@ use Campanella\Query\Condition\RelatedTo;
  *         ->orderBy('published_at', 'DESC')
  *         ->limit(10);
  *
- * Megváltoztathatatlan: minden metódus új példányt ad vissza, így egy
- * Query-definíció biztonságosan újrahasználható és kiegészíthető
- * (a jogosultsági réteg is így fűzi hozzá a saját feltételeit).
+ * Immutable: every method returns a new instance, so a Query definition
+ * can be safely reused and extended (the access control layer appends
+ * its own conditions the same way).
  *
- * Alapmezők: id, uuid, blueprint, created, updated. Minden más mező
- * valamelyik capability-hez tartozik; szűrni és rendezni csak a saját
- * táblában tárolt (FieldStorage::Table) mezőkre lehet.
+ * Base fields: id, uuid, blueprint, created, updated. Every other field
+ * belongs to some capability; filtering and sorting are only possible on
+ * fields stored in the capability's own table (FieldStorage::Table).
  */
 final class Query
 {
@@ -59,7 +59,7 @@ final class Query
         return new self();
     }
 
-    /** Csak azok az objektumok, amelyek mindegyik capability-vel rendelkeznek. */
+    /** Only objects that have all of the capabilities. */
     public function having(string ...$capabilities): self
     {
         $query = $this;
@@ -81,24 +81,24 @@ final class Query
     {
         $operator = Operator::parse($operator);
         if ($operator->takesList() && (!is_array($value) || $value === [])) {
-            throw new QueryException("A(z) {$operator->value} operátor nem üres listát vár.");
+            throw new QueryException("Operator {$operator->value} expects a non-empty list.");
         }
 
         return $this->whereCondition(new FieldCondition($field, $operator, $value));
     }
 
     /**
-     * Csak azok az objektumok, amelyeknek a kapcsolata a megadott célok
-     * valamelyikére mutat; cél nélkül: amelyeknek van ilyen kapcsolata.
+     * Only objects whose relation points to any of the given targets;
+     * without targets: those that have such a relation.
      *
-     *     Query::objects()->whereRelated('categories', $category)   // a kategória cikkei
+     *     Query::objects()->whereRelated('categories', $category)   // the category's articles
      */
     public function whereRelated(string $relation, CampanellaObject|int ...$targets): self
     {
         return $this->whereCondition(new RelatedTo($relation, self::targetIds($targets)));
     }
 
-    /** Csak azok, amelyeknek a kapcsolata nem mutat a célokra (cél nélkül: nincs ilyen kapcsolatuk). */
+    /** Only those whose relation does not point to the targets (without targets: those without such a relation). */
     public function whereNotRelated(string $relation, CampanellaObject|int ...$targets): self
     {
         return $this->whereCondition(new RelatedTo($relation, self::targetIds($targets), negated: true));
@@ -112,7 +112,7 @@ final class Query
         return $query;
     }
 
-    /** Capability által definiált, elnevezett szűrő (pl. 'published'). */
+    /** A named filter defined by a capability (e.g. 'published'). */
     public function scope(string $name): self
     {
         $query = clone $this;
@@ -132,7 +132,7 @@ final class Query
     public function limit(?int $limit): self
     {
         if ($limit !== null && $limit < 1) {
-            throw new QueryException('A limit legalább 1.');
+            throw new QueryException('The limit must be at least 1.');
         }
         $query = clone $this;
         $query->limit = $limit;
@@ -148,7 +148,7 @@ final class Query
         return $query;
     }
 
-    /** Lapozás: az 1. oldal az első. */
+    /** Pagination: page 1 is the first. */
     public function page(int $page, int $perPage): self
     {
         return $this->limit($perPage)->offset((max(1, $page) - 1) * $perPage);
@@ -165,7 +165,7 @@ final class Query
         return $this->scopes;
     }
 
-    /** A scope-ok nélküli másolat (a QueryEngine használja feloldás után). */
+    /** A copy without the scopes (used by the QueryEngine after resolving them). */
     public function withoutScopes(): self
     {
         $query = clone $this;
@@ -198,7 +198,7 @@ final class Query
     {
         return array_values(array_unique(array_map(
             static fn (CampanellaObject|int $t): int => $t instanceof CampanellaObject
-                ? ($t->id() ?? throw new QueryException('Kapcsolat-feltételben csak elmentett objektum szerepelhet.'))
+                ? ($t->id() ?? throw new QueryException('Only saved objects can be used in a relation condition.'))
                 : $t,
             $targets,
         )));

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Campanella\Database\Schema;
 
 /**
- * Oszloptípusok. Csak olyat tartalmaz, ami MariaDB 10.6+ és MySQL 8.0+
- * alatt ugyanúgy viselkedik.
+ * Column types. Contains only types that behave the same on
+ * MariaDB 10.6+ and MySQL 8.0+.
  */
 enum ColumnType
 {
@@ -15,9 +15,9 @@ enum ColumnType
     case Boolean;   // TINYINT(1)
     case String;    // VARCHAR(n)
     case Text;      // MEDIUMTEXT
-    case DateTime;  // DATETIME, mindig UTC
+    case DateTime;  // DATETIME, always UTC
     case Uuid;      // CHAR(36)
-    case Json;      // JSON (MariaDB-n LONGTEXT + JSON_VALID ellenőrzés)
+    case Json;      // JSON (on MariaDB: LONGTEXT + JSON_VALID check)
 
     public function sql(int $length): string
     {

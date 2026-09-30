@@ -3,12 +3,12 @@
 declare(strict_types=1);
 
 /*
- * Egyszerű, függőség nélküli tesztfuttató a 0.0.1 maghoz.
+ * A simple, dependency-free test runner for the 0.0.1 core.
  *
  *   php tests/run.php
  *
- * Valódi adatbázison fut (a config/local.php beállításaival), de külön
- * „test_” táblaprefixszel, és a végén eltakarít maga után.
+ * Runs against a real database (with the config/local.php settings), but
+ * with a separate "test_" table prefix, and cleans up after itself at the end.
  */
 
 use Campanella\Access\Actor;
@@ -51,7 +51,7 @@ use Campanella\Security\Throttle;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
-/** Teszthez: egy nem regisztrált capability. */
+/** For testing: an unregistered capability. */
 #[\Campanella\Capability\AsCapability('fake')]
 final class FakeCapability extends \Campanella\Capability\Capability
 {
@@ -64,7 +64,7 @@ final class FakeCapability extends \Campanella\Capability\Capability
 $passed = 0;
 $failed = 0;
 
-/** A docs/php-api/03-capability.md példája, változtatás nélkül. */
+/** The example from docs/php-api/03-capabilities.md, unchanged. */
 #[\Campanella\Capability\AsCapability('weighted', label: 'Súlyozott')]
 final class Weighted extends \Campanella\Capability\Capability
 {
@@ -108,7 +108,7 @@ function test(string $name, callable $body): void
     }
 }
 
-function check(bool $condition, string $message = 'feltétel nem teljesült'): void
+function check(bool $condition, string $message = 'condition not met'): void
 {
     if (!$condition) {
         throw new RuntimeException($message);
@@ -121,14 +121,14 @@ function throws(string $class, callable $body): void
     try {
         $body();
     } catch (Throwable $e) {
-        check($e instanceof $class, "{$class} helyett " . get_class($e) . ': ' . $e->getMessage());
+        check($e instanceof $class, "{$class} expected, got " . get_class($e) . ': ' . $e->getMessage());
 
         return;
     }
-    throw new RuntimeException("{$class} kivétel várt, de nem keletkezett.");
+    throw new RuntimeException("{$class} exception expected, but none was thrown.");
 }
 
-// --- Összerakás külön táblaprefixszel ---------------------------------------
+// --- Setup with a separate table prefix ------------------------------------
 
 $config = Config::load(dirname(__DIR__) . '/config');
 $db = Connection::fromConfig(['prefix' => 'test_'] + $config->get('database'));
@@ -155,62 +155,62 @@ $dropAll = static function () use ($db, $installer): void {
 $dropAll();
 $installer->install();
 
-echo "Campanella tesztek (PHP " . PHP_VERSION . ", " . $db->serverVersion() . ")\n\n";
+echo "Campanella tests (PHP " . PHP_VERSION . ", " . $db->serverVersion() . ")\n\n";
 
-// --- Segédosztályok ---------------------------------------------------------
+// --- Support classes --------------------------------------------------------
 
 echo "Support\n";
 
-test('Slugger: magyar ékezetek', function (): void {
+test('Slugger: Hungarian accented letters', function (): void {
     check(Slugger::slugify('Árvíztűrő tükörfúrógép') === 'arvizturo-tukorfurogep');
     check(Slugger::slugify('  Megjelent a 0.0.1!  ') === 'megjelent-a-0-0-1');
 });
 
-test('UUID v7: formátum és időrend', function (): void {
+test('UUID v7: format and time ordering', function (): void {
     $a = Uuid::v7();
     usleep(2000);
     $b = Uuid::v7();
     check(Uuid::isValid($a) && $a[14] === '7', $a);
-    check(strcmp($a, $b) < 0, 'a későbbi UUID nem nagyobb');
+    check(strcmp($a, $b) < 0, 'the later UUID is not greater');
 });
 
-test('Request: alkönyvtárba telepítés', function (): void {
+test('Request: installation in a subdirectory', function (): void {
     $_SERVER = ['REQUEST_URI' => '/oldal/hirek/?page=2', 'SCRIPT_NAME' => '/oldal/public/index.php', 'REQUEST_METHOD' => 'GET'];
     $request = Request::fromGlobals();
     check($request->basePath === '/oldal' && $request->path === '/hirek', $request->basePath . ' ' . $request->path);
 });
 
-// --- Capability-szerződés ---------------------------------------------------
+// --- Capability contract ----------------------------------------------------
 
 echo "\nCapability\n";
 
-test('A függőségek feloldódnak (Routable → Titled)', function () use ($capabilities): void {
+test('Dependencies are resolved (Routable → Titled)', function () use ($capabilities): void {
     check(array_keys($capabilities->resolve([Routable::class])) === ['titled', 'routable']);
 });
 
-test('A page Blueprint a Titled-et függőségként kapja meg', function () use ($blueprints): void {
+test('The page Blueprint gets Titled as a dependency', function () use ($blueprints): void {
     check(isset($blueprints->get('page')->capabilities['titled']));
 });
 
-test('Ütköző mezőnév regisztrálása hibát ad', function (): void {
+test('Registering a conflicting field name fails', function (): void {
     throws(CapabilityException::class, fn () => new CapabilityRegistry([Titled::class, Titled::class]));
 });
 
-test('Hiányzó capability esetén as() hibát ad', function () use ($repository): void {
+test('as() fails for a missing capability', function () use ($repository): void {
     $object = $repository->create('article', ['title' => 'x']);
     check($object->has('publishable') && $object->has(Publishable::class));
     throws(CapabilityException::class, fn () => $object->as(FakeCapability::class));
 });
 
-test('Ismeretlen mező a létrehozáskor hibát ad', function () use ($repository): void {
+test('An unknown field on create fails', function () use ($repository): void {
     throws(OutOfBoundsException::class, fn () => $repository->create('article', ['titel' => 'elgépelve']));
 });
 
-// --- Tárolás ----------------------------------------------------------------
+// --- Storage ----------------------------------------------------------------
 
 echo "\nRepository\n";
 
-test('Mentés és visszatöltés: táblás és data mezők', function () use ($service, $repository, $admin): void {
+test('Save and reload: table and data fields', function () use ($service, $repository, $admin): void {
     $object = $service->create($admin, 'article', ['title' => 'Első cikk', 'lead' => 'Bevezető', 'body' => "A\n\nB"]);
     $loaded = $repository->find((int) $object->id());
     check($loaded !== null);
@@ -222,17 +222,17 @@ test('Mentés és visszatöltés: táblás és data mezők', function () use ($s
     check($loaded->uuid() === $object->uuid());
 });
 
-test('Kötelező mező hiánya: ValidationException', function () use ($service, $admin): void {
+test('Missing required field: ValidationException', function () use ($service, $admin): void {
     throws(ValidationException::class, fn () => $service->create($admin, 'article', ['body' => 'cím nélkül']));
 });
 
-test('Foglalt útvonal: ValidationException, a tranzakció visszagördül', function () use ($service, $admin, $engine): void {
+test('Path already taken: ValidationException, the transaction is rolled back', function () use ($service, $admin, $engine): void {
     $before = $engine->count(Query::objects(), $admin);
     throws(ValidationException::class, fn () => $service->create($admin, 'article', ['title' => 'Első cikk']));
-    check($engine->count(Query::objects(), $admin) === $before, 'félkész objektum maradt az adatbázisban');
+    check($engine->count(Query::objects(), $admin) === $before, 'a half-created object was left in the database');
 });
 
-test('Módosítás és törlés (a capability-sorok is törlődnek)', function () use ($service, $repository, $admin, $db): void {
+test('Update and delete (capability rows are deleted too)', function () use ($service, $repository, $admin, $db): void {
     $object = $service->create($admin, 'page', ['title' => 'Ideiglenes']);
     $service->update($admin, $object, ['title' => 'Átnevezett']);
     check($repository->find((int) $object->id())?->get('title') === 'Átnevezett');
@@ -242,7 +242,7 @@ test('Módosítás és törlés (a capability-sorok is törlődnek)', function (
     check((int) $db->fetchValue('SELECT COUNT(*) FROM {cap_titled} WHERE object_id = :id', ['id' => $object->id()]) === 0);
 });
 
-// --- Query és jogosultság ---------------------------------------------------
+// --- Query and access control ----------------------------------------------
 
 echo "\nQuery + Access\n";
 
@@ -253,25 +253,25 @@ $service->publish($admin, $published, $past);
 $scheduled = $service->create($admin, 'article', ['title' => 'Időzített']);
 $service->publish($admin, $scheduled, $future);
 
-test('Anonymous csak a publikáltat látja (SQL-szintű szűrés)', function () use ($engine, $anon): void {
+test('Anonymous sees only the published one (SQL-level filtering)', function () use ($engine, $anon): void {
     $titles = array_map(fn ($o) => $o->get('title'), $engine->execute(Query::objects(), $anon)->items);
     check($titles === ['Publikált'], implode(', ', $titles));
 });
 
-test('Az administrator mindent lát', function () use ($engine, $admin): void {
+test('The administrator sees everything', function () use ($engine, $admin): void {
     check($engine->count(Query::objects()->blueprint('article'), $admin) === 3);
 });
 
-test('Időzített publikálás: a jövőbeli még nem látszik', function () use ($scheduled, $anon, $policy): void {
+test('Scheduled publishing: a future one is not visible yet', function () use ($scheduled, $anon, $policy): void {
     check(!$policy->allows($anon, \Campanella\Access\Operation::View, $scheduled));
     check($scheduled->as(Publishable::class)->isPublished(new DateTimeImmutable('+2 days')));
 });
 
-test('Anonymous nem hozhat létre objektumot', function () use ($service, $anon): void {
+test('Anonymous cannot create an object', function () use ($service, $anon): void {
     throws(\Campanella\Access\AccessDeniedException::class, fn () => $service->create($anon, 'article', ['title' => 'Nem']));
 });
 
-test('Scope, rendezés, lapozás, összes találat', function () use ($engine, $admin): void {
+test('Scope, sorting, paging, total count', function () use ($engine, $admin): void {
     $result = $engine->execute(
         Query::objects()->having('routable')->orderBy('title', 'ASC')->page(1, 2),
         $admin,
@@ -284,45 +284,45 @@ test('Scope, rendezés, lapozás, összes találat', function () use ($engine, $
     check(count($scoped) === 1 && $scoped->first()?->get('title') === 'Publikált');
 });
 
-test('Data (JSON) mezőre szűrni nem lehet', function () use ($engine, $admin): void {
+test('Filtering on a data (JSON) field is not allowed', function () use ($engine, $admin): void {
     throws(QueryException::class, fn () => $engine->execute(Query::objects()->where('lead', '=', 'x'), $admin));
 });
 
-test('Ismeretlen mező és operátor: QueryException', function () use ($engine, $admin): void {
+test('Unknown field and operator: QueryException', function () use ($engine, $admin): void {
     throws(QueryException::class, fn () => $engine->execute(Query::objects()->where('nincs', '=', 1), $admin));
     throws(QueryException::class, fn () => Query::objects()->where('title', 'LIKEE', 'x'));
 });
 
-test('A Query megváltoztathatatlan', function (): void {
+test('Query is immutable', function (): void {
     $base = Query::objects()->limit(5);
     $derived = $base->limit(10)->where('title', '=', 'x');
     check($base->getLimit() === 5 && $base->conditions()->conditions === []);
     check($derived->getLimit() === 10);
 });
 
-// --- Kapcsolatok (0.0.2) -----------------------------------------------------
+// --- Relations (0.0.2) -------------------------------------------------------
 
-echo "\nKapcsolatok\n";
+echo "\nRelations\n";
 
 $science = $service->create($admin, 'category', ['title' => 'Kat Tudomány'], publish: true);
 $history = $service->create($admin, 'category', ['title' => 'Kat Történelem'], publish: true);
-$hidden = $service->create($admin, 'category', ['title' => 'Kat Rejtett']);   // piszkozat
+$hidden = $service->create($admin, 'category', ['title' => 'Kat Rejtett']);   // draft
 $tagged = $service->create($admin, 'article', ['title' => 'Kapcsolt cikk'], publish: true);
 
-test('Kapcsolat mentése és visszatöltése, sorrendben', function () use ($repository, $tagged, $science, $history, $hidden): void {
+test('Saving and reloading a relation, in order', function () use ($repository, $tagged, $science, $history, $hidden): void {
     $tagged->setRelated('categories', [$history, $science->id(), $hidden]);
     $repository->save($tagged);
     $loaded = $repository->find((int) $tagged->id());
     check($loaded?->relatedIds('categories') === [$history->id(), $science->id(), $hidden->id()], json_encode($loaded?->relatedIds('categories')));
 
     $loaded->unrelate('categories', $history);
-    $loaded->relate('categories', $history);            // a végére kerül
-    $loaded->relate('categories', $science);            // már benne van: nem duplikál
+    $loaded->relate('categories', $history);            // goes to the end
+    $loaded->relate('categories', $science);            // already there: no duplicate
     $repository->save($loaded);
     check($repository->find((int) $tagged->id())?->relatedIds('categories') === [$science->id(), $hidden->id(), $history->id()]);
 });
 
-test('whereRelated / whereNotRelated (jogosultsággal)', function () use ($engine, $admin, $anon, $science, $history): void {
+test('whereRelated / whereNotRelated (with access control)', function () use ($engine, $admin, $anon, $science, $history): void {
     $titles = fn ($q, $actor) => array_map(fn ($o) => $o->get('title'), $engine->execute($q, $actor)->items);
     check($titles(Query::objects()->whereRelated('categories', $science), $anon) === ['Kapcsolt cikk']);
     check($titles(Query::objects()->whereRelated('categories', $science, $history), $admin) === ['Kapcsolt cikk']);
@@ -331,7 +331,7 @@ test('whereRelated / whereNotRelated (jogosultsággal)', function () use ($engin
     throws(QueryException::class, fn () => $engine->execute(Query::objects()->whereRelated('nincs_ilyen'), $admin));
 });
 
-test('RelationLoader: egy lekérdezés, a piszkozat cél kimarad', function () use ($repository, $loader, $anon, $admin, $tagged): void {
+test('RelationLoader: one query, the draft target is left out', function () use ($repository, $loader, $anon, $admin, $tagged): void {
     $forAnon = $repository->find((int) $tagged->id());
     $loader->resolve([$forAnon], $anon);
     check(array_map(fn ($o) => $o->get('title'), $forAnon->relatedObjects('categories')) === ['Kat Tudomány', 'Kat Történelem']);
@@ -344,24 +344,24 @@ test('RelationLoader: egy lekérdezés, a piszkozat cél kimarad', function () u
     throws(LogicException::class, fn () => $fresh->relatedObjects('categories'));
 });
 
-test('Érvénytelen cél: rossz Blueprint, nem létező, mentetlen', function () use ($service, $repository, $admin): void {
+test('Invalid target: wrong Blueprint, nonexistent, unsaved', function () use ($service, $repository, $admin): void {
     $page = $service->create($admin, 'page', ['title' => 'Nem kategória']);
     $article = $repository->create('article', ['title' => 'Hibás kapcsolat']);
     $article->relate('categories', $page);
     try {
         $repository->save($article);
-        check(false, 'nem dobott kivételt');
+        check(false, 'no exception was thrown');
     } catch (ValidationException $e) {
         check(isset($e->errors['categories']) && str_contains($e->errors['categories'], 'page'), json_encode($e->errors, JSON_UNESCAPED_UNICODE));
     }
-    check($article->isNew(), 'a hibás objektum nem mentődhet el');
+    check($article->isNew(), 'the invalid object must not be saved');
 
     $article->setRelated('categories', [999999]);
     throws(ValidationException::class, fn () => $repository->save($article));
     throws(InvalidArgumentException::class, fn () => $article->relate('categories', $repository->create('category', ['title' => 'Mentetlen'])));
 });
 
-test('Egyes és kötelező kapcsolat', function () use ($blueprints, $repository, $admin, $service): void {
+test('Single and required relation', function () use ($blueprints, $repository, $admin, $service): void {
     $blueprints->define('node', [
         'capabilities' => [Titled::class],
         'relations' => [
@@ -372,7 +372,7 @@ test('Egyes és kötelező kapcsolat', function () use ($blueprints, $repository
     $root = $repository->create('node', ['title' => 'Gyökér']);
     try {
         $repository->save($root);
-        check(false, 'nem dobott kivételt');
+        check(false, 'no exception was thrown');
     } catch (ValidationException $e) {
         check(($e->errors['owner_node'] ?? '') === 'kötelező kapcsolat', json_encode($e->errors, JSON_UNESCAPED_UNICODE));
     }
@@ -380,14 +380,14 @@ test('Egyes és kötelező kapcsolat', function () use ($blueprints, $repository
     $node = $repository->create('node', ['title' => 'Node']);
     throws(InvalidArgumentException::class, fn () => $node->setRelated('parent_node', [1, 2]));
     $node->relate('parent_node', 1);
-    $node->relate('parent_node', 2);                  // egyes kapcsolatnál lecseréli
+    $node->relate('parent_node', 2);                  // a single relation replaces it
     check($node->relatedIds('parent_node') === [2]);
 
     $node->relate('owner_node', $service->create($admin, 'category', ['title' => 'Nem node']));
-    throws(ValidationException::class, fn () => $repository->save($node));   // rossz Blueprint
+    throws(ValidationException::class, fn () => $repository->save($node));   // wrong Blueprint
 });
 
-test('Önhivatkozás tiltott; a cél törlésekor a kapcsolat megszűnik', function () use ($blueprints, $repository, $service, $admin): void {
+test('Self-reference is forbidden; deleting the target removes the relation', function () use ($blueprints, $repository, $service, $admin): void {
     $blueprints->define('loose', ['capabilities' => [Titled::class], 'relations' => [new Relation('parent_loose', Cardinality::One)]]);
     $loose = $repository->create('loose', ['title' => 'Laza']);
     $repository->save($loose);
@@ -402,24 +402,24 @@ test('Önhivatkozás tiltott; a cél törlésekor a kapcsolat megszűnik', funct
     check($repository->find((int) $article->id())?->relatedIds('categories') === []);
 });
 
-test('Kapcsolatnév ütközései', function () use ($blueprints): void {
+test('Relation name conflicts', function () use ($blueprints): void {
     throws(CapabilityException::class, fn () => $blueprints->define('x', [
         'capabilities' => [Titled::class],
-        'relations' => [new Relation('title')],                              // mezőnév
+        'relations' => [new Relation('title')],                              // field name
     ]));
     throws(CapabilityException::class, fn () => $blueprints->define('y', [
         'capabilities' => [Titled::class],
-        'relations' => [new Relation('categories', Cardinality::One)],       // az 'article'-ben másként szerepel
+        'relations' => [new Relation('categories', Cardinality::One)],       // defined differently in 'article'
     ]));
     $blueprints->define('z', [
         'capabilities' => [Titled::class],
         'relations' => [new Relation('categories', Cardinality::Many, targetBlueprints: ['category'], label: 'Kategóriák')],
-    ]);                                                                      // azonos definíció: megengedett
+    ]);                                                                      // identical definition: allowed
 });
 
-// --- Felhasználók és belépés (0.0.3) ------------------------------------------
+// --- Users and login (0.0.3) -------------------------------------------------
 
-echo "\nFelhasználók és belépés\n";
+echo "\nUsers and login\n";
 
 $newUser = static function (string $email, string $password, array $roles = []) use ($repository) {
     $user = $repository->create('user', ['title' => 'Teszt ' . $email, 'email' => $email]);
@@ -439,27 +439,27 @@ $req = static fn (array $post = [], string $ip = '10.0.0.1') => new Request($pos
 
 $editorUser = $newUser('Szerkeszto@Example.hu', 'szerkeszto-jelszo', ['editor']);
 
-test('Identifiable: normalizált, egyedi, érvényes e-mail-cím', function () use ($repository, $editorUser, $newUser): void {
+test('Identifiable: normalized, unique, valid e-mail address', function () use ($repository, $editorUser, $newUser): void {
     check($editorUser->get('email') === 'szerkeszto@example.hu');
     throws(ValidationException::class, fn () => $newUser('szerkeszto@example.hu', 'masik-jelszo-1'));
     $bad = $repository->create('user', ['title' => 'Rossz', 'email' => 'nem-email']);
     $bad->as(Authenticatable::class)->setPassword('eleg-hosszu-jelszo');
     try {
         $repository->save($bad);
-        check(false, 'nem dobott kivételt');
+        check(false, 'no exception was thrown');
     } catch (ValidationException $e) {
         check(($e->errors['email'] ?? '') === 'érvénytelen e-mail-cím', json_encode($e->errors, JSON_UNESCAPED_UNICODE));
     }
 });
 
-test('Authenticatable: jelszószabály, hash, rejtett mezők, szerepkörök', function () use ($repository, $editorUser): void {
+test('Authenticatable: password rule, hash, hidden fields, roles', function () use ($repository, $editorUser): void {
     $auth = $editorUser->as(Authenticatable::class);
     throws(ValidationException::class, fn () => $auth->setPassword('rovid'));
     throws(ValidationException::class, fn () => $auth->setPassword(str_repeat('x', 73)));
     check($auth->verifyPassword('szerkeszto-jelszo') && !$auth->verifyPassword('mas-jelszo-1'));
     check(str_starts_with((string) $editorUser->get('password_hash'), '$2y$') || str_starts_with((string) $editorUser->get('password_hash'), '$argon'));
-    check(!isset($editorUser->password_hash) && $editorUser->password_hash === null, 'a hash látszik a sablonnak');
-    check(!isset($editorUser->email), 'az e-mail-cím látszik a sablonnak');
+    check(!isset($editorUser->password_hash) && $editorUser->password_hash === null, 'the hash is visible to the template');
+    check(!isset($editorUser->email), 'the e-mail address is visible to the template');
 
     $reloaded = $repository->find((int) $editorUser->id());
     check($reloaded?->as(Authenticatable::class)->roles() === ['editor']);
@@ -467,7 +467,7 @@ test('Authenticatable: jelszószabály, hash, rejtett mezők, szerepkörök', fu
     throws(ValidationException::class, fn () => $repository->save($reloaded));
 });
 
-test('Belépés: hibás adat, siker, új munkamenet-azonosító, Actor', function () use ($authFor, $req): void {
+test('Login: wrong credentials, success, new session ID, Actor', function () use ($authFor, $req): void {
     $storage = new ArraySessionStorage();
     [$auth] = $authFor($storage);
 
@@ -476,7 +476,7 @@ test('Belépés: hibás adat, siker, új munkamenet-azonosító, Actor', functio
     check(!$wrong->success && $wrong->error === AuthService::GENERIC_ERROR && $unknown->error === AuthService::GENERIC_ERROR);
 
     $ok = $auth->attempt($req(['x' => 1]), '  SZERKESZTO@example.hu ', 'szerkeszto-jelszo');
-    check($ok->success && $storage->generation() === 1, 'nem cserélődött a munkamenet-azonosító');
+    check($ok->success && $storage->generation() === 1, 'the session ID was not regenerated');
 
     $storage->endRequest();
     [$next] = $authFor($storage);
@@ -489,18 +489,18 @@ test('Belépés: hibás adat, siker, új munkamenet-azonosító, Actor', functio
     check($after->currentActor($req())->isAnonymous());
 });
 
-test('Belépés: próbálkozások korlátozása', function () use ($authFor, $req): void {
+test('Login: login throttling', function () use ($authFor, $req): void {
     [$auth] = $authFor(new ArraySessionStorage());
     for ($i = 0; $i < 3; $i++) {
         $auth->attempt($req(['x' => 1], '10.9.9.9'), 'szerkeszto@example.hu', 'rossz-jelszo-1');
     }
     $blocked = $auth->attempt($req(['x' => 1], '10.9.9.9'), 'szerkeszto@example.hu', 'szerkeszto-jelszo');
     check(!$blocked->success && str_contains($blocked->error, 'Túl sok'), $blocked->error);
-    // Más IP-címről ugyanaz a fiók továbbra is beléphet.
+    // The same account can still log in from another IP address.
     check($auth->attempt($req(['x' => 1], '10.8.8.8'), 'szerkeszto@example.hu', 'szerkeszto-jelszo')->success);
 });
 
-test('Belépés: letiltott fiók, és a letiltás a meglévő munkamenetet is megszünteti', function () use ($authFor, $req, $newUser, $repository): void {
+test('Login: blocked account, and blocking also ends the existing session', function () use ($authFor, $req, $newUser, $repository): void {
     $user = $newUser('tiltott@example.hu', 'tiltott-jelszo-1');
     $storage = new ArraySessionStorage();
     [$auth] = $authFor($storage);
@@ -510,12 +510,12 @@ test('Belépés: letiltott fiók, és a letiltás a meglévő munkamenetet is me
     $repository->save($user);
     $storage->endRequest();
     [$next] = $authFor($storage);
-    check($next->currentActor($req())->isAnonymous(), 'a letiltott felhasználó belépve maradt');
+    check($next->currentActor($req())->isAnonymous(), 'the blocked user stayed logged in');
     $again = $next->attempt($req(['x' => 1]), 'tiltott@example.hu', 'tiltott-jelszo-1');
     check(!$again->success && $again->error === 'A fiók le van tiltva.');
 });
 
-test('Honeypot guard és CSRF', function () use ($authFor, $req): void {
+test('Honeypot guard and CSRF', function () use ($authFor, $req): void {
     $storage = new ArraySessionStorage();
     [$auth, $csrf] = $authFor($storage, [new HoneypotGuard()]);
     $trap = $auth->attempt($req([HoneypotGuard::FIELD => 'http://spam.example']), 'szerkeszto@example.hu', 'szerkeszto-jelszo');
@@ -526,10 +526,10 @@ test('Honeypot guard és CSRF', function () use ($authFor, $req): void {
     check(strlen($token) === 64);
     check($csrf->isValid($req([Csrf::FIELD => $token])) && !$csrf->isValid($req([Csrf::FIELD => 'hamis'])));
     check($auth->attempt($req([HoneypotGuard::FIELD => '']), 'szerkeszto@example.hu', 'szerkeszto-jelszo')->success);
-    check(!$csrf->isValid($req([Csrf::FIELD => $token])), 'a belépés előtti token belépés után is érvényes');
+    check(!$csrf->isValid($req([Csrf::FIELD => $token])), 'the pre-login token is still valid after login');
 });
 
-test('Munkamenet: tétlenségi időkorlát', function () use ($req): void {
+test('Session: idle timeout', function () use ($req): void {
     $storage = new ArraySessionStorage();
     $session = new Session($storage, 60);
     $session->start($req());
@@ -539,17 +539,17 @@ test('Munkamenet: tétlenségi időkorlát', function () use ($req): void {
     check(!$session->resume($req()) && $session->get('x') === null);
 });
 
-test('Jogosultság: editor szerepkör', function () use ($policy, $engine, $editorUser, $service, $admin): void {
+test('Access control: editor role', function () use ($policy, $engine, $editorUser, $service, $admin): void {
     $editor = AuthService::actorFor($editorUser);
     $draft = $service->create($admin, 'article', ['title' => 'Szerkesztői piszkozat']);
     check($policy->allows($editor, \Campanella\Access\Operation::View, $draft));
     check($policy->allows($editor, \Campanella\Access\Operation::Publish, $draft));
     check(!$policy->allows($editor, \Campanella\Access\Operation::Delete, $draft));
-    check(!$policy->allows($editor, \Campanella\Access\Operation::Update, $editorUser), 'editor felhasználót módosíthat');
+    check(!$policy->allows($editor, \Campanella\Access\Operation::Update, $editorUser), 'editor can update a user');
     check($engine->count(Query::objects()->where('id', '=', (int) $draft->id()), $editor) === 1);
 });
 
-test('Szerző: a létrehozó felhasználó automatikusan szerző lesz', function () use ($service, $editorUser, $repository, $loader, $anon): void {
+test('Author: the creating user automatically becomes the author', function () use ($service, $editorUser, $repository, $loader, $anon): void {
     $article = $service->create(AuthService::actorFor($editorUser), 'article', ['title' => 'Saját cikk'], publish: true);
     check($article->as(Authorable::class)->authorId() === $editorUser->id());
     $loaded = $repository->find((int) $article->id());
@@ -557,18 +557,18 @@ test('Szerző: a létrehozó felhasználó automatikusan szerző lesz', function
     check(($loaded->relatedObjects('author')[0] ?? null)?->get('title') === 'Teszt Szerkeszto@Example.hu');
 });
 
-test('Biztonságos visszairányítás', function (): void {
+test('Safe redirect', function (): void {
     foreach (['/hirek' => '/hirek', '//gonosz.hu' => '/', 'https://gonosz.hu' => '/', '/\\gonosz' => '/', '' => '/', "/x\n" => '/'] as $in => $out) {
         check(AuthController::safeTarget($in) === $out, json_encode($in));
     }
 });
 
-test('Kernel: belépés és kilépés végig, űrlapon át', function (): void {
+test('Kernel: full login and logout through the form', function (): void {
     putenv('CAMPANELLA_DB_PREFIX=test_');
     $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
     $container = $kernel->container();
     if ($container->get(Connection::class)->prefix() !== 'test_') {
-        echo "      (kihagyva: a config/local.php saját prefixet ad meg)\n";
+        echo "      (skipped: config/local.php sets its own prefix)\n";
 
         return;
     }
@@ -580,10 +580,10 @@ test('Kernel: belépés és kilépés végig, űrlapon át', function (): void {
 
     $form = $kernel->handle(new Request('GET', '/belepes'));
     preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $form->body, $m);
-    check(isset($m[1]) && str_contains($form->body, 'name="website"'), 'hiányzó CSRF- vagy honeypot-mező');
+    check(isset($m[1]) && str_contains($form->body, 'name="website"'), 'missing CSRF or honeypot field');
     check(($form->headers['Cache-Control'] ?? '') === 'private, no-store');
-    check(str_contains($form->body, 'class="hp" aria-hidden="true" style="position:absolute'), 'a honeypot nem rejtett a CSS nélkül');
-    check(str_contains($form->body, 'campanella.css?v=' . Version::CAMPANELLA), 'az asset() nem fűzi hozzá a verziót');
+    check(str_contains($form->body, 'class="hp" aria-hidden="true" style="position:absolute'), 'the honeypot is not hidden without CSS');
+    check(str_contains($form->body, 'campanella.css?v=' . Version::CAMPANELLA), 'asset() does not append the version');
     $storage->endRequest();
 
     $login = $kernel->handle(new Request('POST', '/belepes', post: [
@@ -594,21 +594,21 @@ test('Kernel: belépés és kilépés végig, űrlapon át', function (): void {
     $storage->endRequest();
 
     $page = $kernel->handle(new Request('GET', '/szerkesztoi-piszkozat'));
-    check($page->status === 200 && str_contains($page->body, 'Kilépés'), 'belépve sem látszik a piszkozat');
+    check($page->status === 200 && str_contains($page->body, 'Kilépés'), 'the draft is not visible even when logged in');
     preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $page->body, $m2);
     $storage->endRequest();
 
     $kernel->handle(new Request('POST', '/kilepes', post: ['_csrf' => $m2[1] ?? '']));
     $storage->endRequest();
-    check($kernel->handle(new Request('GET', '/szerkesztoi-piszkozat'))->status === 404, 'kilépés után is látszik');
+    check($kernel->handle(new Request('GET', '/szerkesztoi-piszkozat'))->status === 404, 'still visible after logout');
     putenv('CAMPANELLA_DB_PREFIX');
 });
 
-// --- A dokumentáció példái ---------------------------------------------------
+// --- Documentation examples -------------------------------------------------
 
-echo "\nDokumentációs példák\n";
+echo "\nDocumentation examples\n";
 
-test('Új capability a docs példája szerint (Weighted)', function () use ($db, $admin): void {
+test('New capability as in the docs example (Weighted)', function () use ($db, $admin): void {
     $registry = new CapabilityRegistry([Titled::class, Textual::class, Routable::class, Publishable::class, Weighted::class]);
     $blueprints = new BlueprintRegistry($registry, [
         'page' => ['capabilities' => [Textual::class, Routable::class, Publishable::class, Weighted::class]],
@@ -630,16 +630,16 @@ test('Új capability a docs példája szerint (Weighted)', function () use ($db,
     check($titles === ['Súly Első', 'Súly Második', 'Súly Harmadik'], implode(', ', $titles));
 });
 
-test('Kernel: a felülírt szolgáltatás több kérésen át megmarad', function (): void {
+test('Kernel: an overridden service persists across requests', function (): void {
     putenv('CAMPANELLA_DB_PREFIX=test_');
     $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
     $container = $kernel->container();
     if ($container->get(Connection::class)->prefix() !== 'test_') {
-        echo "      (kihagyva: a config/local.php saját prefixet ad meg)\n";
+        echo "      (skipped: config/local.php sets its own prefix)\n";
 
         return;
     }
-    // A docs/php-api/05-jogosultsag.md mintájára: minden látható.
+    // Following docs/php-api/05-access.md: everything is visible.
     $container->set(\Campanella\Access\AccessPolicy::class, static fn () => new class implements \Campanella\Access\AccessPolicy {
         public function constrain(Query $query, Actor $actor): Query { return $query; }
         public function allows(Actor $actor, \Campanella\Access\Operation $operation, \Campanella\Model\CampanellaObject $object): bool { return true; }
@@ -648,32 +648,32 @@ test('Kernel: a felülírt szolgáltatás több kérésen át megmarad', functio
     $first = $kernel->handle(new Request('GET', '/idozitett', basePath: '/alkonyvtar'));
     $second = $kernel->handle(new Request('GET', '/idozitett'));
     check($first->status === 200 && $second->status === 200, "{$first->status} / {$second->status}");
-    check(str_contains($first->body, 'href="/alkonyvtar/hirek"'), 'az első kérés URL-előtagja hiányzik');
-    check(str_contains($second->body, 'href="/hirek"') && !str_contains($second->body, '/alkonyvtar'), 'a második kérés URL-előtagja rossz');
+    check(str_contains($first->body, 'href="/alkonyvtar/hirek"'), 'the first request is missing the URL prefix');
+    check(str_contains($second->body, 'href="/hirek"') && !str_contains($second->body, '/alkonyvtar'), 'the second request has the wrong URL prefix');
     putenv('CAMPANELLA_DB_PREFIX');
 });
 
-test('Kernel: kategóriaoldal a cikkeivel, cikkoldal a látható kategóriákkal', function (): void {
+test('Kernel: category page with its articles, article page with visible categories', function (): void {
     putenv('CAMPANELLA_DB_PREFIX=test_');
     $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
     if ($kernel->container()->get(Connection::class)->prefix() !== 'test_') {
-        echo "      (kihagyva: a config/local.php saját prefixet ad meg)\n";
+        echo "      (skipped: config/local.php sets its own prefix)\n";
 
         return;
     }
     $category = $kernel->handle(new Request('GET', '/kat-tudomany'));
     check($category->status === 200 && str_contains($category->body, 'Cikkek ebben a kategóriában'), (string) $category->status);
-    check(str_contains($category->body, 'Kapcsolt cikk'), 'a kategória cikke hiányzik');
+    check(str_contains($category->body, 'Kapcsolt cikk'), 'the category article is missing');
 
     $article = $kernel->handle(new Request('GET', '/kapcsolt-cikk'));
     check(str_contains($article->body, 'href="/kat-tudomany"') && str_contains($article->body, 'href="/kat-tortenelem"'));
-    check(!str_contains($article->body, 'Kat Rejtett'), 'a piszkozat kategória látszik');
+    check(!str_contains($article->body, 'Kat Rejtett'), 'the draft category is visible');
     putenv('CAMPANELLA_DB_PREFIX');
 });
 
-// --- Eltakarítás ------------------------------------------------------------
+// --- Cleanup ----------------------------------------------------------------
 
 $dropAll();
 
-echo "\n{$passed} sikeres, {$failed} sikertelen\n";
+echo "\n{$passed} passed, {$failed} failed\n";
 exit($failed === 0 ? 0 : 1);

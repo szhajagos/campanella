@@ -15,7 +15,7 @@ use Campanella\Relation\Relation;
 use ReflectionClass;
 
 /**
- * Egy capability osztály feldolgozott, gyorsan használható leírása.
+ * The processed, ready-to-use description of a capability class.
  */
 final readonly class CapabilityDefinition
 {
@@ -39,15 +39,15 @@ final readonly class CapabilityDefinition
     public static function fromClass(string $class): self
     {
         if (!is_subclass_of($class, Capability::class)) {
-            throw new CapabilityException("{$class} nem Capability.");
+            throw new CapabilityException("{$class} is not a Capability.");
         }
         $attributes = (new ReflectionClass($class))->getAttributes(AsCapability::class);
         if ($attributes === []) {
-            throw new CapabilityException("{$class} osztályon hiányzik az #[AsCapability] attribútum.");
+            throw new CapabilityException("{$class} is missing the #[AsCapability] attribute.");
         }
         $meta = $attributes[0]->newInstance();
         if (preg_match('/^[a-z][a-z0-9_]{0,40}$/', $meta->name) !== 1) {
-            throw new CapabilityException("Érvénytelen capability-név: {$meta->name}");
+            throw new CapabilityException("Invalid capability name: {$meta->name}");
         }
 
         $fields = [];
@@ -62,7 +62,7 @@ final readonly class CapabilityDefinition
         return new self($meta->name, $class, $meta->requires, $fields, $meta->label ?: ucfirst($meta->name), $relations);
     }
 
-    /** A capability saját táblájának neve (prefix nélkül). */
+    /** The name of the capability's own table (without prefix). */
     public function tableName(): string
     {
         return 'cap_' . $this->name;
@@ -85,7 +85,7 @@ final readonly class CapabilityDefinition
         return $this->tableFields() !== [];
     }
 
-    /** A capability táblájának sémája, a mezőkből levezetve. */
+    /** The schema of the capability's table, derived from its fields. */
     public function table(): ?Table
     {
         if (!$this->hasTable()) {

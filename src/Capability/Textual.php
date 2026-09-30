@@ -9,10 +9,10 @@ use Campanella\Model\FieldStorage;
 use Campanella\Model\FieldType;
 
 /**
- * Az objektumnak van szöveges törzse.
+ * The object has a text body.
  *
- * A törzsre nem szűrünk és nem rendezünk, ezért a data (JSON) oszlopban
- * él, a capability-nek nincs saját táblája.
+ * The body is never filtered or sorted on, so it lives in the data (JSON)
+ * column; the capability has no table of its own.
  */
 #[AsCapability('textual', label: 'Szöveges')]
 final class Textual extends Capability

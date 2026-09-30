@@ -7,7 +7,7 @@ namespace Campanella\Http;
 final readonly class RouteMatch
 {
     /**
-     * @param string $handler A controller neve (pl. 'query', 'object').
+     * @param string $handler The controller name (e.g. 'query', 'object').
      * @param array<string, mixed> $params
      */
     public function __construct(

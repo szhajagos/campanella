@@ -3,7 +3,7 @@
 {% block content %}
     {{ render_object(object, 'full') }}
 
-    {# A Blueprint 'lists' listái, pl. egy kategória cikkei. #}
+    {# The Blueprint's 'lists', e.g. the articles of a category. #}
     {% for name, list in lists %}
         <section class="object-list object-list--{{ name }}">
             {% if list.label %}<h2 class="object-list__title">{{ list.label }}</h2>{% endif %}

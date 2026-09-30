@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 /*
- * Másold le local.php néven, és írd be a tárhely adatait.
- * A local.php nem kerül verziókezelésbe.
+ * Copy this file to local.php and fill in your hosting details.
+ * local.php is not under version control.
  */
 return [
     'debug' => true,
@@ -13,7 +13,7 @@ return [
         'host' => 'localhost',
         'name' => 'campanella',
         'user' => 'campanella',
-        'password' => 'titkos-jelszo',
+        'password' => 'secret-password',
         'prefix' => 'cc_',
     ],
 ];

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Campanella\Query\Condition;
 
-/** Az objektum rendelkezik (vagy nem rendelkezik) a capability-vel. */
+/** The object has (or does not have) the capability. */
 final readonly class HasCapability implements Condition
 {
     public function __construct(

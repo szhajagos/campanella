@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Campanella\Http;
 
 /**
- * A HTTP-kérés megváltoztathatatlan ábrázolása.
+ * An immutable representation of the HTTP request.
  *
- * A `path` mindig a telepítés gyökeréhez képest értendő, így a rendszer
- * alkönyvtárba telepítve (pl. example.hu/campanella/) is működik.
+ * `path` is always relative to the installation root, so the system also
+ * works when installed in a subdirectory (e.g. example.hu/campanella/).
  */
 final readonly class Request
 {
@@ -81,7 +81,7 @@ final readonly class Request
         return $this->method === 'POST';
     }
 
-    /** Egy POST-mező szövegként (nem szöveges érték esetén üres szöveg). */
+    /** A POST field as a string (an empty string for a non-string value). */
     public function postString(string $name): string
     {
         $value = $this->post[$name] ?? '';
@@ -103,7 +103,7 @@ final readonly class Request
         return is_numeric($value) ? (int) $value : $default;
     }
 
-    /** Az URL-előtag. Ha a gyökér .htaccess irányít a public/ mappába, azt elrejti. */
+    /** The URL prefix. If the root .htaccess routes into the public/ folder, it hides that. */
     private static function detectBasePath(string $scriptName, string $path): string
     {
         $base = rtrim(str_replace('\\', '/', dirname($scriptName)), '/');

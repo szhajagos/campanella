@@ -19,10 +19,10 @@ use Campanella\Relation\RelationLoader;
 use Campanella\View\Presentation;
 
 /**
- * Egy Routable objektum saját oldala (Full megjelenítés).
+ * The own page of a Routable object (Full rendering).
  *
- * A megjelenítés előtt betölti a kapcsolódó objektumokat, és lefuttatja a
- * Blueprint 'lists' listáit (pl. egy kategória oldalán a cikkeit).
+ * Before rendering it loads the related objects and runs the Blueprint's
+ * 'lists' (e.g. the articles on a category's page).
  */
 final class ObjectController implements Controller
 {
@@ -39,7 +39,7 @@ final class ObjectController implements Controller
     {
         $path = Routable::normalize((string) ($route->params['path'] ?? $request->path));
 
-        // A lekérdezés access-aware: a nem látható objektum egyszerűen nincs meg (404).
+        // The query is access-aware: an object that is not visible is simply not found (404).
         $object = $this->queries->first(Query::objects()->where('path', '=', $path), $actor)
             ?? throw HttpException::notFound();
         $this->relations->resolve([$object], $actor);

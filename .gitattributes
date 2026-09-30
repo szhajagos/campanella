@@ -1,9 +1,9 @@
-# Minden szöveges fájl LF sorvéggel él a tárolóban és a munkakönyvtárban is,
-# Windowson is (a core.autocrlf beállítástól függetlenül). A Campanella Linuxon
-# fut: a CRLF pl. a bin/campanella futtatását is elrontaná ("php\r").
+# All text files use LF line endings in the repository and in the working tree,
+# on Windows too (regardless of the core.autocrlf setting). Campanella runs on
+# Linux: CRLF would e.g. break running bin/campanella ("php\r").
 * text=auto eol=lf
 
-# Bináris fájlok: soha ne alakítsa át.
+# Binary files: never convert.
 *.png   binary
 *.jpg   binary
 *.jpeg  binary
@@ -17,7 +17,7 @@
 *.pdf   binary
 *.zip   binary
 
-# A kiadási csomagba (git archive) nem kerülnek bele: fejlesztői eszközök.
+# Excluded from the release package (git archive): development tools.
 /.github        export-ignore
 /tests          export-ignore
 /phpstan.neon   export-ignore

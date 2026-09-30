@@ -14,7 +14,7 @@ interface Command
 
     /**
      * @param list<string> $args
-     * @return int Kilépési kód (0 = siker).
+     * @return int Exit code (0 = success).
      */
     public function run(Container $container, array $args, Output $output): int;
 }

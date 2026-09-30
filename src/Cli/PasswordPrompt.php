@@ -6,7 +6,7 @@ namespace Campanella\Cli;
 
 use Campanella\Capability\Authenticatable;
 
-/** Jelszó bekérése kétszer, egyezés- és hosszellenőrzéssel. */
+/** Asks for the password twice, checking that they match and the length. */
 final class PasswordPrompt
 {
     public static function ask(Input $input, Output $output): ?string

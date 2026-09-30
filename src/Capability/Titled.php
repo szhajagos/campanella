@@ -7,7 +7,7 @@ namespace Campanella\Capability;
 use Campanella\Model\Field;
 use Campanella\Model\FieldType;
 
-/** Az objektumnak van címe. */
+/** The object has a title. */
 #[AsCapability('titled', label: 'Címmel rendelkező')]
 final class Titled extends Capability
 {

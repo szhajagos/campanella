@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Campanella\Support;
 
 /**
- * URL-barát szöveg készítése. Saját átírótáblát használ, mert az iconv
- * „TRANSLIT” viselkedése tárhelyenként eltér.
+ * Creates URL-friendly text. Uses its own transliteration table, because
+ * iconv's "TRANSLIT" behavior differs between web hosts.
  */
 final class Slugger
 {

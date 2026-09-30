@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace Campanella\Http;
 
 /**
- * Munkamenet lusta indítással és tétlenségi időkorláttal.
+ * Session with lazy start and an idle timeout.
  *
- *  - resume(): csak akkor folytat munkamenetet, ha a kérés hozott cookie-t.
- *    A névtelen látogatók így nem kapnak cookie-t.
- *  - start(): akkor kell, ha írni akarunk (belépés, CSRF-token).
- *  - Ha az utolsó tevékenység óta több idő telt el, mint az időkorlát, a
- *    munkamenet megszűnik (a tárhelyek szemétgyűjtésére nem hagyatkozunk).
+ *  - resume(): only resumes a session if the request brought a cookie.
+ *    This way anonymous visitors get no cookie.
+ *  - start(): needed when we want to write (login, CSRF token).
+ *  - If more time has passed since the last activity than the timeout, the
+ *    session ends (we do not rely on the web host's garbage collection).
  */
 final class Session
 {
@@ -23,7 +23,7 @@ final class Session
     ) {
     }
 
-    /** Folytatja a meglévő munkamenetet; igaz, ha van érvényes munkamenet. */
+    /** Resumes the existing session; true if there is a valid session. */
     public function resume(Request $request): bool
     {
         if ($this->storage->isStarted()) {
@@ -45,7 +45,7 @@ final class Session
         return true;
     }
 
-    /** Munkamenet indítása (vagy folytatása) íráshoz. */
+    /** Starts (or resumes) the session for writing. */
     public function start(Request $request): void
     {
         if (!$this->resume($request)) {
@@ -67,7 +67,7 @@ final class Session
     public function set(string $key, mixed $value): void
     {
         if (!$this->storage->isStarted()) {
-            throw new \LogicException('A munkamenet nincs elindítva (Session::start()).');
+            throw new \LogicException('Session is not started (Session::start()).');
         }
         $this->storage->set($key, $value);
     }

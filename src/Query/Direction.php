@@ -13,6 +13,6 @@ enum Direction: string
     {
         return $direction instanceof self
             ? $direction
-            : (self::tryFrom(strtoupper($direction)) ?? throw new QueryException("Ismeretlen irány: {$direction}"));
+            : (self::tryFrom(strtoupper($direction)) ?? throw new QueryException("Unknown direction: {$direction}"));
     }
 }

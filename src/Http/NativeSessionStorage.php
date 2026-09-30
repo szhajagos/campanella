@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace Campanella\Http;
 
 /**
- * A PHP beépített munkamenet-kezelése, biztonságos beállításokkal:
- * HttpOnly és SameSite=Lax cookie, szigorú mód (idegen azonosítót nem
- * fogad el), HTTPS-en Secure cookie.
+ * PHP's built-in session handling, with secure settings:
+ * HttpOnly and SameSite=Lax cookie, strict mode (does not accept a foreign
+ * ID), Secure cookie over HTTPS.
  */
 final class NativeSessionStorage implements SessionStorage
 {
     /**
-     * @param bool|string $secure true / false, vagy 'auto': a kérés HTTPS-e alapján
+     * @param bool|string $secure true / false, or 'auto': based on whether the request is HTTPS
      */
     public function __construct(
         private readonly string $name = 'campanella_session',

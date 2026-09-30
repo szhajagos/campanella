@@ -1,57 +1,58 @@
-# Campanella dokumentáció
+# Campanella documentation
 
-Ez a mappa a Campanella fejlesztői dokumentációja. A kóddal együtt él és
-verziózódik: minden új funkció ugyanabban a commitban frissíti az érintett
-fejezetet.
+This folder holds the Campanella developer documentation. It lives and is
+versioned together with the code: every new feature updates the affected
+chapter in the same commit.
 
-| Rész | Tartalom | Állapot |
+| Part | Contents | Status |
 |---|---|---|
-| [PHP API](php-api/README.md) | Az osztályok, szerződések és bővítési pontok leírása példákkal | 0.0.3-nak megfelel |
-| [HTTP API](http-api/README.md) | A webes végpontok: a mostani HTML-útvonalak és a tervezett JSON API | HTML: kész · JSON: tervezet |
-| [Változásnapló](../CHANGELOG.md) | Verziónként mi került be, mi változott, mi szűnt meg | folyamatos |
+| [PHP API](php-api/README.md) | Classes, contracts and extension points, with examples | Matches 0.0.3 |
+| [HTTP API](http-api/README.md) | The web endpoints: the current HTML routes and the planned JSON API | HTML: done · JSON: draft |
+| [Changelog](../CHANGELOG.md) | What was added, changed or removed in each version | Ongoing |
 
-A telepítést és az indítást a projekt gyökerében lévő [README](../README.md) írja le.
+Installation and startup are described in the [README](../README.md) in the
+project root.
 
-## Stabilitási jelölések
+## Stability markers
 
-A PHP API minden eleme mellett szerepel, mennyire lehet rá építeni:
+Every element of the PHP API is marked with how much you can rely on it:
 
-| Jelölés | Jelentés |
+| Marker | Meaning |
 |---|---|
-| **Nyilvános** | Modulok és saját kód nyugodtan használhatja. Változását a CHANGELOG jelzi. |
-| **Belső** | A mag része, közvetlenül nem érdemes rá építeni: figyelmeztetés nélkül változhat. |
+| **Public** | Modules and your own code can safely use it. Changes are announced in the CHANGELOG. |
+| **Internal** | Part of the core; do not build on it directly: it may change without notice. |
 
-A Campanella a [szemantikus verziózást](https://semver.org/lang/hu/) követi. A
-0.x verziókban még minden kiadás hozhat nem visszafelé kompatibilis változást;
-ezeket a CHANGELOG **Megváltozott** és **Megszűnt** szakasza mindig felsorolja.
-Az 1.0-tól a nyilvános API csak főverzió-váltással változhat meg
-visszafelé nem kompatibilis módon.
+Campanella follows [semantic versioning](https://semver.org/). In the 0.x
+versions any release may still bring backward-incompatible changes; these are
+always listed in the **Changed** and **Removed** sections of the CHANGELOG.
+From 1.0 on, the public API can only change in a backward-incompatible way
+with a major version bump.
 
-A HTTP API saját verziót kap az URL-ben (`/api/v1/…`). Visszafelé nem
-kompatibilis változás csak új verzióban (`/api/v2/…`) jelenhet meg.
+The HTTP API has its own version in the URL (`/api/v1/…`). A
+backward-incompatible change can only appear in a new version (`/api/v2/…`).
 
-## Teendők minden új funkciónál
+## Checklist for every new feature
 
-Egy funkció akkor kész, ha a dokumentáció is követi:
+A feature is done only when the documentation keeps up with it:
 
-1. **Kód és PHPDoc.** A nyilvános osztályok és metódusok dokumentációs
-   megjegyzést kapnak.
-2. **PHP API fejezet.** Az érintett fejezetbe kerül az új osztály, metódus vagy
-   bővítési pont, legalább egy példával. Új terület új fejezetet kap, és
-   bekerül a [tartalomjegyzékbe](php-api/README.md).
-3. **HTTP API.** Ha a funkció webes végpontot ad vagy módosít, a
-   [HTTP API](http-api/README.md) leírása is frissül, és a végpont állapota
-   „tervezett”-ről „kész”-re vált.
-4. **CHANGELOG.** A változás a [CHANGELOG](../CHANGELOG.md) „Kiadatlan”
-   szakaszába kerül.
-5. **Ellenőrzés.**
+1. **Code and PHPDoc.** Public classes and methods get a documentation
+   comment.
+2. **PHP API chapter.** The new class, method or extension point goes into the
+   affected chapter, with at least one example. A new area gets a new chapter,
+   which is added to the [table of contents](php-api/README.md).
+3. **HTTP API.** If the feature adds or changes a web endpoint, the
+   [HTTP API](http-api/README.md) description is updated too, and the
+   endpoint's status changes from "planned" to "done".
+4. **CHANGELOG.** The change goes into the "Unreleased" section of the
+   [CHANGELOG](../CHANGELOG.md).
+5. **Checks.**
 
    ```bash
-   composer test          # tesztek
+   composer test          # tests
    composer analyse       # PHPStan
-   composer docs:check    # van-e dokumentálatlan nyilvános osztály vagy metódus
+   composer docs:check    # any undocumented public class or method?
    ```
 
-A `docs:check` a kódból gyűjti ki a nyilvános osztályokat és metódusokat, és
-jelzi, ha valamelyik nem szerepel a `docs/php-api` fejezeteiben. Így a
-dokumentáció nem maradhat le észrevétlenül a kódtól.
+`docs:check` collects the public classes and methods from the code and reports
+any that do not appear in the `docs/php-api` chapters. This way the
+documentation cannot fall behind the code unnoticed.

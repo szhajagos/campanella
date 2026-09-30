@@ -6,12 +6,12 @@ namespace Campanella\Capability;
 
 enum TextFormat: string
 {
-    /** Sima szöveg: megjelenítéskor escape-elve, bekezdésekre bontva. */
+    /** Plain text: escaped when rendered, split into paragraphs. */
     case Plain = 'plain';
 
     /**
-     * HTML. A 0.0.1-ben csak megbízható forrásból (seed, CLI) kerülhet be.
-     * Mielőtt a szerkesztők WYSIWYG-gel írhatnak, HTML-szűrő kell ide.
+     * HTML. In 0.0.1 it may only come from a trusted source (seed, CLI).
+     * Before editors can write with WYSIWYG, an HTML filter is needed here.
      */
     case Html = 'html';
 }

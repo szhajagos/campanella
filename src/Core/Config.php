@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Campanella\Core;
 
 /**
- * Konfiguráció sima PHP-tömbökből (config/*.php). Nincs YAML-parser;
- * az opcache a konfigurációs fájlokat is gyorsítja.
+ * Configuration from plain PHP arrays (config/*.php). No YAML parser;
+ * opcache speeds up the configuration files too.
  *
- * A config/local.php (nincs verziókezelve) felülírja az app.php értékeit,
- * ide kerülnek az adatbázis-hozzáférés és a gépfüggő beállítások.
+ * config/local.php (not under version control) overrides the values of
+ * app.php; the database credentials and machine-specific settings go there.
  */
 final class Config
 {
@@ -29,7 +29,7 @@ final class Config
         return new self($values);
     }
 
-    /** Pontozott kulcs: get('database.host'). */
+    /** Dotted key: get('database.host'). */
     public function get(string $key, mixed $default = null): mixed
     {
         $value = $this->values;

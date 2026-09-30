@@ -37,10 +37,10 @@ use Twig\Extension\CoreExtension;
 use Twig\Loader\FilesystemLoader;
 
 /**
- * A rendszer összerakása és egy kérés kiszolgálása.
+ * Assembles the system and serves a request.
  *
- *   HTTP kérés → Router → Controller → Service / Query Engine (Model)
- *              → Presentation + Twig (View) → HTTP válasz
+ *   HTTP request → Router → Controller → Service / Query Engine (Model)
+ *                → Presentation + Twig (View) → HTTP response
  */
 final class Kernel
 {
@@ -64,8 +64,8 @@ final class Kernel
 
     public function handle(Request $request): Response
     {
-        // Az URL-előtagot a Twig-kiterjesztés kérésenként innen olvassa, így a
-        // konténer (és a benne felülírt szolgáltatások) kérések között megmarad.
+        // The Twig extension reads the URL prefix from here per request, so the
+        // container (and the services overridden in it) persists between requests.
         $this->basePath = $request->basePath;
         $this->request = $request;
 
@@ -78,8 +78,8 @@ final class Kernel
 
             $response = $controller->handle($request, $route, $actor);
 
-            // Munkamenettel (belépve, vagy űrlap CSRF-tokennel) a válasz személyre
-            // szabott: köztes gyorsítótár (proxy, CDN) nem tárolhatja.
+            // With a session (logged in, or a form CSRF token) the response is
+            // personalized: an intermediate cache (proxy, CDN) must not store it.
             return $container->get(Session::class)->isStarted()
                 ? $response->withHeader('Cache-Control', 'private, no-store')
                 : $response;
@@ -173,15 +173,15 @@ final class Kernel
             $config = $c->get(Config::class);
             $debug = (bool) $config->get('debug', false);
 
-            // Ha a gyorsítótár mappája nem írható (gyakori jogosultsági gond tárhelyen
-            // és Dockerben), a Twig gyorsítótár nélkül fut tovább: lassabb, de működik.
+            // If the cache directory is not writable (a common permission problem on web
+            // hosts and in Docker), Twig keeps running without a cache: slower, but it works.
             $cacheDir = $root . '/var/cache/twig';
             if (!is_dir($cacheDir)) {
                 @mkdir($cacheDir, 0775, true);
             }
             $cache = is_dir($cacheDir) && is_writable($cacheDir) ? $cacheDir : false;
             if ($cache === false) {
-                error_log("Campanella: a {$cacheDir} mappa nem írható, a sablon-gyorsítótár ki van kapcsolva.");
+                error_log("Campanella: the {$cacheDir} directory is not writable, the template cache is disabled.");
             }
 
             $twig = new Environment(new FilesystemLoader($root . '/templates'), [
@@ -245,7 +245,7 @@ final class Kernel
         foreach ($classes as $class) {
             $guard = is_string($class) && class_exists($class) ? new $class() : null;
             if (!$guard instanceof LoginGuard) {
-                throw new \LogicException('Az auth.guards csak LoginGuard osztályokat tartalmazhat: ' . var_export($class, true));
+                throw new \LogicException('auth.guards may only contain LoginGuard classes: ' . var_export($class, true));
             }
             $guards[] = $guard;
         }
@@ -271,7 +271,7 @@ final class Kernel
                 }
             }
         } catch (\Throwable) {
-            // A hibakezelés maga ne dobjon hibát.
+            // Error handling itself must not throw.
         }
         error_log((string) $e);
 

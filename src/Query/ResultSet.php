@@ -11,8 +11,8 @@ use IteratorAggregate;
 use Traversable;
 
 /**
- * Egy Query eredménye. Még nem megjelenítés: ugyanez lehet HTML, JSON,
- * RSS vagy CSV forrása.
+ * The result of a Query. Not yet presentation: the same result can be
+ * the source of HTML, JSON, RSS or CSV.
  *
  * @implements IteratorAggregate<int, CampanellaObject>
  */
@@ -20,7 +20,7 @@ final readonly class ResultSet implements IteratorAggregate, Countable
 {
     /**
      * @param list<CampanellaObject> $items
-     * @param int|null $total Az összes találat száma (ha kértük), lapozáshoz.
+     * @param int|null $total The total number of matches (if requested), for pagination.
      */
     public function __construct(
         public array $items,

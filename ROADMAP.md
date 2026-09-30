@@ -1,139 +1,150 @@
-# Ütemterv
+# Roadmap
 
-A Campanella kis lépésekben fejlődik: minden funkció saját verziót kap
-(0.0.3, 0.0.4, …), saját tesztekkel, dokumentációval és CHANGELOG-bejegyzéssel.
-Amikor a rendszer valódi, böngészőből kezelhető weboldalra alkalmas (a 0.0.7
-végére), a verzió 0.1.0 lesz.
+Campanella evolves in small steps: every feature gets its own version
+(0.0.3, 0.0.4, …), with its own tests, documentation and CHANGELOG entry.
+Once the system is suitable for a real website managed from the browser (by
+the end of 0.0.7), the version becomes 0.1.0.
 
-Az ütemterv irány, nem ígéret: a sorrend a tapasztalatok alapján változhat.
-A már elkészült változásokat a [CHANGELOG](CHANGELOG.md) sorolja fel.
+The roadmap is a direction, not a promise: the order may change based on experience.
+Completed changes are listed in the [CHANGELOG](CHANGELOG.md).
 
-## Kész
+## Done
 
-| Verzió | Tartalom |
+| Version | Contents |
 |---|---|
-| 0.0.1 | Objektummodell, Capability-szerződés, Blueprint, Query, jogosultság-tudatos lekérdezés, Twig-megjelenítés, CLI |
-| 0.0.2 | Kapcsolatok (Relationship): cikk → kategóriák, `whereRelated`, `RelationLoader`, Blueprint-listák |
-| 0.0.3 | Felhasználók és bejelentkezés: `Identifiable`, `Authenticatable`, `Authorable`, munkamenet, CSRF, próbálkozás-korlátozás, `LoginGuard` + honeypot, `editor` szerepkör, `user:*` parancsok; MIT licenc |
-| – | Automatikus ellenőrzés (GitHub Actions): PHPStan, dokumentáció, tesztek MariaDB 10.6/11.4 és MySQL 8.0/8.4 alatt; telepítőcsomag `vendor/`-ral minden verziócímkéhez |
+| 0.0.1 | Object model, Capability contract, Blueprint, Query, access-aware queries, Twig rendering, CLI |
+| 0.0.2 | Relations (relationships): article → categories, `whereRelated`, `RelationLoader`, Blueprint lists |
+| 0.0.3 | Users and login: `Identifiable`, `Authenticatable`, `Authorable`, session, CSRF, login throttling, `LoginGuard` + honeypot, `editor` role, `user:*` commands; MIT license |
+| – | Continuous integration (GitHub Actions): PHPStan, documentation, tests on MariaDB 10.6/11.4 and MySQL 8.0/8.4; installation package with `vendor/` for every version tag |
 
-## Következik
+## Next
 
-### 0.0.4 – Admin felület
+### 0.0.4 – Admin UI
 
-A 0.0.4 és a 0.0.5 eredetileg egy lépés volt; a HTML-szerkesztés biztonsági
-okból külön kiadásba került (2026-09-29).
+0.0.4 and 0.0.5 were originally a single step; HTML editing was moved to a
+separate release for security reasons (2026-09-29).
 
-Első lépésként, még az űrlapok előtt:
+As a first step, before the forms:
 
-- **Mezők értékeinek száma (számosság).** A `Field` új `cardinality`
-  tulajdonsága: `1` (alapérték, a meglévő mezők nem változnak), egy felső
-  korlát (pl. `3`), vagy `Field::UNLIMITED`. Többértékű mezőnél a `get()`
-  listát ad; a típus minden elemre érvényes, a `required` legalább egy értéket
-  jelent, a darabszám nem lépheti túl a korlátot.
-- Tárolás: a nem lekérdezhető (`Data`) többértékű mező a data JSON-ban
-  listaként él; a lekérdezhető (`Table`/`indexed`) egy új, közös
-  `cc_field_values` táblában (`object_id`, `field`, `delta`, típusonkénti
-  érték-oszlopok, indexekkel). Többértékű mező nem kaphat saját oszlopot.
-- Query: a feltétel többértékű mezőn `EXISTS` al-lekérdezésre fordul
-  („bármelyik értéke”); a Query-nyelv nem változik. Többértékű mező szerinti
-  rendezés nem megengedett.
-- A számosságot a capability határozza meg; a Blueprint szűkítheti (pl. 3 → 2),
-  de egyértékűből többértékűt (vagy fordítva) nem csinálhat.
-- Kapcsolatoknál felső korlát: `new Relation(..., Cardinality::Many, max: 3)`.
-- A `StringList` a „többértékű String, `Data` tárolással” rövidítése lesz.
-- Sémafrissítés: a `cc_field_values` tábla.
+- **Number of field values (cardinality).** A new `cardinality` property on
+  `Field`: `1` (the default; existing fields do not change), an upper limit
+  (e.g. `3`), or `Field::UNLIMITED`. For a multi-value field, `get()` returns
+  a list; the type applies to every item, `required` means at least one value,
+  and the count may not exceed the limit.
+- Storage: a non-queryable (`Data`) multi-value field lives as a list in the
+  data JSON; a queryable one (`Table`/`indexed`) in a new, shared
+  `cc_field_values` table (`object_id`, `field`, `delta`, per-type value
+  columns, with indexes). A multi-value field cannot have its own column.
+- Query: a condition on a multi-value field compiles to an `EXISTS` subquery
+  ("any of its values"); the query language does not change. Sorting by a
+  multi-value field is not allowed.
+- Cardinality is defined by the capability; a Blueprint may narrow it (e.g.
+  3 → 2), but it cannot turn a single-value field into a multi-value one (or
+  vice versa).
+- Upper limit for relations: `new Relation(..., Cardinality::Many, max: 3)`.
+- `StringList` becomes shorthand for "multi-value String with `Data` storage".
+- Schema upgrade: the `cc_field_values` table.
 
-Utána:
+Then:
 
-- Tartalmak listázása, szűrése, létrehozása, szerkesztése, törlése,
-  publikálása böngészőből.
-- Az űrlapok a mezők és kapcsolatok definícióiból készülnek, így egy új
-  Blueprint vagy capability szerkesztőfelülete automatikusan létrejön.
-  Többértékű mezőnél „Még egy érték” gomb és sorrendezés, a számosság
-  korlátjáig.
-- Érthető hibaüzenetek a `ValidationException` alapján.
-- Megjelenés: Bootstrap 5.3, a Campanellával együtt szállítva
-  (`public/assets/vendor/bootstrap`), CDN nélkül. Az admin felület és az
-  alapértelmezett nyilvános téma is erre épül.
-- Egyszerű témarendszer: a téma mappájában lévő sablon elsőbbséget kap az
-  alapsablonnal szemben, így egy saját téma Bootstrap nélkül is készülhet.
-- A `html` formátumú szövegmezők ebben a lépésben még sima szövegdobozt
-  kapnak; a szerkesztő és a szűrő a 0.0.5-ben jön.
+- Translation layer for user-facing texts: messages are referenced by key
+  (e.g. `auth.invalid_credentials`), texts live in `lang/en.php` and
+  `lang/hu.php`; English is the base language, Hungarian a full translation.
+  A `lang:check` script reports missing keys. Existing hard-coded Hungarian
+  texts move there; the admin UI is built on it from the start.
+- Listing, filtering, creating, editing, deleting and publishing content from
+  the browser.
+- Forms are generated from the field and relation definitions, so the editing
+  UI for a new Blueprint or capability is created automatically. Multi-value
+  fields get an "add another value" button and reordering, up to the
+  cardinality limit.
+- Clear error messages based on `ValidationException`.
+- Look and feel: Bootstrap 5.3, shipped with Campanella
+  (`public/assets/vendor/bootstrap`), without a CDN. Both the admin UI and the
+  default public theme are built on it.
+- Simple theme system: a template in the theme's folder takes precedence over
+  the base template, so a custom theme can also be built without Bootstrap.
+- In this step, text fields in `html` format still get a plain textarea; the
+  editor and the sanitizer come in 0.0.5.
 
-**Kész, ha:** a példaoldal minden tartalma kezelhető böngészőből, parancssor nélkül.
+**Done when:** all content of the sample site can be managed from the browser,
+without the command line.
 
-### 0.0.5 – HTML-szerkesztés
+### 0.0.5 – HTML editing
 
-- HTML-szűrő a `html` formátumú szövegekhez, szerveroldalon, engedélyezőlista
-  alapján (jelölt: `symfony/html-sanitizer`, MIT; a HTMLPurifier LGPL, ezért
-  nem). A szűrő mentéskor fut, a szerkesztőtől függetlenül.
-- WYSIWYG-szerkesztő a `html` formátumú szövegmezőkhöz: Jodit (MIT
-  alapváltozat), helyben szállítva, cserélhető illesztéssel és mezőnként
-  választható eszköztár-profillal.
-- Képfeltöltés a Campanella saját végpontjára (a Jodit PHP-connectora
-  nélkül), a média-témakör legszükségesebb részeként: fájltárolás,
-  típus- és méretellenőrzés.
+- HTML sanitizer for texts in `html` format, server-side, allowlist-based
+  (candidate: `symfony/html-sanitizer`, MIT; HTMLPurifier is LGPL, so not
+  that). The sanitizer runs on save, independently of the editor.
+- WYSIWYG editor for text fields in `html` format: Jodit (the MIT base
+  edition), shipped locally, with a replaceable integration and a toolbar
+  profile selectable per field.
+- Image upload to Campanella's own endpoint (without Jodit's PHP connector),
+  as the most essential part of the media topic: file storage, type and size
+  validation.
 
-**Kész, ha:** egy cikk törzse böngészőben formázható, képpel együtt, és a
-beküldött HTML-ből a szűrő minden nem engedélyezett elemet eltávolít.
+**Done when:** an article's body can be formatted in the browser, including
+images, and the sanitizer removes every non-allowed element from the
+submitted HTML.
 
-### 0.0.6 – Migrációk
+### 0.0.6 – Migrations
 
-- Verziózott migrációs lépések (pl. új oszlop, új capability meglévő
-  objektumokra, adatátalakítás), a `cc_system` táblában nyilvántartva.
-- Az `install` a hiányzó migrációkat is lefuttatja.
-- A migráció előtt figyelmeztetés az adatbázis mentésére.
+- Versioned migration steps (e.g. a new column, a new capability on existing
+  objects, data transformation), tracked in the `cc_system` table.
+- `install` also runs the pending migrations.
+- A warning to back up the database before migrating.
 
-**Kész, ha:** egy capability új mezője vagy egy Blueprinthez adott
-capability kézi SQL nélkül átvezethető a meglévő tartalomra.
+**Done when:** a new field of a capability, or a capability added to a
+Blueprint, can be applied to existing content without manual SQL.
 
-### 0.0.7 – Hierarchia és menü
+### 0.0.7 – Hierarchy and menu
 
-- `Hierarchical` capability: `parent` kapcsolat, a fa gyors lekérdezése
-  (materialized path), körkörös hivatkozás tiltása.
-- `Weighted`/`Ordered`: kézi sorrend.
-- Menü mint objektum, menüpontok mint objektumok; fa-megjelenítés.
-- Taxonómia-fa (egymásba ágyazott kategóriák).
+- `Hierarchical` capability: `parent` relation, fast tree queries
+  (materialized path), no circular references.
+- `Weighted`/`Ordered`: manual ordering.
+- Menu as an object, menu items as objects; tree rendering.
+- Taxonomy tree (nested categories).
 
-**Kész, ha:** a főmenü az adminból szerkeszthető, és a kategóriák fába rendezhetők.
+**Done when:** the main menu can be edited from the admin UI, and categories
+can be arranged in a tree.
 
-### 0.1.0 – Első mérföldkő
+### 0.1.0 – First milestone
 
-A 0.0.3–0.0.7 együtt: bejelentkezés, admin, HTML-szerkesztés, migrációk, menü. Innentől a
-rendszer valódi weboldal kezelésére alkalmas.
+0.0.3–0.0.7 together: login, admin, HTML editing, migrations, menu. From here
+on, the system is suitable for running a real website.
 
-## Később
+## Later
 
-- **Event / Action / Workflow:** események (`ObjectPublished` …), ezekre
-  kötött műveletek (e-mail, webhook), állapotgép a publikáláshoz.
-- **Component / Region / Layout / Page:** oldalak összeállítása
-  komponensekből, a Drupal-féle blokkok helyett.
-- **Webform:** űrlapok mint objektumműveletek felhasználói felülete.
-- **Cache:** objektum-, lekérdezés- és render-cache cache tagekkel és
-  kontextusokkal.
-- **JSON API** a [HTTP API tervezet](docs/http-api/README.md) szerint.
-- **Média:** fájltárolás, képek, képváltozatok.
-- **Többnyelvűség.**
-- **Keresés**, URL-aliasok és átirányítások, lomtár, audit-napló.
-- **Belépés kiegészítései:** kétlépcsős azonosítás (pl. TOTP) saját
-  capability-ként, a jelszó-ellenőrzés és a beléptetés közé illesztve;
-  további `LoginGuard`-ok (CAPTCHA); elfelejtett jelszó e-mailben (az
-  Event/Action és a levélküldés után); munkamenetek listája és kiléptetése.
+- **Event / Action / Workflow:** events (`ObjectPublished` …), operations
+  bound to them (e-mail, webhook), a state machine for publishing.
+- **Component / Region / Layout / Page:** assembling pages from components,
+  instead of Drupal-style blocks.
+- **Webform:** forms as a user interface for object operations.
+- **Cache:** object, query and render cache with cache tags and contexts.
+- **JSON API** according to the [HTTP API draft](docs/http-api/README.md).
+- **Media:** file storage, images, image variants.
+- **Multilingual content.**
+- **Search**, URL aliases and redirects, trash, audit log.
+- **Login extensions:** two-factor authentication (e.g. TOTP) as its own
+  capability, inserted between password verification and logging in;
+  additional `LoginGuard`s (CAPTCHA); password reset by e-mail (after
+  Event/Action and mail sending); listing sessions and logging them out.
 
-## Elfogadott döntések
+## Accepted decisions
 
-- **Licenc: MIT** (2026-09-29). Csak MIT-tel kompatibilis licencű függőség
-  használható (MIT, BSD, Apache 2.0 stb.); GPL-es nem.
-- **PHP 8.3** a minimum; MariaDB 10.6+ / MySQL 8.0+ közös részhalmaza.
-- **Megjelenés: Bootstrap 5.3** az admin felülethez és az alapértelmezett
-  témához, helyben szállítva, cserélhető témával (2026-09-29).
-- **WYSIWYG: Jodit**, csak az ingyenes MIT változat; a PRO nem opció. Ha egy
-  fontos funkció csak a PRO-ban érhető el, és nem pótolható saját
-  bővítménnyel, a tartalék a SunEditor (2026-09-29). A beküldött HTML-t a
-  szerkesztőtől függetlenül mindig a szerver szűri.
-- **jQuery-függő komponens nem használható.**
-- **Többértékű mezők:** a mező számossága a `Field`-en van; lekérdezhető
-  többértékű mező a közös `cc_field_values` táblában él, soha nem JSON-ban
-  keresünk (2026-09-29). Ami hivatkozás más dologra (címke, kép, szerző), az
-  objektum és kapcsolat, nem többértékű mező.
+- **License: MIT** (2026-09-29). Only dependencies with MIT-compatible licenses
+  may be used (MIT, BSD, Apache 2.0, etc.); no GPL.
+- **PHP 8.3** is the minimum; the common subset of MariaDB 10.6+ / MySQL 8.0+.
+- **Look and feel: Bootstrap 5.3** for the admin UI and the default theme,
+  shipped locally, with a replaceable theme (2026-09-29).
+- **WYSIWYG: Jodit**, only the free MIT edition; PRO is not an option. If an
+  important feature is only available in PRO and cannot be replaced with our
+  own plugin, the fallback is SunEditor (2026-09-29). Submitted HTML is always
+  sanitized by the server, independently of the editor.
+- **No jQuery-dependent components.**
+- **Multi-value fields:** a field's cardinality is defined on the `Field`;
+  queryable multi-value fields live in the shared `cc_field_values` table, and
+  we never search in JSON (2026-09-29). Anything that refers to another thing
+  (tag, image, author) is an object and a relation, not a multi-value field.
+- **Language:** code, documentation, comments, commit messages and
+  developer-facing messages are English; the UI is multilingual via the
+  translation layer, with Hungarian as a first-class translation (2026-09-30).

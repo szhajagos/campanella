@@ -11,12 +11,12 @@ use DateTimeImmutable;
 use DateTimeZone;
 
 /**
- * Az objektum publikálható.
+ * The object can be published.
  *
- * Egy objektum akkor látható nyilvánosan, ha státusza `published`, és a
- * `published_at` időpont már elmúlt. Így az időzített publikálás külön
- * mechanizmus nélkül működik: jövőbeli dátummal publikált tartalom
- * magától jelenik meg a megadott időben.
+ * An object is publicly visible if its status is `published` and the
+ * `published_at` time has passed. This way scheduled publishing works
+ * without a separate mechanism: content published with a future date
+ * appears by itself at the given time.
  */
 #[AsCapability('publishable', label: 'Publikálható')]
 final class Publishable extends Capability
@@ -70,8 +70,8 @@ final class Publishable extends Capability
     }
 
     /**
-     * @param DateTimeImmutable|null $at Mikortól legyen látható. Alapértelmezés:
-     *        a korábbi publikálási idő, ennek hiányában most.
+     * @param DateTimeImmutable|null $at When it becomes visible. Default:
+     *        the earlier publication time, or now if there is none.
      */
     public function publish(?DateTimeImmutable $at = null): void
     {

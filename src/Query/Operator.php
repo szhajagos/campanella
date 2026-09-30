@@ -26,7 +26,7 @@ enum Operator: string
         $normalized = strtoupper(trim($operator));
 
         return self::tryFrom($normalized === '<>' ? '!=' : $normalized)
-            ?? throw new QueryException("Ismeretlen operátor: {$operator}");
+            ?? throw new QueryException("Unknown operator: {$operator}");
     }
 
     public function sql(): string

@@ -12,8 +12,8 @@ use Campanella\Capability\Textual;
 use Campanella\Capability\Titled;
 
 /*
- * Alapbeállítások. A gépfüggő értékeket (adatbázis, debug) a
- * config/local.php írja felül; mintának lásd: config/local.php.dist
+ * Base settings. Machine-specific values (database, debug) are overridden
+ * by config/local.php; for a sample see config/local.php.dist
  */
 return [
     'debug' => filter_var(getenv('CAMPANELLA_DEBUG') ?: false, FILTER_VALIDATE_BOOL),
@@ -25,7 +25,7 @@ return [
         'language' => 'hu',
     ],
 
-    // Környezeti változókkal is megadható (pl. Dockerben), a local.php felülírja.
+    // Can also be set via environment variables (e.g. in Docker); local.php overrides them.
     'database' => [
         'host' => getenv('CAMPANELLA_DB_HOST') ?: 'localhost',
         'port' => (int) (getenv('CAMPANELLA_DB_PORT') ?: 3306),
@@ -35,8 +35,8 @@ return [
         'prefix' => getenv('CAMPANELLA_DB_PREFIX') ?: 'cc_',
     ],
 
-    // A rendszerben elérhető capability-k. Egy modul később ide
-    // regisztrálja a sajátjait.
+    // The capabilities available in the system. A module will later
+    // register its own here.
     'capabilities' => [
         Titled::class,
         Textual::class,
@@ -47,20 +47,20 @@ return [
         Authorable::class,
     ],
 
-    // Munkamenet (bejelentkezés). A munkamenet csak belépéskor indul, a
-    // névtelen látogatók nem kapnak cookie-t.
+    // Session (login). The session only starts at login; anonymous
+    // visitors get no cookie.
     'session' => [
         'name' => 'campanella_session',
-        'idle_timeout' => 7200,        // másodperc tétlenség után kilépteti a felhasználót
-        'secure' => 'auto',            // 'auto': csak HTTPS-en küldi a cookie-t; true / false: kényszerítve
+        'idle_timeout' => 7200,        // logs the user out after this many seconds of inactivity
+        'secure' => 'auto',            // 'auto': send the cookie over HTTPS only; true / false: forced
     ],
 
-    // Belépési próbálkozások korlátozása.
+    // Login throttling.
     'auth' => [
-        'max_attempts' => 5,           // ennyi sikertelen próbálkozás e-mail-cím + IP-cím páronként
-        'max_attempts_per_ip' => 20,   // és ennyi IP-címenként
-        'decay_seconds' => 900,        // ennyi idő alatt (15 perc)
-        // A jelszó-ellenőrzés előtt futó kiegészítő védelmek (Campanella\Auth\LoginGuard).
+        'max_attempts' => 5,           // this many failed attempts per e-mail address + IP address pair
+        'max_attempts_per_ip' => 20,   // and this many per IP address
+        'decay_seconds' => 900,        // within this time window (15 minutes)
+        // Additional protections run before the password check (Campanella\Auth\LoginGuard).
         'guards' => [
             HoneypotGuard::class,
         ],

@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Campanella\Relation;
 
-/** Hány célobjektum tartozhat egy kapcsolathoz. */
+/** How many target objects a relation can have. */
 enum Cardinality: string
 {
-    /** Legfeljebb egy (pl. szerző, szülő). */
+    /** At most one (e.g. author, parent). */
     case One = 'one';
 
-    /** Tetszőleges számú, sorrendben (pl. kategóriák, képek). */
+    /** Any number, ordered (e.g. categories, images). */
     case Many = 'many';
 }

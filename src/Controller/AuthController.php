@@ -13,10 +13,10 @@ use Campanella\Security\Csrf;
 use Campanella\View\Presentation;
 
 /**
- * Belépés (/belepes) és kilépés (/kilepes).
+ * Login (/belepes) and logout (/kilepes).
  *
- * A kilépés csak POST kéréssel, CSRF-tokennel működik, így egy idegen oldal
- * nem tudja a látogatót kiléptetni.
+ * Logout only works with a POST request and a CSRF token, so a foreign site
+ * cannot log the visitor out.
  */
 final class AuthController implements Controller
 {
@@ -79,7 +79,7 @@ final class AuthController implements Controller
         ]), $status);
     }
 
-    /** Csak a saját oldalon belüli útvonal fogadható el (nyílt átirányítás ellen). */
+    /** Only a path within this site is accepted (against open redirects). */
     public static function safeTarget(string $target): string
     {
         if ($target === '' || $target[0] !== '/' || str_starts_with($target, '//') || str_contains($target, '\\')

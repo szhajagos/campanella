@@ -9,20 +9,20 @@ use Campanella\Model\FieldType;
 use Campanella\Model\ValidationException;
 
 /**
- * Az objektum be tud jelentkezni: van jelszava, fiókállapota és szerepkörei.
+ * The object can log in: it has a password, an account status and roles.
  *
- * A jelszó csak hash-ként tárolódik (password_hash, a PHP alapértelmezett,
- * erős algoritmusával), a sablonokból nem érhető el. A szerepköröket az
- * AccessPolicy vizsgálja.
+ * The password is stored only as a hash (password_hash, with PHP's default,
+ * strong algorithm) and is not accessible from templates. Roles are
+ * inspected by the AccessPolicy.
  *
- * Az Identifiable-re épül, mert a belépés e-mail-címmel történik.
+ * Builds on Identifiable, because login uses the e-mail address.
  */
 #[AsCapability('authenticatable', requires: [Identifiable::class], label: 'Bejelentkezni képes')]
 final class Authenticatable extends Capability
 {
     public const int MIN_PASSWORD_LENGTH = 10;
 
-    /** A bcrypt csak az első 72 bájtot veszi figyelembe; a hosszabbat elutasítjuk. */
+    /** bcrypt only uses the first 72 bytes; longer passwords are rejected. */
     public const int MAX_PASSWORD_BYTES = 72;
 
     #[\Override]
@@ -44,7 +44,7 @@ final class Authenticatable extends Capability
     }
 
     /**
-     * @throws ValidationException ha a jelszó túl rövid vagy túl hosszú
+     * @throws ValidationException if the password is too short or too long
      */
     public function setPassword(#[\SensitiveParameter] string $password): void
     {
@@ -58,8 +58,8 @@ final class Authenticatable extends Capability
     }
 
     /**
-     * Új hash ugyanahhoz a jelszóhoz, a jelszószabályok ellenőrzése nélkül
-     * (belépéskor, ha a hash elavult algoritmussal készült).
+     * A new hash for the same password, without checking the password rules
+     * (on login, if the hash was made with an outdated algorithm).
      */
     public function rehash(#[\SensitiveParameter] string $password): void
     {
@@ -73,7 +73,7 @@ final class Authenticatable extends Capability
         return $hash !== '' && password_verify($password, $hash);
     }
 
-    /** Igaz, ha a hash régebbi algoritmussal vagy beállítással készült. */
+    /** True if the hash was made with an older algorithm or setting. */
     public function needsRehash(): bool
     {
         return password_needs_rehash((string) $this->object->get('password_hash'), PASSWORD_DEFAULT);

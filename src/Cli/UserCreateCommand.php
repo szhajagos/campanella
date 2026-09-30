@@ -11,8 +11,8 @@ use Campanella\Model\ObjectRepository;
 use Campanella\Model\ValidationException;
 
 /**
- * Új felhasználó létrehozása. A jelszót a parancs kéri be (nem jelenik meg
- * a képernyőn, és nem kerül a parancssori előzményekbe).
+ * Creates a new user. The command prompts for the password (it is not shown
+ * on screen and does not end up in the shell history).
  *
  *   php bin/campanella user:create anna@example.hu --name="Kovács Anna" --role=administrator
  */

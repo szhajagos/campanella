@@ -11,11 +11,11 @@ use Campanella\Database\Schema\SchemaBuilder;
 use Campanella\Database\Schema\Table;
 
 /**
- * Létrehozza a mag és a capability-k tábláit.
+ * Creates the core and capability tables.
  *
- * Ismételten futtatható (CREATE TABLE IF NOT EXISTS), így egy újonnan
- * regisztrált capability táblája is ezzel jön létre. Meglévő tábla
- * módosítása migrációt igényel, ez egy későbbi verzió feladata.
+ * Can be run repeatedly (CREATE TABLE IF NOT EXISTS), so the table of a
+ * newly registered capability is created this way too. Changing an
+ * existing table requires a migration, which is a task for a later version.
  */
 final class Installer
 {
@@ -39,7 +39,7 @@ final class Installer
         return $tables;
     }
 
-    /** @return list<string> A létrehozott (vagy már meglévő) táblák nevei. */
+    /** @return list<string> The names of the created (or already existing) tables. */
     public function install(): array
     {
         $builder = new SchemaBuilder($this->db);
@@ -57,7 +57,7 @@ final class Installer
         return $names;
     }
 
-    /** A teljes DDL, pl. kézi telepítéshez phpMyAdminban. */
+    /** The full DDL, e.g. for manual installation in phpMyAdmin. */
     public function sql(): string
     {
         $builder = new SchemaBuilder($this->db);
@@ -70,7 +70,7 @@ final class Installer
         return $this->db->tableExists(CoreSchema::SYSTEM) && $this->systemValue('schema_version') !== null;
     }
 
-    /** Telepítve van, de a séma régebbi a kódnál: az install futtatása szükséges. */
+    /** Installed, but the schema is older than the code: install must be run. */
     public function needsUpgrade(): bool
     {
         return $this->isInstalled() && $this->systemValue('schema_version') !== Version::SCHEMA;

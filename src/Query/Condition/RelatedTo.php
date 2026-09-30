@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Campanella\Query\Condition;
 
 /**
- * Az objektumnak van-e (vagy nincs-e) adott kapcsolata a megadott
- * célobjektumok valamelyikével. Üres célista: bármilyen céllal.
+ * Whether the object has (or does not have) the given relation to any of
+ * the specified target objects. Empty target list: to any target.
  *
- *     new RelatedTo('categories', [12])      // a 12-es kategóriába tartozik
- *     new RelatedTo('categories', [])        // van legalább egy kategóriája
+ *     new RelatedTo('categories', [12])      // belongs to category 12
+ *     new RelatedTo('categories', [])        // has at least one category
  */
 final readonly class RelatedTo implements Condition
 {

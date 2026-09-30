@@ -7,19 +7,19 @@ namespace Campanella\Auth;
 use Campanella\Http\Request;
 
 /**
- * Kiegészítő belépési védelem, amely a jelszó ellenőrzése ELŐTT fut
- * (pl. honeypot, CAPTCHA, IP-tiltólista).
+ * An additional login protection that runs BEFORE the password check
+ * (e.g. honeypot, CAPTCHA, IP blocklist).
  *
- * A guardok a config/app.php 'auth.guards' listájából töltődnek be, és az
- * AuthService sorban futtatja őket; az első elutasítás megállítja a belépést.
- * Ha a guardnak mezőt kell az űrlapba tennie, azt a fields() adja vissza,
- * és a belépési sablon kiírja.
+ * Guards are loaded from the 'auth.guards' list in config/app.php, and
+ * AuthService runs them in order; the first rejection stops the login.
+ * If a guard needs to add a field to the form, fields() returns it and
+ * the login template outputs it.
  */
 interface LoginGuard
 {
-    /** @return string|null Hibaüzenet elutasításkor, null ha a kérés továbbengedhető. */
+    /** @return string|null Error message on rejection, null if the request may proceed. */
     public function check(Request $request): ?string;
 
-    /** Az űrlapba kerülő kiegészítő HTML (vagy üres szöveg). */
+    /** Additional HTML to put into the form (or an empty string). */
     public function fields(): string;
 }

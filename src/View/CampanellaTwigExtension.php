@@ -16,24 +16,24 @@ use Twig\TwigFilter;
 use Twig\TwigFunction;
 
 /**
- * A sablonokban elérhető Campanella-függvények:
+ * Campanella functions available in templates:
  *
- *   {{ url('/hirek') }}                 alkönyvtár-biztos URL
- *   {{ asset('campanella.css') }}       public/assets/ alatti fájl
- *   {{ render_object(item, 'teaser') }} egy objektum egy megjelenítési módban
- *   {{ related(object, 'categories') }} egy kapcsolat betöltött célobjektumai
- *   {{ current_user() }}                a bejelentkezett felhasználó vagy null
- *   {{ csrf_field() }}                  rejtett CSRF-mező a POST-űrlapokba
- *   {{ object|body }}                   a Textual törzs biztonságos HTML-je
+ *   {{ url('/hirek') }}                 subdirectory-safe URL
+ *   {{ asset('campanella.css') }}       a file under public/assets/
+ *   {{ render_object(item, 'teaser') }} an object in a presentation mode
+ *   {{ related(object, 'categories') }} the loaded target objects of a relation
+ *   {{ current_user() }}                the logged-in user or null
+ *   {{ csrf_field() }}                  hidden CSRF field for POST forms
+ *   {{ object|body }}                   the safe HTML of the Textual body
  */
 final class CampanellaTwigExtension extends AbstractExtension implements GlobalsInterface
 {
     /**
-     * @param Closure(): Presentation $presentation Lustán, mert a Presentation is a Twig-re épül.
-     * @param Closure(): string $basePath Az aktuális kérés URL-előtagja (alkönyvtáras telepítéshez).
+     * @param Closure(): Presentation $presentation Lazy, because Presentation itself builds on Twig.
+     * @param Closure(): string $basePath The URL prefix of the current request (for installation in a subdirectory).
      * @param array<string, mixed> $globals
-     * @param (Closure(): ?CampanellaObject)|null $currentUser A bejelentkezett felhasználó (lustán).
-     * @param (Closure(): string)|null $csrfToken Az aktuális CSRF-token (lustán; munkamenetet indít).
+     * @param (Closure(): ?CampanellaObject)|null $currentUser The logged-in user (lazy).
+     * @param (Closure(): string)|null $csrfToken The current CSRF token (lazy; starts a session).
      */
     public function __construct(
         private readonly Closure $presentation,
@@ -77,9 +77,9 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
     }
 
     /**
-     * Egy public/assets alatti fájl URL-je, a Campanella verziójával mint
-     * gyorsítótár-törővel (?v=0.0.3): frissítés után a böngésző biztosan az új
-     * CSS-t és JS-t tölti le, nem a korábban eltároltat.
+     * The URL of a file under public/assets, with the Campanella version as a
+     * cache buster (?v=0.0.3): after an upgrade the browser is sure to download
+     * the new CSS and JS, not the previously cached ones.
      */
     public function asset(string $path): string
     {
@@ -92,8 +92,8 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
     }
 
     /**
-     * Egy kapcsolat betöltött célobjektumai. Ha a controller nem töltötte be
-     * őket (RelationLoader), vagy az objektumnak nincs ilyen kapcsolata: üres lista.
+     * The loaded target objects of a relation. If the controller did not load
+     * them (RelationLoader), or the object has no such relation: an empty list.
      *
      * @return list<CampanellaObject>
      */
@@ -104,13 +104,13 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
             : [];
     }
 
-    /** A bejelentkezett felhasználó, vagy null. Névtelen látogatónál nem indít munkamenetet. */
+    /** The logged-in user, or null. Does not start a session for an anonymous visitor. */
     public function currentUser(): ?CampanellaObject
     {
         return $this->currentUser === null ? null : ($this->currentUser)();
     }
 
-    /** Rejtett mező a CSRF-tokennel; minden POST-űrlapba bele kell tenni. */
+    /** Hidden field with the CSRF token; it must be put into every POST form. */
     public function csrfField(): string
     {
         if ($this->csrfToken === null) {

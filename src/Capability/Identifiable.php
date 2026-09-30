@@ -8,10 +8,10 @@ use Campanella\Model\Field;
 use Campanella\Model\FieldType;
 
 /**
- * Az objektumot egy egyedi e-mail-cím azonosítja (pl. felhasználó).
+ * The object is identified by a unique e-mail address (e.g. a user).
  *
- * A cím mentés előtt kisbetűs, szóközök nélküli alakra normalizálódik, így
- * a „Kovacs.Anna@Example.hu” és a „kovacs.anna@example.hu” ugyanaz a fiók.
+ * Before saving, the address is normalized to lowercase without whitespace,
+ * so "Kovacs.Anna@Example.hu" and "kovacs.anna@example.hu" are the same account.
  */
 #[AsCapability('identifiable', label: 'Azonosítható')]
 final class Identifiable extends Capability

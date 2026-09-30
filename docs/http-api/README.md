@@ -1,56 +1,57 @@
 # HTTP API
 
-Két rész: a **HTML-felület**, amely a 0.0.1-ben működik, és a **JSON API**,
-amely még tervezet. A tervezet azért van itt már most, hogy a PHP API
-bővítésekor lássuk, mire kell majd ráépülnie.
+Two parts: the **HTML interface**, which works as of 0.0.1, and the **JSON API**,
+which is still a draft. The draft is here already so that, while extending the
+PHP API, we can see what it will need to build on.
 
-| Jelölés | Jelentés |
+| Marker | Meaning |
 |---|---|
-| ✅ **kész** | Működik, a leírás a mostani viselkedést rögzíti |
-| 📝 **tervezett** | Tervezet: megvalósításkor még változhat |
+| ✅ **done** | Works; the description records the current behavior |
+| 📝 **planned** | Draft: may still change when implemented |
 
-## HTML-felület ✅
+## HTML interface ✅
 
-A böngészőknek szóló oldalak. Belépés nélkül minden kérés anonymous
-látogatóként fut, így csak a nyilvánosan látható tartalom jelenik meg;
-belépve a felhasználó szerepkörei szerint (pl. az `editor` a piszkozatokat is látja).
+Pages intended for browsers. Without login, every request runs as an anonymous
+visitor, so only publicly visible content is shown; when logged in, content is
+shown according to the user's roles (e.g. an `editor` also sees drafts).
 
-| Útvonal | Forrás | Leírás |
+| Route | Source | Description |
 |---|---|---|
-| `GET /` | `config/routes.php` → Query `frontpage` | A 3 legfrissebb publikált cikk |
-| `GET /hirek` | `config/routes.php` → Query `news` | Publikált cikkek, oldalanként 5 |
-| `GET /hirek?page=N` | | Lapozás; nem létező oldal: 404 |
-| `GET /kategoriak` | `config/routes.php` → Query `categories` | Publikált kategóriák ábécérendben (0.0.2) |
-| `GET /belepes`, `POST /belepes` | `AuthController` | Belépési űrlap és belépés (0.0.3); részletek: [PHP API 11. fejezet](../php-api/11-felhasznalok.md#webes-felület) |
-| `POST /kilepes` | `AuthController` | Kilépés CSRF-tokennel |
-| `GET /<útvonal>` | Routable objektum | Az objektum saját oldala, pl. `/neumann-janos`. A kapcsolatai linkként, a Blueprint `lists` listái alatta (pl. `/tudomany`: a kategória cikkei) |
-| `GET /assets/<fájl>` | `public/assets/` | Statikus fájlok |
+| `GET /` | `config/routes.php` → Query `frontpage` | The 3 most recent published articles |
+| `GET /hirek` | `config/routes.php` → Query `news` | Published articles, 5 per page |
+| `GET /hirek?page=N` | | Pagination; a nonexistent page: 404 |
+| `GET /kategoriak` | `config/routes.php` → Query `categories` | Published categories in alphabetical order (0.0.2) |
+| `GET /belepes`, `POST /belepes` | `AuthController` | Login form and login (0.0.3); details: [PHP API chapter 11](../php-api/11-users.md#web-interface) |
+| `POST /kilepes` | `AuthController` | Logout with a CSRF token |
+| `GET /<path>` | Routable object | The object's own page, e.g. `/neumann-janos`. Its relations as links, and the Blueprint's `lists` below it (e.g. `/tudomany`: the category's articles) |
+| `GET /assets/<file>` | `public/assets/` | Static files |
 
-| Státusz | Mikor |
+| Status | When |
 |---|---|
-| `200` | Rendben |
-| `404` | Nincs ilyen útvonal, vagy az objektum nem látható (piszkozat, időzített). A kettő szándékosan nem különböztethető meg |
-| `500` | Belső hiba; debug módban az üzenettel |
-| `503` | A rendszer még nincs telepítve |
+| `200` | OK |
+| `404` | No such route, or the object is not visible (draft, scheduled). The two are intentionally indistinguishable |
+| `500` | Internal error; with the message in debug mode |
+| `503` | The system is not installed yet |
 
-Minden válasz `X-Content-Type-Options: nosniff` fejlécet kap.
+Every response gets an `X-Content-Type-Options: nosniff` header.
 
 ## JSON API 📝
 
-### Alapelvek
+### Principles
 
-- **Alap-URL:** `/api/v1/`. Visszafelé nem kompatibilis változás csak új
-  verzióban (`/api/v2/`) jelenhet meg.
-- **Formátum:** JSON, UTF-8, `Content-Type: application/json`.
-- **Azonosítás:** kifelé mindig az objektum `uuid`-ja, nem a belső numerikus
-  `id`. A UUID nem kitalálható, és exportnál, importnál sem változik.
-- **Ugyanaz a mag:** a JSON API nem új logika, hanem a PHP API másik felülete.
-  Olvasáshoz a `QueryEngine`-t, íráshoz az `ObjectService`-t hívja, így a
-  jogosultság és a validáció ugyanúgy érvényes.
-- **Időpontok:** ISO 8601, UTC-ben: `2026-09-25T12:54:00Z`.
-- **Mezők:** az objektum mezői név szerint, a `fields` kulcs alatt.
+- **Base URL:** `/api/v1/`. Backward-incompatible changes may only appear in a
+  new version (`/api/v2/`).
+- **Format:** JSON, UTF-8, `Content-Type: application/json`.
+- **Identification:** externally always the object's `uuid`, never the internal
+  numeric `id`. The UUID cannot be guessed, and it does not change on export or
+  import.
+- **Same core:** the JSON API is not new logic but another interface to the PHP
+  API. It calls the `QueryEngine` for reading and the `ObjectService` for
+  writing, so access control and validation apply the same way.
+- **Timestamps:** ISO 8601, in UTC: `2026-09-25T12:54:00Z`.
+- **Fields:** the object's fields by name, under the `fields` key.
 
-### Objektum-ábrázolás
+### Object representation
 
 ```json
 {
@@ -74,25 +75,25 @@ Minden válasz `X-Content-Type-Options: nosniff` fejlécet kap.
 }
 ```
 
-A `relations` a kapcsolatok céljainak UUID-jait adja, a kapcsolat
-sorrendjében. Csak az olvasó által látható célok szerepelnek benne.
+`relations` gives the UUIDs of each relation's targets, in the relation's
+order. Only targets visible to the reader are included.
 
-### Végpontok
+### Endpoints
 
-| Metódus és útvonal | PHP API | Állapot |
+| Method and route | PHP API | Status |
 |---|---|---|
 | `GET /api/v1/objects` | `QueryEngine::execute()` | 📝 |
-| `GET /api/v1/objects/{uuid}` | `ObjectRepository::findByUuid()` + láthatóság | 📝 |
+| `GET /api/v1/objects/{uuid}` | `ObjectRepository::findByUuid()` + visibility | 📝 |
 | `POST /api/v1/objects` | `ObjectService::create()` | 📝 |
 | `PATCH /api/v1/objects/{uuid}` | `ObjectService::update()` | 📝 |
 | `DELETE /api/v1/objects/{uuid}` | `ObjectService::delete()` | 📝 |
 | `POST /api/v1/objects/{uuid}/publish` | `ObjectService::publish()` | 📝 |
 | `POST /api/v1/objects/{uuid}/unpublish` | `ObjectService::unpublish()` | 📝 |
-| `GET /api/v1/queries/{név}` | Elnevezett Query (`config/queries.php`) | 📝 |
+| `GET /api/v1/queries/{name}` | Named Query (`config/queries.php`) | 📝 |
 | `GET /api/v1/blueprints` | `BlueprintRegistry::all()` | 📝 |
 | `GET /api/v1/capabilities` | `CapabilityRegistry::all()` | 📝 |
 
-#### Lista és szűrés
+#### Listing and filtering
 
 ```
 GET /api/v1/objects?blueprint=article&having=routable,publishable
@@ -100,19 +101,19 @@ GET /api/v1/objects?blueprint=article&having=routable,publishable
                    &page=2&per_page=10
 ```
 
-| Paraméter | Query-megfelelő |
+| Parameter | Query equivalent |
 |---|---|
 | `blueprint=a,b` | `blueprint('a', 'b')` |
 | `having=x,y` | `having('x', 'y')` |
-| `filter[mező]=érték` | `where('mező', '=', 'érték')` |
-| `related[kapcsolat]=uuid,uuid` | `whereRelated('kapcsolat', …)` |
-| `filter[mező][op]=érték` | `where('mező', op, 'érték')`, ahol `op`: `eq`, `ne`, `lt`, `lte`, `gt`, `gte`, `in`, `like`, `null` |
+| `filter[field]=value` | `where('field', '=', 'value')` |
+| `related[relation]=uuid,uuid` | `whereRelated('relation', …)` |
+| `filter[field][op]=value` | `where('field', op, 'value')`, where `op` is one of `eq`, `ne`, `lt`, `lte`, `gt`, `gte`, `in`, `like`, `null` |
 | `scope=published` | `scope('published')` |
-| `sort=mező`, `sort=-mező` | `orderBy('mező', 'ASC')`, illetve `'DESC'`; vesszővel több is megadható |
-| `page`, `per_page` | `page()`; a `per_page` legfeljebb 100 |
+| `sort=field`, `sort=-field` | `orderBy('field', 'ASC')` or `'DESC'`; several can be given, separated by commas |
+| `page`, `per_page` | `page()`; `per_page` is at most 100 |
 
-A PHP API szabályai itt is érvényesek: csak saját táblás (`Table`) mezőre lehet
-szűrni és rendezni.
+The PHP API's rules apply here too: filtering and sorting are only possible on
+fields stored in their own table (`Table`).
 
 ```json
 {
@@ -121,31 +122,31 @@ szűrni és rendezni.
 }
 ```
 
-#### Létrehozás
+#### Creating
 
 ```http
 POST /api/v1/objects
 Content-Type: application/json
 
-{ "blueprint": "article", "fields": { "title": "Új cikk", "body": "…" }, "publish": false }
+{ "blueprint": "article", "fields": { "title": "New article", "body": "…" }, "publish": false }
 ```
 
-Válasz: `201 Created`, az új objektummal és `Location` fejléccel.
+Response: `201 Created`, with the new object and a `Location` header.
 
-#### Módosítás
+#### Updating
 
-`PATCH` esetén csak a megadott mezők változnak:
+With `PATCH`, only the given fields change:
 
 ```json
-{ "fields": { "title": "Javított cím" }, "relations": { "categories": ["01926f3a-…"] } }
+{ "fields": { "title": "Corrected title" }, "relations": { "categories": ["01926f3a-…"] } }
 ```
 
-A megadott kapcsolat összes célja lecserélődik (`setRelated()`); a nem
-említett kapcsolatok nem változnak.
+All targets of a given relation are replaced (`setRelated()`); relations not
+mentioned do not change.
 
-### Hibák
+### Errors
 
-Minden hiba azonos szerkezetű:
+Every error has the same structure:
 
 ```json
 {
@@ -158,29 +159,32 @@ Minden hiba azonos szerkezetű:
 }
 ```
 
-| Státusz | `code` | PHP-kivétel |
+The `message` and `fields` texts are user-facing and currently Hungarian
+("Invalid object.", "required field").
+
+| Status | `code` | PHP exception |
 |---|---|---|
-| `400` | `bad_query` | `QueryException` (pl. JSON-mezőre szűrés) |
+| `400` | `bad_query` | `QueryException` (e.g. filtering on a JSON field) |
 | `400` | `unknown_field` | `OutOfBoundsException` |
-| `401` | `unauthenticated` | Hiányzó vagy érvénytelen token |
-| `403` | `forbidden` | `AccessDeniedException` módosító műveletnél |
-| `404` | `not_found` | Nincs ilyen objektum, **vagy nem látható**: olvasásnál a tiltás is 404, hogy ne derüljön ki, létezik-e |
-| `422` | `validation_failed` | `ValidationException`; a `fields` a `$errors` tartalma |
-| `500` | `internal_error` | Minden más |
+| `401` | `unauthenticated` | Missing or invalid token |
+| `403` | `forbidden` | `AccessDeniedException` on a modifying operation |
+| `404` | `not_found` | No such object, **or it is not visible**: when reading, a denial is also a 404, so that it does not reveal whether the object exists |
+| `422` | `validation_failed` | `ValidationException`; `fields` is the contents of `$errors` |
+| `500` | `internal_error` | Everything else |
 
-### Hitelesítés
+### Authentication
 
-A bejelentkezés megvalósításáig a JSON API csak olvasható, anonymous
-látogatóként. Utána:
+Until authentication is implemented, the JSON API is read-only, as an
+anonymous visitor. After that:
 
-- `Authorization: Bearer <token>` fejléc;
-- a token egy `Actor`-t azonosít (`ActorKind::User` vagy `ActorKind::Service`)
-  a szerepköreivel;
-- a jogosultságot ugyanaz az `AccessPolicy` dönti el, mint a HTML-felületen.
+- `Authorization: Bearer <token>` header;
+- the token identifies an `Actor` (`ActorKind::User` or `ActorKind::Service`)
+  with its roles;
+- access is decided by the same `AccessPolicy` as on the HTML interface.
 
-### Nyitott kérdések
+### Open questions
 
-- CORS-beállítások (más domainről futó alkalmazásokhoz)
-- Kérésszám-korlátozás
-- Kapcsolódó objektumok beágyazása (`?include=categories`) a UUID-lista helyett
-- Többnyelvű mezők ábrázolása
+- CORS settings (for applications running on other domains)
+- Rate limiting
+- Embedding related objects (`?include=categories`) instead of the UUID list
+- Representation of multilingual fields

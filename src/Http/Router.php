@@ -5,21 +5,21 @@ declare(strict_types=1);
 namespace Campanella\Http;
 
 /**
- * A kérést egy erőforráshoz rendeli.
+ * Maps the request to a resource.
  *
- * Sorrend:
- *   1. a config/routes.php statikus útvonalai (pl. /hirek → Query);
- *   2. minden más út egy Routable objektumé lehet (→ ObjectController).
+ * Order:
+ *   1. the static routes of config/routes.php (e.g. /hirek → Query);
+ *   2. any other path may belong to a Routable object (→ ObjectController).
  *
- * A Router nem kérdez adatbázist: azt, hogy egy út mögött tényleg van-e
- * objektum, az ObjectController dönti el (jogosultsággal együtt).
+ * The Router does not query the database: whether there really is an object
+ * behind a path is decided by ObjectController (together with access control).
  */
 final class Router
 {
     /** @var array<string, RouteMatch> */
     private array $routes = [];
 
-    /** @param array<string, array{0: string, 1?: array<string, mixed>}> $routes útvonal => [handler, paraméterek] */
+    /** @param array<string, array{0: string, 1?: array<string, mixed>}> $routes path => [handler, parameters] */
     public function __construct(array $routes = [])
     {
         foreach ($routes as $path => $route) {

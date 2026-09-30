@@ -1,6 +1,6 @@
-# Olyan tárhelyekre, ahol a webgyökér nem állítható a public/ mappára:
-# minden kérést a public/ alá irányít, így a src/, config/, vendor/ stb.
-# mappák kívülről nem érhetők el.
+# For web hosts where the web root cannot be set to the public/ folder:
+# routes every request under public/, so the src/, config/, vendor/ etc.
+# folders are not reachable from outside.
 Options -Indexes
 
 <IfModule mod_rewrite.c>

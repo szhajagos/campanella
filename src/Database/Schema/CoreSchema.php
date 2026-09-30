@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Campanella\Database\Schema;
 
 /**
- * A mag táblái. A capability-k saját táblái nem itt, hanem a
- * CapabilityDefinition::table() metódusban keletkeznek.
+ * The core tables. The capabilities' own tables are not defined here but
+ * in the CapabilityDefinition::table() method.
  */
 final class CoreSchema
 {
@@ -28,7 +28,7 @@ final class CoreSchema
                 ],
                 primaryKey: ['name'],
             ),
-            // Az objektum identitása és a nem lekérdezett adatai (data).
+            // The object's identity and its non-queried data (data).
             new Table(
                 name: self::OBJECTS,
                 columns: [
@@ -46,7 +46,7 @@ final class CoreSchema
                 ],
                 uniques: ['uniq_uuid' => ['uuid']],
             ),
-            // Melyik objektum milyen capability-kkel rendelkezik.
+            // Which object has which capabilities.
             new Table(
                 name: self::OBJECT_CAPABILITIES,
                 columns: [
@@ -57,8 +57,8 @@ final class CoreSchema
                 indexes: ['idx_capability' => ['capability', 'object_id']],
                 foreignKeys: [new ForeignKey('object_id', self::OBJECTS)],
             ),
-            // Irányított kapcsolatok: source --type--> target, sorrenddel (weight).
-            // Bármelyik oldal törlésekor a kapcsolat is törlődik.
+            // Directed relationships: source --type--> target, with ordering (weight).
+            // Deleting either side also deletes the relationship.
             new Table(
                 name: self::RELATIONSHIPS,
                 columns: [
@@ -79,7 +79,7 @@ final class CoreSchema
                     new ForeignKey('target_id', self::OBJECTS),
                 ],
             ),
-            // Próbálkozások korlátozása (pl. belépés). A kulcs SHA-256 hash-e.
+            // Throttling of attempts (e.g. login). The SHA-256 hash of the key.
             new Table(
                 name: self::THROTTLE,
                 columns: [

@@ -9,26 +9,26 @@ use Campanella\Query\Query;
 use Closure;
 
 /**
- * A rendszerben ismert capability-k nyilvántartása.
+ * The registry of capabilities known to the system.
  *
- * Regisztráláskor ellenőrzi, hogy a nevek, a mezőnevek és a scope-nevek
- * egyediek-e, és hogy a függőségek feloldhatók-e.
+ * On registration it checks that names, field names and scope names are
+ * unique, and that dependencies can be resolved.
  */
 final class CapabilityRegistry
 {
-    /** @var array<string, CapabilityDefinition> név => definíció */
+    /** @var array<string, CapabilityDefinition> name => definition */
     private array $definitions = [];
 
-    /** @var array<class-string, string> osztály => név */
+    /** @var array<class-string, string> class => name */
     private array $names = [];
 
-    /** @var array<string, string> mezőnév => capability-név */
+    /** @var array<string, string> field name => capability name */
     private array $fieldOwners = [];
 
     /** @var array<string, Closure(Query): Query> */
     private array $scopes = [];
 
-    /** @var array<string, string> kapcsolatnév => capability-név */
+    /** @var array<string, string> relation name => capability name */
     private array $relationOwners = [];
 
     /** @param list<class-string<Capability>> $classes */
@@ -45,12 +45,12 @@ final class CapabilityRegistry
         $definition = CapabilityDefinition::fromClass($class);
 
         if (isset($this->definitions[$definition->name])) {
-            throw new CapabilityException("A(z) '{$definition->name}' capability már regisztrálva van.");
+            throw new CapabilityException("Capability '{$definition->name}' is already registered.");
         }
         foreach ($definition->fields as $fieldName => $field) {
             if (isset($this->fieldOwners[$fieldName])) {
                 throw new CapabilityException(sprintf(
-                    "A(z) '%s' mezőt már a(z) '%s' capability definiálja.",
+                    "Field '%s' is already defined by capability '%s'.",
                     $fieldName,
                     $this->fieldOwners[$fieldName],
                 ));
@@ -59,17 +59,17 @@ final class CapabilityRegistry
         foreach ($definition->relations as $relationName => $_) {
             if (isset($this->relationOwners[$relationName]) || isset($this->fieldOwners[$relationName])
                 || isset($definition->fields[$relationName])) {
-                throw new CapabilityException("A(z) '{$relationName}' kapcsolatnév már foglalt (kapcsolat vagy mező).");
+                throw new CapabilityException("Relation name '{$relationName}' is already taken (relation or field).");
             }
         }
         foreach ($definition->fields as $fieldName => $_) {
             if (isset($this->relationOwners[$fieldName])) {
-                throw new CapabilityException("A(z) '{$fieldName}' mezőnév már egy kapcsolat neve.");
+                throw new CapabilityException("Field name '{$fieldName}' is already the name of a relation.");
             }
         }
         foreach ($class::scopes() as $scopeName => $scope) {
             if (isset($this->scopes[$scopeName])) {
-                throw new CapabilityException("A(z) '{$scopeName}' scope már létezik.");
+                throw new CapabilityException("Scope '{$scopeName}' already exists.");
             }
             $this->scopes[$scopeName] = $scope;
         }
@@ -86,13 +86,13 @@ final class CapabilityRegistry
         return $definition;
     }
 
-    /** Név vagy osztálynév alapján. */
+    /** By name or class name. */
     public function get(string $nameOrClass): CapabilityDefinition
     {
         $name = $this->names[$nameOrClass] ?? $nameOrClass;
 
         return $this->definitions[$name]
-            ?? throw new CapabilityException("Ismeretlen capability: {$nameOrClass}");
+            ?? throw new CapabilityException("Unknown capability: {$nameOrClass}");
     }
 
     public function has(string $nameOrClass): bool
@@ -107,8 +107,8 @@ final class CapabilityRegistry
     }
 
     /**
-     * A megadott capability-k listája a függőségeikkel együtt,
-     * függőségi sorrendben (előbb az, amitől a másik függ).
+     * The given capabilities together with their dependencies,
+     * in dependency order (dependencies first).
      *
      * @param iterable<string> $namesOrClasses
      * @return array<string, CapabilityDefinition>
@@ -124,7 +124,7 @@ final class CapabilityRegistry
                 return;
             }
             if (isset($visiting[$definition->name])) {
-                throw new CapabilityException("Körkörös capability-függőség: {$definition->name}");
+                throw new CapabilityException("Circular capability dependency: {$definition->name}");
             }
             $visiting[$definition->name] = true;
             foreach ($definition->requires as $required) {
@@ -141,7 +141,7 @@ final class CapabilityRegistry
         return $resolved;
     }
 
-    /** Melyik capability-hez tartozik a mező (ha capability-mező). */
+    /** The capability the field belongs to (if it is a capability field). */
     public function fieldOwner(string $fieldName): ?CapabilityDefinition
     {
         $owner = $this->fieldOwners[$fieldName] ?? null;
@@ -149,7 +149,7 @@ final class CapabilityRegistry
         return $owner === null ? null : $this->definitions[$owner];
     }
 
-    /** Melyik capability-hez tartozik a kapcsolat (ha capability-kapcsolat). */
+    /** The capability the relation belongs to (if it is a capability relation). */
     public function relationOwner(string $relationName): ?CapabilityDefinition
     {
         $owner = $this->relationOwners[$relationName] ?? null;
@@ -165,6 +165,6 @@ final class CapabilityRegistry
     /** @return Closure(Query): Query */
     public function scope(string $name): Closure
     {
-        return $this->scopes[$name] ?? throw new CapabilityException("Ismeretlen scope: {$name}");
+        return $this->scopes[$name] ?? throw new CapabilityException("Unknown scope: {$name}");
     }
 }

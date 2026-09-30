@@ -9,10 +9,10 @@ use Campanella\Model\FieldType;
 use Campanella\Support\Slugger;
 
 /**
- * Az objektum saját URL-en érhető el.
+ * The object is reachable at its own URL.
  *
- * A Titled-re azért épül, hogy üres útvonal esetén a címből
- * készülhessen egy (pl. „Neumann János” → /neumann-janos).
+ * It builds on Titled so that, when the path is empty, one can be
+ * generated from the title (e.g. "Neumann János" → /neumann-janos).
  */
 #[AsCapability('routable', requires: [Titled::class], label: 'Útvonallal rendelkező')]
 final class Routable extends Capability
@@ -45,7 +45,7 @@ final class Routable extends Capability
         $this->object->set('path', self::normalize($path));
     }
 
-    /** Egységes alak: perjellel kezdődik, nem végződik perjelre, kisbetűs. */
+    /** Canonical form: starts with a slash, does not end with a slash, lowercase. */
     public static function normalize(string $path): string
     {
         $segments = array_filter(

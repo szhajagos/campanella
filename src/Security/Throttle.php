@@ -11,10 +11,10 @@ use DateTimeImmutable;
 use DateTimeZone;
 
 /**
- * Próbálkozások korlátozása kulcsonként (pl. „e-mail-cím + IP-cím”) egy
- * időablakon belül. Az adatbázisban tárol, így több PHP-folyamat és
- * újraindítás esetén is működik. A kulcsnak csak a SHA-256 hash-e kerül
- * az adatbázisba.
+ * Limits attempts per key (e.g. "e-mail address + IP address") within a
+ * time window. It stores in the database, so it works across multiple PHP
+ * processes and restarts. Only the SHA-256 hash of the key is stored in
+ * the database.
  */
 final class Throttle
 {
@@ -29,7 +29,7 @@ final class Throttle
         return $row !== null && $row['hits'] >= $maxAttempts;
     }
 
-    /** Egy sikertelen próbálkozás rögzítése; visszaadja a próbálkozások számát. */
+    /** Records a failed attempt; returns the number of attempts. */
     public function hit(string $key, int $decaySeconds): int
     {
         $hash = self::hash($key);
@@ -38,7 +38,7 @@ final class Throttle
         return $this->db->transactional(function (Connection $db) use ($key, $hash, $now, $decaySeconds): int {
             $row = $this->row($key);
             if ($row === null) {
-                $db->delete(CoreSchema::THROTTLE, ['key_hash' => $hash]);   // lejárt sor
+                $db->delete(CoreSchema::THROTTLE, ['key_hash' => $hash]);   // expired row
                 $db->insert(CoreSchema::THROTTLE, [
                     'key_hash' => $hash,
                     'hits' => 1,
@@ -53,7 +53,7 @@ final class Throttle
         });
     }
 
-    /** Hány másodperc múlva lehet újra próbálkozni (0, ha most is). */
+    /** In how many seconds another attempt is allowed (0 if right now). */
     public function availableIn(string $key): int
     {
         $row = $this->row($key);
@@ -66,7 +66,7 @@ final class Throttle
         $this->db->delete(CoreSchema::THROTTLE, ['key_hash' => self::hash($key)]);
     }
 
-    /** @return array{hits: int, reset_at: DateTimeImmutable}|null Csak a még érvényes sor. */
+    /** @return array{hits: int, reset_at: DateTimeImmutable}|null Only a row that is still valid. */
     private function row(string $key): ?array
     {
         $row = $this->db->fetchOne(

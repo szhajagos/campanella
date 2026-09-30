@@ -5,17 +5,17 @@ declare(strict_types=1);
 namespace Campanella\Database\Schema;
 
 /**
- * Egy tábla leírása. A séma nem SQL-fájlokban él, hanem ilyen
- * objektumokban: a mag táblái a CoreSchema-ban, a capability-táblák
- * pedig a capability-k mezőiből keletkeznek.
+ * Description of a table. The schema does not live in SQL files but in
+ * objects like this: the core tables in CoreSchema, while capability
+ * tables are generated from the capabilities' fields.
  */
 final readonly class Table
 {
     /**
      * @param list<Column> $columns
      * @param list<string> $primaryKey
-     * @param array<string, list<string>> $indexes Indexnév => oszlopok
-     * @param array<string, list<string>> $uniques Indexnév => oszlopok
+     * @param array<string, list<string>> $indexes Index name => columns
+     * @param array<string, list<string>> $uniques Index name => columns
      * @param list<ForeignKey> $foreignKeys
      */
     public function __construct(

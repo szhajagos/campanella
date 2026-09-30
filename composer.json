@@ -1,6 +1,6 @@
 {
     "name": "campanella/campanella",
-    "description": "Campanella – capability-vezérelt CMS",
+    "description": "Campanella – a capability-driven CMS",
     "type": "project",
     "license": "MIT",
     "require": {

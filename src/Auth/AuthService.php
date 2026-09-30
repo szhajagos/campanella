@@ -19,18 +19,20 @@ use Campanella\Security\Csrf;
 use Campanella\Security\Throttle;
 
 /**
- * Belépés, kilépés és az aktuális felhasználó.
+ * Login, logout and the current user.
  *
- * Biztonsági elvek:
- *  - egyforma hibaüzenet, akár az e-mail-cím, akár a jelszó hibás, és
- *    egyforma futásidő (nem létező fióknál is lefut egy jelszó-hash);
- *  - próbálkozások korlátozása e-mail-cím + IP-cím, illetve IP-cím szerint;
- *  - belépéskor új munkamenet-azonosító és új CSRF-token;
- *  - letiltott fiók nem léphet be, és a már belépett munkamenete megszűnik.
+ * Security principles:
+ *  - the same error message whether the e-mail address or the password is
+ *    wrong, and the same running time (a password hash runs even for a
+ *    non-existent account);
+ *  - login throttling by e-mail address + IP address, and by IP address;
+ *  - a new session ID and a new CSRF token on login;
+ *  - a blocked account cannot log in, and its existing session ends.
  *
- * Bővíthetőség: a LoginGuard-ok a jelszó-ellenőrzés előtt futnak (honeypot,
- * CAPTCHA …). A jelszó ellenőrzése (attempt) és a tényleges beléptetés
- * (login) külön lépés, így egy második lépcső (pl. TOTP) közéjük illeszthető.
+ * Extensibility: LoginGuards run before the password check (honeypot,
+ * CAPTCHA …). Checking the password (attempt) and actually logging in
+ * (login) are separate steps, so a second factor (e.g. TOTP) can be
+ * inserted between them.
  */
 final class AuthService
 {
@@ -42,7 +44,7 @@ final class AuthService
 
     /**
      * @param array{max_attempts?: int, max_attempts_per_ip?: int, decay_seconds?: int} $config
-     * @param list<LoginGuard> $guards A jelszó-ellenőrzés előtt futó kiegészítő védelmek.
+     * @param list<LoginGuard> $guards Additional protections that run before the password check.
      */
     public function __construct(
         private readonly ObjectRepository $repository,
@@ -84,7 +86,7 @@ final class AuthService
 
         $user = $email === '' ? null : $this->findUserByEmail($email);
         if ($user === null) {
-            password_hash($password, PASSWORD_DEFAULT); // egyforma futásidő, ha nincs ilyen fiók
+            password_hash($password, PASSWORD_DEFAULT); // same running time when there is no such account
             $this->throttle->hit($pairKey, $decay);
             $this->throttle->hit($ipKey, $decay);
 
@@ -112,7 +114,7 @@ final class AuthService
         return LoginResult::success($user);
     }
 
-    /** A felhasználó beléptetése (új munkamenet-azonosítóval). */
+    /** Logs the user in (with a new session ID). */
     public function login(Request $request, CampanellaObject $user): void
     {
         $this->session->start($request);
@@ -129,7 +131,7 @@ final class AuthService
         $this->current = null;
     }
 
-    /** A kéréshez tartozó bejelentkezett felhasználó, vagy null. */
+    /** The logged-in user of the request, or null. */
     public function currentUser(Request $request): ?CampanellaObject
     {
         if ($this->resolvedFor === $request) {
@@ -147,7 +149,7 @@ final class AuthService
         }
         $user = $this->repository->find($id);
         if ($user === null || !$user->has(Authenticatable::class) || !$user->as(Authenticatable::class)->isActive()) {
-            $this->session->remove(self::SESSION_USER);   // törölt vagy letiltott fiók: kiléptetjük
+            $this->session->remove(self::SESSION_USER);   // deleted or blocked account: log it out
 
             return null;
         }

@@ -1,12 +1,12 @@
-# Automatikus ellenőrzés és kiadás.
+# Automated checks and releases.
 #
-# - Minden pushnál és pull requestnél: PHPStan, dokumentáció-ellenőrzés, és a
-#   tesztek minden támogatott adatbázison (MariaDB 10.6+, MySQL 8.0+).
-# - Verziócímkénél (v*): telepítőcsomag a vendor/ mappával együtt, a
-#   GitHub-kiadáshoz csatolva. Már meglévő címkéhez kézzel is indítható
-#   (Actions → Ellenőrzés → Run workflow, a címke megadásával).
+# - On every push and pull request: PHPStan, the documentation check, and the
+#   tests on every supported database (MariaDB 10.6+, MySQL 8.0+).
+# - On a version tag (v*): an installation package including the vendor/ folder,
+#   attached to the GitHub release. Can also be run manually for an existing tag
+#   (Actions → CI → Run workflow, giving the tag).
 
-name: Ellenőrzés
+name: CI
 
 on:
   push:
@@ -16,7 +16,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Meglévő címke, amelyhez a kiadási csomag készüljön (pl. v0.0.3)'
+        description: 'Existing tag to build the release package for (e.g. v0.0.3)'
         required: true
 
 permissions:
@@ -28,7 +28,7 @@ concurrency:
 
 jobs:
   checks:
-    name: PHPStan és dokumentáció
+    name: PHPStan and docs
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -48,20 +48,20 @@ jobs:
       - name: PHPStan (level 8)
         run: vendor/bin/phpstan analyse --no-progress --memory-limit=1G
 
-      - name: Dokumentált-e minden nyilvános osztály és metódus
+      - name: Every public class and method is documented
         run: composer docs:check
 
-      - name: Markdown-linkek
-        # A 0.0.3-as és korábbi címkékben még nincs linkellenőrző.
+      - name: Markdown links
+        # Tags 0.0.3 and earlier have no link checker yet.
         run: |
           if [ -f tests/links-check.php ]; then
             php tests/links-check.php
           else
-            echo "Ebben a változatban nincs linkellenőrző, kihagyva."
+            echo "No link checker in this version, skipped."
           fi
 
   tests:
-    name: Tesztek – PHP ${{ matrix.php }}, ${{ matrix.db }}
+    name: Tests – PHP ${{ matrix.php }}, ${{ matrix.db }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -76,7 +76,7 @@ jobs:
       db:
         image: ${{ matrix.db }}
         env:
-          # A MariaDB-image is elfogadja a MYSQL_* neveket.
+          # The MariaDB image also accepts the MYSQL_* names.
           MYSQL_ROOT_PASSWORD: root
           MYSQL_DATABASE: campanella
           MYSQL_USER: campanella
@@ -105,26 +105,26 @@ jobs:
 
       - run: composer install --no-interaction --no-progress
 
-      - name: Várakozás az adatbázisra
+      - name: Wait for the database
         run: |
           for i in $(seq 1 60); do
             php -r 'new PDO("mysql:host=127.0.0.1;port=3306;dbname=campanella", "campanella", "campanella");' 2>/dev/null && exit 0
             sleep 2
           done
-          echo "Az adatbázis nem indult el." >&2
+          echo "The database did not start." >&2
           exit 1
 
-      - name: Tesztek
+      - name: Tests
         run: composer test
 
-      - name: Telepítés és státusz a parancssorból
+      - name: Installation and status from the command line
         run: |
           php bin/campanella install
           php bin/campanella seed
           php bin/campanella status
 
   release:
-    name: Kiadási csomag
+    name: Release package
     if: startsWith(github.ref, 'refs/tags/v') || inputs.tag != ''
     needs: [checks, tests]
     runs-on: ubuntu-latest
@@ -145,36 +145,36 @@ jobs:
           coverage: none
           tools: composer
 
-      - name: A címke és a kód verziója egyezik-e
+      - name: Tag matches the code version
         run: |
           VERSION="${TAG#v}"
           CODE=$(php -r 'require "src/Core/Version.php"; echo Campanella\Core\Version::CAMPANELLA;')
           if [ "$VERSION" != "$CODE" ]; then
-            echo "A címke ($TAG) nem egyezik a Version::CAMPANELLA értékével ($CODE)." >&2
+            echo "The tag ($TAG) does not match Version::CAMPANELLA ($CODE)." >&2
             exit 1
           fi
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
 
-      - name: Csomag összeállítása (vendor/ mappával)
+      - name: Build the package (with the vendor/ folder)
         run: |
           NAME="campanella-$VERSION"
           mkdir -p build
-          # A git archive a .gitattributes export-ignore szabályait követi.
+          # git archive follows the export-ignore rules in .gitattributes.
           git archive --format=tar --prefix="$NAME/" HEAD | tar -x -C build
           composer install --working-dir="build/$NAME" --no-dev --prefer-dist --optimize-autoloader --no-interaction --no-progress
           (cd build && zip -qr "$NAME.zip" "$NAME" && sha256sum "$NAME.zip" > "$NAME.zip.sha256")
           ls -l build
 
-      - name: Kiadási megjegyzés a CHANGELOG-ból
+      - name: Release notes from the CHANGELOG
         run: |
           awk -v v="$VERSION" '
             index($0, "## [" v "]") == 1 { found = 1; next }
             found && /^## \[/ { exit }
             found { print }
           ' CHANGELOG.md > build/notes.md
-          if [ ! -s build/notes.md ]; then echo "Lásd a CHANGELOG.md-t." > build/notes.md; fi
+          if [ ! -s build/notes.md ]; then echo "See CHANGELOG.md." > build/notes.md; fi
 
-      - name: GitHub-kiadás
+      - name: GitHub release
         run: |
           if ! gh release view "$TAG" > /dev/null 2>&1; then
             gh release create "$TAG" --title "Campanella $VERSION" --notes-file build/notes.md --verify-tag

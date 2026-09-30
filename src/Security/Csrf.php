@@ -8,10 +8,10 @@ use Campanella\Http\Request;
 use Campanella\Http\Session;
 
 /**
- * CSRF-védelem: munkamenetenként egy véletlen token, amelyet minden
- * módosító űrlap (POST) visszaküld. Más oldalról indított kérés nem ismeri.
+ * CSRF protection: one random token per session, which every modifying
+ * form (POST) sends back. A request started from another site does not know it.
  *
- * Sablonban: {{ csrf_field() }}
+ * In a template: {{ csrf_field() }}
  */
 final class Csrf
 {
@@ -22,7 +22,7 @@ final class Csrf
     {
     }
 
-    /** A token (szükség esetén munkamenetet indít). */
+    /** The token (starts a session if needed). */
     public function token(Request $request): string
     {
         $this->session->start($request);
@@ -46,7 +46,7 @@ final class Csrf
         return is_string($expected) && $expected !== '' && hash_equals($expected, $given);
     }
 
-    /** Új token (belépés után, hogy a belépés előtti token ne legyen használható). */
+    /** A new token (after login, so the token from before login cannot be used). */
     public function rotate(): void
     {
         $this->session->remove(self::SESSION_KEY);

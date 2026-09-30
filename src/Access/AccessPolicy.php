@@ -8,14 +8,14 @@ use Campanella\Model\CampanellaObject;
 use Campanella\Query\Query;
 
 /**
- * Egy jogosultsági szabálynak két arca van:
+ * An access control policy has two faces:
  *
- *  - constrain(): a lekérdezésbe fűzi a saját feltételeit, így a szűrés
- *    SQL-ben történik (QUERY + POLICY → SECURED QUERY → SQL);
- *  - allows(): egyetlen, már betöltött objektumra dönt.
+ *  - constrain(): adds its own conditions to the query, so filtering
+ *    happens in SQL (QUERY + POLICY → SECURED QUERY → SQL);
+ *  - allows(): decides for a single, already loaded object.
  *
- * A kettőnek ugyanazt kell jelentenie. Ezért a feltételek deklaratívak
- * (Condition-objektumok), nem tetszőleges PHP-kód.
+ * The two must mean the same thing. That is why the conditions are
+ * declarative (Condition objects), not arbitrary PHP code.
  */
 interface AccessPolicy
 {
