@@ -18,7 +18,7 @@ use DateTimeZone;
  * without a separate mechanism: content published with a future date
  * appears by itself at the given time.
  */
-#[AsCapability('publishable', label: 'Publikálható')]
+#[AsCapability('publishable', label: 'capability.publishable')]
 final class Publishable extends Capability
 {
     #[\Override]
@@ -32,9 +32,9 @@ final class Publishable extends Capability
                 default: PublishStatus::Draft->value,
                 indexed: true,
                 length: 16,
-                label: 'Állapot',
+                label: 'field.status',
             ),
-            new Field('published_at', FieldType::DateTime, indexed: true, label: 'Publikálás ideje'),
+            new Field('published_at', FieldType::DateTime, indexed: true, label: 'field.published_at'),
         ];
     }
 

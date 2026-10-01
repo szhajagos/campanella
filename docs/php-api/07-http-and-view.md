@@ -53,7 +53,8 @@ renders an error page with the given status.
 |---|---|
 | `__construct(array $routes = [])` | The array from `config/routes.php`: `path => [handler, parameters]` |
 | `add(string $path, string $handler, array $params = []): void` | |
-| `match(Request $request): RouteMatch` | A static route if one exists; otherwise `RouteMatch('object', ['path' => …])` |
+| `prefix(string $prefix, string $handler, array $params = []): void` | A route for a path and everything below it (e.g. the admin); the rest of the path is passed as the `subpath` parameter (since 0.0.4) |
+| `match(Request $request): RouteMatch` | A static route if one exists; else the longest matching prefix; otherwise `RouteMatch('object', ['path' => …])` |
 
 `Campanella\Http\RouteMatch` · `final readonly class`: `$handler` (the
 controller name) and `$params`.
@@ -209,6 +210,9 @@ without extending it, it decides which CSS and JavaScript it loads.
 | `{{ current_user() }}` | `currentUser()` | The logged-in user or `null` ([chapter 11](11-users.md#web-interface)) |
 | `{{ csrf_field() }}` | `csrfField()` | Hidden CSRF field for POST forms |
 | `{{ theme_asset('style.css') }}` | `themeAsset(string $path)` | A file of the active theme (`public/themes/<name>/`), with the version as cache buster |
+| `{{ admin_url('article') }}` | `adminUrl(string $subpath = '')` | The URL of an admin page ([chapter 13](13-admin.md)) |
+| `{{ admin_access() }}` | `adminAccess()` | Whether the current visitor may enter the admin (e.g. to show an "Admin" link) |
+| `{{ flash_messages() }}` | `flashMessages()` | The one-time messages, translated (`type`, `text`), removed from the session |
 | `{{ t('auth.login', {…}) }}` | `translate(string $key, array $params = [])` | A user-facing text in the current language ([chapter 12](12-translation.md)) |
 | `{{ locale() }}` | `locale()` | The current language code |
 | `{{ object\|body }}` | `body(CampanellaObject $object)` | The HTML of the Textual body: escaped and split into paragraphs for the `plain` format; unchanged for the `html` format |

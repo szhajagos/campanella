@@ -1,0 +1,8 @@
+/* The admin UI on top of Bootstrap 5.3: a plain, functional look. */
+.admin { --bs-body-font-size: .9375rem; }
+.admin-topbar { background: var(--bs-tertiary-bg); }
+.admin-sidebar { min-height: calc(100vh - 57px); background: var(--bs-body-bg); }
+.admin-sidebar .nav-link { color: var(--bs-body-color); border-radius: .375rem; padding: .4rem .75rem; }
+.admin-sidebar .nav-link:hover { background: var(--bs-tertiary-bg); }
+.admin-sidebar .nav-link.active { background: var(--bs-primary); color: #fff; }
+.admin-stat .fs-3 { line-height: 1.2; }

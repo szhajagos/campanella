@@ -8,14 +8,14 @@ use Campanella\Model\Field;
 use Campanella\Model\FieldType;
 
 /** The object has a title. */
-#[AsCapability('titled', label: 'Címmel rendelkező')]
+#[AsCapability('titled', label: 'capability.titled')]
 final class Titled extends Capability
 {
     #[\Override]
     public static function fields(): array
     {
         return [
-            new Field('title', FieldType::String, required: true, indexed: true, label: 'Cím'),
+            new Field('title', FieldType::String, required: true, indexed: true, label: 'field.title'),
         ];
     }
 

@@ -1,0 +1,48 @@
+{% extends '@core/admin/base.html.twig' %}
+{% set active = 'dashboard' %}
+
+{% block content %}
+    <h1 class="h3 mb-4">{{ t('admin.dashboard') }}</h1>
+
+    <h2 class="h6 text-uppercase text-body-secondary mb-3">{{ t('admin.content') }}</h2>
+    <div class="row g-3 mb-5">
+        {% for item in counts %}
+            <div class="col-6 col-lg-3">
+                <div class="card admin-stat h-100">
+                    <div class="card-body">
+                        <div class="text-body-secondary small">{{ t(item.label) }}</div>
+                        <div class="fs-3 fw-semibold">{{ item.count }}</div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    <h2 class="h6 text-uppercase text-body-secondary mb-3">{{ t('admin.recent') }}</h2>
+    {% if recent.isEmpty %}
+        <p class="text-body-secondary">{{ t('admin.recent_empty') }}</p>
+    {% else %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th scope="col">{{ t('admin.column.title') }}</th>
+                        <th scope="col">{{ t('admin.column.type') }}</th>
+                        <th scope="col">{{ t('field.status') }}</th>
+                        <th scope="col" class="text-end">{{ t('admin.column.updated') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in recent %}
+                        <tr>
+                            <td>{{ item.title is defined and item.title ? item.title : t('admin.untitled') }}</td>
+                            <td>{{ t(blueprints[item.blueprint].label ?? item.blueprint) }}</td>
+                            <td>{% include '@core/admin/_status.html.twig' with {object: item} only %}</td>
+                            <td class="text-end text-body-secondary small"><time datetime="{{ item.updated|date('c') }}">{{ item.updated|date }}</time></td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+{% endblock %}

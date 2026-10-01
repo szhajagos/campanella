@@ -91,7 +91,7 @@ new Field(
     indexed: true,                 // index in the capability's table
     unique: false,                 // unique index (e.g. path)
     length: 255,                   // VARCHAR length for the String type
-    label: 'Publikálás ideje',
+    label: 'field.published_at',
     hidden: false,                 // true: not available from templates as {{ object.field }}
     cardinality: 1,                // number of values: 1, a limit (e.g. 3) or Field::UNLIMITED (since 0.0.4)
 );
@@ -215,10 +215,10 @@ A named bundle of capabilities. Defined in the `config/blueprints.php` file:
 ```php
 return [
     'article' => [
-        'label' => 'Cikk',
+        'label' => 'blueprint.article',
         'capabilities' => [Titled::class, Textual::class, Routable::class, Publishable::class],
         'fields' => [
-            new Field('lead', FieldType::Text, label: 'Bevezető'),
+            new Field('lead', FieldType::Text, label: 'field.lead'),
         ],
         // Optional (since 0.0.4): narrow the value limit of a capability's multi-valued field.
         // 'cardinality' => ['phones' => 2],

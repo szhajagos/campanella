@@ -34,7 +34,7 @@ A capability does not write to the database: it sets values on the object
 `Campanella\Capability\AsCapability` · **Public** · attribute
 
 ```php
-#[AsCapability('routable', requires: [Titled::class], label: 'Útvonallal rendelkező')]
+#[AsCapability('routable', requires: [Titled::class], label: 'capability.routable')]
 ```
 
 | Parameter | Description |

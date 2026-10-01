@@ -18,7 +18,7 @@ use Campanella\Model\ValidationException;
  *
  * Builds on Identifiable, because login uses the e-mail address.
  */
-#[AsCapability('authenticatable', requires: [Identifiable::class], label: 'Bejelentkezni képes')]
+#[AsCapability('authenticatable', requires: [Identifiable::class], label: 'capability.authenticatable')]
 final class Authenticatable extends Capability
 {
     public const int MIN_PASSWORD_LENGTH = 10;
@@ -30,7 +30,7 @@ final class Authenticatable extends Capability
     public static function fields(): array
     {
         return [
-            new Field('password_hash', FieldType::String, required: true, length: 255, label: 'Jelszó (hash)', hidden: true),
+            new Field('password_hash', FieldType::String, required: true, length: 255, label: 'field.password_hash', hidden: true),
             new Field(
                 'account_status',
                 FieldType::String,
@@ -38,9 +38,9 @@ final class Authenticatable extends Capability
                 default: AccountStatus::Active->value,
                 indexed: true,
                 length: 16,
-                label: 'Fiók állapota',
+                label: 'field.account_status',
             ),
-            new Field('roles', FieldType::StringList, default: [], label: 'Szerepkörök'),
+            new Field('roles', FieldType::StringList, default: [], label: 'field.roles'),
         ];
     }
 

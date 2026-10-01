@@ -6,7 +6,7 @@
     {# The Blueprint's 'lists', e.g. the articles of a category. #}
     {% for name, list in lists %}
         <section class="object-list object-list--{{ name }} mt-5">
-            {% if list.label %}<h2 class="object-list__title h5 pb-2 border-bottom">{{ list.label }}</h2>{% endif %}
+            {% if list.label %}<h2 class="object-list__title h5 pb-2 border-bottom">{{ t(list.label) }}</h2>{% endif %}
             {% for item in list.result %}
                 {{ render_object(item, 'teaser') }}
             {% else %}

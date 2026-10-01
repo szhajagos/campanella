@@ -26,6 +26,12 @@ return [
     // Empty: the core templates (Bootstrap 5.3). See docs/php-api/07-http-and-view.md.
     'theme' => getenv('CAMPANELLA_THEME') ?: '',
 
+    // The admin UI: its path, and the roles that may enter it.
+    'admin' => [
+        'path' => '/admin',
+        'roles' => ['administrator', 'editor'],
+    ],
+
     'site' => [
         'name' => 'Campanella',
         'slogan' => 'Capability-vezérelt CMS',

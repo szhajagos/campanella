@@ -14,7 +14,7 @@ use Campanella\Relation\Relation;
  * When a new object is created, ObjectService automatically sets the
  * creating user as the author if none is given yet.
  */
-#[AsCapability('authorable', label: 'Szerzővel rendelkező')]
+#[AsCapability('authorable', label: 'capability.authorable')]
 final class Authorable extends Capability
 {
     #[\Override]
@@ -27,7 +27,7 @@ final class Authorable extends Capability
     public static function relations(): array
     {
         return [
-            new Relation('author', Cardinality::One, targetCapabilities: [Identifiable::class], label: 'Szerző'),
+            new Relation('author', Cardinality::One, targetCapabilities: [Identifiable::class], label: 'relation.author'),
         ];
     }
 

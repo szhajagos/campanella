@@ -7,6 +7,9 @@ namespace Campanella\Core;
 use Campanella\Access\AccessPolicy;
 use Campanella\Access\Actor;
 use Campanella\Access\DefaultPolicy;
+use Campanella\Http\Flash;
+use Campanella\Controller\AdminController;
+use Campanella\Admin\AdminAccess;
 use Campanella\Capability\CapabilityRegistry;
 use Campanella\Auth\AuthService;
 use Campanella\Auth\LoginGuard;
@@ -147,6 +150,16 @@ final class Kernel
 
         $c->set(Csrf::class, static fn (Container $c): Csrf => new Csrf($c->get(Session::class)));
 
+        $c->set(Flash::class, static fn (Container $c): Flash => new Flash($c->get(Session::class)));
+
+        $c->set(AdminAccess::class, static function (Container $c): AdminAccess {
+            $config = $c->get(Config::class);
+            /** @var list<string> $roles */
+            $roles = array_values(array_map(strval(...), (array) $config->get('admin.roles', [Actor::ADMINISTRATOR, 'editor'])));
+
+            return new AdminAccess((string) $config->get('admin.path', '/admin'), $roles);
+        });
+
         $c->set(Translator::class, static fn (Container $c): Translator => Translator::fromDirectory(
             $root . '/lang',
             (string) $c->get(Config::class)->get('locale', Translator::BASE_LOCALE),
@@ -225,6 +238,9 @@ final class Kernel
                 static fn (): string => $c->get(Csrf::class)->token($currentRequest()),
                 static fn (): Translator => $c->get(Translator::class),
                 $theme,
+                $c->get(AdminAccess::class),
+                static fn (): Actor => $c->get(AuthService::class)->currentActor($currentRequest()),
+                static fn (): Flash => $c->get(Flash::class),
             ));
 
             return $twig;
@@ -234,13 +250,25 @@ final class Kernel
             $c->get(Environment::class),
         ));
 
-        $c->set(Router::class, static fn (): Router => new Router(require $root . '/config/routes.php'));
+        $c->set(Router::class, static function (Container $c) use ($root): Router {
+            $router = new Router(require $root . '/config/routes.php');
+            $router->prefix($c->get(AdminAccess::class)->path(), 'admin');
+
+            return $router;
+        });
 
         $c->set('controller.object', static fn (Container $c): Controller => new ObjectController(
             $c->get(QueryEngine::class),
             $c->get(Presentation::class),
             $c->get(BlueprintRegistry::class),
             $c->get(RelationLoader::class),
+        ));
+
+        $c->set('controller.admin', static fn (Container $c): Controller => new AdminController(
+            $c->get(AdminAccess::class),
+            $c->get(QueryEngine::class),
+            $c->get(BlueprintRegistry::class),
+            $c->get(Presentation::class),
         ));
 
         $c->set('controller.auth', static fn (Container $c): Controller => new AuthController(

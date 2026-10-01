@@ -5,10 +5,10 @@ written into the code or the templates; they are referenced by **key**
 (`auth.login`), and the texts live in one file per language. English is the
 base language, Hungarian is a full translation. Since 0.0.4.
 
-Covered: templates, login, error pages, validation messages and the
-command-line output. Not yet: the labels of capabilities, fields, relations and
-Blueprints (they will be needed by the admin UI), and the sample content of
-`seed`, which is data rather than interface text. The two messages shown before
+Covered: templates, login, error pages, validation messages, the
+command-line output, and the labels of capabilities, fields, relations and
+Blueprints ([chapter 13](13-admin.md#labels)). Not translated: the sample
+content of `seed`, which is data rather than interface text. The two messages shown before
 the system is loaded (PHP version too old, `vendor` folder missing) are in the
 base language, English.
 
@@ -24,7 +24,8 @@ return [
 ```
 
 - **Keys:** lowercase, dot-separated by area (`site.`, `content.`, `auth.`,
-  `error.`, `validation.`, `cli.`).
+  `error.`, `validation.`, `cli.`, `admin.`, and for labels `capability.`,
+  `field.`, `relation.`, `blueprint.`, `list.`).
 - **Parameters:** `{name}` in the text, filled in from the parameter array.
 - **Every language has the same keys.** `composer lang:check` (and a test)
   reports keys missing from, or extra in, any language compared to `en.php`.

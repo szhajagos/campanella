@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 use Campanella\Access\Actor;
 use Campanella\Access\DefaultPolicy;
+use Campanella\Admin\AdminAccess;
 use Campanella\Capability\CapabilityException;
 use Campanella\Capability\CapabilityRegistry;
 use Campanella\Capability\Publishable;
@@ -25,7 +26,9 @@ use Campanella\Core\Version;
 use Campanella\Core\Config;
 use Campanella\Database\Connection;
 use Campanella\Database\Installer;
+use Campanella\Http\Flash;
 use Campanella\Http\Request;
+use Campanella\Http\Router;
 use Campanella\Model\BlueprintRegistry;
 use Campanella\Model\ObjectRepository;
 use Campanella\Model\FieldStorage;
@@ -461,7 +464,7 @@ test('Relation name conflicts', function () use ($blueprints): void {
     ]));
     $blueprints->define('z', [
         'capabilities' => [Titled::class],
-        'relations' => [new Relation('categories', Cardinality::Many, targetBlueprints: ['category'], label: 'Kategóriák')],
+        'relations' => [new Relation('categories', Cardinality::Many, targetBlueprints: ['category'], label: 'relation.categories')],
     ]);                                                                      // identical definition: allowed
 });
 
@@ -1028,6 +1031,77 @@ test('Kernel: Bootstrap is served locally, and a theme overrides a core template
         @rmdir(dirname($dir, 2));
         @rmdir($root . '/themes');
     }
+});
+
+// --- Admin UI (0.0.4) ---------------------------------------------------------
+
+echo "\nAdmin UI\n";
+
+test('Router: prefix routes pass the rest of the path', function (): void {
+    $router = new Router(['/admin/exact' => ['exact']]);
+    $router->prefix('/admin', 'admin');
+    $router->prefix('/admin/deep', 'deep');
+    check($router->match(new Request('GET', '/admin'))->params === ['subpath' => '']);
+    check($router->match(new Request('GET', '/admin/article/12'))->params['subpath'] === 'article/12');
+    check($router->match(new Request('GET', '/admin/exact'))->handler === 'exact', 'an exact route wins');
+    check($router->match(new Request('GET', '/admin/deep/x'))->handler === 'deep', 'the longest prefix wins');
+    check($router->match(new Request('GET', '/administration'))->handler === 'object', 'only whole path segments match');
+});
+
+test('AdminAccess and Flash', function (): void {
+    $access = new AdminAccess('/admin', ['administrator', 'editor']);
+    check($access->allows(Actor::system()) && $access->allows(new Actor(\Campanella\Access\ActorKind::User, 1, ['editor'])));
+    check(!$access->allows(Actor::anonymous()) && !$access->allows(new Actor(\Campanella\Access\ActorKind::User, 2, ['member'])));
+    check($access->path('article') === '/admin/article' && $access->path() === '/admin');
+    throws(InvalidArgumentException::class, fn () => new AdminAccess('admin/'));
+
+    $session = new Session(new ArraySessionStorage());
+    $flash = new Flash($session);
+    check($flash->take() === [], 'no session, no messages, no error');
+    $session->start(new Request('GET', '/'));
+    $flash->add(Flash::SUCCESS, new \Campanella\I18n\Message('admin.saved', ['title' => 'X']));
+    $taken = $flash->take();
+    check(count($taken) === 1 && $taken[0]['type'] === 'success' && $taken[0]['message']->params === ['title' => 'X']);
+    check($flash->take() === [], 'a message is shown only once');
+});
+
+test('Kernel: the admin is only for admin roles', function () use ($editorUser, $newUser): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $container = $kernel->container();
+    if ($container->get(Connection::class)->prefix() !== 'test_') {
+        echo "      (skipped: config/local.php sets its own prefix)\n";
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $storage = new ArraySessionStorage();
+    $container->set(Session::class, static fn () => new Session($storage));
+    $as = function ($user) use ($kernel, $container, $storage): void {
+        $storage->endRequest();
+        $container->get(AuthService::class)->login(new Request('GET', '/'), $user);
+        $storage->endRequest();
+    };
+
+    $anonymous = $kernel->handle(new Request('GET', '/admin'));
+    check($anonymous->status === 302 && ($anonymous->headers['Location'] ?? '') === '/belepes?vissza=%2Fadmin', 'anonymous: to the login page');
+
+    $as($newUser('tag@example.hu', 'tag-jelszava-1', ['member']));
+    check($kernel->handle(new Request('GET', '/admin'))->status === 403, 'a member may not enter');
+    $storage->endRequest();
+
+    $as($editorUser);
+    $dashboard = $kernel->handle(new Request('GET', '/admin'));
+    check($dashboard->status === 200, (string) $dashboard->status);
+    check(str_contains($dashboard->body, 'Irányítópult') && str_contains($dashboard->body, 'Cikk'), 'dashboard with the translated Blueprint labels');
+    check(($dashboard->headers['X-Robots-Tag'] ?? '') === 'noindex, nofollow' && ($dashboard->headers['Cache-Control'] ?? '') === 'private, no-store');
+    check(str_contains($dashboard->body, 'admin.css?v='), 'the admin has its own stylesheet');
+    $storage->endRequest();
+    check($kernel->handle(new Request('GET', '/admin/no-such-page'))->status === 404);
+    $storage->endRequest();
+    $home = $kernel->handle(new Request('GET', '/'));
+    check(str_contains($home->body, 'href="/admin"'), 'the public header links to the admin for an editor');
+    putenv('CAMPANELLA_DB_PREFIX');
 });
 
 // --- Documentation examples -------------------------------------------------

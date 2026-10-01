@@ -58,6 +58,14 @@ backward-incompatible.
   `theme` setting (`CAMPANELLA_THEME`). Core templates are reachable as
   `@core/…` to extend them. New `Campanella\View\Theme` class and
   `theme_asset()` Twig function.
+- **Admin UI, part 1** (`/admin`): access for the `administrator` and
+  `editor` roles (`admin.path`, `admin.roles` settings; others get a 403, the
+  anonymous are sent to the login page), a Bootstrap layout independent of the
+  public theme, and a dashboard (objects per Blueprint, recently modified). An
+  "Admin" link appears in the public header for users who may enter. New
+  `AdminAccess`, `AdminController`, `Flash` (one-time messages),
+  `Router::prefix()`, and the `admin_url()`, `admin_access()`,
+  `flash_messages()` Twig functions.
 - `php bin/campanella status` marks multi-valued fields with their limit
   (`phones[3]`, `tags[*]`).
 
@@ -76,6 +84,9 @@ backward-incompatible.
   may still return a ready-made text: an unknown key is shown as it is.
 - `HttpException::notFound()`'s default message is the key `error.not_found`.
 - The `site.language` setting is replaced by `locale`.
+- The labels of capabilities, fields, relations, Blueprints and Blueprint
+  lists are message keys (e.g. `field.title`, `blueprint.article`), translated
+  where shown. Custom labels that are not keys are shown as they are.
 - `ValidationException::$errors` holds `Message` objects instead of Hungarian
   texts; `messages(Translator)` returns the texts, and `getMessage()` is an
   English summary with the keys. `Capability::validate()` returns `Message`

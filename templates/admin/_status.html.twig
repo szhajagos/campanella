@@ -1,0 +1,11 @@
+{# The publication status of an object as a badge (empty for objects that are not Publishable). #}
+{% if object.status is defined and object.status %}
+    {% set status = object.status.value ?? object.status %}
+    {% if status == 'published' and object.published_at and object.published_at|date('U') > 'now'|date('U') %}
+        <span class="badge text-bg-info">{{ t('admin.status.scheduled') }}</span>
+    {% elseif status == 'published' %}
+        <span class="badge text-bg-success">{{ t('admin.status.published') }}</span>
+    {% else %}
+        <span class="badge text-bg-secondary">{{ t('admin.status.draft') }}</span>
+    {% endif %}
+{% endif %}

@@ -14,14 +14,14 @@ use Campanella\Support\Slugger;
  * It builds on Titled so that, when the path is empty, one can be
  * generated from the title (e.g. "Neumann János" → /neumann-janos).
  */
-#[AsCapability('routable', requires: [Titled::class], label: 'Útvonallal rendelkező')]
+#[AsCapability('routable', requires: [Titled::class], label: 'capability.routable')]
 final class Routable extends Capability
 {
     #[\Override]
     public static function fields(): array
     {
         return [
-            new Field('path', FieldType::String, required: true, unique: true, label: 'Útvonal'),
+            new Field('path', FieldType::String, required: true, unique: true, label: 'field.path'),
         ];
     }
 

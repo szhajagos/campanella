@@ -99,6 +99,7 @@ New controller: a `controller.<name>` entry in the container, and a route in
 | `timezone` | `'Europe/Budapest'` | |
 | `locale` | `'hu'` | `CAMPANELLA_LOCALE` ([chapter 12](12-translation.md#choosing-the-language)) |
 | `theme` | `''` (no theme) | `CAMPANELLA_THEME` ([chapter 7](07-http-and-view.md#theme)) |
+| `admin.path`, `admin.roles` | `'/admin'`, `['administrator', 'editor']` | ([chapter 13](13-admin.md#access)) |
 | `site.name`, `site.slogan` | `'Campanella'`, … | |
 | `database.host` | `'localhost'` | `CAMPANELLA_DB_HOST` |
 | `database.port` | `3306` | `CAMPANELLA_DB_PORT` |

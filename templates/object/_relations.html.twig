@@ -4,7 +4,7 @@
     {% set items = related(object, name) %}
     {% if items %}
         <p class="relations relations--{{ name }} small text-body-secondary mb-2">
-            <span class="relations__label">{{ relation.label ?: name }}:</span>
+            <span class="relations__label">{{ t(relation.label ?: name) }}:</span>
             {% for item in items -%}
                 {%- if not loop.first %}, {% endif -%}
                 {%- set label = item.title is defined and item.title ? item.title : '#' ~ item.id -%}

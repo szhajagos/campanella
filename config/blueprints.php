@@ -28,34 +28,34 @@ use Campanella\Relation\Relation;
  */
 return [
     'article' => [
-        'label' => 'Cikk',
+        'label' => 'blueprint.article',
         'capabilities' => [Titled::class, Textual::class, Routable::class, Publishable::class, Authorable::class],
         'fields' => [
-            new Field('lead', FieldType::Text, label: 'Bevezető'),
+            new Field('lead', FieldType::Text, label: 'field.lead'),
         ],
         'relations' => [
-            new Relation('categories', Cardinality::Many, targetBlueprints: ['category'], label: 'Kategóriák'),
+            new Relation('categories', Cardinality::Many, targetBlueprints: ['category'], label: 'relation.categories'),
         ],
     ],
 
     'page' => [
-        'label' => 'Oldal',
+        'label' => 'blueprint.page',
         'capabilities' => [Textual::class, Routable::class, Publishable::class],
     ],
 
     // User: name (Titled), e-mail (Authenticatable brings Identifiable),
     // password, account status, roles. Has no public page of its own.
     'user' => [
-        'label' => 'Felhasználó',
+        'label' => 'blueprint.user',
         'capabilities' => [Titled::class, Authenticatable::class],
     ],
 
     'category' => [
-        'label' => 'Kategória',
+        'label' => 'blueprint.category',
         'capabilities' => [Textual::class, Routable::class, Publishable::class],
         'lists' => [
             'articles' => [
-                'label' => 'Cikkek ebben a kategóriában',
+                'label' => 'list.category.articles',
                 'query' => static fn (CampanellaObject $category): Query => Query::objects()
                     ->blueprint('article')
                     ->whereRelated('categories', $category)

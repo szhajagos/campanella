@@ -14,14 +14,14 @@ use Campanella\Model\FieldType;
  * The body is never filtered or sorted on, so it lives in the data (JSON)
  * column; the capability has no table of its own.
  */
-#[AsCapability('textual', label: 'Szöveges')]
+#[AsCapability('textual', label: 'capability.textual')]
 final class Textual extends Capability
 {
     #[\Override]
     public static function fields(): array
     {
         return [
-            new Field('body', FieldType::Text, FieldStorage::Data, label: 'Törzsszöveg'),
+            new Field('body', FieldType::Text, FieldStorage::Data, label: 'field.body'),
             new Field('format', FieldType::String, FieldStorage::Data, default: TextFormat::Plain->value, length: 16),
         ];
     }

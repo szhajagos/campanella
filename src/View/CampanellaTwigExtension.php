@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Campanella\View;
 
+use Campanella\Access\Actor;
+use Campanella\Admin\AdminAccess;
+use Campanella\Http\Flash;
 use Campanella\Capability\Textual;
 use Campanella\Capability\TextFormat;
 use Campanella\Core\Version;
@@ -28,6 +31,8 @@ use Twig\TwigFunction;
  *   {{ csrf_field() }}                  hidden CSRF field for POST forms
  *   {{ t('auth.login') }}               a user-facing text in the current language
  *   {{ locale() }}                      the current language code
+ *   {{ admin_url('article') }}          an admin page URL; admin_access(): may the visitor enter it
+ *   {{ flash_messages() }}              the one-time messages (and removes them)
  *   {{ object|body }}                   the safe HTML of the Textual body
  */
 final class CampanellaTwigExtension extends AbstractExtension implements GlobalsInterface
@@ -40,6 +45,9 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
      * @param (Closure(): string)|null $csrfToken The current CSRF token (lazy; starts a session).
      * @param (Closure(): Translator)|null $translator For t() and locale() (lazy).
      * @param Theme|null $theme The active theme, for theme_asset().
+     * @param AdminAccess|null $admin Where the admin UI is and who may enter it.
+     * @param (Closure(): Actor)|null $currentActor The current visitor (lazy).
+     * @param (Closure(): Flash)|null $flash One-time messages (lazy).
      */
     public function __construct(
         private readonly Closure $presentation,
@@ -49,6 +57,9 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
         private readonly ?Closure $csrfToken = null,
         private readonly ?Closure $translator = null,
         private readonly ?Theme $theme = null,
+        private readonly ?AdminAccess $admin = null,
+        private readonly ?Closure $currentActor = null,
+        private readonly ?Closure $flash = null,
     ) {
     }
 
@@ -64,6 +75,9 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
             new TwigFunction('csrf_field', $this->csrfField(...), ['is_safe' => ['html']]),
             new TwigFunction('theme_asset', $this->themeAsset(...)),
             new TwigFunction('t', $this->translate(...)),
+            new TwigFunction('admin_url', $this->adminUrl(...)),
+            new TwigFunction('admin_access', $this->adminAccess(...)),
+            new TwigFunction('flash_messages', $this->flashMessages(...)),
             new TwigFunction('locale', $this->locale(...)),
         ];
     }
@@ -146,6 +160,35 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
     public function locale(): string
     {
         return $this->translator === null ? Translator::BASE_LOCALE : ($this->translator)()->locale();
+    }
+
+    /** The URL of an admin page: {{ admin_url() }}, {{ admin_url('article') }}. */
+    public function adminUrl(string $subpath = ''): string
+    {
+        return $this->url(($this->admin ?? new AdminAccess())->path($subpath));
+    }
+
+    /** Whether the current visitor may enter the admin UI (e.g. to show an "Admin" link). */
+    public function adminAccess(): bool
+    {
+        return $this->admin !== null && $this->currentActor !== null && $this->admin->allows(($this->currentActor)());
+    }
+
+    /**
+     * The one-time messages, translated, removed from the session.
+     *
+     * @return list<array{type: string, text: string}>
+     */
+    public function flashMessages(): array
+    {
+        if ($this->flash === null) {
+            return [];
+        }
+
+        return array_map(
+            fn (array $m): array => ['type' => $m['type'], 'text' => $this->translate($m['message']->key, $m['message']->params)],
+            ($this->flash)()->take(),
+        );
     }
 
     /** Hidden field with the CSRF token; it must be put into every POST form. */

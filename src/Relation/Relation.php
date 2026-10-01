@@ -8,7 +8,7 @@ namespace Campanella\Relation;
  * The definition of a relation: a named, directed link from one object
  * (the source) to other objects (the targets).
  *
- *     new Relation('categories', Cardinality::Many, targetBlueprints: ['category'], label: 'Kategóriák')
+ *     new Relation('categories', Cardinality::Many, targetBlueprints: ['category'], label: 'relation.categories')
  *
  * Like fields, a relation is provided by a capability (relations()) or by
  * a Blueprint (the 'relations' key). The name is unique system-wide and

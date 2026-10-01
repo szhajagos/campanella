@@ -23,7 +23,7 @@ new Relation(
     targetCapabilities: [],              // the target must have all of these (name or class)
     targetBlueprints: ['category'],      // the target was made from one of these; empty: any
     required: false,                     // whether at least one target is required
-    label: 'Kategóriák',
+    label: 'relation.categories',
     max: null,                           // Many only: at most this many targets (since 0.0.4)
 );
 ```
@@ -53,7 +53,7 @@ The constructor throws `InvalidArgumentException` for an invalid name, for a
 'article' => [
     'capabilities' => [Titled::class, Textual::class, Routable::class, Publishable::class],
     'relations' => [
-        new Relation('categories', Cardinality::Many, targetBlueprints: ['category'], label: 'Kategóriák'),
+        new Relation('categories', Cardinality::Many, targetBlueprints: ['category'], label: 'relation.categories'),
     ],
 ],
 ```
@@ -70,7 +70,7 @@ final class Authorable extends Capability
 
     public static function relations(): array
     {
-        return [new Relation('author', Cardinality::One, targetCapabilities: ['titled'], label: 'Szerző')];
+        return [new Relation('author', Cardinality::One, targetCapabilities: ['titled'], label: 'relation.author')];
     }
 }
 ```
@@ -199,7 +199,7 @@ from the object:
     'capabilities' => [Textual::class, Routable::class, Publishable::class],
     'lists' => [
         'articles' => [
-            'label' => 'Cikkek ebben a kategóriában',
+            'label' => 'list.category.articles',
             'query' => static fn (CampanellaObject $category): Query => Query::objects()
                 ->blueprint('article')
                 ->whereRelated('categories', $category)

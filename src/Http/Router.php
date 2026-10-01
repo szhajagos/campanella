@@ -19,6 +19,9 @@ final class Router
     /** @var array<string, RouteMatch> */
     private array $routes = [];
 
+    /** @var array<string, RouteMatch> prefix => route, longest prefix first */
+    private array $prefixes = [];
+
     /** @param array<string, array{0: string, 1?: array<string, mixed>}> $routes path => [handler, parameters] */
     public function __construct(array $routes = [])
     {
@@ -33,9 +36,32 @@ final class Router
         $this->routes[Request::normalizePath($path)] = new RouteMatch($handler, $params);
     }
 
+    /**
+     * A route for a path and everything below it (e.g. /admin, /admin/article/12).
+     * The rest of the path after the prefix is passed as the 'subpath' parameter
+     * ('' for the prefix itself, otherwise e.g. 'article/12').
+     *
+     * @param array<string, mixed> $params
+     */
+    public function prefix(string $prefix, string $handler, array $params = []): void
+    {
+        $this->prefixes[Request::normalizePath($prefix)] = new RouteMatch($handler, $params);
+        uksort($this->prefixes, static fn (string $a, string $b): int => strlen($b) <=> strlen($a));
+    }
+
     public function match(Request $request): RouteMatch
     {
-        return $this->routes[$request->path]
-            ?? new RouteMatch('object', ['path' => $request->path]);
+        if (isset($this->routes[$request->path])) {
+            return $this->routes[$request->path];
+        }
+        foreach ($this->prefixes as $prefix => $route) {
+            if ($request->path === $prefix || str_starts_with($request->path, $prefix . '/')) {
+                return new RouteMatch($route->handler, $route->params + [
+                    'subpath' => trim(substr($request->path, strlen($prefix)), '/'),
+                ]);
+            }
+        }
+
+        return new RouteMatch('object', ['path' => $request->path]);
     }
 }

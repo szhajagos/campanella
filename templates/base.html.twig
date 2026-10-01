@@ -29,6 +29,7 @@
                     {% set user = current_user() %}
                     <div class="site-user d-flex align-items-center gap-3">
                         {% if user %}
+                            {% if admin_access() %}<a class="btn btn-sm btn-primary" href="{{ admin_url() }}">{{ t('admin.link') }}</a>{% endif %}
                             <span class="site-user__name text-body-secondary">{{ user.title }}</span>
                             <form method="post" action="{{ url('/kilepes') }}" class="m-0">
                                 {{ csrf_field() }}

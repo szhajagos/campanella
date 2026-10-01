@@ -61,8 +61,18 @@ Then:
     parameters) and the command-line output.
   - With the admin UI: the labels of capabilities, fields, relations and
     Blueprints.
-- Listing, filtering, creating, editing, deleting and publishing content from
-  the browser.
+- Admin UI (`/admin`, configurable), in four parts (2026-10-01):
+  1. ✅ Frame: access for the `administrator` and `editor` roles, a Bootstrap
+     layout that is independent of the public theme (a broken theme cannot
+     lock anyone out), dashboard, one-time (flash) messages, translated labels.
+  2. Listing per Blueprint with paging, filtering (status, title search) and
+     sorting; the buttons follow the AccessPolicy.
+  3. Generated forms, creating and editing (see below), with a warning when
+     two editors change the same object at the same time.
+  4. Publishing, unpublishing (also scheduled), deleting with confirmation;
+     then the `v0.0.4` release.
+  User management in the browser comes later; until then users are managed
+  from the command line.
 - Forms are generated from the field and relation definitions, so the editing
   UI for a new Blueprint or capability is created automatically. Multi-value
   fields get an "add another value" button and reordering, up to the

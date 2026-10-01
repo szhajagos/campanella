@@ -1,0 +1,62 @@
+{# The admin layout. Always loaded as @core/admin/…, so the public theme does not affect it. #}
+<!doctype html>
+<html lang="{{ locale() }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <title>{{ title is defined and title ? t(title) ~ ' – ' : '' }}{{ t('admin.title') }} – {{ site.name }}</title>
+    <script>document.documentElement.dataset.bsTheme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';</script>
+    <link rel="stylesheet" href="{{ asset('vendor/bootstrap/css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ asset('admin.css') }}">
+</head>
+<body class="admin">
+    <header class="navbar navbar-expand-md admin-topbar border-bottom">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ admin_url() }}">{{ site.name }} <span class="text-body-secondary fw-normal">· {{ t('admin.link') }}</span></a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#admin-nav"
+                    aria-controls="admin-nav" aria-expanded="false" aria-label="{{ t('site.nav.toggle') }}">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="admin-nav">
+                <nav class="d-md-none" aria-label="{{ t('admin.nav.label') }}">
+                    <ul class="navbar-nav">{{ block('menu') }}</ul>
+                </nav>
+                {% set user = current_user() %}
+                <div class="d-flex align-items-center gap-3 ms-md-auto py-2 py-md-0">
+                    <a class="small" href="{{ url('/') }}">{{ t('admin.back_to_site') }}</a>
+                    {% if user %}
+                        <span class="small text-body-secondary">{{ user.title }}</span>
+                        <form method="post" action="{{ url('/kilepes') }}" class="m-0">
+                            {{ csrf_field() }}
+                            <button type="submit" class="btn btn-sm btn-outline-secondary">{{ t('auth.logout') }}</button>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="container-fluid">
+        <div class="row">
+            <nav class="col-md-3 col-lg-2 d-none d-md-block admin-sidebar border-end py-3" aria-label="{{ t('admin.nav.label') }}">
+                <ul class="nav flex-column">
+                    {% block menu %}
+                        <li class="nav-item"><a class="nav-link{{ (active ?? '') == 'dashboard' ? ' active' : '' }}" href="{{ admin_url() }}">{{ t('admin.dashboard') }}</a></li>
+                    {% endblock %}
+                </ul>
+            </nav>
+
+            <main class="col-md-9 col-lg-10 px-md-4 py-4">
+                {% for flash in flash_messages() %}
+                    <div class="alert alert-{{ flash.type }}" role="alert">{{ flash.text }}</div>
+                {% endfor %}
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <script src="{{ asset('vendor/bootstrap/js/bootstrap.bundle.min.js') }}" defer></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

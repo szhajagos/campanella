@@ -14,14 +14,14 @@ use Campanella\Model\FieldType;
  * Before saving, the address is normalized to lowercase without whitespace,
  * so "Kovacs.Anna@Example.hu" and "kovacs.anna@example.hu" are the same account.
  */
-#[AsCapability('identifiable', label: 'Azonosítható')]
+#[AsCapability('identifiable', label: 'capability.identifiable')]
 final class Identifiable extends Capability
 {
     #[\Override]
     public static function fields(): array
     {
         return [
-            new Field('email', FieldType::String, required: true, unique: true, length: 254, label: 'E-mail-cím', hidden: true),
+            new Field('email', FieldType::String, required: true, unique: true, length: 254, label: 'field.email', hidden: true),
         ];
     }
 
