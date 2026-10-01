@@ -222,7 +222,9 @@ final class Kernel
             $twig = new Environment($loader, [
                 'cache' => $cache,
                 'debug' => $debug,
-                'auto_reload' => $debug,
+                // Always check whether a template changed since it was compiled (a cheap
+                // file time check), so an upgrade never keeps serving old compiled templates.
+                'auto_reload' => true,
                 'strict_variables' => $debug,
                 'autoescape' => 'html',
             ]);

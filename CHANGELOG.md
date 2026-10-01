@@ -103,6 +103,11 @@ backward-incompatible.
 
 ### Fixed
 
+- After an upgrade, the template cache (`var/cache/twig`) kept serving the
+  previously compiled templates when `debug` was off, so template changes did
+  not appear until the cache was cleared. Twig now always checks whether a
+  template file changed (`auto_reload`).
+
 - The hidden honeypot field ("Weboldal") of the login form was visible if the
   browser had the 0.0.2 `campanella.css` cached. The field is now hidden by an
   inline style, and `asset()` also appends the version number to the URL
