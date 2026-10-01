@@ -14,6 +14,7 @@ return [
     'site.nav.news' => 'News',
     'site.nav.categories' => 'Categories',
     'site.nav.about' => 'About us',
+    'site.nav.toggle' => 'Toggle navigation',
 
     // Content lists
     'content.empty' => 'Nothing to show.',

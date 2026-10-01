@@ -4,39 +4,54 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}{{ title is defined and title ? title ~ ' – ' : '' }}{{ site.name }}{% endblock %}</title>
+    {# Bootstrap color mode follows the system setting (light / dark). #}
+    <script>document.documentElement.dataset.bsTheme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';</script>
+    <link rel="stylesheet" href="{{ asset('vendor/bootstrap/css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ asset('campanella.css') }}">
+    {% block stylesheets %}{% endblock %}
 </head>
-<body>
-    <header class="site-header">
-        <div class="wrap">
-            <a class="site-name" href="{{ url('/') }}">{{ site.name }}</a>
-            <nav class="site-nav" aria-label="{{ t('site.nav.label') }}">
-                <a href="{{ url('/') }}">{{ t('site.nav.home') }}</a>
-                <a href="{{ url('/hirek') }}">{{ t('site.nav.news') }}</a>
-                <a href="{{ url('/kategoriak') }}">{{ t('site.nav.categories') }}</a>
-                <a href="{{ url('/rolunk') }}">{{ t('site.nav.about') }}</a>
-            </nav>
-            {% set user = current_user() %}
-            <div class="site-user">
-                {% if user %}
-                    <span class="site-user__name">{{ user.title }}</span>
-                    <form method="post" action="{{ url('/kilepes') }}" class="inline-form">
-                        {{ csrf_field() }}
-                        <button type="submit" class="link-button">{{ t('auth.logout') }}</button>
-                    </form>
-                {% else %}
-                    <a href="{{ url('/belepes') }}">{{ t('auth.login') }}</a>
-                {% endif %}
+<body class="d-flex flex-column min-vh-100">
+    <header class="site-header border-bottom">
+        <nav class="navbar navbar-expand-md" aria-label="{{ t('site.nav.label') }}">
+            <div class="container site-container">
+                <a class="navbar-brand site-name" href="{{ url('/') }}">{{ site.name }}</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#site-nav"
+                        aria-controls="site-nav" aria-expanded="false" aria-label="{{ t('site.nav.toggle') }}">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="site-nav">
+                    <ul class="navbar-nav me-auto">
+                        <li class="nav-item"><a class="nav-link" href="{{ url('/') }}">{{ t('site.nav.home') }}</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{{ url('/hirek') }}">{{ t('site.nav.news') }}</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{{ url('/kategoriak') }}">{{ t('site.nav.categories') }}</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{{ url('/rolunk') }}">{{ t('site.nav.about') }}</a></li>
+                    </ul>
+                    {% set user = current_user() %}
+                    <div class="site-user d-flex align-items-center gap-3">
+                        {% if user %}
+                            <span class="site-user__name text-body-secondary">{{ user.title }}</span>
+                            <form method="post" action="{{ url('/kilepes') }}" class="m-0">
+                                {{ csrf_field() }}
+                                <button type="submit" class="btn btn-sm btn-outline-secondary">{{ t('auth.logout') }}</button>
+                            </form>
+                        {% else %}
+                            <a class="btn btn-sm btn-outline-primary" href="{{ url('/belepes') }}">{{ t('auth.login') }}</a>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
-        </div>
+        </nav>
     </header>
 
-    <main class="wrap">
+    <main class="container site-container flex-grow-1 py-4 py-md-5">
         {% block content %}{% endblock %}
     </main>
 
-    <footer class="site-footer">
-        <div class="wrap">Campanella {{ campanella_version }}</div>
+    <footer class="site-footer border-top py-3 small text-body-secondary">
+        <div class="container site-container">Campanella {{ campanella_version }}</div>
     </footer>
+
+    <script src="{{ asset('vendor/bootstrap/js/bootstrap.bundle.min.js') }}" defer></script>
+    {% block scripts %}{% endblock %}
 </body>
 </html>

@@ -15,7 +15,8 @@ folder, changes are listed in the [CHANGELOG](CHANGELOG.md), and plans in the
 - MariaDB 10.6+ or MySQL 8.0+ (InnoDB, utf8mb4)
 - Composer (to download the dependencies; you can also upload the project to your web host together with the `vendor/` folder)
 
-The only runtime dependency is Twig. PHPStan is needed for development only.
+The only PHP dependency is Twig; Bootstrap 5.3 (CSS and JavaScript) is shipped in
+`public/assets/vendor/`. PHPStan is needed for development only.
 
 ## Installation
 
@@ -143,7 +144,8 @@ src/
   View/         Presentation, Twig extension
   Cli/          bin/campanella commands
 config/         app.php, blueprints.php, routes.php, queries.php, local.php
-templates/      Twig templates
+templates/      Twig templates (the core look, on Bootstrap 5.3)
+themes/         Optional themes that override templates (see docs/php-api/07-http-and-view.md)
 lang/           User-facing texts per language (en.php, hu.php)
 public/         index.php (single entry point), assets/
 ```
@@ -221,3 +223,6 @@ Component / Region / Layout, Webform, Event / Action, cache, migrations
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+Bundled third-party code: Bootstrap 5.3.8 (MIT,
+[public/assets/vendor/bootstrap/LICENSE](public/assets/vendor/bootstrap/LICENSE)).

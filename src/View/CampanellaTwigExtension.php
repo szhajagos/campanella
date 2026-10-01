@@ -21,6 +21,7 @@ use Twig\TwigFunction;
  *
  *   {{ url('/hirek') }}                 subdirectory-safe URL
  *   {{ asset('campanella.css') }}       a file under public/assets/
+ *   {{ theme_asset('style.css') }}      a file of the active theme (public/themes/<name>/)
  *   {{ render_object(item, 'teaser') }} an object in a presentation mode
  *   {{ related(object, 'categories') }} the loaded target objects of a relation
  *   {{ current_user() }}                the logged-in user or null
@@ -38,6 +39,7 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
      * @param (Closure(): ?CampanellaObject)|null $currentUser The logged-in user (lazy).
      * @param (Closure(): string)|null $csrfToken The current CSRF token (lazy; starts a session).
      * @param (Closure(): Translator)|null $translator For t() and locale() (lazy).
+     * @param Theme|null $theme The active theme, for theme_asset().
      */
     public function __construct(
         private readonly Closure $presentation,
@@ -46,6 +48,7 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
         private readonly ?Closure $currentUser = null,
         private readonly ?Closure $csrfToken = null,
         private readonly ?Closure $translator = null,
+        private readonly ?Theme $theme = null,
     ) {
     }
 
@@ -59,6 +62,7 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
             new TwigFunction('related', $this->related(...)),
             new TwigFunction('current_user', $this->currentUser(...)),
             new TwigFunction('csrf_field', $this->csrfField(...), ['is_safe' => ['html']]),
+            new TwigFunction('theme_asset', $this->themeAsset(...)),
             new TwigFunction('t', $this->translate(...)),
             new TwigFunction('locale', $this->locale(...)),
         ];
@@ -91,6 +95,16 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
     public function asset(string $path): string
     {
         return $this->url('/assets/' . ltrim($path, '/')) . '?v=' . rawurlencode(Version::CAMPANELLA);
+    }
+
+    /**
+     * A file of the active theme (public/themes/<name>/…), with the same cache buster as asset().
+     */
+    public function themeAsset(string $path): string
+    {
+        $theme = $this->theme ?? Theme::none();
+
+        return $this->url('/' . $theme->assetPath($path)) . '?v=' . rawurlencode(Version::CAMPANELLA);
     }
 
     public function renderObject(CampanellaObject $object, string $mode = Presentation::TEASER): string

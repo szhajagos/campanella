@@ -1,53 +1,93 @@
-:root {
-    --ink: #1d1d1f;
-    --muted: #6b6b70;
-    --line: #e4e2dd;
-    --paper: #fbfaf7;
-    --accent: #8a3b12;
-    color-scheme: light dark;
+/*
+ * Campanella's own layer on top of Bootstrap 5.3: the default look of the
+ * core templates. Only Bootstrap CSS variables and a few rules; a theme can
+ * replace this file entirely (see docs/php-api/07-http-and-view.md).
+ */
+:root,
+[data-bs-theme="light"] {
+    --cc-accent: #8a3b12;
+    --cc-accent-rgb: 138, 59, 18;
+    --cc-accent-hover: #6f2f0e;
+    --bs-body-bg: #fbfaf7;
+    --bs-body-color: #1d1d1f;
+    --bs-border-color: #e4e2dd;
+    --bs-secondary-color: #6b6b70;
+    --bs-tertiary-bg: #f3f1ec;
 }
-@media (prefers-color-scheme: dark) {
-    :root { --ink: #ecebe8; --muted: #a09f9b; --line: #34332f; --paper: #191816; --accent: #e59a6b; }
+
+[data-bs-theme="dark"] {
+    --cc-accent: #e59a6b;
+    --cc-accent-rgb: 229, 154, 107;
+    --cc-accent-hover: #f0b48e;
+    --bs-body-bg: #191816;
+    --bs-body-color: #ecebe8;
+    --bs-border-color: #34332f;
+    --bs-secondary-color: #a09f9b;
+    --bs-tertiary-bg: #22211e;
 }
-* { box-sizing: border-box; }
-body {
-    margin: 0;
-    background: var(--paper);
-    color: var(--ink);
-    font: 17px/1.6 Georgia, "Times New Roman", serif;
+
+:root,
+[data-bs-theme] {
+    --bs-link-color: var(--cc-accent);
+    --bs-link-color-rgb: var(--cc-accent-rgb);
+    --bs-link-hover-color: var(--cc-accent-hover);
+    --bs-link-hover-color-rgb: var(--cc-accent-rgb);
+    --bs-primary: var(--cc-accent);
+    --bs-primary-rgb: var(--cc-accent-rgb);
+    --bs-body-font-family: Georgia, "Times New Roman", serif;
+    --bs-body-font-size: 1.0625rem;
+    --bs-body-line-height: 1.6;
 }
-a { color: var(--accent); }
-.wrap { max-width: 44rem; margin: 0 auto; padding: 0 16px; }
-.site-header { border-bottom: 1px solid var(--line); }
-.site-header .wrap { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; align-items: baseline; justify-content: space-between; padding-block: 1rem; }
-.site-name { font-weight: bold; font-size: 1.25rem; text-decoration: none; color: var(--ink); }
-.site-nav { display: flex; gap: 1rem; font-family: system-ui, sans-serif; font-size: .95rem; }
-.site-nav a { text-decoration: none; }
-main { padding-block: 2rem 3rem; }
-h1, h2 { line-height: 1.25; }
-.intro { margin-bottom: 2rem; }
-.intro p, .meta { color: var(--muted); }
-.meta { font-family: system-ui, sans-serif; font-size: .85rem; margin-top: -.5rem; }
-.lead { font-size: 1.15rem; }
-.object--teaser { padding-block: 1rem; border-bottom: 1px solid var(--line); }
-.object--teaser h2 { margin: 0 0 .5rem; font-size: 1.35rem; }
-.object--teaser h2 a { color: var(--ink); text-decoration: none; }
-.more { font-family: system-ui, sans-serif; font-size: .9rem; }
-.pager { display: flex; gap: .75rem; margin-top: 1.5rem; font-family: system-ui, sans-serif; }
-.pager span { font-weight: bold; }
-.site-footer { border-top: 1px solid var(--line); color: var(--muted); font: .85rem system-ui, sans-serif; padding-block: 1.5rem; }
-.relations { font-family: system-ui, sans-serif; font-size: .85rem; color: var(--muted); }
-.relations__label { margin-right: .25rem; }
-.object-list { margin-top: 2.5rem; }
-.object-list__title { font-size: 1.2rem; border-bottom: 1px solid var(--line); padding-bottom: .5rem; }
-.site-user { display: flex; gap: .75rem; align-items: baseline; font: .9rem system-ui, sans-serif; }
-.site-user__name { color: var(--muted); }
-.inline-form { display: inline; margin: 0; }
-.link-button { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; cursor: pointer; text-decoration: underline; }
-.login { max-width: 22rem; }
-.form { display: grid; gap: .4rem; font-family: system-ui, sans-serif; }
-.form label { margin-top: .6rem; font-size: .9rem; }
-.form input { padding: .55rem .6rem; font: inherit; border: 1px solid var(--line); border-radius: 4px; background: var(--paper); color: var(--ink); }
-.form button { margin-top: 1rem; padding: .6rem; font: inherit; border: 0; border-radius: 4px; background: var(--accent); color: #fff; cursor: pointer; }
-.form-error { padding: .6rem .8rem; border-left: 3px solid #b3261e; background: color-mix(in srgb, #b3261e 8%, transparent); font-family: system-ui, sans-serif; }
+
+/* Interface elements in a sans-serif face; reading text stays serif. */
+.navbar, .btn, .form-label, .form-control, .alert, .pagination, .meta, .relations, .more, .site-footer, .site-user {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* A comfortable line length for reading. */
+.site-container { max-width: 48rem; }
+
+.site-name { font-weight: 700; }
+.navbar .nav-link { color: var(--bs-body-color); }
+.navbar .nav-link:hover, .navbar .nav-link:focus { color: var(--cc-accent); }
+
+h1, h2, h3, .h1, .h2, .h3, .h4, .h5 { line-height: 1.25; }
+
+.btn-primary {
+    --bs-btn-bg: var(--cc-accent);
+    --bs-btn-border-color: var(--cc-accent);
+    --bs-btn-hover-bg: var(--cc-accent-hover);
+    --bs-btn-hover-border-color: var(--cc-accent-hover);
+    --bs-btn-active-bg: var(--cc-accent-hover);
+    --bs-btn-active-border-color: var(--cc-accent-hover);
+    --bs-btn-color: #fff;
+    --bs-btn-hover-color: #fff;
+}
+[data-bs-theme="dark"] .btn-primary { --bs-btn-color: #191816; --bs-btn-hover-color: #191816; }
+[data-bs-theme="dark"] .pagination { --bs-pagination-active-color: #191816; }
+.btn-outline-primary {
+    --bs-btn-color: var(--cc-accent);
+    --bs-btn-border-color: var(--cc-accent);
+    --bs-btn-hover-bg: var(--cc-accent);
+    --bs-btn-hover-border-color: var(--cc-accent);
+    --bs-btn-hover-color: var(--bs-body-bg);
+    --bs-btn-active-bg: var(--cc-accent-hover);
+    --bs-btn-active-border-color: var(--cc-accent-hover);
+}
+.pagination {
+    --bs-pagination-color: var(--cc-accent);
+    --bs-pagination-hover-color: var(--cc-accent-hover);
+    --bs-pagination-active-bg: var(--cc-accent);
+    --bs-pagination-active-border-color: var(--cc-accent);
+}
+.form-control:focus {
+    border-color: rgba(var(--cc-accent-rgb), .6);
+    box-shadow: 0 0 0 .25rem rgba(var(--cc-accent-rgb), .2);
+}
+
+.object--teaser:last-child { border-bottom: 0 !important; }
+.object--teaser h2 a:hover { color: var(--cc-accent) !important; }
+.login { max-width: 24rem; }
+
+/* The login honeypot (also hidden by an inline style, independent of the theme). */
 .hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }

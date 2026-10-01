@@ -37,6 +37,7 @@ use Campanella\Query\QueryCompiler;
 use Campanella\Query\QueryEngine;
 use Campanella\Query\QueryException;
 use Campanella\Service\ObjectService;
+use Campanella\View\Theme;
 use Campanella\Support\Slugger;
 use Campanella\Support\Uuid;
 use Campanella\Relation\Cardinality;
@@ -938,7 +939,7 @@ test('Kernel: the login page in English (CAMPANELLA_LOCALE=en)', function (): vo
     $kernel->container()->set(Session::class, static fn (): Session => new Session(new ArraySessionStorage()));
     $page = $kernel->handle(new Request('GET', '/belepes'));
     check($page->status === 200 && str_contains($page->body, '<html lang="en">'), 'lang attribute');
-    check(str_contains($page->body, '<h1>Log in</h1>') && str_contains($page->body, 'E-mail address'), 'English texts');
+    check(str_contains($page->body, '>Log in</h1>') && str_contains($page->body, 'E-mail address'), 'English texts');
     check(!str_contains($page->body, 'Belépés'), 'Hungarian text left on the page');
     $missing = $kernel->handle(new Request('GET', '/nincs-ilyen-oldal'));
     check($missing->status === 404 && str_contains($missing->body, 'The page was not found.'), 'English 404');
@@ -976,6 +977,57 @@ test('Command line in English and in Hungarian', function (): void {
     check(str_contains($help, 'Usage: php bin/campanella <command>') && str_contains($help, 'Creates the database tables'), $help);
     check(str_contains($run('hu', ''), 'Használat: php bin/campanella <parancs>'));
     check(str_contains($run('en', 'user:password nobody@example.com'), 'No such user: nobody@example.com'));
+});
+
+// --- Themes and Bootstrap (0.0.4) ---------------------------------------------
+
+echo "\nThemes\n";
+
+test('Theme: name and folder are checked', function (): void {
+    check(!Theme::none()->isActive() && !Theme::fromRoot(dirname(__DIR__), '')->isActive());
+    throws(LogicException::class, fn () => Theme::fromRoot(dirname(__DIR__), '../etc'));
+    throws(LogicException::class, fn () => Theme::fromRoot(dirname(__DIR__), 'no-such-theme'));
+    throws(LogicException::class, fn () => Theme::none()->assetPath('style.css'));
+});
+
+test('Kernel: Bootstrap is served locally, and a theme overrides a core template', function (): void {
+    $root = dirname(__DIR__);
+    $bootstrap = $root . '/public/assets/vendor/bootstrap';
+    check(is_file($bootstrap . '/css/bootstrap.min.css') && is_file($bootstrap . '/js/bootstrap.bundle.min.js') && is_file($bootstrap . '/LICENSE'));
+
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel($root);
+    if ($kernel->container()->get(Connection::class)->prefix() !== 'test_') {
+        echo "      (skipped: config/local.php sets its own prefix)\n";
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $page = $kernel->handle(new Request('GET', '/nincs-ilyen-oldal'));
+    check(str_contains($page->body, '/assets/vendor/bootstrap/css/bootstrap.min.css?v=' . Version::CAMPANELLA), 'Bootstrap CSS');
+    check(str_contains($page->body, '/assets/vendor/bootstrap/js/bootstrap.bundle.min.js?v='), 'Bootstrap JS');
+    check(!str_contains($page->body, 'cdn.') && !str_contains($page->body, 'jquery'), 'no CDN, no jQuery');
+
+    // A temporary theme: overrides the error page, extends the core version of it.
+    $dir = $root . '/themes/zz-test/templates/page';
+    @mkdir($dir, 0775, true);
+    file_put_contents($dir . '/error.html.twig', "{% extends '@core/page/error.html.twig' %}\n"
+        . "{% block content %}<p>THEME-OVERRIDE {{ theme_asset('style.css') }}</p>{{ parent() }}{% endblock %}\n");
+    try {
+        putenv('CAMPANELLA_THEME=zz-test');
+        $themed = (new \Campanella\Core\Kernel($root))->handle(new Request('GET', '/nincs-ilyen-oldal'));
+        check($themed->status === 404, (string) $themed->status);
+        check(str_contains($themed->body, 'THEME-OVERRIDE /themes/zz-test/style.css?v='), 'the theme template is used');
+        check(str_contains($themed->body, 'Az oldal nem található'), 'the core template is still reachable as @core');
+    } finally {
+        putenv('CAMPANELLA_THEME');
+        putenv('CAMPANELLA_DB_PREFIX');
+        @unlink($dir . '/error.html.twig');
+        @rmdir($dir);
+        @rmdir(dirname($dir));
+        @rmdir(dirname($dir, 2));
+        @rmdir($root . '/themes');
+    }
 });
 
 // --- Documentation examples -------------------------------------------------

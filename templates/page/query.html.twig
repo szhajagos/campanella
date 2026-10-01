@@ -2,11 +2,11 @@
 
 {% block content %}
     {% if title %}
-        <h1 class="page-title">{{ title }}</h1>
+        <h1 class="page-title mb-4">{{ title }}</h1>
     {% else %}
-        <section class="intro">
+        <section class="intro mb-4 pb-3 border-bottom">
             <h1>{{ site.name }}</h1>
-            <p>{{ site.slogan }}</p>
+            <p class="lead text-body-secondary mb-0">{{ site.slogan }}</p>
         </section>
     {% endif %}
     {{ content|raw }}

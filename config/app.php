@@ -22,6 +22,10 @@ return [
     // The language of user-facing texts: a file in lang/ (en, hu). English is the fallback.
     'locale' => getenv('CAMPANELLA_LOCALE') ?: 'hu',
 
+    // The active theme: a folder in themes/ whose templates override the core ones.
+    // Empty: the core templates (Bootstrap 5.3). See docs/php-api/07-http-and-view.md.
+    'theme' => getenv('CAMPANELLA_THEME') ?: '',
+
     'site' => [
         'name' => 'Campanella',
         'slogan' => 'Capability-vezérelt CMS',

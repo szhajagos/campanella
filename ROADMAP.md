@@ -68,10 +68,10 @@ Then:
   fields get an "add another value" button and reordering, up to the
   cardinality limit.
 - Clear error messages based on `ValidationException`.
-- Look and feel: Bootstrap 5.3, shipped with Campanella
+- ✅ Look and feel: Bootstrap 5.3, shipped with Campanella
   (`public/assets/vendor/bootstrap`), without a CDN. Both the admin UI and the
   default public theme are built on it.
-- Simple theme system: a template in the theme's folder takes precedence over
+- ✅ Simple theme system: a template in the theme's folder takes precedence over
   the base template, so a custom theme can also be built without Bootstrap.
 - In this step, text fields in `html` format still get a plain textarea; the
   editor and the sanitizer come in 0.0.5.

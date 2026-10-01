@@ -98,6 +98,7 @@ New controller: a `controller.<name>` entry in the container, and a route in
 | `debug` | `false` | `CAMPANELLA_DEBUG` |
 | `timezone` | `'Europe/Budapest'` | |
 | `locale` | `'hu'` | `CAMPANELLA_LOCALE` ([chapter 12](12-translation.md#choosing-the-language)) |
+| `theme` | `''` (no theme) | `CAMPANELLA_THEME` ([chapter 7](07-http-and-view.md#theme)) |
 | `site.name`, `site.slogan` | `'Campanella'`, … | |
 | `database.host` | `'localhost'` | `CAMPANELLA_DB_HOST` |
 | `database.port` | `3306` | `CAMPANELLA_DB_PORT` |

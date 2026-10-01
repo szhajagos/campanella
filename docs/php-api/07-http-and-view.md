@@ -149,6 +149,53 @@ Template variables:
 | list | `result` (ResultSet), `name`, `item_mode`, `path` + the `$context` |
 | every template | `site` (the `site` key of `config/app.php`), `campanella_version` |
 
+Each lookup first checks the active theme's folder, then the core templates
+(see below), so a theme can override any single template.
+
+## Look and themes
+
+Since 0.0.4 the core templates (`templates/`) are built on **Bootstrap 5.3**,
+shipped with Campanella in `public/assets/vendor/bootstrap/` (no CDN, no jQuery;
+the JavaScript bundle includes Popper). On top of it, `public/assets/campanella.css`
+sets the default look through Bootstrap's CSS variables. The color mode (light or
+dark) follows the visitor's system setting.
+
+`base.html.twig` provides the blocks `title`, `stylesheets`, `content` and
+`scripts`.
+
+### Theme
+
+`Campanella\View\Theme` · **Public** · `final readonly class` · container: `Theme::class`
+
+A theme is a folder in `themes/` that contains only what it changes:
+
+```
+themes/<name>/templates/   templates; one with the same path as a core template takes precedence
+public/themes/<name>/      the theme's own CSS, images and scripts
+```
+
+It is chosen with the `theme` setting (`config/app.php`, or `CAMPANELLA_THEME`);
+empty (the default) means the core templates alone. A theme template can extend
+the core version of itself through the `@core` namespace, so it does not have
+to copy it:
+
+```twig
+{# themes/mytheme/templates/base.html.twig #}
+{% extends '@core/base.html.twig' %}
+{% block stylesheets %}<link rel="stylesheet" href="{{ theme_asset('style.css') }}">{% endblock %}
+```
+
+A theme does not have to use Bootstrap: if it overrides `base.html.twig`
+without extending it, it decides which CSS and JavaScript it loads.
+
+| Member | Description |
+|---|---|
+| `static none(): self` | No theme |
+| `static fromRoot(string $root, string $name): self` | The theme under `<root>/themes/<name>`; an empty name means no theme. `LogicException` for an invalid name (`^[a-z][a-z0-9_-]{0,40}$`) or a missing `templates` folder |
+| `$name`, `$templateDir` | The name, and the templates folder (`null` without a theme) |
+| `isActive(): bool` | Whether a theme is set |
+| `assetPath(string $path): string` | `themes/<name>/<path>`; `LogicException` without a theme |
+
 ## Twig extension
 
 `Campanella\View\CampanellaTwigExtension` · **Public** (the template functions) · the extension class is **Internal**
@@ -161,6 +208,7 @@ Template variables:
 | `{{ related(object, 'categories') }}` | `related(CampanellaObject $object, string $relation)` | The loaded target objects of a relation, or an empty list |
 | `{{ current_user() }}` | `currentUser()` | The logged-in user or `null` ([chapter 11](11-users.md#web-interface)) |
 | `{{ csrf_field() }}` | `csrfField()` | Hidden CSRF field for POST forms |
+| `{{ theme_asset('style.css') }}` | `themeAsset(string $path)` | A file of the active theme (`public/themes/<name>/`), with the version as cache buster |
 | `{{ t('auth.login', {…}) }}` | `translate(string $key, array $params = [])` | A user-facing text in the current language ([chapter 12](12-translation.md)) |
 | `{{ locale() }}` | `locale()` | The current language code |
 | `{{ object\|body }}` | `body(CampanellaObject $object)` | The HTML of the Textual body: escaped and split into paragraphs for the `plain` format; unchanged for the `html` format |

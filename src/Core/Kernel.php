@@ -33,6 +33,7 @@ use Campanella\Security\Throttle;
 use Campanella\Service\ObjectService;
 use Campanella\View\CampanellaTwigExtension;
 use Campanella\View\Presentation;
+use Campanella\View\Theme;
 use Twig\Environment;
 use Twig\Extension\CoreExtension;
 use Twig\Loader\FilesystemLoader;
@@ -173,6 +174,11 @@ final class Kernel
             $c->get(CapabilityRegistry::class),
         ));
 
+        $c->set(Theme::class, static fn (Container $c): Theme => Theme::fromRoot(
+            $root,
+            (string) $c->get(Config::class)->get('theme', ''),
+        ));
+
         $basePath = fn (): string => $this->basePath;
         $currentRequest = fn (): Request => $this->request ?? new Request('GET', '/');
         $c->set(Environment::class, static function (Container $c) use ($root, $basePath, $currentRequest): Environment {
@@ -190,7 +196,17 @@ final class Kernel
                 error_log("Campanella: the {$cacheDir} directory is not writable, the template cache is disabled.");
             }
 
-            $twig = new Environment(new FilesystemLoader($root . '/templates'), [
+            // The active theme's templates take precedence over the core ones; the core
+            // templates are also reachable as @core/… (e.g. to extend them from a theme).
+            $theme = $c->get(Theme::class);
+            $loader = new FilesystemLoader();
+            if ($theme->templateDir !== null) {
+                $loader->addPath($theme->templateDir);
+            }
+            $loader->addPath($root . '/templates');
+            $loader->addPath($root . '/templates', 'core');
+
+            $twig = new Environment($loader, [
                 'cache' => $cache,
                 'debug' => $debug,
                 'auto_reload' => $debug,
@@ -208,6 +224,7 @@ final class Kernel
                 static fn () => $c->get(AuthService::class)->currentUser($currentRequest()),
                 static fn (): string => $c->get(Csrf::class)->token($currentRequest()),
                 static fn (): Translator => $c->get(Translator::class),
+                $theme,
             ));
 
             return $twig;

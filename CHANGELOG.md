@@ -47,6 +47,17 @@ backward-incompatible.
 - **Translation layer, part 2.** Validation messages and the command-line
   output are translated too (`validation.` and `cli.` keys). New
   `Campanella\I18n\Message` (an untranslated key with parameters).
+- **Bootstrap 5.3** (5.3.8, MIT), shipped in `public/assets/vendor/bootstrap/`
+  (no CDN, no jQuery). The core templates are rebuilt on it: a responsive
+  navigation bar that collapses on mobile, a card-style login form, Bootstrap
+  pagination and alerts. The default look (`campanella.css`) is set through
+  Bootstrap's CSS variables; light and dark mode follow the system setting.
+  `base.html.twig` has new `stylesheets` and `scripts` blocks.
+- **Themes.** A folder `themes/<name>/templates/` overrides core templates
+  one by one, its assets live in `public/themes/<name>/`; chosen with the
+  `theme` setting (`CAMPANELLA_THEME`). Core templates are reachable as
+  `@core/…` to extend them. New `Campanella\View\Theme` class and
+  `theme_asset()` Twig function.
 - `php bin/campanella status` marks multi-valued fields with their limit
   (`phones[3]`, `tags[*]`).
 

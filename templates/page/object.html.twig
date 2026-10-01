@@ -5,12 +5,12 @@
 
     {# The Blueprint's 'lists', e.g. the articles of a category. #}
     {% for name, list in lists %}
-        <section class="object-list object-list--{{ name }}">
-            {% if list.label %}<h2 class="object-list__title">{{ list.label }}</h2>{% endif %}
+        <section class="object-list object-list--{{ name }} mt-5">
+            {% if list.label %}<h2 class="object-list__title h5 pb-2 border-bottom">{{ list.label }}</h2>{% endif %}
             {% for item in list.result %}
                 {{ render_object(item, 'teaser') }}
             {% else %}
-                <p class="empty">{{ t('content.empty') }}</p>
+                <p class="empty text-body-secondary">{{ t('content.empty') }}</p>
             {% endfor %}
         </section>
     {% endfor %}

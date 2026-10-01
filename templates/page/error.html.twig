@@ -1,9 +1,10 @@
 {% extends 'base.html.twig' %}
 
 {% block content %}
-    <section class="error">
-        <h1>{{ status == 404 ? t('error.not_found_title') : t('error.title') }}</h1>
-        <p>{{ message }}</p>
-        <p><a href="{{ url('/') }}">{{ t('error.back_home') }}</a></p>
+    <section class="error py-4">
+        <p class="display-4 text-body-secondary mb-2">{{ status }}</p>
+        <h1 class="h3">{{ status == 404 ? t('error.not_found_title') : t('error.title') }}</h1>
+        <p class="lead">{{ message }}</p>
+        <p class="mt-4"><a class="btn btn-outline-primary" href="{{ url('/') }}">{{ t('error.back_home') }}</a></p>
     </section>
 {% endblock %}

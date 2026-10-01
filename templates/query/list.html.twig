@@ -3,18 +3,20 @@
     {% for item in result %}
         {{ render_object(item, item_mode) }}
     {% else %}
-        <p class="empty">{{ t('content.empty') }}</p>
+        <p class="empty text-body-secondary">{{ t('content.empty') }}</p>
     {% endfor %}
 </div>
 
 {% if result.pageCount > 1 %}
-    <nav class="pager" aria-label="{{ t('content.pager') }}">
-        {% for page in 1..result.pageCount %}
-            {% if page == result.currentPage %}
-                <span aria-current="page">{{ page }}</span>
-            {% else %}
-                <a href="{{ url(path) }}?page={{ page }}">{{ page }}</a>
-            {% endif %}
-        {% endfor %}
+    <nav class="pager mt-4" aria-label="{{ t('content.pager') }}">
+        <ul class="pagination">
+            {% for page in 1..result.pageCount %}
+                {% if page == result.currentPage %}
+                    <li class="page-item active" aria-current="page"><span class="page-link">{{ page }}</span></li>
+                {% else %}
+                    <li class="page-item"><a class="page-link" href="{{ url(path) }}?page={{ page }}">{{ page }}</a></li>
+                {% endif %}
+            {% endfor %}
+        </ul>
     </nav>
 {% endif %}
