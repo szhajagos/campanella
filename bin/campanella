@@ -7,7 +7,7 @@ use Campanella\Cli\Console;
 use Campanella\Core\Kernel;
 
 if (PHP_VERSION_ID < 80300) {
-    fwrite(STDERR, 'A Campanella legalább PHP 8.3-at igényel. Jelenlegi verzió: ' . PHP_VERSION . PHP_EOL);
+    fwrite(STDERR, 'Campanella requires PHP 8.3 or newer. Current version: ' . PHP_VERSION . PHP_EOL);
     exit(1);
 }
 

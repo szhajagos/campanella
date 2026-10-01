@@ -23,7 +23,7 @@ object; `CampanellaObject::as()` creates it:
 | `final __construct(CampanellaObject $object)` | The constructor is final; a capability cannot have dependencies of its own |
 | `protected readonly CampanellaObject $object` | The wrapped object |
 | `prepareForSave(): void` | Runs before saving, in dependency order. This is where derived values are filled in and values are normalized |
-| `validate(): array<string, string>` | Runs after `prepareForSave()`; the capability's own rules (e.g. e-mail format). Field name → error message; the errors become a `ValidationException` (since 0.0.3) |
+| `validate(): array<string, Message\|string>` | Runs after `prepareForSave()`; the capability's own rules (e.g. e-mail format). Field name → message (a `Message` with a key from `lang/`, or a key string); the errors become a `ValidationException` (since 0.0.3; messages since 0.0.4) |
 | `object(): CampanellaObject` | The wrapped object |
 
 A capability does not write to the database: it sets values on the object

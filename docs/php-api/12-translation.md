@@ -5,9 +5,12 @@ written into the code or the templates; they are referenced by **key**
 (`auth.login`), and the texts live in one file per language. English is the
 base language, Hungarian is a full translation. Since 0.0.4.
 
-What is covered so far: templates, login, error pages. Validation messages and
-the command-line output still contain Hungarian text and move to keys in a
-later step (see the [ROADMAP](../../ROADMAP.md)).
+Covered: templates, login, error pages, validation messages and the
+command-line output. Not yet: the labels of capabilities, fields, relations and
+Blueprints (they will be needed by the admin UI), and the sample content of
+`seed`, which is data rather than interface text. The two messages shown before
+the system is loaded (PHP version too old, `vendor` folder missing) are in the
+base language, English.
 
 ## Language files
 
@@ -21,7 +24,7 @@ return [
 ```
 
 - **Keys:** lowercase, dot-separated by area (`site.`, `content.`, `auth.`,
-  `error.`).
+  `error.`, `validation.`, `cli.`).
 - **Parameters:** `{name}` in the text, filled in from the parameter array.
 - **Every language has the same keys.** `composer lang:check` (and a test)
   reports keys missing from, or extra in, any language compared to `en.php`.
@@ -32,6 +35,19 @@ return [
 The `locale` configuration key (`config/app.php`, or the `CAMPANELLA_LOCALE`
 environment variable); default: `'hu'`. The language code must match a file
 name in `lang/`. The `<html lang>` attribute follows it.
+
+## Message
+
+`Campanella\I18n\Message` · **Public** · `final readonly class`
+
+A message that is not translated yet: `$key` and `$params`. Code that produces
+a message returns it as such; the text is looked up where it is displayed.
+
+| Member | Description |
+|---|---|
+| `__construct(string $key, array $params = [])` | |
+| `translate(Translator $translator): string` | The text in the translator's language |
+| `__toString(): string` | The key with its parameters (`validation.too_many_values (max=3)`), for logs and developer-facing messages |
 
 ## Translator
 
@@ -78,3 +94,5 @@ the text is looked up where it is displayed:
 | `AuthController` | Translates the `LoginResult` error and the page title |
 | `HttpException::notFound()` | Default message: the key `'error.not_found'` |
 | `Kernel` error pages | Translates the message (`error.not_installed`, `error.needs_upgrade`, `error.internal`, or the `HttpException` message) |
+| Validation (`ObjectRepository`, `Capability::validate()`) | `Message` objects in `ValidationException::$errors`; `messages(Translator)` gives the texts |
+| CLI commands | Translate their output with the `Translator` from the container; `description()` returns a key |

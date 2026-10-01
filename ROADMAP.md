@@ -57,8 +57,10 @@ Then:
   texts move there; the admin UI is built on it from the start.
   - ✅ Part 1: the `Translator`, the language files, `t()` in templates, and
     the web texts (templates, login, error pages).
-  - Part 2: validation messages (`ValidationException` gets keys and
+  - ✅ Part 2: validation messages (`ValidationException` gets keys and
     parameters) and the command-line output.
+  - With the admin UI: the labels of capabilities, fields, relations and
+    Blueprints.
 - Listing, filtering, creating, editing, deleting and publishing content from
   the browser.
 - Forms are generated from the field and relation definitions, so the editing

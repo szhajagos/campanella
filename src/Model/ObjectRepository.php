@@ -8,6 +8,7 @@ use Campanella\Capability\CapabilityDefinition;
 use Campanella\Capability\CapabilityRegistry;
 use Campanella\Database\Connection;
 use Campanella\Database\Schema\CoreSchema;
+use Campanella\I18n\Message;
 use Campanella\Support\Uuid;
 use DateTimeImmutable;
 use DateTimeZone;
@@ -295,10 +296,10 @@ final class ObjectRepository
             $errors = [];
             foreach ($definition->tableFields() as $name => $field) {
                 if ($field->unique) {
-                    $errors[$name] = sprintf('ez az érték már foglalt (%s)', (string) $row[$name]);
+                    $errors[$name] = new Message('validation.taken', ['value' => (string) $row[$name]]);
                 }
             }
-            throw new ValidationException($errors ?: [$definition->name => 'egyedi kulcs ütközés']);
+            throw new ValidationException($errors ?: [$definition->name => 'validation.unique_conflict']);
         }
     }
 
@@ -308,11 +309,11 @@ final class ObjectRepository
         foreach ($object->fields() as $name => $field) {
             $value = $object->get($name);
             if ($field->required && $field->isEmpty($value)) {
-                $errors[$name] = 'kötelező mező';
+                $errors[$name] = new Message('validation.required');
             } elseif ($field->exceedsCardinality($value)) {
-                $errors[$name] = sprintf('legfeljebb %d érték adható meg', $field->cardinality);
+                $errors[$name] = new Message('validation.too_many_values', ['max' => $field->cardinality]);
             } elseif ($field->hasTooLongItem($value)) {
-                $errors[$name] = sprintf('egy érték legfeljebb %d karakter lehet', $field->length);
+                $errors[$name] = new Message('validation.value_too_long', ['max' => $field->length]);
             }
         }
         foreach ($object->capabilities() as $definition) {
@@ -328,7 +329,7 @@ final class ObjectRepository
      * Validates the relations: required relation, self-reference, and whether the
      * targets exist and match the definition (Blueprint, capabilities).
      *
-     * @return array<string, string> relation name => error message
+     * @return array<string, Message> relation name => message
      */
     private function validateRelations(CampanellaObject $object): array
     {
@@ -337,11 +338,11 @@ final class ObjectRepository
         foreach ($object->relations() as $name => $relation) {
             $ids = $object->relatedIds($name);
             if ($relation->required && $ids === []) {
-                $errors[$name] = 'kötelező kapcsolat';
+                $errors[$name] = new Message('validation.relation_required');
             } elseif ($relation->exceedsMax(count($ids))) {
-                $errors[$name] = sprintf('legfeljebb %d kapcsolat adható meg', (int) $relation->max);
+                $errors[$name] = new Message('validation.too_many_relations', ['max' => (int) $relation->max]);
             } elseif ($object->id() !== null && in_array($object->id(), $ids, true)) {
-                $errors[$name] = 'az objektum nem mutathat önmagára';
+                $errors[$name] = new Message('validation.self_reference');
             }
             array_push($allTargets, ...$ids);
         }
@@ -368,18 +369,17 @@ final class ObjectRepository
             $required = array_map(fn (string $c): string => $this->capabilities->get($c)->name, $relation->targetCapabilities);
             foreach ($object->relatedIds($name) as $targetId) {
                 if (!isset($blueprints[$targetId])) {
-                    $errors[$name] = "a cél (#{$targetId}) nem létezik";
+                    $errors[$name] = new Message('validation.target_missing', ['id' => $targetId]);
                 } elseif ($relation->targetBlueprints !== [] && !in_array($blueprints[$targetId], $relation->targetBlueprints, true)) {
-                    $errors[$name] = sprintf(
-                        'a cél (#%d) %s típusú, de csak ez lehet: %s',
-                        $targetId,
-                        $blueprints[$targetId],
-                        implode(', ', $relation->targetBlueprints),
-                    );
+                    $errors[$name] = new Message('validation.target_blueprint', [
+                        'id' => $targetId,
+                        'blueprint' => $blueprints[$targetId],
+                        'allowed' => implode(', ', $relation->targetBlueprints),
+                    ]);
                 } else {
                     $missing = array_diff($required, array_keys($capabilities[$targetId] ?? []));
                     if ($missing !== []) {
-                        $errors[$name] = sprintf('a célnak (#%d) nincs ilyen capability-je: %s', $targetId, implode(', ', $missing));
+                        $errors[$name] = new Message('validation.target_capability', ['id' => $targetId, 'missing' => implode(', ', $missing)]);
                     }
                 }
                 if (isset($errors[$name])) {

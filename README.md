@@ -53,8 +53,7 @@ exposed to the web server, but `index.php` looks for the `vendor/`, `src/` and
    **Note:** many Docker-based web hosts put only the folder designated as the
    web root into the container (as `/var/www/html`). In that case, if you
    choose `public/`, the `vendor/`, `src/` and `config/` folders are invisible
-   to PHP, and the system shows the "Hiányzik a vendor mappa" ("The vendor
-   folder is missing") error page.
+   to PHP, and the system shows "The vendor folder is missing" error page.
 2. **The whole project goes into the web root.** Use this when the web root
    cannot be changed, or when the web host can only see the web root folder.
    In this case the `.htaccess` in the project root routes every request under

@@ -8,6 +8,7 @@ use Campanella\Access\Actor;
 use Campanella\Capability\Routable;
 use Campanella\Capability\Titled;
 use Campanella\Core\Container;
+use Campanella\I18n\Translator;
 use Campanella\Model\CampanellaObject;
 use Campanella\Model\ObjectRepository;
 use Campanella\Query\Query;
@@ -29,6 +30,7 @@ final class SeedCommand implements Command
     private ObjectService $service;
     private QueryEngine $queries;
     private Output $output;
+    private Translator $t;
     private Actor $actor;
 
     #[\Override]
@@ -40,7 +42,7 @@ final class SeedCommand implements Command
     #[\Override]
     public function description(): string
     {
-        return 'Példatartalmat hoz létre (ismételten futtatható)';
+        return 'cli.seed.description';
     }
 
     #[\Override]
@@ -50,6 +52,7 @@ final class SeedCommand implements Command
         $this->service = $container->get(ObjectService::class);
         $this->queries = $container->get(QueryEngine::class);
         $this->output = $output;
+        $this->t = $container->get(Translator::class);
         $repository = $container->get(ObjectRepository::class);
         $utc = new DateTimeZone('UTC');
 
@@ -76,7 +79,10 @@ final class SeedCommand implements Command
             if ($article->relatedIds('categories') === []) {
                 $article->setRelated('categories', array_map(static fn (string $k) => $categories[$k], $categoryKeys));
                 $repository->save($article);
-                $this->output->success(sprintf('         %s → kategóriák: %s', $article->get('path'), implode(', ', $categoryKeys)));
+                $this->output->success('         ' . $this->t->translate('cli.seed.categories', [
+                    'path' => (string) $article->get('path'),
+                    'categories' => implode(', ', $categoryKeys),
+                ]));
             }
         }
 
@@ -88,11 +94,10 @@ final class SeedCommand implements Command
         ], new DateTimeImmutable('-10 days', $utc));
 
         $output->line();
-        $output->line(sprintf(
-            'Kész: %d objektum, ebből %d nyilvánosan látható.',
-            $this->queries->count(Query::objects(), $this->actor),
-            $this->queries->count(Query::objects(), Actor::anonymous()),
-        ));
+        $output->line($this->t->translate('cli.seed.done', [
+            'total' => $this->queries->count(Query::objects(), $this->actor),
+            'public' => $this->queries->count(Query::objects(), Actor::anonymous()),
+        ]));
 
         return 0;
     }
@@ -121,7 +126,7 @@ final class SeedCommand implements Command
             $object->id(),
             $object->get('path'),
             $object->as(Titled::class)->title(),
-            $publishAt === null ? '  (piszkozat)' : '',
+            $publishAt === null ? '  (' . $this->t->translate('cli.seed.draft') . ')' : '',
         ));
 
         return $object;

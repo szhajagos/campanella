@@ -129,6 +129,19 @@ final class TooLong extends \Campanella\Capability\Capability
     }
 }
 
+/**
+ * The validation messages in Hungarian (the tests check the texts end to end: key, parameters, language file).
+ *
+ * @return array<string, string>
+ */
+function huMessages(ValidationException $e): array
+{
+    static $hu = null;
+    $hu ??= Translator::fromDirectory(dirname(__DIR__) . '/lang', 'hu');
+
+    return $e->messages($hu);
+}
+
 function test(string $name, callable $body): void
 {
     global $passed, $failed;
@@ -386,7 +399,7 @@ test('Invalid target: wrong Blueprint, nonexistent, unsaved', function () use ($
         $repository->save($article);
         check(false, 'no exception was thrown');
     } catch (ValidationException $e) {
-        check(isset($e->errors['categories']) && str_contains($e->errors['categories'], 'page'), json_encode($e->errors, JSON_UNESCAPED_UNICODE));
+        check(isset(huMessages($e)['categories']) && str_contains(huMessages($e)['categories'], 'page'), json_encode(huMessages($e), JSON_UNESCAPED_UNICODE));
     }
     check($article->isNew(), 'the invalid object must not be saved');
 
@@ -408,7 +421,7 @@ test('Single and required relation', function () use ($blueprints, $repository, 
         $repository->save($root);
         check(false, 'no exception was thrown');
     } catch (ValidationException $e) {
-        check(($e->errors['owner_node'] ?? '') === 'kötelező kapcsolat', json_encode($e->errors, JSON_UNESCAPED_UNICODE));
+        check((huMessages($e)['owner_node'] ?? '') === 'kötelező kapcsolat', json_encode(huMessages($e), JSON_UNESCAPED_UNICODE));
     }
 
     $node = $repository->create('node', ['title' => 'Node']);
@@ -482,7 +495,7 @@ test('Identifiable: normalized, unique, valid e-mail address', function () use (
         $repository->save($bad);
         check(false, 'no exception was thrown');
     } catch (ValidationException $e) {
-        check(($e->errors['email'] ?? '') === 'érvénytelen e-mail-cím', json_encode($e->errors, JSON_UNESCAPED_UNICODE));
+        check((huMessages($e)['email'] ?? '') === 'érvénytelen e-mail-cím', json_encode(huMessages($e), JSON_UNESCAPED_UNICODE));
     }
 });
 
@@ -737,7 +750,7 @@ test('Multi-valued fields: required and value limits', function () use ($contact
         $contactRepository->save($contact);
         check(false, 'a contact without phones was saved');
     } catch (ValidationException $e) {
-        check(($e->errors['phones'] ?? '') === 'kötelező mező', json_encode($e->errors, JSON_UNESCAPED_UNICODE) ?: '');
+        check((huMessages($e)['phones'] ?? '') === 'kötelező mező', json_encode(huMessages($e), JSON_UNESCAPED_UNICODE) ?: '');
     }
 
     $contact->set('phones', ['1', '2', '3', '4']);
@@ -747,9 +760,9 @@ test('Multi-valued fields: required and value limits', function () use ($contact
         $contactRepository->save($contact);
         check(false, 'too many values were saved');
     } catch (ValidationException $e) {
-        check(($e->errors['phones'] ?? '') === 'legfeljebb 3 érték adható meg', $e->errors['phones'] ?? '-');
-        check(($e->errors['tags'] ?? '') === 'legfeljebb 5 érték adható meg', $e->errors['tags'] ?? '-');
-        check(($e->errors['aliases'] ?? '') === 'legfeljebb 2 érték adható meg', $e->errors['aliases'] ?? '-');
+        check((huMessages($e)['phones'] ?? '') === 'legfeljebb 3 érték adható meg', huMessages($e)['phones'] ?? '-');
+        check((huMessages($e)['tags'] ?? '') === 'legfeljebb 5 érték adható meg', huMessages($e)['tags'] ?? '-');
+        check((huMessages($e)['aliases'] ?? '') === 'legfeljebb 2 érték adható meg', huMessages($e)['aliases'] ?? '-');
     }
 
     // The narrowing also applies to a reloaded object.
@@ -769,7 +782,7 @@ test('Multi-valued fields: required and value limits', function () use ($contact
         $contactRepository->save($reloaded);
         check(false, 'a too long phone number was saved');
     } catch (ValidationException $e) {
-        check(($e->errors['phones'] ?? '') === 'egy érték legfeljebb 32 karakter lehet', $e->errors['phones'] ?? '-');
+        check((huMessages($e)['phones'] ?? '') === 'egy érték legfeljebb 32 karakter lehet', huMessages($e)['phones'] ?? '-');
     }
 
     // The same six tags are fine in the Blueprint that does not narrow the field.
@@ -869,7 +882,7 @@ test('Relation limit (max)', function () use ($contactRepository): void {
         $contactRepository->save($contact);
         check(false, 'three friends were saved');
     } catch (ValidationException $e) {
-        check(($e->errors['friends'] ?? '') === 'legfeljebb 2 kapcsolat adható meg', $e->errors['friends'] ?? '-');
+        check((huMessages($e)['friends'] ?? '') === 'legfeljebb 2 kapcsolat adható meg', huMessages($e)['friends'] ?? '-');
     }
     $contact->unrelate('friends', $friends[2]);
     $contactRepository->save($contact);
@@ -930,6 +943,39 @@ test('Kernel: the login page in English (CAMPANELLA_LOCALE=en)', function (): vo
     $missing = $kernel->handle(new Request('GET', '/nincs-ilyen-oldal'));
     check($missing->status === 404 && str_contains($missing->body, 'The page was not found.'), 'English 404');
     putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('Validation messages are keys, translated where they are shown', function () use ($contactRepository): void {
+    $contact = $contactRepository->create('contact', ['title' => 'Nyelv', 'phones' => ['1', '2', '3', '4']]);
+    try {
+        $contactRepository->save($contact);
+        check(false, 'saved');
+    } catch (ValidationException $e) {
+        $message = $e->errors['phones'];
+        check($message->key === 'validation.too_many_values' && $message->params === ['max' => 3], (string) $message);
+        $en = Translator::fromDirectory(dirname(__DIR__) . '/lang', 'en');
+        check($e->messages($en)['phones'] === 'at most 3 values can be given', $e->messages($en)['phones']);
+        check(huMessages($e)['phones'] === 'legfeljebb 3 érték adható meg');
+        check(str_contains($e->getMessage(), 'phones: validation.too_many_values (max=3)'), $e->getMessage());
+    }
+    // A plain string from custom code still works: it is shown as it is.
+    check((new ValidationException(['x' => 'kész szöveg']))->messages(new Translator([], 'hu'))['x'] === 'kész szöveg');
+});
+
+test('Command line in English and in Hungarian', function (): void {
+    $run = function (string $locale, string $args): string {
+        $env = 'CAMPANELLA_LOCALE=' . $locale . ' CAMPANELLA_DB_PREFIX=test_';
+        return (string) shell_exec($env . ' ' . escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(dirname(__DIR__) . '/bin/campanella') . ' ' . $args . ' 2>&1');
+    };
+    $help = $run('en', '');
+    if (!str_contains($help, 'Usage:') && str_contains($help, 'Használat:')) {
+        echo "      (skipped: config/local.php sets its own locale)\n";
+
+        return;
+    }
+    check(str_contains($help, 'Usage: php bin/campanella <command>') && str_contains($help, 'Creates the database tables'), $help);
+    check(str_contains($run('hu', ''), 'Használat: php bin/campanella <parancs>'));
+    check(str_contains($run('en', 'user:password nobody@example.com'), 'No such user: nobody@example.com'));
 });
 
 // --- Documentation examples -------------------------------------------------

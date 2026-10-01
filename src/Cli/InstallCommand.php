@@ -7,6 +7,7 @@ namespace Campanella\Cli;
 use Campanella\Core\Container;
 use Campanella\Database\Connection;
 use Campanella\Database\Installer;
+use Campanella\I18n\Translator;
 
 final class InstallCommand implements Command
 {
@@ -19,7 +20,7 @@ final class InstallCommand implements Command
     #[\Override]
     public function description(): string
     {
-        return 'Létrehozza az adatbázistáblákat (--sql: csak kiírja az SQL-t)';
+        return 'cli.install.description';
     }
 
     #[\Override]
@@ -34,12 +35,13 @@ final class InstallCommand implements Command
         }
 
         $db = $container->get(Connection::class);
-        $output->line('Adatbázis-szerver: ' . $db->serverVersion());
+        $t = $container->get(Translator::class);
+        $output->line($t->translate('cli.install.server', ['version' => $db->serverVersion()]));
         foreach ($installer->install() as $table) {
             $output->success($table);
         }
         $output->line();
-        $output->line('Kész. Példatartalomhoz: php bin/campanella seed');
+        $output->line($t->translate('cli.install.done'));
 
         return 0;
     }

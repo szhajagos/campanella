@@ -43,7 +43,10 @@ backward-incompatible.
   the fallback). New `Campanella\I18n\Translator` service, `t()` and
   `locale()` Twig functions, `locale` setting (`CAMPANELLA_LOCALE`, default
   `hu`), and `composer lang:check`. The templates, the login messages and the
-  error pages use it; validation messages and CLI output follow in part 2.
+  error pages use it.
+- **Translation layer, part 2.** Validation messages and the command-line
+  output are translated too (`validation.` and `cli.` keys). New
+  `Campanella\I18n\Message` (an untranslated key with parameters).
 - `php bin/campanella status` marks multi-valued fields with their limit
   (`phones[3]`, `tags[*]`).
 
@@ -62,6 +65,12 @@ backward-incompatible.
   may still return a ready-made text: an unknown key is shown as it is.
 - `HttpException::notFound()`'s default message is the key `error.not_found`.
 - The `site.language` setting is replaced by `locale`.
+- `ValidationException::$errors` holds `Message` objects instead of Hungarian
+  texts; `messages(Translator)` returns the texts, and `getMessage()` is an
+  English summary with the keys. `Capability::validate()` returns `Message`
+  objects (or key strings). `Command::description()` returns a message key.
+- The messages shown before the system is loaded (PHP version too old,
+  `vendor` folder missing) are in English.
 - `CapabilityDefinition::tableFields()` returns only the single-valued `Table`
   fields; the multi-valued ones are returned by the new `valueTableFields()`.
 

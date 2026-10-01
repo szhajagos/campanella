@@ -7,6 +7,7 @@ namespace Campanella\Cli;
 use Campanella\Auth\AuthService;
 use Campanella\Capability\Authenticatable;
 use Campanella\Core\Container;
+use Campanella\I18n\Translator;
 use Campanella\Model\ObjectRepository;
 use Campanella\Model\ValidationException;
 
@@ -31,26 +32,27 @@ final class UserCreateCommand implements Command
     #[\Override]
     public function description(): string
     {
-        return 'Felhasználó létrehozása: <e-mail> [--name="Név"] [--role=administrator,editor]';
+        return 'cli.user_create.description';
     }
 
     #[\Override]
     public function run(Container $container, array $args, Output $output): int
     {
+        $t = $container->get(Translator::class);
         $args = Args::parse($args);
         $email = (string) $args->argument(0);
         if ($email === '') {
-            $output->error('Add meg az e-mail-címet: php bin/campanella user:create <e-mail> [--name="Név"] [--role=administrator]');
+            $output->error($t->translate('cli.user_create.missing_email'));
 
             return 1;
         }
         if ($container->get(AuthService::class)->findUserByEmail($email) !== null) {
-            $output->error("Már van felhasználó ezzel az e-mail-címmel: {$email}");
+            $output->error($t->translate('cli.user_create.exists', ['email' => $email]));
 
             return 1;
         }
 
-        $password = PasswordPrompt::ask($this->input, $output);
+        $password = PasswordPrompt::ask($this->input, $output, $t);
         if ($password === null) {
             return 1;
         }
@@ -66,7 +68,7 @@ final class UserCreateCommand implements Command
             $auth->setRoles($roles);
             $repository->save($user);
         } catch (ValidationException $e) {
-            foreach ($e->errors as $field => $message) {
+            foreach ($e->messages($t) as $field => $message) {
                 $output->error("{$field}: {$message}");
             }
 
@@ -74,13 +76,11 @@ final class UserCreateCommand implements Command
         }
         unset($password);
 
-        $output->success(sprintf(
-            'Létrehozva: #%d %s <%s>%s',
-            $user->id(),
-            $name,
-            $user->get('email'),
-            $roles === [] ? '' : ' – szerepkörök: ' . implode(', ', $roles),
-        ));
+        $output->success($t->translate('cli.user_create.created', [
+            'id' => (int) $user->id(),
+            'name' => $name,
+            'email' => (string) $user->get('email'),
+        ]) . ($roles === [] ? '' : ' – ' . $t->translate('cli.user.roles', ['roles' => implode(', ', $roles)])));
 
         return 0;
     }

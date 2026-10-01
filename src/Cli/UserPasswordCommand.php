@@ -7,6 +7,7 @@ namespace Campanella\Cli;
 use Campanella\Auth\AuthService;
 use Campanella\Capability\Authenticatable;
 use Campanella\Core\Container;
+use Campanella\I18n\Translator;
 use Campanella\Model\ObjectRepository;
 use Campanella\Model\ValidationException;
 
@@ -33,17 +34,18 @@ final class UserPasswordCommand implements Command
     #[\Override]
     public function description(): string
     {
-        return 'Jelszó beállítása: <e-mail> (vagy --block / --activate)';
+        return 'cli.user_password.description';
     }
 
     #[\Override]
     public function run(Container $container, array $args, Output $output): int
     {
+        $t = $container->get(Translator::class);
         $args = Args::parse($args);
         $email = (string) $args->argument(0);
         $user = $email === '' ? null : $container->get(AuthService::class)->findUserByEmail($email);
         if ($user === null) {
-            $output->error("Nincs ilyen felhasználó: {$email}");
+            $output->error($t->translate('cli.user.not_found', ['email' => $email]));
 
             return 1;
         }
@@ -53,12 +55,12 @@ final class UserPasswordCommand implements Command
         if ($args->flag('block') || $args->flag('activate')) {
             $args->flag('block') ? $auth->block() : $auth->activate();
             $repository->save($user);
-            $output->success(sprintf('%s: %s', $user->get('email'), $auth->isActive() ? 'aktív' : 'letiltva'));
+            $output->success(sprintf('%s: %s', $user->get('email'), $t->translate($auth->isActive() ? 'cli.user.active' : 'cli.user.blocked')));
 
             return 0;
         }
 
-        $password = PasswordPrompt::ask($this->input, $output);
+        $password = PasswordPrompt::ask($this->input, $output, $t);
         if ($password === null) {
             return 1;
         }
@@ -66,13 +68,13 @@ final class UserPasswordCommand implements Command
             $auth->setPassword($password);
             $repository->save($user);
         } catch (ValidationException $e) {
-            foreach ($e->errors as $field => $message) {
+            foreach ($e->messages($t) as $field => $message) {
                 $output->error("{$field}: {$message}");
             }
 
             return 1;
         }
-        $output->success('Az új jelszó beállítva: ' . $user->get('email'));
+        $output->success($t->translate('cli.user_password.done', ['email' => (string) $user->get('email')]));
 
         return 0;
     }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Campanella\Capability;
 
+use Campanella\I18n\Message;
 use Campanella\Model\Field;
 use Campanella\Model\FieldType;
 
@@ -45,7 +46,7 @@ final class Identifiable extends Capability
     {
         $email = $this->email();
         if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
-            return ['email' => 'érvénytelen e-mail-cím'];
+            return ['email' => new Message('validation.invalid_email')];
         }
 
         return [];

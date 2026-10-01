@@ -16,7 +16,7 @@ namespace, in the `src/` folder (PSR-4).
 9. [System](09-system.md): `Kernel`, `Container`, configuration, CLI, helper classes
 10. [Relations](10-relations.md): `Relation`, `Cardinality`, `whereRelated`, `RelationLoader`, Blueprint lists
 11. [Users and login](11-users.md): `Identifiable`, `Authenticatable`, `Authorable`, `AuthService`, session, CSRF, `LoginGuard`
-12. [Translation](12-translation.md): `Translator`, language files, `t()` in templates
+12. [Translation](12-translation.md): `Translator`, `Message`, language files, `t()` in templates
 
 ## Namespaces
 

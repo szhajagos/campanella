@@ -28,7 +28,7 @@ user = Titled + Identifiable + Authenticatable
 | `setEmail(string $email): void` | Sets it normalized |
 | `static normalize(string $email): string` | Lowercase form without whitespace: `' Anna@Example.HU '` → `'anna@example.hu'` |
 | `prepareForSave()` | Normalizes before save |
-| `validate()` | For an invalid format: `['email' => 'érvénytelen e-mail-cím']` ("invalid e-mail address") |
+| `validate()` | For an invalid format: `['email' => new Message('validation.invalid_email')]` ("invalid e-mail address") |
 
 ### Authenticatable
 

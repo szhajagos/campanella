@@ -141,7 +141,7 @@ final class HelloCommand implements Command
 {
     public function name(): string { return 'hello'; }
 
-    public function description(): string { return 'Says hello'; }
+    public function description(): string { return 'cli.hello.description'; }   // a message key
 
     /** @param list<string> $args */
     public function run(Container $container, array $args, Output $output): int
@@ -152,6 +152,13 @@ final class HelloCommand implements Command
     }
 }
 ```
+
+`description()` returns a message key, which the help screen translates. For
+other output, take the `Translator` from the container
+(`$container->get(Translator::class)->translate('cli.…', [...])`); the
+command-line texts are under `cli.` in `lang/` (since 0.0.4). A
+`ValidationException` that a command does not catch is printed by the
+`Console`, translated, one line per field.
 
 In 0.0.1 the list of commands lives in the `Console` constructor; with the
 module system it will become registrable.

@@ -68,13 +68,19 @@ removed module), the object does not get it on load, but its data is kept.
 
 | Member | Description |
 |---|---|
-| `__construct(array $errors)` | |
-| `$errors` | `array<string, string>`: field name → error message |
+| `__construct(array $errors)` | Field name → `Message`, or a message key string (a ready-made text from custom code also works: it is shown as it is) |
+| `$errors` | `array<string, Message>`: field name → untranslated message (key and parameters) |
+| `messages(Translator $translator): array<string, string>` | The messages as text in the translator's language |
+| `getMessage()` | A developer-facing summary with the keys, e.g. `Invalid object: title: validation.required` |
 
 ```php
 try {
     $service->create($actor, 'article', ['body' => 'without a title']);
 } catch (ValidationException $e) {
-    $e->errors;   // ['title' => 'kötelező mező'] ("required field")
+    $e->errors['title']->key;      // 'validation.required'
+    $e->messages($translator);     // ['title' => 'kötelező mező'] with the hu locale ("required field")
 }
 ```
+
+The message keys are listed in `lang/en.php` under `validation.` (since 0.0.4;
+see [chapter 12](12-translation.md#in-php-code)).

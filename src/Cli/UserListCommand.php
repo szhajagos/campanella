@@ -7,6 +7,7 @@ namespace Campanella\Cli;
 use Campanella\Access\Actor;
 use Campanella\Capability\Authenticatable;
 use Campanella\Core\Container;
+use Campanella\I18n\Translator;
 use Campanella\Query\Query;
 use Campanella\Query\QueryEngine;
 
@@ -21,18 +22,19 @@ final class UserListCommand implements Command
     #[\Override]
     public function description(): string
     {
-        return 'Felhasználók listája';
+        return 'cli.user_list.description';
     }
 
     #[\Override]
     public function run(Container $container, array $args, Output $output): int
     {
+        $t = $container->get(Translator::class);
         $users = $container->get(QueryEngine::class)->execute(
             Query::objects()->having('authenticatable')->orderBy('email'),
             Actor::system(),
         );
         if ($users->isEmpty()) {
-            $output->line('Még nincs felhasználó. Létrehozás: php bin/campanella user:create <e-mail> --role=administrator');
+            $output->line($t->translate('cli.user_list.empty'));
 
             return 0;
         }
@@ -43,7 +45,7 @@ final class UserListCommand implements Command
                 $user->id(),
                 $user->get('email'),
                 $user->get('title'),
-                $auth->isActive() ? 'aktív' : 'letiltva',
+                $t->translate($auth->isActive() ? 'cli.user.active' : 'cli.user.blocked'),
                 implode(', ', $auth->roles()),
             ));
         }

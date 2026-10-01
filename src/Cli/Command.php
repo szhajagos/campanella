@@ -10,6 +10,7 @@ interface Command
 {
     public function name(): string;
 
+    /** A message key (see lang/), translated for the help screen. */
     public function description(): string;
 
     /**

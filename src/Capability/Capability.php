@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Campanella\Capability;
 
+use Campanella\I18n\Message;
 use Campanella\Model\CampanellaObject;
 use Campanella\Model\Field;
 use Campanella\Query\Query;
@@ -71,7 +72,7 @@ abstract class Capability
      * checks required fields; the capability's own rules go here
      * (e.g. e-mail address format).
      *
-     * @return array<string, string> field name => error message
+     * @return array<string, Message|string> field name => message (a Message, or a message key)
      */
     public function validate(): array
     {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Campanella\Capability;
 
+use Campanella\I18n\Message;
 use Campanella\Model\Field;
 use Campanella\Model\FieldType;
 use Campanella\Model\ValidationException;
@@ -49,10 +50,10 @@ final class Authenticatable extends Capability
     public function setPassword(#[\SensitiveParameter] string $password): void
     {
         if (mb_strlen($password, 'UTF-8') < self::MIN_PASSWORD_LENGTH) {
-            throw new ValidationException(['password' => sprintf('legalább %d karakter legyen', self::MIN_PASSWORD_LENGTH)]);
+            throw new ValidationException(['password' => new Message('validation.password_too_short', ['min' => self::MIN_PASSWORD_LENGTH])]);
         }
         if (strlen($password) > self::MAX_PASSWORD_BYTES) {
-            throw new ValidationException(['password' => sprintf('legfeljebb %d bájt lehet', self::MAX_PASSWORD_BYTES)]);
+            throw new ValidationException(['password' => new Message('validation.password_too_long', ['max' => self::MAX_PASSWORD_BYTES])]);
         }
         $this->object->set('password_hash', password_hash($password, PASSWORD_DEFAULT));
     }
@@ -122,7 +123,7 @@ final class Authenticatable extends Capability
     {
         foreach ($this->roles() as $role) {
             if (preg_match('/^[a-z][a-z0-9_]{0,31}$/', $role) !== 1) {
-                return ['roles' => "érvénytelen szerepkörnév: {$role}"];
+                return ['roles' => new Message('validation.invalid_role', ['role' => $role])];
             }
         }
 
