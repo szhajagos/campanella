@@ -136,4 +136,12 @@ return [
     'admin.status.draft' => 'Piszkozat',
     'admin.status.published' => 'Publikált',
     'admin.status.scheduled' => 'Időzített',
+    'admin.list.total' => 'összesen {count}',
+    'admin.list.search' => 'Keresés a címben',
+    'admin.list.all' => 'Mind',
+    'admin.list.filter' => 'Szűrés',
+    'admin.list.reset' => 'Szűrők törlése',
+    'admin.list.no_match' => 'Nincs a szűrőknek megfelelő tartalom.',
+    'admin.list.view' => 'Megtekintés',
+    'admin.column.id' => 'Azonosító',
 ];

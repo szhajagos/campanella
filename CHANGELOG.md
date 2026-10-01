@@ -66,6 +66,11 @@ backward-incompatible.
   `AdminAccess`, `AdminController`, `Flash` (one-time messages),
   `Router::prefix()`, and the `admin_url()`, `admin_access()`,
   `flash_messages()` Twig functions.
+- **Admin UI, part 2:** the list of a Blueprint's objects
+  (`/admin/<blueprint>`), with title search, status filter (draft,
+  published, scheduled), sortable columns and pagination; the sidebar lists
+  the content Blueprints. After logging in, the user returns to the requested
+  admin page.
 - `php bin/campanella status` marks multi-valued fields with their limit
   (`phones[3]`, `tags[*]`).
 

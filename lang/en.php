@@ -138,4 +138,12 @@ return [
     'admin.status.draft' => 'Draft',
     'admin.status.published' => 'Published',
     'admin.status.scheduled' => 'Scheduled',
+    'admin.list.total' => '{count} in total',
+    'admin.list.search' => 'Search in the title',
+    'admin.list.all' => 'All',
+    'admin.list.filter' => 'Filter',
+    'admin.list.reset' => 'Clear filters',
+    'admin.list.no_match' => 'Nothing matches the filters.',
+    'admin.list.view' => 'View',
+    'admin.column.id' => 'ID',
 ];

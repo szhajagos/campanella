@@ -269,6 +269,7 @@ final class Kernel
             $c->get(QueryEngine::class),
             $c->get(BlueprintRegistry::class),
             $c->get(Presentation::class),
+            $c->get(RelationLoader::class),
         ));
 
         $c->set('controller.auth', static fn (Container $c): Controller => new AuthController(

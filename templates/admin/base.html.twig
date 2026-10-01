@@ -43,6 +43,12 @@
                 <ul class="nav flex-column">
                     {% block menu %}
                         <li class="nav-item"><a class="nav-link{{ (active ?? '') == 'dashboard' ? ' active' : '' }}" href="{{ admin_url() }}">{{ t('admin.dashboard') }}</a></li>
+                        {% if menu is defined and menu %}
+                            <li class="nav-item mt-3 mb-1 px-3 small text-uppercase text-body-secondary">{{ t('admin.content') }}</li>
+                            {% for item in menu %}
+                                <li class="nav-item"><a class="nav-link{{ (active ?? '') == item.name ? ' active' : '' }}" href="{{ admin_url(item.name) }}">{{ t(item.label) }}</a></li>
+                            {% endfor %}
+                        {% endif %}
                     {% endblock %}
                 </ul>
             </nav>

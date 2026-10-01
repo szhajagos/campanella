@@ -920,7 +920,8 @@ test('Language files: every language has the same keys (lang:check)', function (
     // Every t('...') key used in the templates exists in English.
     $templates = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(dirname(__DIR__) . '/templates', FilesystemIterator::SKIP_DOTS));
     foreach ($templates as $file) {
-        preg_match_all("/\\bt\\('([a-z0-9_.]+)'/", (string) file_get_contents((string) $file), $m);
+        // Only complete keys: t('a.b') or t('a.b', …), not dynamic ones like t('admin.status.' ~ status).
+        preg_match_all("/\\bt\\('([a-z0-9_.]+)'\\s*[,)]/", (string) file_get_contents((string) $file), $m);
         foreach ($m[1] as $key) {
             check(isset($catalogs['en'][$key]), "unknown key in {$file->getFilename()}: {$key}");
         }
@@ -1085,6 +1086,8 @@ test('Kernel: the admin is only for admin roles', function () use ($editorUser, 
 
     $anonymous = $kernel->handle(new Request('GET', '/admin'));
     check($anonymous->status === 302 && ($anonymous->headers['Location'] ?? '') === '/belepes?vissza=%2Fadmin', 'anonymous: to the login page');
+    $deep = $kernel->handle(new Request('GET', '/admin/article', query: ['status' => 'draft']));
+    check(($deep->headers['Location'] ?? '') === '/belepes?vissza=' . rawurlencode('/admin/article?status=draft'), 'back to the requested page');
 
     $as($newUser('tag@example.hu', 'tag-jelszava-1', ['member']));
     check($kernel->handle(new Request('GET', '/admin'))->status === 403, 'a member may not enter');
@@ -1101,6 +1104,60 @@ test('Kernel: the admin is only for admin roles', function () use ($editorUser, 
     $storage->endRequest();
     $home = $kernel->handle(new Request('GET', '/'));
     check(str_contains($home->body, 'href="/admin"'), 'the public header links to the admin for an editor');
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('Kernel: admin content list with search, status filter and sorting', function () use ($editorUser, $service, $admin): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $container = $kernel->container();
+    if ($container->get(Connection::class)->prefix() !== 'test_') {
+        echo "      (skipped: config/local.php sets its own prefix)\n";
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $draft = $service->create($admin, 'article', ['title' => 'Listás vázlat 100%']);
+    $live = $service->create($admin, 'article', ['title' => 'Listás élő cikk']);
+    $service->publish($admin, $live, new DateTimeImmutable('-1 hour'));
+    $later = $service->create($admin, 'article', ['title' => 'Listás időzített']);
+    $service->publish($admin, $later, new DateTimeImmutable('+1 day'));
+
+    $storage = new ArraySessionStorage();
+    $container->set(Session::class, static fn () => new Session($storage));
+    $container->get(AuthService::class)->login(new Request('GET', '/'), $editorUser);
+    $get = function (string $path, array $query = []) use ($kernel, $storage) {
+        $storage->endRequest();
+
+        return $kernel->handle(new Request('GET', $path, query: $query));
+    };
+
+    $list = $get('/admin/article', ['q' => 'Listás']);
+    check($list->status === 200, (string) $list->status);
+    foreach (['Listás vázlat 100%', 'Listás élő cikk', 'Listás időzített'] as $title) {
+        check(str_contains($list->body, htmlspecialchars($title)), "missing from the list: {$title}");
+    }
+    check(str_contains($list->body, 'href="/admin/article"'), 'the sidebar links to the Blueprint lists');
+    check(!str_contains($list->body, 'href="/admin/user"'), 'users are not managed as content');
+
+    $drafts = $get('/admin/article', ['q' => 'Listás', 'status' => 'draft']);
+    check(str_contains($drafts->body, 'Listás vázlat') && !str_contains($drafts->body, 'Listás élő cikk'), 'draft filter');
+    $scheduled = $get('/admin/article', ['q' => 'Listás', 'status' => 'scheduled']);
+    check(str_contains($scheduled->body, 'Listás időzített') && !str_contains($scheduled->body, 'Listás vázlat'), 'scheduled filter');
+    $published = $get('/admin/article', ['q' => 'Listás', 'status' => 'published']);
+    check(str_contains($published->body, 'Listás élő cikk') && !str_contains($published->body, 'Listás időzített'), 'published filter');
+
+    $percent = $get('/admin/article', ['q' => '100%']);
+    check(str_contains($percent->body, 'Listás vázlat 100%') && !str_contains($percent->body, 'Listás élő cikk'), '% is searched literally');
+
+    $sorted = $get('/admin/article', ['q' => 'Listás', 'sort' => 'title', 'dir' => 'asc']);
+    $a = strpos($sorted->body, 'Listás élő cikk');
+    $b = strpos($sorted->body, 'Listás vázlat');
+    check($a !== false && $b !== false && $a < $b, 'sorted by title');
+    check($get('/admin/article', ['sort' => 'password_hash; DROP'])->status === 200, 'an unknown sort field falls back');
+
+    check($get('/admin/user')->status === 404, 'no user list (users are managed from the command line)');
+    check($get('/admin/no-such-blueprint')->status === 404);
     putenv('CAMPANELLA_DB_PREFIX');
 });
 
