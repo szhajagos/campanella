@@ -312,7 +312,7 @@ final class ObjectRepository
                 $errors[$name] = new Message('validation.required');
             } elseif ($field->exceedsCardinality($value)) {
                 $errors[$name] = new Message('validation.too_many_values', ['max' => $field->cardinality]);
-            } elseif ($field->hasTooLongItem($value)) {
+            } elseif ($field->hasTooLongItem($value) || $field->isTooLong($value)) {
                 $errors[$name] = new Message('validation.value_too_long', ['max' => $field->length]);
             }
         }

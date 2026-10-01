@@ -25,6 +25,9 @@ use Campanella\Relation\Relation;
  *
  * 'relations': the Blueprint's own relations to other objects.
  * 'lists':     lists shown on the object's own page (label + Query).
+ * 'form_order': the order of fields and relations in the admin form; the ones
+ *              not listed follow in their natural order.
+ * 'cardinality': narrows the value limit of a capability's multi-valued field.
  */
 return [
     'article' => [
@@ -36,11 +39,13 @@ return [
         'relations' => [
             new Relation('categories', Cardinality::Many, targetBlueprints: ['category'], label: 'relation.categories'),
         ],
+        'form_order' => ['title', 'lead', 'body', 'categories', 'author', 'path'],
     ],
 
     'page' => [
         'label' => 'blueprint.page',
         'capabilities' => [Textual::class, Routable::class, Publishable::class],
+        'form_order' => ['title', 'body', 'path'],
     ],
 
     // User: name (Titled), e-mail (Authenticatable brings Identifiable),
@@ -53,6 +58,7 @@ return [
     'category' => [
         'label' => 'blueprint.category',
         'capabilities' => [Textual::class, Routable::class, Publishable::class],
+        'form_order' => ['title', 'body', 'path'],
         'lists' => [
             'articles' => [
                 'label' => 'list.category.articles',

@@ -1,0 +1,326 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Campanella\Admin\Form;
+
+use Campanella\Access\Actor;
+use Campanella\Capability\TextFormat;
+use Campanella\I18n\Message;
+use Campanella\I18n\Translator;
+use Campanella\Model\CampanellaObject;
+use Campanella\Model\Field;
+use Campanella\Model\FieldType;
+use Campanella\Query\Query;
+use Campanella\Query\QueryEngine;
+use Campanella\Relation\Relation;
+use DateTimeImmutable;
+use DateTimeInterface;
+use DateTimeZone;
+
+/**
+ * The editing form of an object, generated from its field and relation
+ * definitions: build() turns them into FormFields for the templates, read()
+ * turns the submitted form back into values and relation targets.
+ *
+ * Posted names: f[<field>] (f[<field>][] for a multi-valued field) and
+ * r[<relation>] (r[<relation>][] for a Many relation).
+ */
+final class ObjectForm
+{
+    /**
+     * Fields that are not edited in the form: the publication status and time are
+     * changed by the publish/unpublish actions, the text format by the HTML editor (0.0.5).
+     */
+    public const array MANAGED_FIELDS = ['status', 'published_at', 'format'];
+
+    /** The most targets offered for a relation. */
+    public const int MAX_OPTIONS = 500;
+
+    /** The value format of <input type="datetime-local" step="1"> (with seconds, so they survive a save). */
+    private const string LOCAL_DATETIME = 'Y-m-d\TH:i:s';
+
+    /** The range of the INT column of an Integer field. */
+    private const int INT_MIN = -2147483648;
+    private const int INT_MAX = 2147483647;
+
+    private readonly DateTimeZone $timezone;
+
+    public function __construct(
+        private readonly QueryEngine $queries,
+        private readonly Translator $translator,
+        string $timezone = 'UTC',
+    ) {
+        $this->timezone = new DateTimeZone($timezone);
+    }
+
+    /**
+     * @param array{f?: array<string, mixed>, r?: array<string, mixed>}|null $input Submitted values to show
+     *        again (after a failed save); null: the object's own values.
+     * @param array<string, Message> $errors field or relation name => message
+     * @param list<string> $order Field and relation names in the order they should come first
+     *        (Blueprint 'form_order'); the rest follow in their natural order.
+     * @return list<FormField>
+     */
+    public function build(
+        CampanellaObject $object,
+        Actor $actor,
+        ?array $input = null,
+        array $errors = [],
+        array $order = [],
+    ): array {
+        $form = [];
+        foreach ($this->editableFields($object) as $name => $field) {
+            $value = $input === null
+                ? $this->present($field, $object->get($name))
+                : $this->presentInput($field, $input['f'][$name] ?? null);
+            $htmlBody = $name === 'body' && $object->hasField('format') && $object->get('format') === TextFormat::Html->value;
+
+            $form[] = new FormField(
+                name: $name,
+                kind: 'field',
+                widget: $this->widget($field),
+                label: $field->label !== '' ? $field->label : $name,
+                required: $field->required && $name !== 'path',
+                multiple: $field->isMultiple(),
+                max: $field->isMultiple() && !$field->isUnlimited() ? $field->cardinality : null,
+                value: $value,
+                error: isset($errors[$name]) ? $errors[$name]->translate($this->translator) : null,
+                help: match (true) {
+                    $htmlBody => 'admin.form.html_readonly',
+                    $name === 'path' => 'admin.form.path_help',
+                    $field->type === FieldType::StringList => 'admin.form.list_help',
+                    default => null,
+                },
+                disabled: $htmlBody,
+                attributes: match ($field->type) {
+                    FieldType::String => ['maxlength' => $field->length],
+                    // The main text (Textual body) gets a tall box, other texts a shorter one.
+                    FieldType::Text => ['rows' => $name === 'body' ? 14 : 4],
+                    default => [],
+                },
+            );
+        }
+
+        foreach ($object->relations() as $name => $relation) {
+            $selected = $input === null
+                ? array_map(strval(...), $object->relatedIds($name))
+                : array_map(strval(...), array_values(array_filter((array) ($input['r'][$name] ?? []), is_scalar(...))));
+
+            $form[] = new FormField(
+                name: $name,
+                kind: 'relation',
+                widget: $relation->isMany() ? 'checkboxes' : 'select',
+                label: $relation->label !== '' ? $relation->label : $name,
+                required: $relation->required,
+                multiple: $relation->isMany(),
+                max: $relation->max,
+                value: $relation->isMany() ? $selected : ($selected[0] ?? ''),
+                options: $this->options($relation, $object, $actor),
+                error: isset($errors[$name]) ? $errors[$name]->translate($this->translator) : null,
+            );
+        }
+
+        if ($order !== []) {
+            $position = array_flip($order);
+            $natural = array_flip(array_map(static fn (FormField $f): string => $f->name, $form));
+            usort($form, static fn (FormField $a, FormField $b): int
+                => [$position[$a->name] ?? PHP_INT_MAX, $natural[$a->name]] <=> [$position[$b->name] ?? PHP_INT_MAX, $natural[$b->name]]);
+        }
+
+        return $form;
+    }
+
+    /**
+     * The submitted form as values and relation targets. Values that cannot be
+     * read (e.g. "abc" for a number) are reported as errors instead.
+     *
+     * Relations: only targets that the form offered can be added or removed.
+     * Current targets that were not offered (the actor cannot see them, or they
+     * did not fit into the option list) are kept; posted IDs that were not
+     * offered are ignored.
+     *
+     * @param array<string, mixed> $post The request's POST data
+     * @return array{values: array<string, mixed>, relations: array<string, list<int>>, errors: array<string, Message>}
+     */
+    public function read(CampanellaObject $object, array $post, Actor $actor): array
+    {
+        $fields = is_array($post['f'] ?? null) ? $post['f'] : [];
+        $relations = is_array($post['r'] ?? null) ? $post['r'] : [];
+
+        $values = [];
+        $errors = [];
+        foreach ($this->editableFields($object) as $name => $field) {
+            if ($name === 'body' && $object->hasField('format') && $object->get('format') === TextFormat::Html->value) {
+                continue; // read-only until the HTML filter (0.0.5)
+            }
+            $raw = $fields[$name] ?? null;
+            try {
+                $values[$name] = $field->isMultiple()
+                    ? array_map(fn (mixed $item): mixed => $this->parse($field, $item), is_array($raw) ? array_values($raw) : [])
+                    : $this->parse($field, $raw);
+            } catch (\UnexpectedValueException $e) {
+                $errors[$name] = new Message($e->getMessage());
+            }
+        }
+
+        $targets = [];
+        foreach ($object->relations() as $name => $relation) {
+            $offered = array_map(intval(...), array_column($this->options($relation, $object, $actor), 'value'));
+            $current = $object->relatedIds($name);
+            $kept = array_values(array_diff($current, $offered));
+
+            $posted = [];
+            foreach ((array) ($relations[$name] ?? []) as $id) {
+                if (is_scalar($id) && ctype_digit((string) $id) && in_array((int) $id, $offered, true)
+                    && !in_array((int) $id, $posted, true)) {
+                    $posted[] = (int) $id;
+                }
+            }
+            if ($relation->isMany()) {
+                // Keep the existing order of the targets that stay, then the new ones.
+                $chosen = array_values(array_filter($current, static fn (int $id): bool => in_array($id, $posted, true) || in_array($id, $kept, true)));
+                $targets[$name] = array_values(array_unique([...$chosen, ...$posted]));
+            } else {
+                $targets[$name] = $posted !== [] ? [$posted[0]] : $kept;
+            }
+        }
+
+        return ['values' => $values, 'relations' => $targets, 'errors' => $errors];
+    }
+
+    /** @return array<string, Field> */
+    private function editableFields(CampanellaObject $object): array
+    {
+        return array_filter(
+            $object->fields(),
+            static fn (Field $field): bool => !$field->hidden && !in_array($field->name, self::MANAGED_FIELDS, true),
+        );
+    }
+
+    private function widget(Field $field): string
+    {
+        return match ($field->type) {
+            FieldType::String => 'string',
+            FieldType::Text => 'text',
+            FieldType::Integer => 'integer',
+            FieldType::Boolean => 'boolean',
+            FieldType::DateTime => 'datetime',
+            FieldType::StringList => 'list',
+        };
+    }
+
+    /** @return string|list<string> The object's value as form text. */
+    private function present(Field $field, mixed $value): string|array
+    {
+        if ($field->isMultiple()) {
+            return array_values(array_map(fn (mixed $item): string => $this->presentOne($field, $item), (array) $value));
+        }
+
+        return $this->presentOne($field, $value);
+    }
+
+    private function presentOne(Field $field, mixed $value): string
+    {
+        return match (true) {
+            $value === null => '',
+            $value instanceof DateTimeInterface => DateTimeImmutable::createFromInterface($value)
+                ->setTimezone($this->timezone)->format(self::LOCAL_DATETIME),
+            is_array($value) => implode("\n", array_map(strval(...), $value)),   // StringList: one per line
+            is_bool($value) => $value ? '1' : '',
+            is_scalar($value) => (string) $value,
+            default => '',
+        };
+    }
+
+    /** @return string|list<string> The submitted value, unchanged, for showing it again. */
+    private function presentInput(Field $field, mixed $raw): string|array
+    {
+        if ($field->isMultiple()) {
+            return array_values(array_map(
+                static fn (mixed $item): string => is_scalar($item) ? (string) $item : '',
+                is_array($raw) ? $raw : [],
+            ));
+        }
+
+        return is_scalar($raw) ? (string) $raw : '';
+    }
+
+    /**
+     * One submitted value as a PHP value of the field's type.
+     *
+     * @throws \UnexpectedValueException with a message key if the value cannot be read
+     */
+    private function parse(Field $field, mixed $raw): mixed
+    {
+        if ($field->type === FieldType::Boolean) {
+            return is_scalar($raw) && (string) $raw === '1';
+        }
+        $text = is_scalar($raw) ? (string) $raw : '';
+
+        return match ($field->type) {
+            FieldType::String => trim($text),
+            FieldType::Text => str_replace("\r\n", "\n", $text),
+            FieldType::Integer => match (true) {
+                trim($text) === '' => null,
+                preg_match('/^-?\d{1,10}$/', trim($text)) === 1
+                    && (int) trim($text) >= self::INT_MIN && (int) trim($text) <= self::INT_MAX => (int) trim($text),
+                default => throw new \UnexpectedValueException('validation.invalid_number'),
+            },
+            FieldType::DateTime => $this->parseDate(trim($text)),
+            FieldType::StringList => array_values(array_filter(array_map('trim', preg_split('/\R/', $text) ?: []), static fn (string $s): bool => $s !== '')),
+        };
+    }
+
+    private function parseDate(string $text): ?DateTimeImmutable
+    {
+        if ($text === '') {
+            return null;
+        }
+        foreach ([self::LOCAL_DATETIME, 'Y-m-d\TH:i', 'Y-m-d H:i:s', 'Y-m-d H:i', 'Y-m-d'] as $format) {
+            $date = DateTimeImmutable::createFromFormat('!' . $format, $text, $this->timezone);
+            if ($date !== false && $date->format($format) === $text) {
+                return $date->setTimezone(new DateTimeZone('UTC'));
+            }
+        }
+
+        throw new \UnexpectedValueException('validation.invalid_date');
+    }
+
+    /**
+     * The possible targets of a relation that the actor may see: by the target
+     * Blueprints and capabilities, ordered by title, without the object itself.
+     *
+     * @return list<array{value: string, label: string}>
+     */
+    private function options(Relation $relation, CampanellaObject $object, Actor $actor): array
+    {
+        $query = Query::objects();
+        if ($relation->targetBlueprints !== []) {
+            $query = $query->blueprint(...$relation->targetBlueprints);
+        }
+        if ($relation->targetCapabilities !== []) {
+            $query = $query->having(...$relation->targetCapabilities);
+        }
+        $targets = $this->queries->execute($query->orderBy('title')->limit(self::MAX_OPTIONS), $actor)->items;
+
+        // The current targets are always offered (if the actor may see them), even beyond the limit.
+        $listed = array_map(static fn (CampanellaObject $o): int => (int) $o->id(), $targets);
+        $missing = array_values(array_diff($object->isNew() ? [] : $object->relatedIds($relation->name), $listed));
+        if ($missing !== []) {
+            $extra = $this->queries->execute($query->where('id', 'IN', $missing), $actor)->items;
+            array_push($targets, ...$extra);
+        }
+
+        $options = [];
+        foreach ($targets as $target) {
+            if ($target->id() === $object->id()) {
+                continue;
+            }
+            $title = $target->hasField('title') ? (string) $target->get('title') : '';
+            $options[] = ['value' => (string) $target->id(), 'label' => $title !== '' ? $title : '#' . $target->id()];
+        }
+
+        return $options;
+    }
+}

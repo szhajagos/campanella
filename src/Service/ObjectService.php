@@ -30,11 +30,22 @@ final class ObjectService
     ) {
     }
 
-    /** @param array<string, mixed> $values */
-    public function create(Actor $actor, string $blueprint, array $values, bool $publish = false): CampanellaObject
-    {
+    /**
+     * @param array<string, mixed> $values
+     * @param array<string, list<int>> $relations relation name => target IDs, in order (since 0.0.4)
+     */
+    public function create(
+        Actor $actor,
+        string $blueprint,
+        array $values,
+        bool $publish = false,
+        array $relations = [],
+    ): CampanellaObject {
         $object = $this->repository->create($blueprint, $values);
         $this->authorize($actor, Operation::Create, $object);
+        foreach ($relations as $name => $targets) {
+            $object->setRelated($name, $targets);
+        }
 
         // The logged-in user becomes the author if no other is given.
         if ($actor->kind === ActorKind::User && $actor->id !== null
@@ -51,11 +62,18 @@ final class ObjectService
         return $object;
     }
 
-    /** @param array<string, mixed> $values */
-    public function update(Actor $actor, CampanellaObject $object, array $values): void
+    /**
+     * @param array<string, mixed> $values
+     * @param array<string, list<int>> $relations relation name => target IDs, in order (since 0.0.4);
+     *        relations not given stay as they are
+     */
+    public function update(Actor $actor, CampanellaObject $object, array $values, array $relations = []): void
     {
         $this->authorize($actor, Operation::Update, $object);
         $object->fill($values);
+        foreach ($relations as $name => $targets) {
+            $object->setRelated($name, $targets);
+        }
         $this->repository->save($object);
     }
 

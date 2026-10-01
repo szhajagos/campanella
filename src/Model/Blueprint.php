@@ -27,6 +27,8 @@ final readonly class Blueprint
      *        Lists shown on the object's own page: a label and a function that builds
      *        a Query from the object (e.g. the articles of a category).
      * @param array<string, Field> $narrowed Capability fields whose cardinality this Blueprint narrows.
+     * @param list<string> $formOrder The order of fields and relations in the admin form (those not
+     *        listed follow in their natural order).
      */
     public function __construct(
         public string $name,
@@ -36,6 +38,7 @@ final readonly class Blueprint
         public array $relations = [],
         public array $lists = [],
         public array $narrowed = [],
+        public array $formOrder = [],
     ) {
     }
 

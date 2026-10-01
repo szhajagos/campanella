@@ -1,0 +1,13 @@
+{% if in_group ?? false %}
+    {# A row of a multi-valued yes/no field: a select, so every row posts exactly one value, in order. #}
+    <select class="form-select{{ invalid }}" id="{{ input_id }}" name="{{ field.inputName }}">
+        <option value="1"{{ value ? ' selected' }}>{{ t('admin.form.yes') }}</option>
+        <option value="0"{{ value ? '' : ' selected' }}>{{ t('admin.form.no') }}</option>
+    </select>
+{% else %}
+    <div class="form-check">
+        <input type="hidden" name="{{ field.inputName }}" value="0">
+        <input type="checkbox" class="form-check-input{{ invalid }}" id="{{ input_id }}" name="{{ field.inputName }}" value="1"{{ value ? ' checked' }}{% if field.disabled %} disabled{% endif %}>
+        <label class="form-check-label fw-semibold" for="{{ input_id }}">{{ t(field.label) }}</label>
+    </div>
+{% endif %}

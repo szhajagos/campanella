@@ -49,6 +49,22 @@ final class Router
         uksort($this->prefixes, static fn (string $a, string $b): int => strlen($b) <=> strlen($a));
     }
 
+    /** Whether a fixed route or a prefix route handles the path (so no object can live there). */
+    public function isRouted(string $path): bool
+    {
+        $path = Request::normalizePath($path);
+        if (isset($this->routes[$path])) {
+            return true;
+        }
+        foreach (array_keys($this->prefixes) as $prefix) {
+            if ($path === $prefix || str_starts_with($path, $prefix . '/')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function match(Request $request): RouteMatch
     {
         if (isset($this->routes[$request->path])) {

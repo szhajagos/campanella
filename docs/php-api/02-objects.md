@@ -110,6 +110,7 @@ new Field(
 | `fromStorage(mixed $value): mixed` | Back to a PHP value |
 | `exceedsCardinality(mixed $value): bool` | Whether a list has more values than the limit |
 | `hasTooLongItem(mixed $value): bool` | For a multi-valued `String`: whether an item is longer than `length` |
+| `isTooLong(mixed $value): bool` | For a single-valued `String`: whether the value is longer than `length` (checked on save since 0.0.4, `validation.value_too_long`) |
 | `isEmpty(mixed $value): bool` | `null`, empty string or empty list; the required-field check uses this |
 
 The constructor throws `InvalidArgumentException` for an invalid name, if a
@@ -234,6 +235,7 @@ return [
 | `$relations` | Only the Blueprint's own relations (`array<string, Relation>`) |
 | `$lists` | Lists shown on the object's page ([chapter 10](10-relations.md#lists-on-the-objects-page)) |
 | `$narrowed` | The capability fields whose cardinality this Blueprint narrows (`array<string, Field>`) |
+| `$formOrder` | The order of fields and relations in the admin form (`form_order` key; those not listed follow in their natural order) |
 | `allFields()` | The capability fields (narrowed where configured) and the own fields together |
 | `narrow(array $fields): array` | Applies the narrowed cardinalities to the given field definitions |
 | `allRelations()` | The capability relations and the own relations together |

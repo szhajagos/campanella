@@ -1,0 +1,38 @@
+{# One form row: label, the widget (repeated for a multi-valued field), help and error. #}
+{% set widget = '@core/admin/form/' ~ field.widget ~ '.html.twig' %}
+{% set invalid = field.error ? ' is-invalid' : '' %}
+<div class="mb-4 admin-field admin-field--{{ field.widget }}">
+    {% if field.widget != 'boolean' or field.multiple %}
+        <label class="form-label fw-semibold" for="{{ field.inputId }}">
+            {{ t(field.label) }}{% if field.required %} <span class="text-danger" aria-hidden="true">*</span>{% endif %}
+        </label>
+    {% endif %}
+
+    {% if field.kind == 'field' and field.multiple %}
+        <div data-multi{% if field.max %} data-multi-max="{{ field.max }}"{% endif %}>
+            <div class="vstack gap-2" data-multi-rows>
+                {% for value in field.value %}
+                    {{ _self.multi_row(widget, field, value, field.inputId ~ (loop.first ? '' : '-' ~ loop.index0), invalid) }}
+                {% endfor %}
+            </div>
+            <template data-multi-template>{{ _self.multi_row(widget, field, '', field.inputId ~ '-new', invalid) }}</template>
+            <button type="button" class="btn btn-sm btn-outline-primary mt-2" data-multi-add>{{ t('admin.form.add_value') }}</button>
+            {% if field.max %}<span class="small text-body-secondary ms-2">{{ t('admin.form.max_values', {max: field.max}) }}</span>{% endif %}
+        </div>
+    {% else %}
+        {% include widget with {field: field, value: field.value, input_id: field.inputId, invalid: invalid} only %}
+    {% endif %}
+
+    {% if field.help %}<div class="form-text">{{ t(field.help) }}</div>{% endif %}
+    {% if field.kind == 'relation' and field.max %}<div class="form-text">{{ t('admin.form.max_values', {max: field.max}) }}</div>{% endif %}
+    {% if field.error %}<div class="invalid-feedback d-block">{{ field.error }}</div>{% endif %}
+</div>
+
+{% macro multi_row(widget, field, value, input_id, invalid) %}
+    <div class="input-group" data-multi-row>
+        {% include widget with {field: field, value: value, input_id: input_id, invalid: invalid, in_group: true} only %}
+        <button type="button" class="btn btn-outline-secondary" data-multi-up title="{{ t('admin.form.move_up') }}" aria-label="{{ t('admin.form.move_up') }}">↑</button>
+        <button type="button" class="btn btn-outline-secondary" data-multi-down title="{{ t('admin.form.move_down') }}" aria-label="{{ t('admin.form.move_down') }}">↓</button>
+        <button type="button" class="btn btn-outline-danger" data-multi-remove title="{{ t('admin.form.remove_value') }}" aria-label="{{ t('admin.form.remove_value') }}">✕</button>
+    </div>
+{% endmacro %}

@@ -1,0 +1,2 @@
+<input type="datetime-local" step="1" class="form-control{{ invalid }}" id="{{ input_id }}" name="{{ field.inputName }}" value="{{ value }}"
+    {%- if field.required and not field.multiple %} required{% endif %}{% if field.disabled %} disabled{% endif %}>

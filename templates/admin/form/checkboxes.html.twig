@@ -1,0 +1,15 @@
+{# A Many relation: one checkbox per possible target. An empty hidden value keeps the
+   relation in the submitted form even when nothing is checked (so it can be cleared). #}
+<input type="hidden" name="{{ field.inputName }}" value="">
+{% if field.options %}
+    <div class="admin-checkboxes border rounded p-2{{ invalid }}" id="{{ input_id }}">
+        {% for option in field.options %}
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="{{ input_id }}-{{ option.value }}" name="{{ field.inputName }}" value="{{ option.value }}"{{ option.value in value ? ' checked' }}>
+                <label class="form-check-label" for="{{ input_id }}-{{ option.value }}">{{ option.label }}</label>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <p class="text-body-secondary small mb-0" id="{{ input_id }}">{{ t('admin.form.no_targets') }}</p>
+{% endif %}

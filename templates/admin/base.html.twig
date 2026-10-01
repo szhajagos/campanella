@@ -5,7 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, nofollow">
-    <title>{{ title is defined and title ? t(title) ~ ' – ' : '' }}{{ t('admin.title') }} – {{ site.name }}</title>
+    <title>{{ title_text is defined and title_text ? title_text ~ ' – ' : (title is defined and title ? t(title, title_params ?? {}) ~ ' – ' : '') }}{{ t('admin.title') }} – {{ site.name }}</title>
     <script>document.documentElement.dataset.bsTheme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';</script>
     <link rel="stylesheet" href="{{ asset('vendor/bootstrap/css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ asset('admin.css') }}">

@@ -1,0 +1,6 @@
+<select class="form-select{{ invalid }}" id="{{ input_id }}" name="{{ field.inputName }}"{% if field.required %} required{% endif %}>
+    <option value="">{{ t('admin.form.none') }}</option>
+    {% for option in field.options %}
+        <option value="{{ option.value }}"{{ option.value == value ? ' selected' }}>{{ option.label }}</option>
+    {% endfor %}
+</select>

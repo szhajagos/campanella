@@ -67,7 +67,7 @@ Then:
      lock anyone out), dashboard, one-time (flash) messages, translated labels.
   2. ✅ Listing per Blueprint with paging, filtering (status, title search) and
      sorting; the buttons follow the AccessPolicy.
-  3. Generated forms, creating and editing (see below), with a warning when
+  3. ✅ Generated forms, creating and editing (see below), with a warning when
      two editors change the same object at the same time.
   4. Publishing, unpublishing (also scheduled), deleting with confirmation;
      then the `v0.0.4` release.

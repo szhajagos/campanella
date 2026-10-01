@@ -1,0 +1,2 @@
+<textarea class="form-control{{ invalid }}" id="{{ input_id }}" name="{{ field.inputName }}" rows="{{ in_group ?? false ? 3 : (field.attributes.rows ?? 6) }}"
+    {%- if field.required and not field.multiple %} required{% endif %}{% if field.disabled %} disabled{% endif %}>{{ value }}</textarea>

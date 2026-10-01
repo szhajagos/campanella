@@ -20,7 +20,7 @@ final class BlueprintRegistry
     private array $blueprintRelations = [];
 
     /**
-     * @param array<string, array{label?: string, capabilities: list<class-string<Capability>|string>, fields?: list<Field>, relations?: list<Relation>, cardinality?: array<string, mixed>, lists?: array<string, array{label?: string, query: Closure(CampanellaObject): Query}>}> $config
+     * @param array<string, array{label?: string, capabilities: list<class-string<Capability>|string>, fields?: list<Field>, relations?: list<Relation>, cardinality?: array<string, mixed>, form_order?: list<string>, lists?: array<string, array{label?: string, query: Closure(CampanellaObject): Query}>}> $config
      */
     public function __construct(private readonly CapabilityRegistry $capabilities, array $config = [])
     {
@@ -30,7 +30,7 @@ final class BlueprintRegistry
     }
 
     /**
-     * @param array{label?: string, capabilities: list<class-string<Capability>|string>, fields?: list<Field>, relations?: list<Relation>, cardinality?: array<string, mixed>, lists?: array<string, array{label?: string, query: Closure(CampanellaObject): Query}>} $definition
+     * @param array{label?: string, capabilities: list<class-string<Capability>|string>, fields?: list<Field>, relations?: list<Relation>, cardinality?: array<string, mixed>, form_order?: list<string>, lists?: array<string, array{label?: string, query: Closure(CampanellaObject): Query}>} $definition
      */
     public function define(string $name, array $definition): Blueprint
     {
@@ -90,6 +90,7 @@ final class BlueprintRegistry
             $relations,
             $definition['lists'] ?? [],
             $narrowed,
+            array_map(strval(...), $definition['form_order'] ?? []),
         );
     }
 

@@ -11,8 +11,8 @@ operations**, not the repository directly.
 
 | Method | Checked operation | Description |
 |---|---|---|
-| `create(Actor $actor, string $blueprint, array $values, bool $publish = false): CampanellaObject` | `Create` (and `Publish`, if requested) | Creates and saves the object. With `$publish: true` it also publishes it immediately, with the current time |
-| `update(Actor $actor, CampanellaObject $object, array $values): void` | `Update` | Sets the values and saves |
+| `create(Actor $actor, string $blueprint, array $values, bool $publish = false, array $relations = []): CampanellaObject` | `Create` (and `Publish`, if requested) | Creates and saves the object. With `$publish: true` it also publishes it immediately, with the current time. `$relations`: relation name → target IDs (since 0.0.4) |
+| `update(Actor $actor, CampanellaObject $object, array $values, array $relations = []): void` | `Update` | Sets the values (and the given relations; the others stay as they are) and saves |
 | `publish(Actor $actor, CampanellaObject $object, ?DateTimeImmutable $at = null): void` | `Publish` | See `Publishable::publish()`. A future `$at` = scheduled publishing |
 | `unpublish(Actor $actor, CampanellaObject $object): void` | `Unpublish` | Back to draft |
 | `delete(Actor $actor, CampanellaObject $object): void` | `Delete` | Deletes the object and all of its capability data |

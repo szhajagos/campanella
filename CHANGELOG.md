@@ -71,6 +71,20 @@ backward-incompatible.
   published, scheduled), sortable columns and pagination; the sidebar lists
   the content Blueprints. After logging in, the user returns to the requested
   admin page.
+- **Admin UI, part 3:** creating and editing objects (`/admin/<blueprint>/new`,
+  `/admin/<blueprint>/<id>`) with forms generated from the field and relation
+  definitions: a widget per field type (separate templates), multi-valued
+  fields with add/remove/reorder buttons (`admin.js`, no dependencies),
+  relations as a drop-down or checkboxes, errors at their fields, a redirect
+  with a one-time message after saving, and a warning instead of silently
+  overwriting when someone else saved the object in the meantime. New
+  Blueprint key `form_order`. HTML text stays read-only until 0.0.5.
+- `ObjectService::create()` and `update()` accept the relations to set
+  (`$relations`, name → target IDs).
+- `Router::isRouted()`; paths used by the system (fixed routes, the admin,
+  `/assets`, `/themes`) cannot be given to an object in the admin.
+- A single-valued `String` value longer than the field's `length` is a
+  validation error (`validation.value_too_long`) instead of a database error.
 - `php bin/campanella status` marks multi-valued fields with their limit
   (`phones[3]`, `tags[*]`).
 

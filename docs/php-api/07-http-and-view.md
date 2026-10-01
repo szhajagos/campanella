@@ -53,6 +53,7 @@ renders an error page with the given status.
 |---|---|
 | `__construct(array $routes = [])` | The array from `config/routes.php`: `path => [handler, parameters]` |
 | `add(string $path, string $handler, array $params = []): void` | |
+| `isRouted(string $path): bool` | Whether a fixed route or a prefix route handles the path (an object cannot live there) |
 | `prefix(string $prefix, string $handler, array $params = []): void` | A route for a path and everything below it (e.g. the admin); the rest of the path is passed as the `subpath` parameter (since 0.0.4) |
 | `match(Request $request): RouteMatch` | A static route if one exists; else the longest matching prefix; otherwise `RouteMatch('object', ['path' => …])` |
 

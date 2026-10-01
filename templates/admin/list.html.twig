@@ -19,7 +19,10 @@
 {% block content %}
     <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2 mb-3">
         <h1 class="h3 mb-0">{{ t(blueprint.label) }}</h1>
-        <span class="text-body-secondary small">{{ t('admin.list.total', {count: result.total ?? 0}) }}</span>
+        <div class="d-flex align-items-center gap-3">
+            <span class="text-body-secondary small">{{ t('admin.list.total', {count: result.total ?? 0}) }}</span>
+            {% if can_create %}<a class="btn btn-sm btn-primary" href="{{ admin_url(blueprint.name ~ '/new') }}">{{ t('admin.list.new') }}</a>{% endif %}
+        </div>
     </div>
 
     <form method="get" action="{{ url(path) }}" class="row g-2 align-items-end mb-3 admin-filters" role="search">
@@ -68,7 +71,12 @@
                     {% for item in result %}
                         <tr>
                             <td>
-                                {{ item.title is defined and item.title ? item.title : t('admin.untitled') }}
+                                {% set label = item.title is defined and item.title ? item.title : t('admin.untitled') %}
+                                {% if editable[item.id] ?? false %}
+                                    <a class="fw-semibold" href="{{ admin_url(blueprint.name ~ '/' ~ item.id) }}">{{ label }}</a>
+                                {% else %}
+                                    {{ label }}
+                                {% endif %}
                                 {% if item.path is defined and item.path %}
                                     <a class="small ms-2" href="{{ url(item.path) }}" target="_blank" rel="noopener">{{ t('admin.list.view') }}</a>
                                 {% endif %}

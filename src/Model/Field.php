@@ -211,6 +211,13 @@ final readonly class Field
         return false;
     }
 
+    /** For a single-valued String field: whether the value is longer than the field's length. */
+    public function isTooLong(mixed $value): bool
+    {
+        return !$this->isMultiple() && $this->type === FieldType::String && is_string($value)
+            && mb_strlen($value, 'UTF-8') > $this->length;
+    }
+
     /** Whether the number of values exceeds the limit. */
     public function exceedsCardinality(mixed $value): bool
     {

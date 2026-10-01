@@ -10,6 +10,7 @@ use Campanella\Access\DefaultPolicy;
 use Campanella\Http\Flash;
 use Campanella\Controller\AdminController;
 use Campanella\Admin\AdminAccess;
+use Campanella\Admin\Form\ObjectForm;
 use Campanella\Capability\CapabilityRegistry;
 use Campanella\Auth\AuthService;
 use Campanella\Auth\LoginGuard;
@@ -272,6 +273,18 @@ final class Kernel
             $c->get(BlueprintRegistry::class),
             $c->get(Presentation::class),
             $c->get(RelationLoader::class),
+            $c->get(ObjectRepository::class),
+            $c->get(ObjectService::class),
+            $c->get(AccessPolicy::class),
+            new ObjectForm(
+                $c->get(QueryEngine::class),
+                $c->get(Translator::class),
+                (string) $c->get(Config::class)->get('timezone', 'UTC'),
+            ),
+            $c->get(Csrf::class),
+            $c->get(Flash::class),
+            $c->get(Translator::class),
+            $c->get(Router::class),
         ));
 
         $c->set('controller.auth', static fn (Container $c): Controller => new AuthController(

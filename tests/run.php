@@ -14,6 +14,7 @@ declare(strict_types=1);
 use Campanella\Access\Actor;
 use Campanella\Access\DefaultPolicy;
 use Campanella\Admin\AdminAccess;
+use Campanella\Admin\Form\ObjectForm;
 use Campanella\Capability\CapabilityException;
 use Campanella\Capability\CapabilityRegistry;
 use Campanella\Capability\Publishable;
@@ -1159,6 +1160,161 @@ test('Kernel: admin content list with search, status filter and sorting', functi
     check($get('/admin/user')->status === 404, 'no user list (users are managed from the command line)');
     check($get('/admin/no-such-blueprint')->status === 404);
     putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('ObjectForm: fields from the definitions, read back with types', function () use ($contactRepository, $contactEngine): void {
+    $form = new ObjectForm($contactEngine, Translator::fromDirectory(dirname(__DIR__) . '/lang', 'hu'), 'Europe/Budapest');
+    $contact = $contactRepository->create('contact', ['title' => 'Űrlap', 'phones' => ['1', '2'], 'event_dates' => ['2026-07-01 08:30:00']]);
+
+    $fields = [];
+    foreach ($form->build($contact, Actor::system(), order: ['phones', 'title']) as $f) {
+        $fields[$f->name] = $f;
+    }
+    check(array_key_first($fields) === 'phones', 'form_order is applied');
+    check($fields['phones']->multiple && $fields['phones']->max === 3 && $fields['phones']->value === ['1', '2']);
+    check($fields['phones']->inputName() === 'f[phones][]' && $fields['title']->inputName() === 'f[title]');
+    check($fields['tags']->max === 5, 'the Blueprint narrowing is shown');
+    check($fields['event_dates']->value === ['2026-07-01T10:30:00'], 'dates are shown in the site time zone');
+    check($fields['flags']->widget === 'boolean' && $fields['lucky_numbers']->widget === 'integer');
+    check($fields['friends']->widget === 'checkboxes' && $fields['friends']->kind === 'relation');
+
+    $read = $form->read($contact, actor: Actor::system(), post: ['f' => [
+        'title' => '  Új név  ', 'phones' => ['+36 1', '', '+36 2'], 'lucky_numbers' => ['7', '13'],
+        'event_dates' => ['2026-12-24T18:00'], 'flags' => ['1', '0'], 'tags' => ['a'],
+    ], 'r' => ['friends' => ['', '5', '5', 'x', '6']]]);
+    $offeredFriends = array_map(intval(...), array_column($fields['friends']->options, 'value'));
+    check($read['errors'] === [], json_encode(array_map('strval', $read['errors'])) ?: '');
+    check($read['values']['title'] === 'Új név', 'strings are trimmed');
+    check($read['values']['lucky_numbers'] === [7, 13] && $read['values']['flags'] === [true, false]);
+    check($read['values']['event_dates'][0]->format('Y-m-d H:i e') === '2026-12-24 17:00 UTC', 'local time to UTC');
+    check($read['relations']['friends'] === array_values(array_intersect([5, 6], $offeredFriends)), 'relation IDs: only offered ones, no duplicates');
+    check(!isset($read['values']['notes']) || $read['values']['notes'] === [], 'a field missing from the post is empty');
+
+    $bad = $form->read($contact, ['f' => ['lucky_numbers' => ['hét', '99999999999'], 'event_dates' => ['tegnap']]], Actor::system());
+    check($bad['errors']['lucky_numbers']->key === 'validation.invalid_number' && $bad['errors']['event_dates']->key === 'validation.invalid_date');
+    check(($form->read($contact, ['f' => ['lucky_numbers' => ['99999999999']]], Actor::system()))['errors']['lucky_numbers']->key === 'validation.invalid_number', 'out of the INT range');
+    check($fields['event_dates']->value === ['2026-07-01T10:30:00'], 'seconds are kept');
+
+    // A current target that the form does not offer (here: another Blueprint) is kept on save.
+    $note = $contactRepository->create('note', ['title' => 'Nem felajánlott']);
+    $contactRepository->save($note);
+    $saved = $contactRepository->create('contact', ['title' => 'Kapcsolt', 'phones' => ['1']]);
+    $contactRepository->save($saved);
+    $saved->setRelated('friends', [(int) $note->id()]);
+    $keep = $form->read($saved, ['r' => ['friends' => ['']]], Actor::system());
+    check($keep['relations']['friends'] === [(int) $note->id()], 'a target that was not offered is not removed');
+    $forged = $form->read($saved, ['r' => ['friends' => [(string) $note->id(), '999999']]], Actor::system());
+    check($forged['relations']['friends'] === [(int) $note->id()], 'posted IDs that were not offered are ignored');
+
+});
+
+test('Kernel: creating and editing in the admin, with conflict detection', function () use ($editorUser, $service, $admin): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $container = $kernel->container();
+    if ($container->get(Connection::class)->prefix() !== 'test_') {
+        echo "      (skipped: config/local.php sets its own prefix)\n";
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $storage = new ArraySessionStorage();
+    $container->set(Session::class, static fn () => new Session($storage));
+    $container->get(AuthService::class)->login(new Request('GET', '/'), $editorUser);
+    $send = function (string $method, string $path, array $post = []) use ($kernel, $storage) {
+        $storage->endRequest();
+
+        return $kernel->handle(new Request($method, $path, post: $post));
+    };
+    $token = function (string $body): string {
+        preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $body, $m);
+
+        return $m[1] ?? '';
+    };
+
+    $category = $service->create($admin, 'category', ['title' => 'Űrlap kategória']);
+    $new = $send('GET', '/admin/article/new');
+    check($new->status === 200 && str_contains($new->body, 'name="f[title]"') && str_contains($new->body, 'name="r[categories][]"'), 'the generated form');
+    check(!str_contains($new->body, 'name="f[status]"') && !str_contains($new->body, 'password'), 'managed and hidden fields are not in the form');
+
+    $invalid = $send('POST', '/admin/article/new', ['_csrf' => $token($new->body), 'f' => ['title' => '']]);
+    check($invalid->status === 422 && str_contains($invalid->body, 'kötelező mező'), 'required field: ' . $invalid->status);
+
+    $noToken = $send('POST', '/admin/article/new', ['f' => ['title' => 'Token nélkül']]);
+    check($noToken->status === 400, 'without CSRF token: ' . $noToken->status);
+
+    $created = $send('POST', '/admin/article/new', ['_csrf' => $token($new->body), 'f' => [
+        'title' => 'Űrlapból készült cikk', 'lead' => 'Bevezető', 'body' => "Szöveg.", 'path' => '',
+    ], 'r' => ['categories' => ['', (string) $category->id()], 'author' => '']]);
+    check($created->status === 303, 'created: ' . $created->status);
+    $location = $created->headers['Location'] ?? '';
+    check(preg_match('#^/admin/article/(\d+)$#', $location, $m) === 1, $location);
+    $id = (int) $m[1];
+
+    $repository = $container->get(\Campanella\Model\ObjectRepository::class);
+    $article = $repository->find($id);
+    check($article !== null && $article->get('path') === '/urlapbol-keszult-cikk' && $article->relatedIds('categories') === [(int) $category->id()]);
+    check($article->as(\Campanella\Capability\Authorable::class)->authorId() === $editorUser->id(), 'the editor is the author');
+
+    $edit = $send('GET', $location);
+    check($edit->status === 200 && str_contains($edit->body, 'Létrehozva: Űrlapból készült cikk'), 'flash message after the redirect');
+    preg_match('/name="_version" value="([0-9a-f]{64})"/', $edit->body, $u);
+    $stamp = $u[1] ?? '';
+    check($stamp !== '', 'the form carries a version token');
+
+    $stale = $send('POST', $location, ['_csrf' => $token($edit->body), '_version' => str_repeat('0', 64), 'f' => ['title' => 'Elavult']]);
+    check($stale->status === 409 && str_contains($stale->body, 'Valaki más mentette'), 'conflict: ' . $stale->status);
+    check($repository->find($id)?->get('title') === 'Űrlapból készült cikk', 'a stale form does not overwrite');
+
+    $long = $send('POST', $location, ['_csrf' => $token($edit->body), '_version' => $stamp, 'f' => ['title' => str_repeat('x', 300)]]);
+    check($long->status === 422 && str_contains($long->body, 'legfeljebb 255 karakter'), 'too long title: ' . $long->status);
+    check(str_contains($long->body, '<h1 class="h3 mb-0 me-2">Űrlapból készült cikk</h1>'), 'after a failed save the stored title is shown');
+    $reserved = $send('POST', $location, ['_csrf' => $token($edit->body), '_version' => $stamp, 'f' => ['title' => 'Belépés', 'path' => '/belepes']]);
+    check($reserved->status === 422 && str_contains($reserved->body, 'ezt az útvonalat a rendszer használja'), 'reserved path: ' . $reserved->status);
+    $fromTitle = $send('POST', $location, ['_csrf' => $token($edit->body), '_version' => $stamp, 'f' => ['title' => 'Admin', 'path' => '']]);
+    check($fromTitle->status === 422, 'a path made from the title is checked too');
+
+    $saved = $send('POST', $location, ['_csrf' => $token($edit->body), '_version' => $stamp, 'f' => [
+        'title' => 'Átírt cikk', 'lead' => 'Új bevezető', 'body' => 'Új szöveg.', 'path' => '/atirt-cikk',
+    ], 'r' => ['categories' => [''], 'author' => (string) $editorUser->id()]]);
+    check($saved->status === 303 && ($saved->headers['Location'] ?? '') === $location, 'saved: ' . $saved->status);
+    $article = $repository->find($id);
+    check($article !== null && $article->get('title') === 'Átírt cikk' && $article->get('path') === '/atirt-cikk');
+    check($article->relatedIds('categories') === [], 'unchecking every category clears the relation');
+
+    $list = $send('GET', '/admin/article', []);
+    check(str_contains($list->body, 'href="/admin/article/' . $id . '"') && str_contains($list->body, 'href="/admin/article/new"'), 'list: edit link and New button');
+
+    // HTML text is read-only until the HTML filter (0.0.5).
+    $html = $service->create($admin, 'article', ['title' => 'HTML cikk', 'body' => '<p>Eredeti</p>', 'format' => 'html']);
+    $htmlForm = $send('GET', '/admin/article/' . $html->id());
+    check(str_contains($htmlForm->body, 'HTML formátumú'), 'read-only notice');
+    preg_match('/name="_version" value="([0-9a-f]{64})"/', $htmlForm->body, $hu);
+    $send('POST', '/admin/article/' . $html->id(), ['_csrf' => $token($htmlForm->body), '_version' => $hu[1] ?? '', 'f' => [
+        'title' => 'HTML cikk', 'body' => '<script>alert(1)</script>',
+    ]]);
+    check($repository->find((int) $html->id())?->get('body') === '<p>Eredeti</p>', 'the HTML body is not changed from the form');
+
+    check($send('GET', '/admin/article/999999')->status === 404 && $send('GET', '/admin/article/abc')->status === 404);
+    check($send('GET', '/admin/article/0' . $id)->status === 404, 'no duplicate URL with a leading zero');
+
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('Admin form widgets: multi-valued rows render', function () use ($contactRepository, $contactEngine): void {
+    $twig = new \Twig\Environment(new \Twig\Loader\FilesystemLoader(dirname(__DIR__) . '/templates', dirname(__DIR__)), ['strict_variables' => true, 'autoescape' => 'html']);
+    $twig->getLoader()->addPath(dirname(__DIR__) . '/templates', 'core');
+    $translator = Translator::fromDirectory(dirname(__DIR__) . '/lang', 'hu');
+    $twig->addExtension(new \Campanella\View\CampanellaTwigExtension(static fn () => throw new LogicException(), static fn (): string => '', [], null, null, static fn (): Translator => $translator));
+    $contact = $contactRepository->create('contact', ['title' => 'Sorok', 'phones' => ['+36 1', '+36 2'], 'flags' => [true, false]]);
+    $form = new ObjectForm($contactEngine, $translator);
+    $html = '';
+    foreach ($form->build($contact, Actor::system()) as $field) {
+        $html .= $twig->render('@core/admin/form/_row.html.twig', ['field' => $field]);
+    }
+    check(substr_count($html, 'name="f[phones][]" value="+36') === 2, 'one input per value');
+    check(str_contains($html, 'data-multi-max="3"') && str_contains($html, '<template data-multi-template>'), 'add button with the limit');
+    check(substr_count($html, '<select class="form-select" id="field-flags') === 3 && !str_contains($html, 'name="f[flags][]" value="0">'), 'yes/no rows (2 + the template row) are selects');
 });
 
 // --- Documentation examples -------------------------------------------------
