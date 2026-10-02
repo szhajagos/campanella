@@ -252,4 +252,11 @@ return [
     'admin.system.template_cache_files' => 'Compiled templates (files · size); a separate folder per version.',
     'cli.status.checks' => 'System check:',
     'cli.status.checks_note' => '(The web server\'s PHP may have other settings; see the admin\'s System page.)',
+    'validation.html_too_long' => 'The HTML text may be at most {max} kB.',
+    'cli.html_sanitize.description' => 'Filters the stored HTML texts with the allowlist (--dry-run: only lists them)',
+    'cli.html_sanitize.done' => '{checked} HTML texts checked, {changed} filtered and saved.',
+    'cli.html_sanitize.dry_run' => '{checked} HTML texts checked, {changed} would change (nothing was saved).',
+    'validation.html_too_many_tags' => 'The HTML text may contain at most {max} tags.',
+    'validation.invalid_encoding' => 'The text is not valid UTF-8.',
+    'cli.html_sanitize.skipped' => 'Skipped: {object} ({reason})',
 ];

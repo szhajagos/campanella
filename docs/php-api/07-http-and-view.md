@@ -216,7 +216,7 @@ without extending it, it decides which CSS and JavaScript it loads.
 | `{{ flash_messages() }}` | `flashMessages()` | The one-time messages, translated (`type`, `text`), removed from the session |
 | `{{ t('auth.login', {…}) }}` | `translate(string $key, array $params = [])` | A user-facing text in the current language ([chapter 12](12-translation.md)) |
 | `{{ locale() }}` | `locale()` | The current language code |
-| `{{ object\|body }}` | `body(CampanellaObject $object)` | The HTML of the Textual body: escaped and split into paragraphs for the `plain` format; unchanged for the `html` format |
+| `{{ object\|body }}` | `body(CampanellaObject $object)` | The HTML of the Textual body: escaped and split into paragraphs for the `plain` format; as stored for the `html` format, which is filtered on save ([chapter 15](15-html.md)) |
 
 The extension's other methods (`getFunctions()`, `getFilters()`,
 `getGlobals()`) are meant for Twig.

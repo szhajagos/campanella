@@ -43,21 +43,25 @@ writing.
 | `find(int $id): ?CampanellaObject` | |
 | `findByUuid(string $uuid): ?CampanellaObject` | |
 | `loadMany(array $ids): array<int, CampanellaObject>` | Several objects at once, in the input order, keyed by ID. A single query runs per capability table, plus one for relations |
+| `__construct(Connection $db, CapabilityRegistry $capabilities, BlueprintRegistry $blueprints, ?HtmlSanitizer $html = null)` | `$html`: the HTML filter (since 0.0.5); null: the built-in allowlist |
 | `save(CampanellaObject $object): void` | Save (see below) |
 | `delete(CampanellaObject $object): void` | Delete; the database removes the capability rows by cascade. Does nothing for an unsaved object |
 
 ### Save steps
 
 1. Every capability's `prepareForSave()` method runs, in dependency order.
-2. Validation: required fields and relations (whether required, whether the
+2. A `Textual` body in `html` format is filtered with the allowlist
+   (`HtmlSanitizer`, [chapter 15](15-html.md)); one longer than the limit is a
+   validation error instead.
+3. Validation: required fields and relations (whether required, whether the
    target exists, whether it matches the definition). On failure:
    `ValidationException`.
-3. In a single transaction: the `objects` row (the `Data` fields as JSON), the
+4. In a single transaction: the `objects` row (the `Data` fields as JSON), the
    `object_capabilities` rows, the capability table rows and the relations.
-4. On a unique value conflict (e.g. a path already in use) the transaction is
+5. On a unique value conflict (e.g. a path already in use) the transaction is
    rolled back and a `ValidationException` is thrown; no half-saved object is
    left in the database.
-5. The object receives its ID and the `updated` time.
+6. The object receives its ID and the `updated` time.
 
 If the database contains a capability the system no longer knows (e.g. from a
 removed module), the object does not get it on load, but its data is kept.

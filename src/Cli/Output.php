@@ -6,8 +6,11 @@ namespace Campanella\Cli;
 
 final class Output
 {
-    /** @param resource $stream */
-    public function __construct(private $stream = STDOUT)
+    /**
+     * @param resource $stream Normal output
+     * @param resource $errors Error messages (since 0.0.5; e.g. the same stream in tests)
+     */
+    public function __construct(private $stream = STDOUT, private $errors = STDERR)
     {
     }
 
@@ -23,6 +26,6 @@ final class Output
 
     public function error(string $text): void
     {
-        fwrite(STDERR, '✘ ' . $text . PHP_EOL);
+        fwrite($this->errors, '✘ ' . $text . PHP_EOL);
     }
 }

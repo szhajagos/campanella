@@ -121,11 +121,8 @@ array_keys($registry->resolve([Routable::class]));   // ['titled', 'routable']
 | `setBody(string $body, TextFormat $format = TextFormat::Plain): void` | |
 
 `TextFormat` (`enum: string`): `Plain = 'plain'` (escaped when rendered, split
-into paragraphs), `Html = 'html'` (rendered unchanged).
-
-> **Security:** in 0.0.1, HTML-formatted text is rendered unfiltered, so it may
-> only come from a trusted source (CLI, seed). An HTML filter is needed before
-> a WYSIWYG editor is wired in.
+into paragraphs), `Html = 'html'` (filtered with an allowlist on every save,
+then rendered as stored; [chapter 15](15-html.md)).
 
 ### Routable
 

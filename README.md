@@ -225,7 +225,7 @@ on its own.
 
 User management in the browser, Hierarchical (menu, taxonomy tree),
 Component / Region / Layout, Webform, Event / Action, cache, migrations
-(altering existing tables), multilingual content, WYSIWYG editor and HTML sanitizer.
+(altering existing tables), multilingual content, WYSIWYG editor (the HTML sanitizer is in place since 0.0.5).
 
 ## License
 

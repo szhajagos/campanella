@@ -250,4 +250,11 @@ return [
     'admin.system.template_cache_files' => 'Lefordított sablonok (fájlok · méret); verziónként külön mappában.',
     'cli.status.checks' => 'Rendszerellenőrzés:',
     'cli.status.checks_note' => '(A webszerver PHP-jának más beállításai lehetnek; lásd az admin Rendszer oldalát.)',
+    'validation.html_too_long' => 'A HTML-szöveg legfeljebb {max} kB lehet.',
+    'cli.html_sanitize.description' => 'A tárolt HTML-szövegek szűrése az engedélylistával (--dry-run: csak kilistázza őket)',
+    'cli.html_sanitize.done' => '{checked} HTML-szöveg ellenőrizve, ebből {changed} szűrve és mentve.',
+    'cli.html_sanitize.dry_run' => '{checked} HTML-szöveg ellenőrizve, ebből {changed} változna (nem történt mentés).',
+    'validation.html_too_many_tags' => 'A HTML-szöveg legfeljebb {max} címkét tartalmazhat.',
+    'validation.invalid_encoding' => 'A szöveg nem érvényes UTF-8 kódolású.',
+    'cli.html_sanitize.skipped' => 'Kihagyva: {object} ({reason})',
 ];

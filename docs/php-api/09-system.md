@@ -59,6 +59,7 @@ by explicit factory functions in the `Kernel`, on first request, once.
 | `Installer::class` | Installer |
 | `Twig\Environment::class`, `Presentation::class` | Rendering |
 | `Router::class` | Routing |
+| `HtmlSanitizer::class` | The HTML filter ([chapter 15](15-html.md)) |
 | `TemplateCache::class`, `SystemCheck::class` | The template cache folder, the system check ([chapter 14](14-system-check.md)) |
 | `controller.object`, `controller.query`, `controller.auth`, `controller.admin` | Controllers; following the `controller.<handler>` pattern |
 
@@ -89,6 +90,7 @@ New controller: a `controller.<name>` entry in the container, and a route in
 | `config/app.php` | Default settings, capability list |
 | `config/local.php` | Machine-specific settings; not under version control. Template: `local.php.dist` |
 | `config/blueprints.php` | Blueprints |
+| `config/html.php` | The HTML allowlist ([chapter 15](15-html.md#configuration-confightmlphp)) |
 | `config/routes.php` | Static routes |
 | `config/queries.php` | Named queries |
 
@@ -133,6 +135,7 @@ schema version; incremented for a new table or migration).
 | `install` | Creates the tables; `--sql`: only prints the SQL |
 | `seed` | Sample content. Can be run repeatedly: whatever already exists by path is not created again |
 | `status` | Version, the system check ([chapter 14](14-system-check.md)), capabilities, Blueprints, object count; reports if the database needs an upgrade. Exits with `1` if a check reports an error |
+| `html:sanitize` | Filters the stored HTML texts with the allowlist; `--dry-run`: only lists them ([chapter 15](15-html.md#texts-stored-earlier-htmlsanitize)) |
 | `user:create`, `user:password`, `user:list` | User management ([chapter 11](11-users.md#command-line)) |
 | `help` | Command list |
 
@@ -170,8 +173,8 @@ module system it will become registrable.
 | Class | Description |
 |---|---|
 | `Console` · **Internal** | `__construct(Kernel $kernel, Output $output = new Output())`, `run(array $argv): int` |
-| `Output` · **Public** | `line(string $text = '')`, `success(string $text)` (with a ✔ mark), `error(string $text)` (with a ✘ mark, to standard error) |
-| `InstallCommand`, `SeedCommand`, `StatusCommand` · **Internal** | The built-in commands |
+| `Output` · **Public** | `__construct($stream = STDOUT, $errors = STDERR)`; `line(string $text = '')`, `success(string $text)` (with a ✔ mark), `error(string $text)` (with a ✘ mark, to the error stream) |
+| `InstallCommand`, `SeedCommand`, `StatusCommand`, `HtmlSanitizeCommand` · **Internal** | The built-in commands |
 
 ## Helper classes
 

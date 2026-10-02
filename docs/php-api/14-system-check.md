@@ -20,7 +20,7 @@ details (those are in the server's error log).
 | Group | Checks |
 |---|---|
 | Versions | Campanella; PHP (at least `SystemCheck::MIN_PHP`, 8.3.0); the database server (MariaDB 10.6+, MySQL 8.0+: `MIN_DATABASE`); the database schema against `Version::SCHEMA` (if they differ: run `install`) |
-| Required PHP extensions | `REQUIRED_EXTENSIONS`: `ctype`, `json`, `mbstring`, `pdo`, `pdo_mysql`, `session`; missing: error |
+| Required PHP extensions | `REQUIRED_EXTENSIONS`: `ctype`, `dom` (the HTML filter), `json`, `mbstring`, `pdo`, `pdo_mysql`, `session`; missing: error |
 | Recommended PHP extensions | `RECOMMENDED_EXTENSIONS`: `gd` (image processing, 0.0.5), `fileinfo` (recognising uploaded files), `opcache` (speed); missing: warning |
 | Writable folders | `var/cache` |
 | Settings | Debug mode (on: warning), language, time zone, theme, admin path; on the web also whether the server sees HTTPS (if not: warning, the login cookie is not marked `Secure`) |

@@ -23,6 +23,19 @@ backward-incompatible.
   `CheckResult`, `CheckStatus`, `TemplateCache`; `AdminAccess::allowsSystem()`.
 - `php bin/campanella status` runs the same checks (without the web server's
   settings).
+- **HTML sanitizer.** A `Textual` body in `html` format is filtered with an
+  allowlist on every save (`ObjectRepository::save()`, so the admin, the CLI
+  and the seed cannot bypass it): paragraphs, h2–h4, emphasis, lists, quotes,
+  code, links (`http`, `https`, `mailto`, relative; with
+  `rel="noopener noreferrer"`), images from this site only, simple tables.
+  Scripts, styles, frames, forms, `style`/`class`/`on…` attributes and
+  `javascript:` links are removed. Configurable in `config/html.php`. Built on
+  `symfony/html-sanitizer` 7.x (MIT). New `Campanella\Html\HtmlSanitizer`;
+  a text over 1 MB or 20 000 tags, or not valid UTF-8, is rejected with a
+  validation message instead of being filtered.
+- `php bin/campanella html:sanitize [--dry-run]`: filters the HTML texts
+  stored before. **Run it once after upgrading** (texts stored by earlier
+  versions were not filtered).
 - "Create and publish" button on the new-object form of a `Publishable`
   Blueprint, for users who may publish.
 
@@ -35,6 +48,11 @@ backward-incompatible.
   does it).
 - `php bin/campanella status` exits with `1` if a check reports an error
   (e.g. a missing PHP extension, or the database is not installed yet).
+- New dependencies: `symfony/html-sanitizer` and its dependencies
+  (`masterminds/html5`, `league/uri`, `league/uri-interfaces`,
+  `psr/http-message`, `psr/http-factory`, all MIT), and the `dom` PHP
+  extension (required; part of standard PHP builds).
+- `Cli\Output` takes an optional error stream (`$errors`, default `STDERR`).
 - `system` and `media` are reserved: no Blueprint can have these names
   (`BlueprintRegistry::RESERVED_NAMES`).
 

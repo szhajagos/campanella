@@ -10,8 +10,8 @@ enum TextFormat: string
     case Plain = 'plain';
 
     /**
-     * HTML. In 0.0.1 it may only come from a trusted source (seed, CLI).
-     * Before editors can write with WYSIWYG, an HTML filter is needed here.
+     * HTML. Filtered with the allowlist on every save (Campanella\Html\HtmlSanitizer,
+     * since 0.0.5), so it is rendered as it is stored.
      */
     case Html = 'html';
 }

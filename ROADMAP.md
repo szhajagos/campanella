@@ -48,7 +48,7 @@ Agreed in detail on 2026-10-02. In five parts, each its own commit:
      so uploading a new release never serves stale templates (upload tools
      often keep the old file times, which defeats `auto_reload`).
    - A "Create and publish" button on the new-object form.
-1. **HTML sanitizer.**
+1. ✅ **HTML sanitizer.**
    - `symfony/html-sanitizer` 7.x (MIT, with MIT dependencies; 8.x needs PHP 8.4).
    - Allowlist, overridable in `config/html.php`: paragraphs, h2–h4,
      bold/italic/strikethrough, lists, blockquote, code, horizontal rule,

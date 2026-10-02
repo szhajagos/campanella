@@ -38,6 +38,7 @@ use Campanella\Service\ObjectService;
 use Campanella\View\CampanellaTwigExtension;
 use Campanella\View\Presentation;
 use Campanella\View\Theme;
+use Campanella\Html\HtmlSanitizer;
 use Campanella\System\SystemCheck;
 use Campanella\System\TemplateCache;
 use Twig\Environment;
@@ -118,10 +119,19 @@ final class Kernel
             require $root . '/config/blueprints.php',
         ));
 
+        $c->set(HtmlSanitizer::class, static function () use ($root): HtmlSanitizer {
+            $file = $root . '/config/html.php';
+            /** @var array{elements?: array<string, list<string>>, link_schemes?: list<string>, external_images?: bool, max_length?: int} $config */
+            $config = is_file($file) ? require $file : [];
+
+            return new HtmlSanitizer($config);
+        });
+
         $c->set(ObjectRepository::class, static fn (Container $c): ObjectRepository => new ObjectRepository(
             $c->get(Connection::class),
             $c->get(CapabilityRegistry::class),
             $c->get(BlueprintRegistry::class),
+            $c->get(HtmlSanitizer::class),
         ));
 
         $c->set(AccessPolicy::class, static fn (): AccessPolicy => new DefaultPolicy());

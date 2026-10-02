@@ -30,7 +30,7 @@ final class SystemCheck
     public const array MIN_DATABASE = ['MariaDB' => '10.6', 'MySQL' => '8.0'];
 
     /** PHP extensions Campanella cannot run without. */
-    public const array REQUIRED_EXTENSIONS = ['ctype', 'json', 'mbstring', 'pdo', 'pdo_mysql', 'session'];
+    public const array REQUIRED_EXTENSIONS = ['ctype', 'dom', 'json', 'mbstring', 'pdo', 'pdo_mysql', 'session'];
 
     /**
      * Recommended PHP extensions: name shown => name for extension_loaded(). The

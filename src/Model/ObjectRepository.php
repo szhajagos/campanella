@@ -9,6 +9,9 @@ use Campanella\Capability\CapabilityRegistry;
 use Campanella\Database\Connection;
 use Campanella\Database\Schema\CoreSchema;
 use Campanella\I18n\Message;
+use Campanella\Capability\TextFormat;
+use Campanella\Capability\Textual;
+use Campanella\Html\HtmlSanitizer;
 use Campanella\Support\Uuid;
 use DateTimeImmutable;
 use DateTimeZone;
@@ -32,11 +35,19 @@ final class ObjectRepository
     /** The MySQL/MariaDB error code for a unique key violation. */
     private const int DUPLICATE_KEY = 1062;
 
+    private readonly HtmlSanitizer $html;
+
+    /**
+     * @param HtmlSanitizer|null $html Filters texts in `html` format on save (since 0.0.5);
+     *        null: the built-in allowlist. There is no way to save without it.
+     */
     public function __construct(
         private readonly Connection $db,
         private readonly CapabilityRegistry $capabilities,
         private readonly BlueprintRegistry $blueprints,
+        ?HtmlSanitizer $html = null,
     ) {
+        $this->html = $html ?? new HtmlSanitizer();
     }
 
     /**
@@ -184,7 +195,7 @@ final class ObjectRepository
         foreach ($object->capabilities() as $definition) {
             $object->as($definition->class)->prepareForSave();
         }
-        $this->validate($object);
+        $this->validate($object, $this->sanitizeHtml($object));
 
         $now = self::now();
         $data = [];
@@ -303,9 +314,31 @@ final class ObjectRepository
         }
     }
 
-    private function validate(CampanellaObject $object): void
+    /**
+     * Filters the body of a text in `html` format (HtmlSanitizer). A text that cannot
+     * be filtered (too long, too many tags, invalid UTF-8) is not changed but
+     * reported as a validation error.
+     *
+     * @return array<string, Message> field name => message
+     */
+    private function sanitizeHtml(CampanellaObject $object): array
     {
-        $errors = [];
+        if (!$object->has(Textual::class) || $object->as(Textual::class)->format() !== TextFormat::Html) {
+            return [];
+        }
+        $body = $object->as(Textual::class)->body();
+        $problem = $this->html->problem($body);
+        if ($problem !== null) {
+            return ['body' => $problem];
+        }
+        $object->set('body', $this->html->sanitize($body));
+
+        return [];
+    }
+
+    /** @param array<string, Message> $errors Errors found before (e.g. by sanitizeHtml()) */
+    private function validate(CampanellaObject $object, array $errors = []): void
+    {
         foreach ($object->fields() as $name => $field) {
             $value = $object->get($name);
             if ($field->required && $field->isEmpty($value)) {

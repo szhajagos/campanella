@@ -24,6 +24,7 @@ final class Console
             new UserCreateCommand(),
             new UserPasswordCommand(),
             new UserListCommand(),
+            new HtmlSanitizeCommand(),
         ];
         foreach ($commands as $command) {
             $this->commands[$command->name()] = $command;
