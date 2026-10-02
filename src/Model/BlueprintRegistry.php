@@ -13,6 +13,12 @@ use Closure;
 
 final class BlueprintRegistry
 {
+    /**
+     * Names a Blueprint cannot have, because the admin uses them as its own paths
+     * (/admin/system, and /admin/media for uploads). Since 0.0.5.
+     */
+    public const array RESERVED_NAMES = ['system', 'media'];
+
     /** @var array<string, Blueprint> */
     private array $blueprints = [];
 
@@ -36,6 +42,9 @@ final class BlueprintRegistry
     {
         if (preg_match('/^[a-z][a-z0-9_]{0,62}$/', $name) !== 1) {
             throw new CapabilityException("Invalid Blueprint name: {$name}");
+        }
+        if (in_array($name, self::RESERVED_NAMES, true)) {
+            throw new CapabilityException("The Blueprint name '{$name}' is reserved by the admin.");
         }
 
         $capabilities = $this->capabilities->resolve($definition['capabilities']);

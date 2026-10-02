@@ -15,7 +15,14 @@ use Campanella\Model\BlueprintRegistry;
 use Campanella\Model\Field;
 use Campanella\Query\Query;
 use Campanella\Query\QueryEngine;
+use Campanella\System\CheckStatus;
+use Campanella\System\SystemCheck;
 
+/**
+ * `php bin/campanella status`: versions, the system check, capabilities,
+ * Blueprints and object counts. Exits with 1 if a check reports an error
+ * (e.g. a missing PHP extension, or the database is not installed).
+ */
 final class StatusCommand implements Command
 {
     #[\Override]
@@ -35,6 +42,27 @@ final class StatusCommand implements Command
     {
         $t = $container->get(Translator::class);
         $output->line('Campanella ' . Version::CAMPANELLA . ' (PHP ' . PHP_VERSION . ')');
+
+        // The system check (the same as the admin's System page, without the web server's settings).
+        $results = $container->get(SystemCheck::class)->run();
+        $output->line();
+        $output->line($t->translate('cli.status.checks'));
+        $group = null;
+        foreach ($results as $result) {
+            if ($result->group !== $group) {
+                $group = $result->group;
+                $output->line('  ' . $t->translate($group));
+            }
+            $output->line('    '
+                . mb_str_pad('[' . $t->translate('admin.system.status.' . $result->status->value) . ']', 17)
+                . mb_str_pad($t->translate($result->label), 30)
+                . $t->translate($result->value));
+            if ($result->hint !== null && in_array($result->status, [CheckStatus::Warning, CheckStatus::Error], true)) {
+                $output->line(str_repeat(' ', 21) . $result->hint->translate($t));
+            }
+        }
+        $output->line($t->translate('cli.status.checks_note'));
+        $exit = SystemCheck::worst($results) === CheckStatus::Error ? 1 : 0;
 
         $output->line();
         $output->line($t->translate('cli.status.capabilities'));
@@ -66,10 +94,16 @@ final class StatusCommand implements Command
 
         $output->line();
         $installer = $container->get(Installer::class);
-        if (!$installer->isInstalled()) {
+        try {
+            $installed = $installer->isInstalled();
+        } catch (\Throwable) {
+            // The database cannot be reached: already reported by the system check above.
+            return $exit;
+        }
+        if (!$installed) {
             $output->line($t->translate('cli.status.not_installed'));
 
-            return 0;
+            return $exit;
         }
         if ($installer->needsUpgrade()) {
             $output->line($t->translate('cli.status.needs_upgrade', [
@@ -77,7 +111,7 @@ final class StatusCommand implements Command
                 'code' => Version::SCHEMA,
             ]));
 
-            return 0;
+            return $exit;
         }
         $queries = $container->get(QueryEngine::class);
         $output->line($t->translate('cli.status.objects', [
@@ -85,6 +119,6 @@ final class StatusCommand implements Command
             'public' => $queries->count(Query::objects(), Actor::anonymous()),
         ]));
 
-        return 0;
+        return $exit;
     }
 }

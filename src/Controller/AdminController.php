@@ -25,6 +25,9 @@ use Campanella\Http\RouteMatch;
 use Campanella\Capability\Publishable;
 use Campanella\Capability\PublishStatus;
 use Campanella\Support\Slugger;
+use Campanella\System\CheckStatus;
+use Campanella\System\SystemCheck;
+use Campanella\System\TemplateCache;
 use Campanella\Http\Router;
 use Campanella\Capability\Routable;
 use Campanella\Model\Blueprint;
@@ -74,12 +77,18 @@ final class AdminController implements Controller
         private readonly Flash $flash,
         private readonly Translator $translator,
         private readonly Router $router,
+        private readonly SystemCheck $system,
+        private readonly TemplateCache $templateCache,
     ) {
     }
+
+    /** The actor of the current request (for the menu). */
+    private ?Actor $actor = null;
 
     #[\Override]
     public function handle(Request $request, RouteMatch $route, Actor $actor): Response
     {
+        $this->actor = null;
         if ($actor->isAnonymous()) {
             // Back to the requested admin page after logging in.
             $target = $request->path . ($request->query === [] ? '' : '?' . http_build_query($request->query));
@@ -90,9 +99,27 @@ final class AdminController implements Controller
             throw new HttpException(403, 'error.forbidden');
         }
 
+        $this->actor = $actor;
+
         $segments = array_values(array_filter(explode('/', (string) ($route->params['subpath'] ?? '')), static fn (string $s): bool => $s !== ''));
-        $response = match (count($segments)) {
-            0 => $this->dashboard($actor),
+        $response = match (true) {
+            ($segments[0] ?? null) === 'system' => $this->system($request, $actor, array_slice($segments, 1)),
+            default => $this->content($request, $actor, $segments),
+        };
+
+        // Admin pages are never indexed by search engines.
+        return $response->withHeader('X-Robots-Tag', 'noindex, nofollow');
+    }
+
+    /**
+     * The content pages: dashboard, lists, forms, actions.
+     *
+     * @param list<string> $segments
+     */
+    private function content(Request $request, Actor $actor, array $segments): Response
+    {
+        return match (count($segments)) {
+            0 => $this->dashboard($request, $actor),
             1 => $this->listing($request, $actor, $this->contentBlueprint($segments[0])),
             2 => $segments[1] === 'new'
                 ? $this->create($request, $actor, $this->contentBlueprint($segments[0]))
@@ -100,12 +127,49 @@ final class AdminController implements Controller
             3 => $this->action($request, $actor, $this->find($this->contentBlueprint($segments[0]), $segments[1], $actor), $segments[2]),
             default => throw HttpException::notFound(),
         };
-
-        // Admin pages are never indexed by search engines.
-        return $response->withHeader('X-Robots-Tag', 'noindex, nofollow');
     }
 
-    private function dashboard(Actor $actor): Response
+    /**
+     * /admin/system: the system check; POST /admin/system/clear-cache empties the
+     * template cache. Only for the system roles (AdminAccess::allowsSystem()).
+     *
+     * @param list<string> $segments The path after /admin/system
+     */
+    private function system(Request $request, Actor $actor, array $segments): Response
+    {
+        if (!$this->access->allowsSystem($actor)) {
+            throw new HttpException(403, 'error.forbidden');
+        }
+        if ($segments === ['clear-cache']) {
+            if (!$request->isPost()) {
+                throw new HttpException(405, 'error.method_not_allowed');
+            }
+            if (!$this->csrf->isValid($request)) {
+                $this->flash->add(Flash::DANGER, 'auth.form_expired');
+            } else {
+                $this->flash->add(Flash::SUCCESS, new Message('admin.system.cache_cleared', ['count' => $this->templateCache->clear()]));
+            }
+
+            return Response::redirect($request->basePath . $this->access->path('system'), 303);
+        }
+        if ($segments !== []) {
+            throw HttpException::notFound();
+        }
+
+        $results = $this->system->run($request);
+        $groups = [];
+        foreach ($results as $result) {
+            $groups[$result->group][] = $result;
+        }
+
+        return $this->render('system', 'system', [
+            'title' => 'admin.system.title',
+            'groups' => $groups,
+            'worst' => SystemCheck::worst($results)?->value,
+        ]);
+    }
+
+    private function dashboard(Request $request, Actor $actor): Response
     {
         $counts = [];
         foreach ($this->blueprints->all() as $name => $blueprint) {
@@ -117,8 +181,13 @@ final class AdminController implements Controller
         }
         $recent = $this->queries->execute(Query::objects()->orderBy('updated', 'DESC')->limit(10), $actor);
 
+        // A warning bar for those who can fix it, if a requirement is not met.
+        $systemError = $this->access->allowsSystem($actor)
+            && SystemCheck::worst($this->system->run($request)) === CheckStatus::Error;
+
         return $this->render('dashboard', 'dashboard', [
             'title' => 'admin.dashboard',
+            'system_error' => $systemError,
             'counts' => $counts,
             'recent' => $recent,
         ]);
@@ -200,15 +269,17 @@ final class AdminController implements Controller
         if ($errors !== []) {
             return $this->formPage($blueprint, $object, $actor, $request->post, $errors, 'admin.form.invalid', 422);
         }
+        // "Create and publish": only offered (and only honoured) if the actor may publish it.
+        $publish = $request->postString('_publish') === '1' && $this->canPublishNew($actor, $object);
         try {
-            $created = $this->service->create($actor, $blueprint->name, $read['values'], relations: $read['relations']);
+            $created = $this->service->create($actor, $blueprint->name, $read['values'], $publish, $read['relations']);
         } catch (ValidationException $e) {
             return $this->formPage($blueprint, $object, $actor, $request->post, $e->errors, 'admin.form.invalid', 422);
         } catch (AccessDeniedException) {
             throw new HttpException(403, 'error.forbidden');
         }
 
-        $this->flash->add(Flash::SUCCESS, new Message('admin.form.created', ['title' => self::titleOf($created)]));
+        $this->flash->add(Flash::SUCCESS, new Message($publish ? 'admin.form.created_published' : 'admin.form.created', ['title' => self::titleOf($created)]));
 
         return Response::redirect($request->basePath . $this->access->path($blueprint->name . '/' . $created->id()), 303);
     }
@@ -295,6 +366,7 @@ final class AdminController implements Controller
             'action' => $this->access->path($blueprint->name . '/' . ($object->isNew() ? 'new' : (string) $object->id())),
             'list_path' => $this->access->path($blueprint->name),
             'publication' => $object->isNew() ? null : $this->publication($object, $actor),
+            'can_publish_new' => $object->isNew() && $this->canPublishNew($actor, $object),
             'can_delete' => !$object->isNew() && $this->policy->allows($actor, Operation::Delete, $object),
         ]);
 
@@ -517,6 +589,12 @@ final class AdminController implements Controller
         ];
     }
 
+    /** Whether a new object may be published right when it is created. */
+    private function canPublishNew(Actor $actor, CampanellaObject $object): bool
+    {
+        return $object->has(Publishable::class) && $this->policy->allows($actor, Operation::Publish, $object);
+    }
+
     /** An object of the Blueprint by ID, if the actor may see it; otherwise 404. */
     private function find(Blueprint $blueprint, string $id, Actor $actor): CampanellaObject
     {
@@ -618,6 +696,7 @@ final class AdminController implements Controller
         return Response::html($this->presentation->render("@core/admin/{$template}.html.twig", $context + [
             'active' => $active,
             'menu' => $menu,
+            'can_system' => $this->actor !== null && $this->access->allowsSystem($this->actor),
             'blueprints' => $this->blueprints->all(),
         ]));
     }

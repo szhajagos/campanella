@@ -4,6 +4,13 @@
 {% block content %}
     <h1 class="h3 mb-4">{{ t('admin.dashboard') }}</h1>
 
+    {% if system_error ?? false %}
+        <div class="alert alert-danger d-flex flex-wrap align-items-center gap-2" role="alert">
+            <span class="me-auto">{{ t('admin.system.dashboard_error') }}</span>
+            <a class="btn btn-sm btn-outline-danger" href="{{ admin_url('system') }}">{{ t('admin.system.open') }}</a>
+        </div>
+    {% endif %}
+
     <h2 class="h6 text-uppercase text-body-secondary mb-3">{{ t('admin.content') }}</h2>
     <div class="row g-3 mb-5">
         {% for item in counts %}

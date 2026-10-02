@@ -6,3 +6,5 @@
 .admin-sidebar .nav-link:hover { background: var(--bs-tertiary-bg); }
 .admin-sidebar .nav-link.active { background: var(--bs-primary); color: #fff; }
 .admin-stat .fs-3 { line-height: 1.2; }
+.admin-system th { width: 38%; }
+.admin-system td:last-child { width: 1%; white-space: nowrap; }

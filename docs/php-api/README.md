@@ -18,6 +18,7 @@ namespace, in the `src/` folder (PSR-4).
 11. [Users and login](11-users.md): `Identifiable`, `Authenticatable`, `Authorable`, `AuthService`, session, CSRF, `LoginGuard`
 12. [Translation](12-translation.md): `Translator`, `Message`, language files, `t()` in templates
 13. [Admin UI](13-admin.md): access, `AdminAccess`, `Flash`, admin templates
+14. [System check](14-system-check.md): `SystemCheck`, `CheckResult`, `TemplateCache`, the System page
 
 ## Namespaces
 
@@ -37,6 +38,7 @@ namespace, in the `src/` folder (PSR-4).
 | `Campanella\Http` | Infrastructure | Request, response, routing |
 | `Campanella\Database` | Infrastructure | PDO layer, schema, installer |
 | `Campanella\Core` | Infrastructure | Kernel, container, configuration |
+| `Campanella\System` | Infrastructure | System check, template cache |
 | `Campanella\Cli` | Infrastructure | Command-line tool |
 | `Campanella\Support` | Helper | Slug, UUID |
 

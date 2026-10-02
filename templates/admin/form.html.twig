@@ -34,6 +34,9 @@
 
                 <div class="d-flex gap-2 mt-4 pt-3 border-top">
                     <button type="submit" class="btn btn-primary">{{ t(object.isNew ? 'admin.form.create' : 'admin.form.save') }}</button>
+                    {% if can_publish_new %}
+                        <button type="submit" class="btn btn-success" name="_publish" value="1">{{ t('admin.form.create_publish') }}</button>
+                    {% endif %}
                     <a class="btn btn-outline-secondary" href="{{ url(list_path) }}">{{ t('admin.form.cancel') }}</a>
                 </div>
             </form>

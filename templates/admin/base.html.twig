@@ -49,6 +49,9 @@
                                 <li class="nav-item"><a class="nav-link{{ (active ?? '') == item.name ? ' active' : '' }}" href="{{ admin_url(item.name) }}">{{ t(item.label) }}</a></li>
                             {% endfor %}
                         {% endif %}
+                        {% if can_system ?? false %}
+                            <li class="nav-item mt-3"><a class="nav-link{{ (active ?? '') == 'system' ? ' active' : '' }}" href="{{ admin_url('system') }}">{{ t('admin.system.title') }}</a></li>
+                        {% endif %}
                     {% endblock %}
                 </ul>
             </nav>

@@ -1427,6 +1427,154 @@ test('Admin form widgets: multi-valued rows render', function () use ($contactRe
 
 // --- Documentation examples -------------------------------------------------
 
+echo "\nSystem\n";
+
+test('TemplateCache: a folder per version, usage, clearing every version', function (): void {
+    $base = sys_get_temp_dir() . '/campanella-twig-' . bin2hex(random_bytes(4));
+    $cache = new \Campanella\System\TemplateCache($base, '0.0.5');
+    check($cache->directory() === $base . '/0.0.5');
+    check($cache->twigCache() === $base . '/0.0.5' && is_dir($base . '/0.0.5'), 'created on demand');
+    mkdir($base . '/0.0.4/ab', 0775, true);
+    file_put_contents($base . '/0.0.4/ab/old.php', str_repeat('x', 100));
+    file_put_contents($base . '/0.0.5/new.php', str_repeat('y', 50));
+    check($cache->usage() === ['files' => 2, 'bytes' => 150], json_encode($cache->usage()));
+    check($cache->clear() === 2 && $cache->usage()['files'] === 0 && !is_dir($base . '/0.0.4'), 'older versions are cleared too');
+    check($cache->twigCache() !== false, 'usable again after clearing');
+    @rmdir($base . '/0.0.5');
+    @rmdir($base);
+    throws(\InvalidArgumentException::class, fn () => new \Campanella\System\TemplateCache($base, '../x'));
+});
+
+test('SystemCheck: versions, extensions, web-only checks, own checks, no secrets', function (): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $c = $kernel->container();
+    $system = $c->get(\Campanella\System\SystemCheck::class);
+
+    check(\Campanella\System\SystemCheck::parseDatabaseVersion('10.11.6-MariaDB-0+deb12u1') === ['MariaDB', '10.11.6']);
+    check(\Campanella\System\SystemCheck::parseDatabaseVersion('8.0.36') === ['MySQL', '8.0.36']);
+    check(\Campanella\System\SystemCheck::parseDatabaseVersion('valami') === null);
+    check(\Campanella\System\SystemCheck::parseDatabaseVersion('5.5.5-10.6.18-MariaDB-log') === ['MariaDB', '10.6.18'], 'the old 5.5.5- prefix');
+
+    $byLabel = static function (array $results): array {
+        $map = [];
+        foreach ($results as $r) {
+            $map[$r->label] = $r;
+        }
+
+        return $map;
+    };
+    $cli = $byLabel($system->run());
+    check($cli['admin.system.php']->status === \Campanella\System\CheckStatus::Ok, 'PHP version');
+    check($cli['admin.system.database']->status === \Campanella\System\CheckStatus::Ok, 'database: ' . $cli['admin.system.database']->value);
+    check($cli['pdo_mysql']->status === \Campanella\System\CheckStatus::Ok && isset($cli['gd'], $cli['opcache']));
+    check(!isset($cli['admin.system.https']) && !isset($cli['upload_max_filesize']) && !isset($cli['admin.system.opcache']), 'no web-only checks on the command line');
+
+    $web = $byLabel($system->run(new Request('GET', '/admin/system')));
+    check($web['admin.system.https']->status === \Campanella\System\CheckStatus::Warning, 'plain HTTP is a warning');
+    check(isset($web['upload_max_filesize'], $web['admin.system.opcache']));
+    check($byLabel($system->run(new Request('GET', '/', secure: true)))['admin.system.https']->status === \Campanella\System\CheckStatus::Ok);
+
+    $system->add(static fn (?Request $r): array => [new \Campanella\System\CheckResult('test.group', 'test.label', \Campanella\System\CheckStatus::Error, $r === null ? 'cli' : 'web')]);
+    $results = $system->run();
+    check(end($results)->label === 'test.label' && end($results)->value === 'cli', 'own check, called with the request');
+    check(\Campanella\System\SystemCheck::worst($results) === \Campanella\System\CheckStatus::Error);
+    check(\Campanella\System\SystemCheck::worst([]) === null);
+
+    // No secret appears in any result.
+    $password = (string) $c->get(Config::class)->get('database.password', '');
+    // (Only a password long enough not to occur in an ordinary value by chance.)
+    $dump = json_encode(array_map(static fn ($r): array => [$r->value, $r->hint?->params], $system->run(new Request('GET', '/'))));
+    check(strlen($password) < 12 || !str_contains((string) $dump, $password), 'the database password is not shown');
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('Reserved Blueprint names and the system roles', function (): void {
+    $registry = new BlueprintRegistry(new CapabilityRegistry([Titled::class]));
+    throws(CapabilityException::class, fn () => $registry->define('system', ['capabilities' => [Titled::class]]));
+    throws(CapabilityException::class, fn () => $registry->define('media', ['capabilities' => [Titled::class]]));
+
+    $access = new AdminAccess();
+    check($access->allowsSystem(new Actor(\Campanella\Access\ActorKind::User, 1, [Actor::ADMINISTRATOR])));
+    check(!$access->allowsSystem(new Actor(\Campanella\Access\ActorKind::User, 2, ['editor'])), 'an editor may enter, but not the system page');
+    $custom = new AdminAccess('/admin', ['editor'], ['editor']);
+    check($custom->allowsSystem(new Actor(\Campanella\Access\ActorKind::User, 2, ['editor'])));
+    check(!$custom->allowsSystem(new Actor(\Campanella\Access\ActorKind::User, 3, ['owner'])), 'a system role without admin access is not enough');
+});
+
+test('Kernel: the system page, clearing the template cache, create and publish', function () use ($editorUser, $newUser): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $container = $kernel->container();
+    if ($container->get(Connection::class)->prefix() !== 'test_') {
+        echo "      (skipped: config/local.php sets its own prefix)\n";
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $storage = new ArraySessionStorage();
+    $container->set(Session::class, static fn () => new Session($storage));
+    $auth = $container->get(AuthService::class);
+    $send = function (string $method, string $path, array $post = []) use ($kernel, $storage) {
+        $storage->endRequest();
+
+        return $kernel->handle(new Request($method, $path, post: $post));
+    };
+    $token = static function (string $body): string {
+        preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $body, $m);
+
+        return $m[1] ?? '';
+    };
+
+    // Twig compiles into the folder of the current version.
+    check($container->get(\Twig\Environment::class)->getCache() === $container->get(\Campanella\System\TemplateCache::class)->directory(), 'versioned Twig cache');
+
+    // The editor: no menu item, 403.
+    $auth->login(new Request('GET', '/'), $editorUser);
+    $dashboard = $send('GET', '/admin');
+    check(!str_contains($dashboard->body, 'href="/admin/system"'), 'no System menu item for an editor');
+    check($send('GET', '/admin/system')->status === 403);
+    check($send('POST', '/admin/system/clear-cache', ['_csrf' => $token($dashboard->body)])->status === 403);
+
+    // Create and publish, in one step.
+    $new = $send('GET', '/admin/article/new');
+    check(str_contains($new->body, 'name="_publish" value="1"'), 'the button is offered');
+    $created = $send('POST', '/admin/article/new', ['_csrf' => $token($new->body), '_publish' => '1', 'f' => ['title' => 'Rögtön megjelenő cikk', 'path' => '']]);
+    check($created->status === 303);
+    preg_match('#/admin/article/(\d+)$#', $created->headers['Location'] ?? '', $m);
+    $article = $container->get(ObjectRepository::class)->find((int) ($m[1] ?? 0));
+    check($article?->as(Publishable::class)->isPublished() === true, 'published on creation');
+    check(str_contains($send('GET', $created->headers['Location'])->body, 'Létrehozva és közzétéve'), 'flash');
+    $draft = $send('POST', '/admin/article/new', ['_csrf' => $token($new->body), 'f' => ['title' => 'Csak piszkozat', 'path' => '']]);
+    preg_match('#/admin/article/(\d+)$#', $draft->headers['Location'] ?? '', $m);
+    check($container->get(ObjectRepository::class)->find((int) ($m[1] ?? 0))?->as(Publishable::class)->isPublished() === false, 'plain Create stays a draft');
+
+    // The administrator.
+    $auth->logout();
+    $auth->login(new Request('GET', '/'), $newUser('rendszer-admin@example.hu', 'rendszer-admin-jelszo', ['administrator']));
+    $page = $send('GET', '/admin/system');
+    check($page->status === 200 && str_contains($page->body, 'Kötelező PHP-bővítmények') && str_contains($page->body, 'pdo_mysql'), 'system page');
+    check(str_contains($page->body, 'href="/admin/system"'), 'menu item');
+    check($send('GET', '/admin/system/clear-cache')->status === 405 && $send('GET', '/admin/system/other')->status === 404);
+
+    $cache = $container->get(\Campanella\System\TemplateCache::class);
+    check($cache->usage()['files'] > 0, 'templates were compiled');
+    $noToken = $send('POST', '/admin/system/clear-cache');
+    check($noToken->status === 303 && $cache->usage()['files'] > 0, 'without CSRF nothing is cleared');
+    $cleared = $send('POST', '/admin/system/clear-cache', ['_csrf' => $token($page->body)]);
+    check($cleared->status === 303 && ($cleared->headers['Location'] ?? '') === '/admin/system');
+    check(str_contains($send('GET', '/admin/system')->body, 'Sablon-gyorsítótár ürítve'), 'flash after clearing');
+
+    // A failed check shows a bar on the dashboard.
+    check(!str_contains($send('GET', '/admin')->body, 'A szerver nem teljesíti'), 'no bar while every requirement is met');
+    $container->get(\Campanella\System\SystemCheck::class)->add(static fn (): array => [
+        new \Campanella\System\CheckResult('test.group', 'test.label', \Campanella\System\CheckStatus::Error),
+    ]);
+    check(str_contains($send('GET', '/admin')->body, 'A szerver nem teljesíti'), 'the bar for a failed check');
+
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
 echo "\nDocumentation examples\n";
 
 test('New capability as in the docs example (Weighted)', function () use ($db, $admin): void {

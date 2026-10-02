@@ -59,7 +59,8 @@ by explicit factory functions in the `Kernel`, on first request, once.
 | `Installer::class` | Installer |
 | `Twig\Environment::class`, `Presentation::class` | Rendering |
 | `Router::class` | Routing |
-| `controller.object`, `controller.query`, `controller.auth` | Controllers; following the `controller.<handler>` pattern |
+| `TemplateCache::class`, `SystemCheck::class` | The template cache folder, the system check ([chapter 14](14-system-check.md)) |
+| `controller.object`, `controller.query`, `controller.auth`, `controller.admin` | Controllers; following the `controller.<handler>` pattern |
 
 Replacing a service, for example with a custom access control policy:
 
@@ -100,6 +101,7 @@ New controller: a `controller.<name>` entry in the container, and a route in
 | `locale` | `'hu'` | `CAMPANELLA_LOCALE` ([chapter 12](12-translation.md#choosing-the-language)) |
 | `theme` | `''` (no theme) | `CAMPANELLA_THEME` ([chapter 7](07-http-and-view.md#theme)) |
 | `admin.path`, `admin.roles` | `'/admin'`, `['administrator', 'editor']` | ([chapter 13](13-admin.md#access)) |
+| `admin.system_roles` | `['administrator']` | Who may open the System page ([chapter 14](14-system-check.md)) |
 | `site.name`, `site.slogan` | `'Campanella'`, … | |
 | `database.host` | `'localhost'` | `CAMPANELLA_DB_HOST` |
 | `database.port` | `3306` | `CAMPANELLA_DB_PORT` |
@@ -119,7 +121,7 @@ set, it is the project root (by default the parent directory of `public/`).
 
 `Campanella\Core\Version` · **Public**
 
-`CAMPANELLA = '0.0.3'` (the system version) and `SCHEMA = '4'` (the database
+`CAMPANELLA = '0.0.4'` (the system version) and `SCHEMA = '4'` (the database
 schema version; incremented for a new table or migration).
 
 ## CLI
@@ -130,7 +132,7 @@ schema version; incremented for a new table or migration).
 |---|---|
 | `install` | Creates the tables; `--sql`: only prints the SQL |
 | `seed` | Sample content. Can be run repeatedly: whatever already exists by path is not created again |
-| `status` | Version, capabilities, Blueprints, object count; reports if the database needs an upgrade |
+| `status` | Version, the system check ([chapter 14](14-system-check.md)), capabilities, Blueprints, object count; reports if the database needs an upgrade. Exits with `1` if a check reports an error |
 | `user:create`, `user:password`, `user:list` | User management ([chapter 11](11-users.md#command-line)) |
 | `help` | Command list |
 

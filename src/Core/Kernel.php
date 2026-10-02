@@ -38,6 +38,8 @@ use Campanella\Service\ObjectService;
 use Campanella\View\CampanellaTwigExtension;
 use Campanella\View\Presentation;
 use Campanella\View\Theme;
+use Campanella\System\SystemCheck;
+use Campanella\System\TemplateCache;
 use Twig\Environment;
 use Twig\Extension\CoreExtension;
 use Twig\Loader\FilesystemLoader;
@@ -157,9 +159,20 @@ final class Kernel
             $config = $c->get(Config::class);
             /** @var list<string> $roles */
             $roles = array_values(array_map(strval(...), (array) $config->get('admin.roles', [Actor::ADMINISTRATOR, 'editor'])));
+            /** @var list<string> $systemRoles */
+            $systemRoles = array_values(array_map(strval(...), (array) $config->get('admin.system_roles', [Actor::ADMINISTRATOR])));
 
-            return new AdminAccess((string) $config->get('admin.path', '/admin'), $roles);
+            return new AdminAccess((string) $config->get('admin.path', '/admin'), $roles, $systemRoles);
         });
+
+        $c->set(TemplateCache::class, static fn (): TemplateCache => new TemplateCache($root . '/var/cache/twig', Version::CAMPANELLA));
+        $c->set(SystemCheck::class, static fn (Container $c): SystemCheck => new SystemCheck(
+            $c->get(Config::class),
+            $c->get(Connection::class),
+            $c->get(Installer::class),
+            $c->get(TemplateCache::class),
+            $root,
+        ));
 
         $c->set(Translator::class, static fn (Container $c): Translator => Translator::fromDirectory(
             $root . '/lang',
@@ -199,15 +212,12 @@ final class Kernel
             $config = $c->get(Config::class);
             $debug = (bool) $config->get('debug', false);
 
-            // If the cache directory is not writable (a common permission problem on web
-            // hosts and in Docker), Twig keeps running without a cache: slower, but it works.
-            $cacheDir = $root . '/var/cache/twig';
-            if (!is_dir($cacheDir)) {
-                @mkdir($cacheDir, 0775, true);
-            }
-            $cache = is_dir($cacheDir) && is_writable($cacheDir) ? $cacheDir : false;
+            // A folder per version (TemplateCache). If it is not writable (a common permission
+            // problem on web hosts and in Docker), Twig keeps running without a cache: slower, but it works.
+            $templates = $c->get(TemplateCache::class);
+            $cache = $templates->twigCache();
             if ($cache === false) {
-                error_log("Campanella: the {$cacheDir} directory is not writable, the template cache is disabled.");
+                error_log("Campanella: the {$templates->directory()} directory is not writable, the template cache is disabled.");
             }
 
             // The active theme's templates take precedence over the core ones; the core
@@ -285,6 +295,8 @@ final class Kernel
             $c->get(Flash::class),
             $c->get(Translator::class),
             $c->get(Router::class),
+            $c->get(SystemCheck::class),
+            $c->get(TemplateCache::class),
         ));
 
         $c->set('controller.auth', static fn (Container $c): Controller => new AuthController(

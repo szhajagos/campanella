@@ -1,0 +1,46 @@
+{% extends '@core/admin/base.html.twig' %}
+
+{# The system check: one table per group; the status as a badge, the hint below the value. #}
+{% set badges = {ok: 'text-bg-success', info: 'text-bg-light border', warning: 'text-bg-warning', error: 'text-bg-danger'} %}
+
+{% block content %}
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+        <h1 class="h3 mb-0 me-auto">{{ t(title) }}</h1>
+        <form method="post" action="{{ admin_url('system/clear-cache') }}" class="m-0">
+            {{ csrf_field() }}
+            <button type="submit" class="btn btn-outline-secondary btn-sm">{{ t('admin.system.clear_cache') }}</button>
+        </form>
+    </div>
+
+    {% if worst == 'error' %}
+        <div class="alert alert-danger" role="alert">{{ t('admin.system.summary_error') }}</div>
+    {% elseif worst == 'warning' %}
+        <div class="alert alert-warning" role="alert">{{ t('admin.system.summary_warning') }}</div>
+    {% else %}
+        <div class="alert alert-success" role="alert">{{ t('admin.system.summary_ok') }}</div>
+    {% endif %}
+
+    <div class="row g-4">
+        {% for group, results in groups %}
+            <section class="col-xl-6" aria-labelledby="system-{{ loop.index }}">
+                <h2 class="h6 text-uppercase text-body-secondary" id="system-{{ loop.index }}">{{ t(group) }}</h2>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle admin-system">
+                        <tbody>
+                            {% for result in results %}
+                                <tr>
+                                    <th scope="row" class="fw-normal">{{ t(result.label) }}</th>
+                                    <td>
+                                        <span class="font-monospace small">{{ t(result.value) }}</span>
+                                        {% if result.hint %}<div class="small text-body-secondary">{{ t(result.hint.key, result.hint.params) }}</div>{% endif %}
+                                    </td>
+                                    <td class="text-end"><span class="badge {{ badges[result.status.value] }}">{{ t('admin.system.status.' ~ result.status.value) }}</span></td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        {% endfor %}
+    </div>
+{% endblock %}

@@ -26,8 +26,9 @@ in parts; this chapter grows with them (see the [ROADMAP](../../ROADMAP.md)):
 
 | Member | Description |
 |---|---|
-| `__construct(string $path = '/admin', array $roles = ['administrator', 'editor'])` | From the `admin.path` and `admin.roles` settings. `InvalidArgumentException` for an invalid path |
+| `__construct(string $path = '/admin', array $roles = ['administrator', 'editor'], array $systemRoles = ['administrator'])` | From the `admin.path`, `admin.roles` and `admin.system_roles` settings. `InvalidArgumentException` for an invalid path |
 | `allows(Actor $actor): bool` | Whether the actor has one of the roles |
+| `allowsSystem(Actor $actor): bool` | Whether the actor may open the System page: may enter, and has one of the system roles (since 0.0.5) |
 | `path(string $subpath = ''): string` | An admin path, e.g. `path('article')` → `/admin/article` |
 | `matches(Request $request): bool` | Whether the request is for an admin page |
 
@@ -49,6 +50,8 @@ The `subpath` route parameter selects the page. Everything goes through the
 | `POST /admin/<blueprint>/<id>/publish` | Publishing, now or at a given time ([below](#publishing-and-deleting)) |
 | `POST /admin/<blueprint>/<id>/unpublish` | Unpublishing |
 | `/admin/<blueprint>/<id>/delete` | Deleting: a confirmation page; POST deletes |
+| `/admin/system` | The System page ([below](#the-system-page)) |
+| `POST /admin/system/clear-cache` | Clears the template cache |
 
 | Constant | Value |
 |---|---|
@@ -58,7 +61,8 @@ The `subpath` route parameter selects the page. Everything goes through the
 | `MAX_REFERRERS` | 20: the most referring objects listed on the delete page |
 
 Blueprints with the `Authenticatable` capability (users) are not managed as
-content; user management in the browser comes later.
+content; user management in the browser comes later. `system` and `media` are
+admin paths, so no Blueprint can have these names (`BlueprintRegistry::RESERVED_NAMES`).
 
 ### The list
 
@@ -133,7 +137,9 @@ and `inputId()`.
 
 Every form is a POST with a CSRF token; after a successful save the browser is
 redirected (303) to the edit page, with a one-time "Saved" message, so
-reloading does not save again. Errors are shown at their fields (422); a value
+reloading does not save again. The new-object form of a `Publishable`
+Blueprint also has a **Create and publish** button (since 0.0.5), if the
+policy allows publishing: it creates the object published, now. Errors are shown at their fields (422); a value
 that cannot be read (e.g. "abc" for a number) is reported the same way.
 
 **Concurrent edits:** the edit form carries a version token (a hash of the
@@ -173,6 +179,15 @@ it), marking those whose *required* relation would be left empty: they can be
 saved again only after choosing a new target. Confirming (POST with a CSRF
 token) deletes the object permanently and returns to the list.
 
+## The system page
+
+`/admin/system` shows the [system check](14-system-check.md): versions,
+PHP extensions, writable folders, settings, limits, caches, each with a
+verdict and, where useful, what to do. It also has a **Clear the template
+cache** button. Only the `admin.system_roles` (by default `administrator`)
+may open it; it appears in the sidebar for them, and the dashboard shows them
+a warning bar if a check reports an error. Others get a 403.
+
 ## Templates
 
 The admin templates live in `templates/admin/` and are always loaded as
@@ -188,6 +203,7 @@ theme cannot lock anyone out. The look is Bootstrap 5.3 with a small
 | `admin/form.html.twig` | The create/edit page |
 | `admin/_publication.html.twig` | The publication panel of the edit page |
 | `admin/delete.html.twig` | The delete confirmation page |
+| `admin/system.html.twig` | The System page |
 | `admin/form/_row.html.twig` | One form row: label, widget (repeated for multi-valued fields), help, error |
 | `admin/form/<widget>.html.twig` | One input per widget (see above) |
 | `admin/_status.html.twig` | Publication status badge (draft, published, scheduled) |

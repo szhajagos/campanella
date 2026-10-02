@@ -22,19 +22,77 @@ Completed changes are listed in the [CHANGELOG](CHANGELOG.md).
 
 ### 0.0.5 – HTML editing
 
-- HTML sanitizer for texts in `html` format, server-side, allowlist-based
-  (candidate: `symfony/html-sanitizer`, MIT; HTMLPurifier is LGPL, so not
-  that). The sanitizer runs on save, independently of the editor.
-- WYSIWYG editor for text fields in `html` format: Jodit (the MIT base
-  edition), shipped locally, with a replaceable integration and a toolbar
-  profile selectable per field.
-- Image upload to Campanella's own endpoint (without Jodit's PHP connector),
-  as the most essential part of the media topic: file storage, type and size
-  validation.
+Agreed in detail on 2026-10-02. In five parts, each its own commit:
+
+0. ✅ **System page and housekeeping.**
+   - `/admin/system` ("System" menu), for the `administrator` role only (exact
+     versions and settings are useful to an attacker too; an `editor` gets a 403).
+   - Content:
+     - versions: Campanella, the schema version of the code and of the
+       database (with a hint to run `install` if they differ), PHP against the
+       minimum, the database server against the supported range;
+     - required PHP extensions (e.g. `pdo_mysql`, `mbstring`) and recommended
+       ones (e.g. `gd`, `intl`, `opcache`), each with what it enables;
+     - writable folders (`var/cache`, `public/media`);
+     - settings: locale, time zone, theme, admin path; a warning if debug mode
+       is on;
+     - PHP upload limits against the image upload limit;
+     - the opcache state, and a "Clear the template cache" button (POST + CSRF).
+   - Never shown: the database password, environment variables, session data.
+   - Built on a `SystemCheck` service: a list of checks, each with a result
+     (ok / warning / error) and a translatable message. The same checks run
+     from the command line (with `status`), later features can add their own
+     (e.g. the media folder), and the dashboard shows a warning bar if a check
+     reports an error.
+   - The Twig cache goes into a folder per version (`var/cache/twig/<version>`),
+     so uploading a new release never serves stale templates (upload tools
+     often keep the old file times, which defeats `auto_reload`).
+   - A "Create and publish" button on the new-object form.
+1. **HTML sanitizer.**
+   - `symfony/html-sanitizer` 7.x (MIT, with MIT dependencies; 8.x needs PHP 8.4).
+   - Allowlist, overridable in `config/html.php`: paragraphs, h2–h4,
+     bold/italic/strikethrough, lists, blockquote, code, horizontal rule,
+     line break, links, images, simple tables.
+   - Links: only `http`, `https`, `mailto` or relative; external links get
+     `rel="noopener noreferrer"`. Images: only our own uploads (no external
+     images: they leak visitor data to other servers and can change or vanish).
+   - Everything else is removed: `script`, `style`, `on…` handlers,
+     `javascript:` URLs, `iframe` (video embeds come later, with their own
+     allowlist).
+   - Runs on save in the `ObjectRepository`, the lowest layer, so the CLI, the
+     seed and the later API cannot bypass it. `html:sanitize` cleans HTML
+     stored earlier.
+   - Tests with a collection of known XSS tricks.
+2. **Jodit editor** (the MIT edition, shipped locally in
+   `public/assets/vendor/jodit/`, no CDN).
+   - An `html` widget template and a small `admin-editor.js`: switching to
+     SunEditor would replace only these. Without JavaScript a plain textarea
+     with the raw HTML remains (sanitized by the server as always).
+   - Toolbar profile per field in the Blueprint:
+     `'editor' => ['body' => 'full']`.
+   - New articles and pages get an HTML body by default; the lead stays plain
+     text. Existing plain texts can be converted with a button (paragraphs
+     become `<p>`, nothing is lost).
+   - A Content-Security-Policy header for the admin that allows only our own
+     scripts, as a second line of defense.
+3. **Image upload** to our own endpoint (`POST /admin/media/upload`, without
+   Jodit's PHP connector; CSRF; only for users the policy lets create).
+   - Checked by content, not by extension: JPEG, PNG, WebP, GIF. No SVG (it
+     can carry scripts). A size limit (e.g. 5 MB) and a pixel limit.
+   - Re-encoded with GD and scaled down to a maximum size (e.g. 2560 px): this
+     removes metadata (e.g. the GPS position of phone photos) and disguised
+     files. Without GD the original is stored, and the system page warns.
+   - Stored as `public/media/YYYY/MM/<random name>.<ext>`; a `.htaccess` there
+     forbids running PHP.
+   - Every image is an object (`image` Blueprint: file path, type, size,
+     width, height, alternative text), following the decision that anything
+     referred to is an object. An "Images" list in the admin; deleting the
+     object deletes the file. New table: run `install` after upgrading.
+4. Release `v0.0.5`.
 
 **Done when:** an article's body can be formatted in the browser, including
-images, and the sanitizer removes every non-allowed element from the
-submitted HTML.
+images, the sanitizer removes every non-allowed element from the submitted
+HTML, and the system page shows whether the server meets the requirements.
 
 ### 0.0.6 – Migrations
 
@@ -99,6 +157,11 @@ on, the system is suitable for running a real website.
   queryable multi-value fields live in the shared `cc_field_values` table, and
   we never search in JSON (2026-09-29). Anything that refers to another thing
   (tag, image, author) is an object and a relation, not a multi-value field.
+- **HTML content (0.0.5):** sanitized on save at the lowest layer; only our
+  own uploaded images; uploaded images are re-encoded (with GD) and are objects
+  (2026-10-02).
+- **System page:** the admin's "System" menu checks the server's requirements;
+  administrators only, and it never shows secrets (2026-10-02).
 - **Language:** code, documentation, comments, commit messages and
   developer-facing messages are English; the UI is multilingual via the
   translation layer, with Hungarian as a first-class translation (2026-09-30).

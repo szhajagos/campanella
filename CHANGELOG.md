@@ -10,6 +10,34 @@ backward-incompatible.
 
 ## [Unreleased]
 
+### Added
+
+- **System page** in the admin (`/admin/system`, "System" menu), for the
+  `administrator` role only (`admin.system_roles` setting): versions (PHP,
+  database server, schema), required and recommended PHP extensions, writable
+  folders, settings (a warning for debug mode and for plain HTTP), PHP limits,
+  the opcache and the template cache, each with a verdict and what to do. A
+  "Clear the template cache" button. The dashboard shows a warning bar if a
+  requirement is not met. Never shows secrets. New `Campanella\System`
+  namespace: `SystemCheck` (other features can add their own checks),
+  `CheckResult`, `CheckStatus`, `TemplateCache`; `AdminAccess::allowsSystem()`.
+- `php bin/campanella status` runs the same checks (without the web server's
+  settings).
+- "Create and publish" button on the new-object form of a `Publishable`
+  Blueprint, for users who may publish.
+
+### Changed
+
+- The compiled templates are kept in a folder per version
+  (`var/cache/twig/<version>`): uploading a new release never serves stale
+  templates, even if the upload tool kept the files' old modification times.
+  The old `var/cache/twig` contents can be deleted (the System page's button
+  does it).
+- `php bin/campanella status` exits with `1` if a check reports an error
+  (e.g. a missing PHP extension, or the database is not installed yet).
+- `system` and `media` are reserved: no Blueprint can have these names
+  (`BlueprintRegistry::RESERVED_NAMES`).
+
 ## [0.0.4] – 2026-10-02
 
 ### Added
