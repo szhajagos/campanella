@@ -10,6 +10,8 @@ backward-incompatible.
 
 ## [Unreleased]
 
+## [0.0.4] – 2026-10-02
+
 ### Added
 
 - `.gitattributes`: all text files use LF line endings, on Windows too.
@@ -79,6 +81,14 @@ backward-incompatible.
   with a one-time message after saving, and a warning instead of silently
   overwriting when someone else saved the object in the meantime. New
   Blueprint key `form_order`. HTML text stays read-only until 0.0.5.
+- **Admin UI, part 4:** publishing, unpublishing and deleting. The edit page
+  of a `Publishable` object has a publication panel: publish now or at a given
+  time (a future time schedules it), change the time, unpublish; with the CSRF
+  and version checks of saving. Deleting goes through a confirmation page that
+  lists the objects referring to it (marking those whose required relation
+  would be left empty). The buttons follow the `AccessPolicy`: with the
+  `DefaultPolicy` an `editor` may publish but not delete. New
+  `ObjectForm::parseDateTime()`, `localDateTime()` and `timezone()`.
 - `ObjectService::create()` and `update()` accept the relations to set
   (`$relations`, name → target IDs).
 - `Router::isRouted()`; paths used by the system (fixed routes, the admin,
@@ -91,8 +101,9 @@ backward-incompatible.
 ### Changed
 
 - Documentation, code comments and developer-facing messages are now in
-  English. User-facing texts (UI, CLI output, validation messages) are still
-  Hungarian; a translation layer is planned for 0.0.4.
+  English. User-facing texts (UI, CLI output, validation messages) go through
+  the new translation layer: English base, full Hungarian translation, `hu` by
+  default.
 - The `docs/php-api` chapter files have English names (e.g.
   `11-felhasznalok.md` → `11-users.md`).
 - Schema version 4 (new `cc_field_values` table): after upgrading, run

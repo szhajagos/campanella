@@ -1,0 +1,31 @@
+{# The publication panel of the edit form: publish now or at a time (scheduled), unpublish. #}
+<section class="card mb-3 admin-publication" aria-labelledby="publication-heading">
+    <div class="card-body">
+        <h2 class="h6 card-title" id="publication-heading">{{ t('admin.publish.heading') }}</h2>
+        <p class="small mb-3">{{ t('admin.publish.state_' ~ publication.state, {date: publication.at}) }}</p>
+
+        <p class="small text-warning-emphasis d-none" data-unsaved-hint>{{ t('admin.publish.unsaved') }}</p>
+
+        {% if publication.can_publish %}
+            <form method="post" action="{{ url(action ~ '/publish') }}" class="mb-3">
+                {{ csrf_field() }}
+                <input type="hidden" name="_version" value="{{ version }}">
+                <label class="form-label small" for="publish-at">{{ t('admin.publish.at') }}</label>
+                <input class="form-control form-control-sm" type="datetime-local" step="1" id="publish-at" name="published_at"
+                       value="{{ publication.at_input }}" aria-describedby="publish-at-help">
+                <div class="form-text" id="publish-at-help">{{ t('admin.publish.at_help', {timezone: publication.timezone}) }}</div>
+                <button type="submit" class="btn btn-success btn-sm mt-2">
+                    {{ t(publication.state == 'draft' ? 'admin.publish.publish' : 'admin.publish.reschedule') }}
+                </button>
+            </form>
+        {% endif %}
+
+        {% if publication.can_unpublish %}
+            <form method="post" action="{{ url(action ~ '/unpublish') }}">
+                {{ csrf_field() }}
+                <input type="hidden" name="_version" value="{{ version }}">
+                <button type="submit" class="btn btn-outline-secondary btn-sm">{{ t('admin.publish.unpublish') }}</button>
+            </form>
+        {% endif %}
+    </div>
+</section>

@@ -23,13 +23,21 @@ shown according to the user's roles (e.g. an `editor` also sees drafts).
 | `GET /kategoriak` | `config/routes.php` → Query `categories` | Published categories in alphabetical order (0.0.2) |
 | `GET /belepes`, `POST /belepes` | `AuthController` | Login form and login (0.0.3); details: [PHP API chapter 11](../php-api/11-users.md#web-interface) |
 | `POST /kilepes` | `AuthController` | Logout with a CSRF token |
+| `GET /admin…`, `POST /admin…` | `AdminController` | The admin UI (0.0.4): dashboard, lists, forms, publishing, deleting; details: [PHP API chapter 13](../php-api/13-admin.md#admincontroller) |
 | `GET /<path>` | Routable object | The object's own page, e.g. `/neumann-janos`. Its relations as links, and the Blueprint's `lists` below it (e.g. `/tudomany`: the category's articles) |
 | `GET /assets/<file>` | `public/assets/` | Static files |
 
 | Status | When |
 |---|---|
 | `200` | OK |
+| `302` | An admin page without login: to the login page, then back |
+| `303` | After a successful form submission (login, saving, publishing, deleting): the next page |
+| `400` | A form without a valid CSRF token |
+| `403` | Logged in, but not allowed (e.g. the admin without an admin role, or an `editor` deleting) |
 | `404` | No such route, or the object is not visible (draft, scheduled). The two are intentionally indistinguishable |
+| `405` | A GET request to an action that only accepts POST (e.g. `/admin/<blueprint>/<id>/publish`) |
+| `409` | Saving an admin form that someone else saved in the meantime |
+| `422` | An admin form with invalid values |
 | `500` | Internal error; with the message in debug mode |
 | `503` | The system is not installed yet |
 

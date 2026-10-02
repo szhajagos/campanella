@@ -22,19 +22,34 @@
         <div class="alert alert-danger" role="alert">{{ name }}: {{ t(error.key, error.params) }}</div>
     {% endfor %}
 
-    <form method="post" action="{{ url(action) }}" class="admin-form" novalidate>
-        {{ csrf_field() }}
-        {% if version %}<input type="hidden" name="_version" value="{{ version }}">{% endif %}
+    <div class="row g-4">
+        <div class="{{ publication or can_delete ? 'col-lg-8' : 'col-12' }}">
+            <form method="post" action="{{ url(action) }}" class="admin-form" novalidate>
+                {{ csrf_field() }}
+                {% if version %}<input type="hidden" name="_version" value="{{ version }}">{% endif %}
 
-        {% for field in fields %}
-            {% include '@core/admin/form/_row.html.twig' with {field: field} only %}
-        {% endfor %}
+                {% for field in fields %}
+                    {% include '@core/admin/form/_row.html.twig' with {field: field} only %}
+                {% endfor %}
 
-        <div class="d-flex gap-2 mt-4 pt-3 border-top">
-            <button type="submit" class="btn btn-primary">{{ t(object.isNew ? 'admin.form.create' : 'admin.form.save') }}</button>
-            <a class="btn btn-outline-secondary" href="{{ url(list_path) }}">{{ t('admin.form.cancel') }}</a>
+                <div class="d-flex gap-2 mt-4 pt-3 border-top">
+                    <button type="submit" class="btn btn-primary">{{ t(object.isNew ? 'admin.form.create' : 'admin.form.save') }}</button>
+                    <a class="btn btn-outline-secondary" href="{{ url(list_path) }}">{{ t('admin.form.cancel') }}</a>
+                </div>
+            </form>
         </div>
-    </form>
+
+        {% if publication or can_delete %}
+            <aside class="col-lg-4">
+                {% if publication %}
+                    {% include '@core/admin/_publication.html.twig' %}
+                {% endif %}
+                {% if can_delete %}
+                    <a class="btn btn-outline-danger btn-sm" href="{{ url(action ~ '/delete') }}">{{ t('admin.delete.link') }}</a>
+                {% endif %}
+            </aside>
+        {% endif %}
+    </div>
 {% endblock %}
 
 {% block scripts %}

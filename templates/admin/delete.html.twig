@@ -1,0 +1,41 @@
+{% extends '@core/admin/base.html.twig' %}
+
+{% block content %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb small mb-2">
+            <li class="breadcrumb-item"><a href="{{ url(list_path) }}">{{ t(blueprint.label) }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ url(edit_path) }}">#{{ object.id }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ t('admin.delete.link') }}</li>
+        </ol>
+    </nav>
+    <h1 class="h3 mb-4">{{ t(title, title_params) }}</h1>
+
+    {% if alert %}
+        <div class="alert alert-danger" role="alert">{{ t(alert) }}</div>
+    {% endif %}
+
+    <div class="alert alert-warning" role="alert">{{ t('admin.delete.warning') }}</div>
+
+    {% if referrers %}
+        <p>{{ t('admin.delete.referrers') }}</p>
+        <ul class="admin-referrers">
+            {% for item in referrers %}
+                <li>
+                    <a href="{{ admin_url(item.object.blueprint ~ '/' ~ item.object.id) }}">{{ item.object.title is defined and item.object.title ? item.object.title : '#' ~ item.object.id }}</a>
+                    <span class="text-body-secondary small">({{ t(item.blueprint.label) }}, {{ t(item.relation) }})</span>
+                    {% if item.required %}<span class="badge text-bg-warning">{{ t('admin.delete.required') }}</span>{% endif %}
+                </li>
+            {% endfor %}
+            {% if more_referrers %}<li class="text-body-secondary">{{ t('admin.delete.more', {count: more_referrers}) }}</li>{% endif %}
+        </ul>
+        {% if referrers|filter(item => item.required) is not empty %}
+            <p class="small text-body-secondary">{{ t('admin.delete.required_note') }}</p>
+        {% endif %}
+    {% endif %}
+
+    <form method="post" action="{{ url(action) }}" class="d-flex gap-2 mt-4">
+        {{ csrf_field() }}
+        <button type="submit" class="btn btn-danger">{{ t('admin.delete.confirm') }}</button>
+        <a class="btn btn-outline-secondary" href="{{ url(edit_path) }}">{{ t('admin.form.cancel') }}</a>
+    </form>
+{% endblock %}

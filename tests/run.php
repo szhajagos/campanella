@@ -1301,6 +1301,114 @@ test('Kernel: creating and editing in the admin, with conflict detection', funct
     putenv('CAMPANELLA_DB_PREFIX');
 });
 
+test('Kernel: publishing, scheduling, unpublishing and deleting in the admin', function () use ($editorUser, $newUser, $service, $admin): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $container = $kernel->container();
+    if ($container->get(Connection::class)->prefix() !== 'test_') {
+        echo "      (skipped: config/local.php sets its own prefix)\n";
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $storage = new ArraySessionStorage();
+    $container->set(Session::class, static fn () => new Session($storage));
+    $auth = $container->get(AuthService::class);
+    $auth->login(new Request('GET', '/'), $editorUser);
+    $send = function (string $method, string $path, array $post = []) use ($kernel, $storage) {
+        $storage->endRequest();
+
+        return $kernel->handle(new Request($method, $path, post: $post));
+    };
+    $field = function (string $name, string $body): string {
+        preg_match('/name="' . $name . '" value="([^"]*)"/', $body, $m);
+
+        return html_entity_decode($m[1] ?? '');
+    };
+    $repository = $container->get(\Campanella\Model\ObjectRepository::class);
+    $publishable = static fn (int $id) => $repository->find($id)?->as(\Campanella\Capability\Publishable::class);
+
+    $article = $service->create($admin, 'article', ['title' => 'Megjelenő cikk']);
+    $id = (int) $article->id();
+    $location = '/admin/article/' . $id;
+
+    // The editor: the publication panel, but no delete button.
+    $edit = $send('GET', $location);
+    check(str_contains($edit->body, 'action="' . $location . '/publish"') && str_contains($edit->body, 'Nem látható a webhelyen'), 'publication panel');
+    check(!str_contains($edit->body, 'action="' . $location . '/unpublish"'), 'no unpublish for a draft');
+    check(!str_contains($edit->body, $location . '/delete'), 'an editor sees no delete button');
+    check($send('GET', $location . '/delete')->status === 403, 'an editor cannot open the delete page');
+    check($send('POST', $location . '/delete', ['_csrf' => $field('_csrf', $edit->body)])->status === 403, 'an editor cannot delete');
+    check($repository->find($id) !== null);
+
+    check($send('GET', $location . '/publish')->status === 405, 'publish is POST only');
+    check($send('POST', $location . '/archive')->status === 404, 'unknown action');
+
+    // Publishing needs the CSRF token and the current version.
+    $noToken = $send('POST', $location . '/publish', ['_version' => $field('_version', $edit->body)]);
+    check($noToken->status === 303 && $publishable($id)?->isPublished() === false, 'without CSRF nothing happens');
+    $stale = $send('POST', $location . '/publish', ['_csrf' => $field('_csrf', $edit->body), '_version' => str_repeat('0', 64)]);
+    check($stale->status === 303 && $publishable($id)?->isPublished() === false, 'a stale version is refused');
+    check(str_contains($send('GET', $location)->body, 'Közben valaki más mentette'), 'conflict message');
+
+    $edit = $send('GET', $location);
+    $badDate = $send('POST', $location . '/publish', ['_csrf' => $field('_csrf', $edit->body), '_version' => $field('_version', $edit->body), 'published_at' => '2026-13-45']);
+    check($badDate->status === 303 && $publishable($id)?->isPublished() === false, 'an invalid date is refused');
+
+    // Publish now.
+    $edit = $send('GET', $location);
+    $published = $send('POST', $location . '/publish', ['_csrf' => $field('_csrf', $edit->body), '_version' => $field('_version', $edit->body), 'published_at' => '']);
+    check($published->status === 303 && ($published->headers['Location'] ?? '') === $location, 'publish: ' . $published->status);
+    check($publishable($id)?->isPublished() === true, 'published');
+    $edit = $send('GET', $location);
+    check(str_contains($edit->body, 'Közzétéve: Megjelenő cikk') && str_contains($edit->body, 'action="' . $location . '/unpublish"'), 'flash, and unpublish offered');
+
+    // Scheduling: a future time (typed in the site's time zone).
+    $timezone = new DateTimeZone((string) $container->get(\Campanella\Core\Config::class)->get('timezone', 'UTC'));
+    $future = (new DateTimeImmutable('+3 days', $timezone))->setTime(9, 30, 15);
+    $scheduled = $send('POST', $location . '/publish', [
+        '_csrf' => $field('_csrf', $edit->body), '_version' => $field('_version', $edit->body),
+        'published_at' => $future->format('Y-m-d\TH:i:s'),
+    ]);
+    check($scheduled->status === 303);
+    $state = $publishable($id);
+    check($state?->isPublished() === false && $state->publishedAt()?->getTimestamp() === $future->getTimestamp(), 'scheduled, to the second');
+    $edit = $send('GET', $location);
+    check(str_contains($edit->body, 'Időzítve: Megjelenő cikk') && str_contains($edit->body, 'value="' . $future->format('Y-m-d\TH:i:s') . '"'), 'scheduled flash and time');
+    $storage->endRequest();
+    $scheduledList = $kernel->handle(new Request('GET', '/admin/article', query: ['status' => 'scheduled', 'q' => 'Megjelenő']));
+    check(str_contains($scheduledList->body, 'Megjelenő cikk'), 'in the scheduled list');
+
+    // Unpublish.
+    $unpublished = $send('POST', $location . '/unpublish', ['_csrf' => $field('_csrf', $edit->body), '_version' => $field('_version', $edit->body)]);
+    check($unpublished->status === 303 && $publishable($id)?->status() === \Campanella\Capability\PublishStatus::Draft, 'unpublished');
+    check(str_contains($send('GET', $location)->body, 'Visszavonva: Megjelenő cikk'));
+
+    // The administrator may delete, after a confirmation page listing what refers to it.
+    $category = $service->create($admin, 'category', ['title' => 'Törlendő kategória']);
+    $service->update($admin, $repository->find($id), [], ['categories' => [(int) $category->id()]]);
+    $auth->logout();
+    $auth->login(new Request('GET', '/'), $newUser('torlo-admin@example.hu', 'torlo-admin-jelszo', ['administrator']));
+    $categoryPath = '/admin/category/' . $category->id();
+    $categoryForm = $send('GET', $categoryPath);
+    check(str_contains($categoryForm->body, 'href="' . $categoryPath . '/delete"'), 'the administrator sees the delete button');
+    $confirm = $send('GET', $categoryPath . '/delete');
+    check($confirm->status === 200 && str_contains($confirm->body, 'véglegesen törlődik') && str_contains($confirm->body, 'Megjelenő cikk'), 'confirmation page with the referrers');
+    for ($i = 1; $i <= \Campanella\Controller\AdminController::MAX_REFERRERS + 1; $i++) {
+        $service->create($admin, 'article', ['title' => "Hivatkozó cikk {$i}"], relations: ['categories' => [(int) $category->id()]]);
+    }
+    $many = $send('GET', $categoryPath . '/delete')->body;
+    check(substr_count($many, '<li>') === \Campanella\Controller\AdminController::MAX_REFERRERS && str_contains($many, 'és még 2'), 'referrers: 20 listed, the rest counted');
+    check($send('POST', $categoryPath . '/delete', [])->status === 400 && $repository->find((int) $category->id()) !== null, 'without CSRF not deleted');
+    $deleted = $send('POST', $categoryPath . '/delete', ['_csrf' => $field('_csrf', $confirm->body)]);
+    check($deleted->status === 303 && ($deleted->headers['Location'] ?? '') === '/admin/category', 'deleted: back to the list');
+    check($repository->find((int) $category->id()) === null && $repository->find($id)?->relatedIds('categories') === [], 'gone, and the reference removed');
+    check(str_contains($send('GET', '/admin/category')->body, 'Törölve: Törlendő kategória'));
+    check($send('GET', $categoryPath . '/delete')->status === 404, 'a deleted item is not found');
+
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
 test('Admin form widgets: multi-valued rows render', function () use ($contactRepository, $contactEngine): void {
     $twig = new \Twig\Environment(new \Twig\Loader\FilesystemLoader(dirname(__DIR__) . '/templates', dirname(__DIR__)), ['strict_variables' => true, 'autoescape' => 'html']);
     $twig->getLoader()->addPath(dirname(__DIR__) . '/templates', 'core');

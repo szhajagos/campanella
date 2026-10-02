@@ -22,6 +22,7 @@ use Campanella\Http\HttpException;
 use Campanella\Http\Request;
 use Campanella\Http\Response;
 use Campanella\Http\RouteMatch;
+use Campanella\Capability\Publishable;
 use Campanella\Capability\PublishStatus;
 use Campanella\Support\Slugger;
 use Campanella\Http\Router;
@@ -33,6 +34,7 @@ use Campanella\Query\Condition\Group;
 use Campanella\Query\Operator;
 use Campanella\Query\Query;
 use Campanella\Query\QueryEngine;
+use Campanella\Relation\Relation;
 use Campanella\Relation\RelationLoader;
 use Campanella\View\Presentation;
 use DateTimeImmutable;
@@ -51,6 +53,12 @@ final class AdminController implements Controller
 
     /** Status filters of the list (for Publishable Blueprints). */
     public const array STATUSES = ['draft', 'published', 'scheduled'];
+
+    /** How times are shown in the admin (in the site's time zone). */
+    public const string DISPLAY_DATETIME = 'Y-m-d H:i';
+
+    /** The most referring items listed on the delete confirmation page. */
+    public const int MAX_REFERRERS = 20;
 
     public function __construct(
         private readonly AdminAccess $access,
@@ -89,6 +97,7 @@ final class AdminController implements Controller
             2 => $segments[1] === 'new'
                 ? $this->create($request, $actor, $this->contentBlueprint($segments[0]))
                 : $this->edit($request, $actor, $this->find($this->contentBlueprint($segments[0]), $segments[1], $actor)),
+            3 => $this->action($request, $actor, $this->find($this->contentBlueprint($segments[0]), $segments[1], $actor), $segments[2]),
             default => throw HttpException::notFound(),
         };
 
@@ -285,9 +294,227 @@ final class AdminController implements Controller
             'other_errors' => $other,
             'action' => $this->access->path($blueprint->name . '/' . ($object->isNew() ? 'new' : (string) $object->id())),
             'list_path' => $this->access->path($blueprint->name),
+            'publication' => $object->isNew() ? null : $this->publication($object, $actor),
+            'can_delete' => !$object->isNew() && $this->policy->allows($actor, Operation::Delete, $object),
         ]);
 
         return $status === 200 ? $response : new Response($response->body, $status, $response->headers);
+    }
+
+    /**
+     * /admin/<blueprint>/<id>/<action>: publish, unpublish (POST only) and delete
+     * (a confirmation page, then POST).
+     */
+    private function action(Request $request, Actor $actor, CampanellaObject $object, string $action): Response
+    {
+        return match ($action) {
+            'publish', 'unpublish' => $this->changePublication($request, $actor, $object, $action === 'publish'),
+            'delete' => $this->delete($request, $actor, $object),
+            default => throw HttpException::notFound(),
+        };
+    }
+
+    /**
+     * Publishing (now, or at a given time: scheduled) and unpublishing. These change
+     * only the publication status and time; unsaved changes in the edit form are not
+     * part of the request. Like saving, they refuse to act on a version of the object
+     * other than the one the editor saw.
+     */
+    private function changePublication(Request $request, Actor $actor, CampanellaObject $object, bool $publish): Response
+    {
+        if (!$object->has(Publishable::class)) {
+            throw HttpException::notFound();
+        }
+        if (!$this->policy->allows($actor, $publish ? Operation::Publish : Operation::Unpublish, $object)) {
+            throw new HttpException(403, 'error.forbidden');
+        }
+        if (!$request->isPost()) {
+            throw new HttpException(405, 'error.method_not_allowed');
+        }
+        $blueprint = $this->contentBlueprint($object->blueprint());
+        $back = Response::redirect($request->basePath . $this->access->path($blueprint->name . '/' . $object->id()), 303);
+
+        if (!$this->csrf->isValid($request)) {
+            $this->flash->add(Flash::DANGER, 'auth.form_expired');
+
+            return $back;
+        }
+        if ($request->postString('_version') !== $this->versionOf($object)) {
+            $this->flash->add(Flash::WARNING, 'admin.publish.conflict');
+
+            return $back;
+        }
+
+        $at = null;
+        if ($publish) {
+            try {
+                $at = $this->form->parseDateTime($request->postString('published_at'));
+            } catch (\UnexpectedValueException $e) {
+                $this->flash->add(Flash::DANGER, $e->getMessage());
+
+                return $back;
+            }
+            // An empty time means now (not an earlier, possibly future, publication time).
+            $at ??= new DateTimeImmutable('now', new DateTimeZone('UTC'));
+        }
+
+        try {
+            $publish ? $this->service->publish($actor, $object, $at) : $this->service->unpublish($actor, $object);
+        } catch (ValidationException $e) {
+            // The stored object is invalid (e.g. a required relation lost its target): it is fixed in the form.
+            $this->flash->add(Flash::DANGER, 'admin.publish.invalid');
+            foreach ($e->messages($this->translator) as $text) {
+                $this->flash->add(Flash::DANGER, $text);
+            }
+
+            return $back;
+        } catch (AccessDeniedException) {
+            throw new HttpException(403, 'error.forbidden');
+        }
+
+        $title = self::titleOf($object);
+        $this->flash->add(Flash::SUCCESS, match (true) {
+            !$publish => new Message('admin.publish.unpublished', ['title' => $title]),
+            $at > new DateTimeImmutable('now', new DateTimeZone('UTC')) => new Message('admin.publish.scheduled', [
+                'title' => $title,
+                'date' => $this->form->localDateTime($at, self::DISPLAY_DATETIME),
+            ]),
+            default => new Message('admin.publish.published', ['title' => $title]),
+        });
+
+        return $back;
+    }
+
+    /** /admin/<blueprint>/<id>/delete: the confirmation page, and deleting. */
+    private function delete(Request $request, Actor $actor, CampanellaObject $object): Response
+    {
+        $blueprint = $this->contentBlueprint($object->blueprint());
+        if (!$this->policy->allows($actor, Operation::Delete, $object)) {
+            throw new HttpException(403, 'error.forbidden');
+        }
+        if ($request->isPost()) {
+            if (!$this->csrf->isValid($request)) {
+                return $this->deletePage($blueprint, $object, $actor, 'auth.form_expired', 400);
+            }
+            try {
+                $this->service->delete($actor, $object);
+            } catch (AccessDeniedException) {
+                throw new HttpException(403, 'error.forbidden');
+            }
+            $this->flash->add(Flash::SUCCESS, new Message('admin.delete.done', ['title' => self::titleOf($object)]));
+
+            return Response::redirect($request->basePath . $this->access->path($blueprint->name), 303);
+        }
+
+        return $this->deletePage($blueprint, $object, $actor);
+    }
+
+    private function deletePage(
+        Blueprint $blueprint,
+        CampanellaObject $object,
+        Actor $actor,
+        ?string $alert = null,
+        int $status = 200,
+    ): Response {
+        ['items' => $referrers, 'total' => $total] = $this->referrers($object, $actor);
+        $response = $this->render('delete', $blueprint->name, [
+            'title' => 'admin.delete.title',
+            'title_params' => ['title' => self::titleOf($object)],
+            'blueprint' => $blueprint,
+            'object' => $object,
+            'referrers' => $referrers,
+            'more_referrers' => $total - count($referrers),
+            'alert' => $alert,
+            'action' => $this->access->path($blueprint->name . '/' . $object->id() . '/delete'),
+            'edit_path' => $this->access->path($blueprint->name . '/' . $object->id()),
+            'list_path' => $this->access->path($blueprint->name),
+        ]);
+
+        return $status === 200 ? $response : new Response($response->body, $status, $response->headers);
+    }
+
+    /**
+     * The objects whose relations point to the object (deleting it removes those
+     * references). `required`: the relation is required and this is its only
+     * target, so the referring object cannot be saved again until a new one is chosen.
+     * At most MAX_REFERRERS items; `total` counts all of them.
+     *
+     * @return array{items: list<array{object: CampanellaObject, blueprint: Blueprint, relation: string, required: bool}>, total: int}
+     */
+    private function referrers(CampanellaObject $object, Actor $actor): array
+    {
+        $id = (int) $object->id();
+        $found = [];
+        $total = 0;
+        foreach ($this->blueprints->all() as $name => $blueprint) {
+            foreach ($blueprint->allRelations() as $relation) {
+                if (!self::canTarget($relation, $object)) {
+                    continue;
+                }
+                $query = Query::objects()->blueprint($name)->whereRelated($relation->name, $id);
+                $total += $this->queries->count($query, $actor);
+                $room = self::MAX_REFERRERS - count($found);
+                if ($room <= 0) {
+                    continue;
+                }
+                foreach ($this->queries->execute($query->orderBy('updated', 'DESC')->limit($room), $actor) as $source) {
+                    $found[] = [
+                        'object' => $source,
+                        'blueprint' => $blueprint,
+                        'relation' => $relation->label !== '' ? $relation->label : $relation->name,
+                        'required' => $relation->required && $source->relatedIds($relation->name) === [$id],
+                    ];
+                }
+            }
+        }
+
+        return ['items' => $found, 'total' => max($total, count($found))];
+    }
+
+    /** Whether the relation may point to the object (its target Blueprints and capabilities). */
+    private static function canTarget(Relation $relation, CampanellaObject $object): bool
+    {
+        if ($relation->targetBlueprints !== [] && !in_array($object->blueprint(), $relation->targetBlueprints, true)) {
+            return false;
+        }
+        foreach ($relation->targetCapabilities as $capability) {
+            if (!$object->has($capability)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * The publication panel of the edit form: the state, the time (in the site's
+     * time zone) and which actions the actor may take. Null for an object that is not Publishable.
+     *
+     * @return array{state: string, at: string, at_input: string, timezone: string, can_publish: bool, can_unpublish: bool}|null
+     */
+    private function publication(CampanellaObject $object, Actor $actor): ?array
+    {
+        if (!$object->has(Publishable::class)) {
+            return null;
+        }
+        $publishable = $object->as(Publishable::class);
+        $at = $publishable->publishedAt();
+        $published = $publishable->status() === PublishStatus::Published;
+        $state = match (true) {
+            // Published without a time (written outside the admin) is not visible either.
+            !$published || $at === null => 'draft',
+            $publishable->isPublished() => 'published',
+            default => 'scheduled',
+        };
+
+        return [
+            'state' => $state,
+            'at' => $this->form->localDateTime($at, self::DISPLAY_DATETIME),
+            'at_input' => $this->form->localDateTime($at),
+            'timezone' => $this->form->timezone(),
+            'can_publish' => $this->policy->allows($actor, Operation::Publish, $object),
+            'can_unpublish' => $published && $this->policy->allows($actor, Operation::Unpublish, $object),
+        ];
     }
 
     /** An object of the Blueprint by ID, if the actor may see it; otherwise 404. */
@@ -360,10 +587,8 @@ final class AdminController implements Controller
         return match ($status) {
             'draft' => Group::all(new FieldCondition('status', Operator::Equals, PublishStatus::Draft)),
             'scheduled' => Group::all($published, new FieldCondition('published_at', Operator::GreaterThan, $now)),
-            default => Group::all($published, Group::any(
-                new FieldCondition('published_at', Operator::IsNull),
-                new FieldCondition('published_at', Operator::LessOrEqual, $now),
-            )),
+            // As the DefaultPolicy: without a publication time it is not visible.
+            default => Group::all($published, new FieldCondition('published_at', Operator::LessOrEqual, $now)),
         };
     }
 

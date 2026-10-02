@@ -1,6 +1,9 @@
 // Multi-valued fields in the admin forms: add, remove and reorder values.
 // Plain JavaScript, no dependencies. Without JavaScript the existing values
 // can still be edited, and a value is removed by clearing it.
+//
+// Also: once the edit form is changed, the publication panel says that its
+// buttons do not save those changes.
 (() => {
     'use strict';
 
@@ -41,7 +44,16 @@
             rows.insertBefore(row.nextElementSibling, row);
         }
         refresh(multi);
+        markUnsaved(button);
     });
+
+    const markUnsaved = (element) => {
+        if (element.closest('form.admin-form')) {
+            document.querySelectorAll('[data-unsaved-hint]').forEach((hint) => hint.classList.remove('d-none'));
+        }
+    };
+    document.addEventListener('input', (event) => markUnsaved(event.target));
+    document.addEventListener('change', (event) => markUnsaved(event.target));
 
     document.querySelectorAll('[data-multi]').forEach(refresh);
 })();

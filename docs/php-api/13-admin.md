@@ -6,7 +6,7 @@ in parts; this chapter grows with them (see the [ROADMAP](../../ROADMAP.md)):
 1. ✅ Frame: access, layout, dashboard, one-time messages, translated labels.
 2. ✅ Listing content, with filtering and sorting.
 3. ✅ Generated forms: creating and editing objects.
-4. Publishing, unpublishing and deleting.
+4. ✅ Publishing, unpublishing (also scheduled) and deleting.
 
 ## Access
 
@@ -46,6 +46,16 @@ The `subpath` route parameter selects the page. Everything goes through the
 | `/admin/<blueprint>` | The list of a Blueprint's objects (see below) |
 | `/admin/<blueprint>/new` | Creating an object (form; POST creates it) |
 | `/admin/<blueprint>/<id>` | Editing an object (form; POST saves it) |
+| `POST /admin/<blueprint>/<id>/publish` | Publishing, now or at a given time ([below](#publishing-and-deleting)) |
+| `POST /admin/<blueprint>/<id>/unpublish` | Unpublishing |
+| `/admin/<blueprint>/<id>/delete` | Deleting: a confirmation page; POST deletes |
+
+| Constant | Value |
+|---|---|
+| `PER_PAGE` | 20: objects per list page |
+| `STATUSES` | The status filters of the list |
+| `DISPLAY_DATETIME` | `'Y-m-d H:i'`: how times are shown (in the site's time zone) |
+| `MAX_REFERRERS` | 20: the most referring objects listed on the delete page |
 
 Blueprints with the `Authenticatable` capability (users) are not managed as
 content; user management in the browser comes later.
@@ -58,7 +68,7 @@ content; user management in the browser comes later.
 | Parameter | Meaning |
 |---|---|
 | `q` | Search in the title (for `Titled` Blueprints); `%` and `_` are searched literally |
-| `status` | For `Publishable` Blueprints: `draft`, `published` (published and the time has come), `scheduled` (published, but in the future) — `AdminController::STATUSES` |
+| `status` | For `Publishable` Blueprints: `draft`, `published` (published and the time has come, i.e. publicly visible), `scheduled` (published, but in the future) — `AdminController::STATUSES` |
 | `sort` | `title`, `updated`, `created`, `published_at` (those the Blueprint has); anything else falls back to `updated` |
 | `dir` | `asc` or `desc` (default) |
 
@@ -81,6 +91,9 @@ definitions, so a new Blueprint or capability gets its form automatically.
 | `read(CampanellaObject $object, array $post, Actor $actor): array` | The submitted form as `values`, `relations` (name → target IDs) and `errors` (values that cannot be read) |
 | `MANAGED_FIELDS` | `status`, `published_at`, `format`: not in the form (publishing is a separate action; the text format belongs to the HTML editor in 0.0.5) |
 | `MAX_OPTIONS` | 500: the most relation targets offered (the current targets are always offered too) |
+| `parseDateTime(string $text): ?DateTimeImmutable` | A date and time typed in the site's time zone (`2026-10-02T14:30:00`, `2026-10-02 14:30`, …) as UTC; empty: null; `UnexpectedValueException` with the key `validation.invalid_date` |
+| `localDateTime(?DateTimeInterface $time, string $format = 'Y-m-d\TH:i:s'): string` | A time in the site's time zone (by default in the `datetime-local` input format); null: empty text |
+| `timezone(): string` | The site's time zone (the `timezone` setting) |
 
 `Campanella\Admin\Form\FormField` · **Internal** · `final readonly class`:
 `$name`, `$kind` (`field` or `relation`), `$widget`, `$label`, `$required`,
@@ -129,6 +142,37 @@ saved the object since the form was opened, the save is refused (409) with a
 warning, and the form keeps the user's input; saving again then overwrites
 the other change deliberately.
 
+## Publishing and deleting
+
+**Publication panel.** The edit page of a `Publishable` object has a panel
+next to the form with the state (draft, published since…, appears at…) and the
+actions the `AccessPolicy` allows:
+
+- **Publish** with an optional time, typed in the site's time zone. Empty:
+  now. A future time schedules the publication: the object is `published`, but
+  becomes visible only at that time (the `Publishable` rule, so no background job
+  is needed). The time of an already published or scheduled object can be
+  changed the same way.
+- **Unpublish:** back to draft. The publication time is kept, so publishing
+  again offers it.
+
+These are separate forms: they change only the publication status and time,
+not the unsaved changes of the edit form (a hint appears once the form is
+changed). Like saving, they need the CSRF token and the current version token;
+on a stale version nothing changes and a warning is shown. If the stored object
+is invalid (e.g. a required relation lost its target), nothing changes and the
+validation messages are shown. Every action redirects (303) back to the edit
+page with a one-time message. A GET request to them (by a user who may take
+the action) gives 405.
+
+**Deleting.** The *Delete* button appears only if the policy allows `Delete`
+(the `DefaultPolicy` allows it for the `administrator` only; an `editor` gets
+no button and a 403 page). It opens a confirmation page, which lists the
+objects whose relations point to the object (the references are removed with
+it), marking those whose *required* relation would be left empty: they can be
+saved again only after choosing a new target. Confirming (POST with a CSRF
+token) deletes the object permanently and returns to the list.
+
 ## Templates
 
 The admin templates live in `templates/admin/` and are always loaded as
@@ -142,6 +186,8 @@ theme cannot lock anyone out. The look is Bootstrap 5.3 with a small
 | `admin/dashboard.html.twig` | The dashboard |
 | `admin/list.html.twig` | The list of a Blueprint's objects, with the filter form and pagination |
 | `admin/form.html.twig` | The create/edit page |
+| `admin/_publication.html.twig` | The publication panel of the edit page |
+| `admin/delete.html.twig` | The delete confirmation page |
 | `admin/form/_row.html.twig` | One form row: label, widget (repeated for multi-valued fields), help, error |
 | `admin/form/<widget>.html.twig` | One input per widget (see above) |
 | `admin/_status.html.twig` | Publication status badge (draft, published, scheduled) |

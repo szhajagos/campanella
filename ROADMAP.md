@@ -15,79 +15,10 @@ Completed changes are listed in the [CHANGELOG](CHANGELOG.md).
 | 0.0.1 | Object model, Capability contract, Blueprint, Query, access-aware queries, Twig rendering, CLI |
 | 0.0.2 | Relations (relationships): article → categories, `whereRelated`, `RelationLoader`, Blueprint lists |
 | 0.0.3 | Users and login: `Identifiable`, `Authenticatable`, `Authorable`, session, CSRF, login throttling, `LoginGuard` + honeypot, `editor` role, `user:*` commands; MIT license |
+| 0.0.4 | Admin UI (lists, generated forms, publishing incl. scheduled, deleting), multi-valued fields (cardinality), translation layer (en, hu), Bootstrap 5.3 shipped locally, themes |
 | – | Continuous integration (GitHub Actions): PHPStan, documentation, tests on MariaDB 10.6/11.4 and MySQL 8.0/8.4; installation package with `vendor/` for every version tag |
 
 ## Next
-
-### 0.0.4 – Admin UI
-
-0.0.4 and 0.0.5 were originally a single step; HTML editing was moved to a
-separate release for security reasons (2026-09-29).
-
-As a first step, before the forms (✅ done, see the CHANGELOG):
-
-- **Number of field values (cardinality).** A new `cardinality` property on
-  `Field`: `1` (the default; existing fields do not change), an upper limit
-  (e.g. `3`), or `Field::UNLIMITED`. For a multi-value field, `get()` returns
-  a list; the type applies to every item, `required` means at least one value,
-  and the count may not exceed the limit.
-- Storage: a non-queryable (`Data`) multi-value field lives as a list in the
-  data JSON; a queryable one (`Table`/`indexed`) in a new, shared
-  `cc_field_values` table (`object_id`, `field`, `delta`, per-type value
-  columns, with indexes). A multi-value field cannot have its own column.
-- Query: a condition on a multi-value field compiles to an `EXISTS` subquery
-  ("any of its values"); the query language does not change. Sorting by a
-  multi-value field is not allowed.
-- Cardinality is defined by the capability; a Blueprint may narrow it (e.g.
-  3 → 2), but it cannot turn a single-value field into a multi-value one (or
-  vice versa).
-- Upper limit for relations: `new Relation(..., Cardinality::Many, max: 3)`.
-- Schema upgrade: the `cc_field_values` table.
-- Deferred to 0.0.6: `StringList` (and with it the users' `roles` field)
-  becomes a multi-value `String` field. This moves existing values to a new
-  storage place, so it needs a data migration; without one, existing users
-  would lose their roles.
-
-Then:
-
-- Translation layer for user-facing texts: messages are referenced by key
-  (e.g. `auth.invalid_credentials`), texts live in `lang/en.php` and
-  `lang/hu.php`; English is the base language, Hungarian a full translation.
-  A `lang:check` script reports missing keys. Existing hard-coded Hungarian
-  texts move there; the admin UI is built on it from the start.
-  - ✅ Part 1: the `Translator`, the language files, `t()` in templates, and
-    the web texts (templates, login, error pages).
-  - ✅ Part 2: validation messages (`ValidationException` gets keys and
-    parameters) and the command-line output.
-  - With the admin UI: the labels of capabilities, fields, relations and
-    Blueprints.
-- Admin UI (`/admin`, configurable), in four parts (2026-10-01):
-  1. ✅ Frame: access for the `administrator` and `editor` roles, a Bootstrap
-     layout that is independent of the public theme (a broken theme cannot
-     lock anyone out), dashboard, one-time (flash) messages, translated labels.
-  2. ✅ Listing per Blueprint with paging, filtering (status, title search) and
-     sorting; the buttons follow the AccessPolicy.
-  3. ✅ Generated forms, creating and editing (see below), with a warning when
-     two editors change the same object at the same time.
-  4. Publishing, unpublishing (also scheduled), deleting with confirmation;
-     then the `v0.0.4` release.
-  User management in the browser comes later; until then users are managed
-  from the command line.
-- Forms are generated from the field and relation definitions, so the editing
-  UI for a new Blueprint or capability is created automatically. Multi-value
-  fields get an "add another value" button and reordering, up to the
-  cardinality limit.
-- Clear error messages based on `ValidationException`.
-- ✅ Look and feel: Bootstrap 5.3, shipped with Campanella
-  (`public/assets/vendor/bootstrap`), without a CDN. Both the admin UI and the
-  default public theme are built on it.
-- ✅ Simple theme system: a template in the theme's folder takes precedence over
-  the base template, so a custom theme can also be built without Bootstrap.
-- In this step, text fields in `html` format still get a plain textarea; the
-  editor and the sanitizer come in 0.0.5.
-
-**Done when:** all content of the sample site can be managed from the browser,
-without the command line.
 
 ### 0.0.5 – HTML editing
 
@@ -144,6 +75,7 @@ on, the system is suitable for running a real website.
 - **Cache:** object, query and render cache with cache tags and contexts.
 - **JSON API** according to the [HTTP API draft](docs/http-api/README.md).
 - **Media:** file storage, images, image variants.
+- **User management in the browser** (until then: the `user:*` commands).
 - **Multilingual content.**
 - **Search**, URL aliases and redirects, trash, audit log.
 - **Login extensions:** two-factor authentication (e.g. TOTP) as its own

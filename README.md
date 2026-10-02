@@ -1,4 +1,4 @@
-# Campanella 0.0.3
+# Campanella 0.0.4
 
 [![CI](https://github.com/szhajagos/campanella/actions/workflows/ci.yml/badge.svg)](https://github.com/szhajagos/campanella/actions/workflows/ci.yml)
 
@@ -119,7 +119,7 @@ On every push, GitHub runs the checks above
 documentation checks, and the tests on MariaDB 10.6 and 11.4, and MySQL 8.0
 and 8.4. The results are shown next to the commits and on the Actions tab.
 
-After a version tag (`git tag v0.0.4 && git push --tags`), GitHub builds the
+After a version tag (`git tag v0.0.5 && git push --tags`), GitHub builds the
 installation package and attaches it to the release. For an existing tag it
 can also be started manually: Actions → CI → Run workflow, entering the tag.
 
@@ -195,6 +195,13 @@ Details: [docs/php-api/10-relations.md](docs/php-api/10-relations.md).
 `/belepes`. The first administrator is created with the `user:create` command;
 there is no default account or password. Details: [docs/php-api/11-users.md](docs/php-api/11-users.md).
 
+**Admin UI (0.0.4).** Under `/admin`, for the `administrator` and `editor`
+roles: lists with search and filters, forms generated from the field and
+relation definitions, publishing (also scheduled), deleting. The interface is
+translated (`lang/en.php`, `lang/hu.php`; the `locale` setting) and built on
+Bootstrap 5.3, shipped locally. Users are still managed from the command line.
+Details: [docs/php-api/13-admin.md](docs/php-api/13-admin.md).
+
 **Query.** Declarative and immutable:
 
 ```php
@@ -216,7 +223,7 @@ on its own.
 
 ## Not included yet
 
-Admin UI, Hierarchical (menu, taxonomy tree),
+User management in the browser, Hierarchical (menu, taxonomy tree),
 Component / Region / Layout, Webform, Event / Action, cache, migrations
 (altering existing tables), multilingual content, WYSIWYG editor and HTML sanitizer.
 

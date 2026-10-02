@@ -272,6 +272,33 @@ final class ObjectForm
         };
     }
 
+    /**
+     * A date and time typed in the site's time zone (the value of a datetime-local
+     * input, or a similar form such as `2026-10-02 14:30`), as a UTC time.
+     * Empty text: null. Since 0.0.4.
+     *
+     * @throws \UnexpectedValueException with the key 'validation.invalid_date' if it cannot be read
+     */
+    public function parseDateTime(string $text): ?DateTimeImmutable
+    {
+        return $this->parseDate(trim($text));
+    }
+
+    /**
+     * A time in the site's time zone, by default in the datetime-local input format
+     * (`Y-m-d\TH:i:s`); null: empty text. Since 0.0.4.
+     */
+    public function localDateTime(?DateTimeInterface $time, string $format = self::LOCAL_DATETIME): string
+    {
+        return $time === null ? '' : DateTimeImmutable::createFromInterface($time)->setTimezone($this->timezone)->format($format);
+    }
+
+    /** The site's time zone, in which dates are typed and shown (the `timezone` setting). */
+    public function timezone(): string
+    {
+        return $this->timezone->getName();
+    }
+
     private function parseDate(string $text): ?DateTimeImmutable
     {
         if ($text === '') {
