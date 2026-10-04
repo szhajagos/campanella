@@ -6,6 +6,8 @@ namespace Campanella\Admin\Form;
 
 use Campanella\Access\Actor;
 use Campanella\Capability\TextFormat;
+use Campanella\Capability\Textual;
+use Campanella\Html\HtmlSanitizer;
 use Campanella\I18n\Message;
 use Campanella\I18n\Translator;
 use Campanella\Model\CampanellaObject;
@@ -46,12 +48,23 @@ final class ObjectForm
 
     private readonly DateTimeZone $timezone;
 
+    /** The editor (toolbar) profiles of HTML text fields; the first one is the default. */
+    public const array EDITOR_PROFILES = ['full', 'basic'];
+
+    private readonly HtmlSanitizer $html;
+
+    /**
+     * @param HtmlSanitizer|null $html Its allowlist is given to the HTML editor, so the editor
+     *        offers and keeps what the filter keeps (since 0.0.5); null: the built-in allowlist
+     */
     public function __construct(
         private readonly QueryEngine $queries,
         private readonly Translator $translator,
         string $timezone = 'UTC',
+        ?HtmlSanitizer $html = null,
     ) {
         $this->timezone = new DateTimeZone($timezone);
+        $this->html = $html ?? new HtmlSanitizer();
     }
 
     /**
@@ -60,6 +73,8 @@ final class ObjectForm
      * @param array<string, Message> $errors field or relation name => message
      * @param list<string> $order Field and relation names in the order they should come first
      *        (Blueprint 'form_order'); the rest follow in their natural order.
+     * @param array<string, string> $editors The editor profile of HTML text fields (Blueprint
+     *        'editor'); an unknown or missing one is the first of EDITOR_PROFILES.
      * @return list<FormField>
      */
     public function build(
@@ -68,18 +83,21 @@ final class ObjectForm
         ?array $input = null,
         array $errors = [],
         array $order = [],
+        array $editors = [],
     ): array {
         $form = [];
         foreach ($this->editableFields($object) as $name => $field) {
             $value = $input === null
                 ? $this->present($field, $object->get($name))
                 : $this->presentInput($field, $input['f'][$name] ?? null);
-            $htmlBody = $name === 'body' && $object->hasField('format') && $object->get('format') === TextFormat::Html->value;
+            $textual = $name === 'body' && $object->has(Textual::class);
+            $htmlBody = $textual && $object->as(Textual::class)->format() === TextFormat::Html;
+            $profile = in_array($editors[$name] ?? null, self::EDITOR_PROFILES, true) ? (string) $editors[$name] : self::EDITOR_PROFILES[0];
 
             $form[] = new FormField(
                 name: $name,
                 kind: 'field',
-                widget: $this->widget($field),
+                widget: $htmlBody ? 'html' : $this->widget($field),
                 label: $field->label !== '' ? $field->label : $name,
                 required: $field->required && $name !== 'path',
                 multiple: $field->isMultiple(),
@@ -87,16 +105,18 @@ final class ObjectForm
                 value: $value,
                 error: isset($errors[$name]) ? $errors[$name]->translate($this->translator) : null,
                 help: match (true) {
-                    $htmlBody => 'admin.form.html_readonly',
+                    $htmlBody => 'admin.form.html_help',
                     $name === 'path' => 'admin.form.path_help',
                     $field->type === FieldType::StringList => 'admin.form.list_help',
                     default => null,
                 },
-                disabled: $htmlBody,
-                attributes: match ($field->type) {
-                    FieldType::String => ['maxlength' => $field->length],
-                    // The main text (Textual body) gets a tall box, other texts a shorter one.
-                    FieldType::Text => ['rows' => $name === 'body' ? 14 : 4],
+                attributes: match (true) {
+                    // The editor gets its toolbar profile and the filter's allowlist.
+                    $htmlBody => ['rows' => 18, 'editor' => $profile, 'allow_tags' => $this->editorAllowlist()],
+                    $field->type === FieldType::String => ['maxlength' => $field->length],
+                    // The main text (Textual body) gets a tall box, other texts a shorter one; a saved
+                    // plain body can be converted to a formatted one (AdminController's convert-html).
+                    $field->type === FieldType::Text => ['rows' => $name === 'body' ? 14 : 4] + ($textual && !$object->isNew() ? ['convertible' => 1] : []),
                     default => [],
                 },
             );
@@ -151,9 +171,6 @@ final class ObjectForm
         $values = [];
         $errors = [];
         foreach ($this->editableFields($object) as $name => $field) {
-            if ($name === 'body' && $object->hasField('format') && $object->get('format') === TextFormat::Html->value) {
-                continue; // read-only until the HTML filter (0.0.5)
-            }
             $raw = $fields[$name] ?? null;
             try {
                 $values[$name] = $field->isMultiple()
@@ -196,6 +213,23 @@ final class ObjectForm
             $object->fields(),
             static fn (Field $field): bool => !$field->hidden && !in_array($field->name, self::MANAGED_FIELDS, true),
         );
+    }
+
+    /**
+     * The allowlist as the editor (Jodit's cleanHTML.allowTags) expects it, as JSON:
+     * element => true, or element => {attribute: true, …}. The elements the filter
+     * unwraps (span, font…) are listed too, without attributes: the editor would
+     * otherwise remove them together with their text, the filter keeps the text.
+     */
+    private function editorAllowlist(): string
+    {
+        $tags = [];
+        foreach ($this->html->allowedElements() as $element => $attributes) {
+            $tags[$element] = $attributes === [] ? true : array_fill_keys($attributes, true);
+        }
+        $tags += array_fill_keys(HtmlSanitizer::UNWRAPPED, true);
+
+        return json_encode($tags, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
     }
 
     private function widget(Field $field): string

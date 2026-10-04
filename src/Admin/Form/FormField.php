@@ -12,7 +12,7 @@ final readonly class FormField
 {
     /**
      * @param string $kind 'field' or 'relation'
-     * @param string $widget string, text, integer, boolean, datetime, list, select, checkboxes
+     * @param string $widget string, text, html, integer, boolean, datetime, list, select, checkboxes
      * @param string|list<string> $value The value in form form (a list for a multi-valued field or a Many relation)
      * @param int|null $max The value limit of a multi-valued field or a Many relation (null: none)
      * @param list<array{value: string, label: string}> $options For relations: the possible targets

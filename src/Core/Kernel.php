@@ -300,6 +300,7 @@ final class Kernel
                 $c->get(QueryEngine::class),
                 $c->get(Translator::class),
                 (string) $c->get(Config::class)->get('timezone', 'UTC'),
+                $c->get(HtmlSanitizer::class),
             ),
             $c->get(Csrf::class),
             $c->get(Flash::class),

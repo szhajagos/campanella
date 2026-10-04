@@ -63,7 +63,7 @@ Agreed in detail on 2026-10-02. In five parts, each its own commit:
      seed and the later API cannot bypass it. `html:sanitize` cleans HTML
      stored earlier.
    - Tests with a collection of known XSS tricks.
-2. **Jodit editor** (the MIT edition, shipped locally in
+2. ✅ **Jodit editor** (the MIT edition, shipped locally in
    `public/assets/vendor/jodit/`, no CDN).
    - An `html` widget template and a small `admin-editor.js`: switching to
      SunEditor would replace only these. Without JavaScript a plain textarea

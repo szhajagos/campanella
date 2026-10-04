@@ -7,7 +7,7 @@
         <p class="small text-warning-emphasis d-none" data-unsaved-hint>{{ t('admin.publish.unsaved') }}</p>
 
         {% if publication.can_publish %}
-            <form method="post" action="{{ url(action ~ '/publish') }}" class="mb-3">
+            <form method="post" action="{{ url(action ~ '/publish') }}" class="mb-3" data-confirm-unsaved="{{ t('admin.form.unsaved_confirm') }}">
                 {{ csrf_field() }}
                 <input type="hidden" name="_version" value="{{ version }}">
                 <label class="form-label small" for="publish-at">{{ t('admin.publish.at') }}</label>
@@ -21,7 +21,7 @@
         {% endif %}
 
         {% if publication.can_unpublish %}
-            <form method="post" action="{{ url(action ~ '/unpublish') }}">
+            <form method="post" action="{{ url(action ~ '/unpublish') }}" data-confirm-unsaved="{{ t('admin.form.unsaved_confirm') }}">
                 {{ csrf_field() }}
                 <input type="hidden" name="_version" value="{{ version }}">
                 <button type="submit" class="btn btn-outline-secondary btn-sm">{{ t('admin.publish.unpublish') }}</button>

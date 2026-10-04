@@ -25,7 +25,9 @@ passed an unknown field; `CapabilityException` if the object has no
 ```php
 $service = $container->get(ObjectService::class);
 
-$draft = $service->create($actor, 'article', ['title' => 'Scheduled news item', 'body' => '…']);
+// Articles have an HTML body by default (Blueprint 'defaults'); it is filtered on save.
+$draft = $service->create($actor, 'article', ['title' => 'Scheduled news item', 'body' => '<p>…</p>']);
+// A plain text body: 'format' => 'plain', or PlainText::toHtml($text) as the body.
 $service->publish($actor, $draft, new DateTimeImmutable('2026-10-01 08:00', new DateTimeZone('Europe/Budapest')));
 ```
 

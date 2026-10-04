@@ -160,7 +160,9 @@ Since 0.0.4 the core templates (`templates/`) are built on **Bootstrap 5.3**,
 shipped with Campanella in `public/assets/vendor/bootstrap/` (no CDN, no jQuery;
 the JavaScript bundle includes Popper). On top of it, `public/assets/campanella.css`
 sets the default look through Bootstrap's CSS variables. The color mode (light or
-dark) follows the visitor's system setting.
+dark) follows the visitor's system setting (`public/assets/theme.js`, loaded in
+`<head>`; a file rather than an inline script since 0.0.5, so a
+Content-Security-Policy can forbid inline scripts).
 
 `base.html.twig` provides the blocks `title`, `stylesheets`, `content` and
 `scripts`.

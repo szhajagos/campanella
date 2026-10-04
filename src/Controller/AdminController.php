@@ -23,6 +23,9 @@ use Campanella\Http\Request;
 use Campanella\Http\Response;
 use Campanella\Http\RouteMatch;
 use Campanella\Capability\Publishable;
+use Campanella\Capability\TextFormat;
+use Campanella\Capability\Textual;
+use Campanella\Html\PlainText;
 use Campanella\Capability\PublishStatus;
 use Campanella\Support\Slugger;
 use Campanella\System\CheckStatus;
@@ -59,6 +62,15 @@ final class AdminController implements Controller
 
     /** How times are shown in the admin (in the site's time zone). */
     public const string DISPLAY_DATETIME = 'Y-m-d H:i';
+
+    /**
+     * The Content-Security-Policy of the admin pages: only our own scripts (no inline
+     * script, no other server), so even HTML that got past the filter could not run code
+     * here. Styles may be inline, because the editor (Jodit) creates style elements.
+     */
+    public const string CONTENT_SECURITY_POLICY = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+        . "img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; frame-src 'none'; "
+        . "base-uri 'self'; form-action 'self'; frame-ancestors 'none'";
 
     /** The most referring items listed on the delete confirmation page. */
     public const int MAX_REFERRERS = 20;
@@ -107,8 +119,10 @@ final class AdminController implements Controller
             default => $this->content($request, $actor, $segments),
         };
 
-        // Admin pages are never indexed by search engines.
-        return $response->withHeader('X-Robots-Tag', 'noindex, nofollow');
+        // Admin pages are never indexed by search engines, and run only our own scripts.
+        return $response
+            ->withHeader('X-Robots-Tag', 'noindex, nofollow')
+            ->withHeader('Content-Security-Policy', self::CONTENT_SECURITY_POLICY);
     }
 
     /**
@@ -347,7 +361,7 @@ final class AdminController implements Controller
         ?string $version = null,
     ): Response {
         /** @var array{f?: array<string, mixed>, r?: array<string, mixed>}|null $input */
-        $fields = $this->form->build($object, $actor, $input, $errors, $blueprint->formOrder);
+        $fields = $this->form->build($object, $actor, $input, $errors, $blueprint->formOrder, $blueprint->editors);
         // Errors that do not belong to a form field (e.g. a unique key of a capability).
         $shown = array_map(static fn ($f): string => $f->name, $fields);
         $other = array_diff_key($errors, array_flip($shown));
@@ -381,6 +395,7 @@ final class AdminController implements Controller
     {
         return match ($action) {
             'publish', 'unpublish' => $this->changePublication($request, $actor, $object, $action === 'publish'),
+            'convert-html' => $this->convertToHtml($request, $actor, $object),
             'delete' => $this->delete($request, $actor, $object),
             default => throw HttpException::notFound(),
         };
@@ -453,6 +468,60 @@ final class AdminController implements Controller
             ]),
             default => new Message('admin.publish.published', ['title' => $title]),
         });
+
+        return $back;
+    }
+
+    /**
+     * Converts a saved plain body to a formatted (HTML) one (PlainText::toHtml(): the
+     * paragraphs and line breaks are kept). Like publishing, it acts only on the version
+     * of the object the editor saw, and does not include unsaved changes of the form.
+     */
+    private function convertToHtml(Request $request, Actor $actor, CampanellaObject $object): Response
+    {
+        if (!$object->has(Textual::class)) {
+            throw HttpException::notFound();
+        }
+        if (!$this->policy->allows($actor, Operation::Update, $object)) {
+            throw new HttpException(403, 'error.forbidden');
+        }
+        if (!$request->isPost()) {
+            throw new HttpException(405, 'error.method_not_allowed');
+        }
+        $blueprint = $this->contentBlueprint($object->blueprint());
+        $back = Response::redirect($request->basePath . $this->access->path($blueprint->name . '/' . $object->id()), 303);
+
+        if (!$this->csrf->isValid($request)) {
+            $this->flash->add(Flash::DANGER, 'auth.form_expired');
+
+            return $back;
+        }
+        if ($request->postString('_version') !== $this->versionOf($object)) {
+            $this->flash->add(Flash::WARNING, 'admin.publish.conflict');
+
+            return $back;
+        }
+        $textual = $object->as(Textual::class);
+        if ($textual->format() === TextFormat::Html) {
+            return $back; // already formatted (e.g. a second click)
+        }
+
+        try {
+            $this->service->update($actor, $object, [
+                'body' => PlainText::toHtml($textual->body()),
+                'format' => TextFormat::Html->value,
+            ]);
+        } catch (ValidationException $e) {
+            $this->flash->add(Flash::DANGER, 'admin.publish.invalid');
+            foreach ($e->messages($this->translator) as $text) {
+                $this->flash->add(Flash::DANGER, $text);
+            }
+
+            return $back;
+        } catch (AccessDeniedException) {
+            throw new HttpException(403, 'error.forbidden');
+        }
+        $this->flash->add(Flash::SUCCESS, new Message('admin.form.converted', ['title' => self::titleOf($object)]));
 
         return $back;
     }

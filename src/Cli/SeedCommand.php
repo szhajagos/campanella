@@ -8,6 +8,7 @@ use Campanella\Access\Actor;
 use Campanella\Capability\Routable;
 use Campanella\Capability\Titled;
 use Campanella\Core\Container;
+use Campanella\Html\PlainText;
 use Campanella\I18n\Translator;
 use Campanella\Model\CampanellaObject;
 use Campanella\Model\ObjectRepository;
@@ -74,7 +75,8 @@ final class SeedCommand implements Command
         ];
 
         foreach ($articles as [$title, $when, $lead, $body, $categoryKeys]) {
-            $article = $this->ensure('article', $title, ['lead' => $lead, 'body' => $body], new DateTimeImmutable($when, $utc));
+            // Articles and pages have a formatted (HTML) body (Blueprint 'defaults').
+            $article = $this->ensure('article', $title, ['lead' => $lead, 'body' => PlainText::toHtml($body)], new DateTimeImmutable($when, $utc));
             // Categories are only added if it has none yet (manual settings are not overwritten).
             if ($article->relatedIds('categories') === []) {
                 $article->setRelated('categories', array_map(static fn (string $k) => $categories[$k], $categoryKeys));
@@ -87,10 +89,10 @@ final class SeedCommand implements Command
         }
 
         $this->ensure('article', 'Piszkozat', [
-            'body' => 'Ez egy publikálatlan cikk. Anonymous látogató nem látja, és a listákban sem jelenik meg.',
+            'body' => PlainText::toHtml('Ez egy publikálatlan cikk. Anonymous látogató nem látja, és a listákban sem jelenik meg.'),
         ]);
         $this->ensure('page', 'Rólunk', [
-            'body' => "A Campanella egy capability-vezérelt CMS.\n\nEz az oldal egy „page” Blueprint alapján készült objektum.",
+            'body' => PlainText::toHtml("A Campanella egy capability-vezérelt CMS.\n\nEz az oldal egy „page” Blueprint alapján készült objektum."),
         ], new DateTimeImmutable('-10 days', $utc));
 
         $output->line();

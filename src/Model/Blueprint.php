@@ -29,6 +29,10 @@ final readonly class Blueprint
      * @param array<string, Field> $narrowed Capability fields whose cardinality this Blueprint narrows.
      * @param list<string> $formOrder The order of fields and relations in the admin form (those not
      *        listed follow in their natural order).
+     * @param array<string, mixed> $defaults Initial values of a new object, overriding the fields' own
+     *        defaults (e.g. `['format' => 'html']`); values given on creation win. Since 0.0.5.
+     * @param array<string, string> $editors The editor (toolbar) profile of HTML text fields in the
+     *        admin, e.g. `['body' => 'full']`. Since 0.0.5.
      */
     public function __construct(
         public string $name,
@@ -39,6 +43,8 @@ final readonly class Blueprint
         public array $lists = [],
         public array $narrowed = [],
         public array $formOrder = [],
+        public array $defaults = [],
+        public array $editors = [],
     ) {
     }
 

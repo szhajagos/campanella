@@ -8,3 +8,15 @@
 .admin-stat .fs-3 { line-height: 1.2; }
 .admin-system th { width: 38%; }
 .admin-system td:last-child { width: 1%; white-space: nowrap; }
+
+/* The HTML editor (Jodit) in Bootstrap's colors, light and dark. */
+.jodit-container:not(.jodit_inline) { border-radius: var(--bs-border-radius); }
+.jodit_theme_dark {
+    --jd-dark-background-color: var(--bs-body-bg);
+    --jd-dark-background-darknes: var(--bs-tertiary-bg);
+    --jd-dark-toolbar-color: var(--bs-tertiary-bg);
+    --jd-dark-text-color: var(--bs-body-color);
+    --jd-dark-icon-color: var(--bs-body-color);
+    --jd-color-border: var(--bs-border-color);
+}
+.jodit_theme_dark .jodit-wysiwyg { background-color: var(--bs-body-bg); color: var(--bs-body-color); }

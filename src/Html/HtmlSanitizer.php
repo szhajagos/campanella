@@ -43,6 +43,9 @@ final class HtmlSanitizer
 
     private readonly int $maxTags;
 
+    /** @var array<string, list<string>> */
+    private readonly array $elements;
+
     /**
      * @param array{elements?: array<string, list<string>>, link_schemes?: list<string>, external_images?: bool, max_length?: int, max_tags?: int} $config
      *        The allowlist (config/html.php); keys left out keep their default.
@@ -52,6 +55,7 @@ final class HtmlSanitizer
         $config += self::defaults();
         $this->maxLength = $config['max_length'];
         $this->maxTags = $config['max_tags'];
+        $this->elements = $config['elements'];
         if ($this->maxLength < 1 || $this->maxTags < 1) {
             throw new \InvalidArgumentException('html max_length and max_tags must be at least 1.');
         }
@@ -142,6 +146,17 @@ final class HtmlSanitizer
             !mb_check_encoding($html, 'UTF-8') => new Message('validation.invalid_encoding'),
             default => null,
         };
+    }
+
+    /**
+     * The allowed elements and their attributes (the `elements` setting), e.g. for an
+     * editor that should only offer what the filter keeps.
+     *
+     * @return array<string, list<string>>
+     */
+    public function allowedElements(): array
+    {
+        return $this->elements;
     }
 
     /** Whether the text is longer than the max_length setting (in bytes). */

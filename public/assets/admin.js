@@ -3,7 +3,7 @@
 // can still be edited, and a value is removed by clearing it.
 //
 // Also: once the edit form is changed, the publication panel says that its
-// buttons do not save those changes.
+// buttons do not save those changes, and those forms ask before submitting.
 (() => {
     'use strict';
 
@@ -47,13 +47,27 @@
         markUnsaved(button);
     });
 
+    let unsaved = false;
     const markUnsaved = (element) => {
         if (element.closest('form.admin-form')) {
+            unsaved = true;
             document.querySelectorAll('[data-unsaved-hint]').forEach((hint) => hint.classList.remove('d-none'));
         }
     };
-    document.addEventListener('input', (event) => markUnsaved(event.target));
-    document.addEventListener('change', (event) => markUnsaved(event.target));
+    // The other forms of the page (publish, unpublish, convert) do not save the edit
+    // form's changes: ask before submitting one of them while there are unsaved changes.
+    document.addEventListener('submit', (event) => {
+        const form = event.target;
+        if (unsaved && form.dataset.confirmUnsaved && !window.confirm(form.dataset.confirmUnsaved)) {
+            event.preventDefault();
+        }
+    });
+    // The HTML editor's textarea is updated by the editor itself (also when it starts),
+    // so its events do not count; admin-editor.js sends 'admin:edited' on a real edit.
+    const fromUser = (event) => !event.target.matches('textarea[data-editor]');
+    document.addEventListener('input', (event) => fromUser(event) && markUnsaved(event.target));
+    document.addEventListener('change', (event) => fromUser(event) && markUnsaved(event.target));
+    document.addEventListener('admin:edited', (event) => markUnsaved(event.target));
 
     document.querySelectorAll('[data-multi]').forEach(refresh);
 })();

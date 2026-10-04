@@ -223,6 +223,9 @@ return [
         ],
         // Optional (since 0.0.4): narrow the value limit of a capability's multi-valued field.
         // 'cardinality' => ['phones' => 2],
+        // Optional (since 0.0.5): initial values of a new object, and the admin editor's profile.
+        'defaults' => ['format' => 'html'],
+        'editor' => ['body' => 'full'],
     ],
 ];
 ```
@@ -236,6 +239,8 @@ return [
 | `$lists` | Lists shown on the object's page ([chapter 10](10-relations.md#lists-on-the-objects-page)) |
 | `$narrowed` | The capability fields whose cardinality this Blueprint narrows (`array<string, Field>`) |
 | `$formOrder` | The order of fields and relations in the admin form (`form_order` key; those not listed follow in their natural order) |
+| `$defaults` | Initial values of a new object (`defaults` key, since 0.0.5): `ObjectRepository::create()` uses them for the fields not given, instead of the fields' own defaults. E.g. `['format' => 'html']`: new articles get a formatted body |
+| `$editors` | The toolbar profile of HTML text fields in the admin (`editor` key, since 0.0.5), e.g. `['body' => 'full']` ([chapter 13](13-admin.md#formatted-text-the-html-editor)) |
 | `allFields()` | The capability fields (narrowed where configured) and the own fields together |
 | `narrow(array $fields): array` | Applies the narrowed cardinalities to the given field definitions |
 | `allRelations()` | The capability relations and the own relations together |
@@ -248,7 +253,8 @@ must be a multi-valued field of one of the Blueprint's capabilities, and the new
 limit must be at least 2 and not higher than the capability's limit (any value
 if it is unlimited). The Blueprint's own fields set their cardinality on the
 `Field` itself. Violations throw `CapabilityException` when the Blueprint is
-defined.
+defined, as does a `defaults` or `editor` entry for a field the Blueprint does
+not have.
 
 ## BlueprintRegistry
 

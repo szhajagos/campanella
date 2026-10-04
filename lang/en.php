@@ -165,7 +165,6 @@ return [
     'admin.form.no_targets' => 'There is nothing to choose from yet.',
     'admin.form.path_help' => 'The address of the page on the site. Leave it empty to create it from the title.',
     'admin.form.list_help' => 'One value per line.',
-    'admin.form.html_readonly' => 'This text is in HTML format; it can be edited in the browser from version 0.0.5 (with the HTML filter).',
     'validation.invalid_number' => 'must be a whole number',
     'validation.invalid_date' => 'invalid date',
     'admin.form.yes' => 'Yes',
@@ -259,4 +258,9 @@ return [
     'validation.html_too_many_tags' => 'The HTML text may contain at most {max} tags.',
     'validation.invalid_encoding' => 'The text is not valid UTF-8.',
     'cli.html_sanitize.skipped' => 'Skipped: {object} ({reason})',
+    'admin.form.html_help' => 'Formatted text. Anything the site does not allow (scripts, styles, external images) is removed on save.',
+    'admin.form.convert_html' => 'Convert to formatted text',
+    'admin.form.convert_help' => 'The paragraphs and line breaks are kept. Save your changes first: converting does not save them.',
+    'admin.form.converted' => 'Converted to formatted text: {title}',
+    'admin.form.unsaved_confirm' => 'The form has unsaved changes, and this action does not save them. Continue anyway?',
 ];

@@ -163,7 +163,6 @@ return [
     'admin.form.no_targets' => 'Még nincs mit kiválasztani.',
     'admin.form.path_help' => 'Az oldal címe a honlapon. Ha üresen hagyod, a címből készül.',
     'admin.form.list_help' => 'Soronként egy érték.',
-    'admin.form.html_readonly' => 'Ez a szöveg HTML formátumú; böngészőből a 0.0.5-ös verziótól (a HTML-szűrővel) szerkeszthető.',
     'validation.invalid_number' => 'egész számnak kell lennie',
     'validation.invalid_date' => 'érvénytelen dátum',
     'admin.form.yes' => 'Igen',
@@ -257,4 +256,9 @@ return [
     'validation.html_too_many_tags' => 'A HTML-szöveg legfeljebb {max} címkét tartalmazhat.',
     'validation.invalid_encoding' => 'A szöveg nem érvényes UTF-8 kódolású.',
     'cli.html_sanitize.skipped' => 'Kihagyva: {object} ({reason})',
+    'admin.form.html_help' => 'Formázott szöveg. Amit a webhely nem enged (szkriptek, stílusok, külső képek), azt mentéskor eltávolítja.',
+    'admin.form.convert_html' => 'Átalakítás formázott szöveggé',
+    'admin.form.convert_help' => 'A bekezdések és a sortörések megmaradnak. Előbb mentsd a változásokat: az átalakítás nem menti őket.',
+    'admin.form.converted' => 'Formázott szöveggé alakítva: {title}',
+    'admin.form.unsaved_confirm' => 'Az űrlapon nem mentett változások vannak, és ez a művelet nem menti őket. Folytatod?',
 ];

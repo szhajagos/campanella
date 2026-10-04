@@ -40,6 +40,13 @@
                     <a class="btn btn-outline-secondary" href="{{ url(list_path) }}">{{ t('admin.form.cancel') }}</a>
                 </div>
             </form>
+
+            {% if fields|filter(f => f.attributes.convertible ?? false) is not empty %}
+                <form id="convert-html" method="post" action="{{ url(action ~ '/convert-html') }}" class="d-none" data-confirm-unsaved="{{ t('admin.form.unsaved_confirm') }}">
+                    {{ csrf_field() }}
+                    <input type="hidden" name="_version" value="{{ version }}">
+                </form>
+            {% endif %}
         </div>
 
         {% if publication or can_delete %}
@@ -55,6 +62,16 @@
     </div>
 {% endblock %}
 
+{% set has_editor = fields|filter(f => f.widget == 'html') is not empty %}
+
+{% block stylesheets %}
+    {% if has_editor %}<link rel="stylesheet" href="{{ asset('vendor/jodit/jodit.min.css') }}">{% endif %}
+{% endblock %}
+
 {% block scripts %}
     <script src="{{ asset('admin.js') }}" defer></script>
+    {% if has_editor %}
+        <script src="{{ asset('vendor/jodit/jodit.min.js') }}" defer></script>
+        <script src="{{ asset('admin-editor.js') }}" defer></script>
+    {% endif %}
 {% endblock %}

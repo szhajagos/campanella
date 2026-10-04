@@ -77,7 +77,7 @@ final class ObjectRepository
             $blueprint,
             $definition->capabilities,
             $fields,
-            $values,
+            $values + $definition->defaults,
             $now,
             $now,
             $definition->allRelations(),

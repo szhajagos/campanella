@@ -28,6 +28,8 @@ use Campanella\Relation\Relation;
  * 'form_order': the order of fields and relations in the admin form; the ones
  *              not listed follow in their natural order.
  * 'cardinality': narrows the value limit of a capability's multi-valued field.
+ * 'defaults':  initial values of a new object (values given on creation win).
+ * 'editor':    the toolbar profile of HTML text fields in the admin: 'full' or 'basic'.
  */
 return [
     'article' => [
@@ -40,12 +42,17 @@ return [
             new Relation('categories', Cardinality::Many, targetBlueprints: ['category'], label: 'relation.categories'),
         ],
         'form_order' => ['title', 'lead', 'body', 'categories', 'author', 'path'],
+        // New articles get a formatted (HTML) body, edited with the editor.
+        'defaults' => ['format' => 'html'],
+        'editor' => ['body' => 'full'],
     ],
 
     'page' => [
         'label' => 'blueprint.page',
         'capabilities' => [Textual::class, Routable::class, Publishable::class],
         'form_order' => ['title', 'body', 'path'],
+        'defaults' => ['format' => 'html'],
+        'editor' => ['body' => 'full'],
     ],
 
     // User: name (Titled), e-mail (Authenticatable brings Identifiable),

@@ -6,9 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, nofollow">
     <title>{{ title_text is defined and title_text ? title_text ~ ' – ' : (title is defined and title ? t(title, title_params ?? {}) ~ ' – ' : '') }}{{ t('admin.title') }} – {{ site.name }}</title>
-    <script>document.documentElement.dataset.bsTheme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';</script>
+    <script src="{{ asset('theme.js') }}"></script>
     <link rel="stylesheet" href="{{ asset('vendor/bootstrap/css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ asset('admin.css') }}">
+    {% block stylesheets %}{% endblock %}
 </head>
 <body class="admin">
     <header class="navbar navbar-expand-md admin-topbar border-bottom">

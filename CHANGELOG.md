@@ -33,6 +33,21 @@ backward-incompatible.
   `symfony/html-sanitizer` 7.x (MIT). New `Campanella\Html\HtmlSanitizer`;
   a text over 1 MB or 20 000 tags, or not valid UTF-8, is rejected with a
   validation message instead of being filtered.
+- **HTML editor** in the admin: a body in `html` format is edited with Jodit
+  4.17.1 (MIT edition, shipped in `public/assets/vendor/jodit/`, no CDN), which
+  gets the filter's allowlist and cleans pasted content (e.g. from Word) the
+  same way. Toolbar profiles per field (Blueprint `editor` key: `full`,
+  `basic`). Nothing is loaded from other servers. Without JavaScript a
+  textarea with the raw HTML remains. Replaceable: `admin-editor.js` and the
+  `html` widget template.
+- New articles and pages get a formatted (HTML) body: new Blueprint key
+  `defaults` (initial values of a new object). The sample content (`seed`) is
+  HTML too.
+- "Convert to formatted text" button for a saved plain body
+  (`POST /admin/<blueprint>/<id>/convert-html`; paragraphs and line breaks
+  are kept). New `Campanella\Html\PlainText::toHtml()`.
+- The admin pages send a Content-Security-Policy: only this site's scripts,
+  no inline scripts.
 - `php bin/campanella html:sanitize [--dry-run]`: filters the HTML texts
   stored before. **Run it once after upgrading** (texts stored by earlier
   versions were not filtered).
@@ -52,6 +67,13 @@ backward-incompatible.
   (`masterminds/html5`, `league/uri`, `league/uri-interfaces`,
   `psr/http-message`, `psr/http-factory`, all MIT), and the `dom` PHP
   extension (required; part of standard PHP builds).
+- **New articles and pages are HTML by default** (Blueprint `defaults` in
+  `config/blueprints.php`). Code that creates them with a plain text body must
+  now say so (`'format' => 'plain'`), or convert the text with
+  `PlainText::toHtml()`; otherwise the text is stored as HTML (filtered, and
+  its line breaks are not shown). Existing objects keep their format.
+- The light/dark color mode script is a file (`public/assets/theme.js`)
+  instead of an inline script, in the admin and the public templates.
 - `Cli\Output` takes an optional error stream (`$errors`, default `STDERR`).
 - `system` and `media` are reserved: no Blueprint can have these names
   (`BlueprintRegistry::RESERVED_NAMES`).

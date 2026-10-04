@@ -12,6 +12,10 @@ Built on [symfony/html-sanitizer](https://symfony.com/doc/current/html_sanitizer
 (MIT). It parses the text like a browser (HTML5), so the result is what a
 browser would see, also for broken or deliberately tricky markup.
 
+The admin edits these texts with an HTML editor that gets the same allowlist
+([chapter 13](13-admin.md#formatted-text-the-html-editor)), but only the
+filter is relied on.
+
 ## What remains
 
 The default allowlist (`config/html.php`, or `HtmlSanitizer::defaults()`):
@@ -77,6 +81,7 @@ before.
 | `problem(string $html): ?Message` | Why the text cannot be filtered: too long, too many tags, or not valid UTF-8; null if it can |
 | `isTooLong(string $html): bool` | Whether the text is longer than `max_length` (in bytes) |
 | `maxLength(): int` | `max_length` |
+| `allowedElements(): array<string, list<string>>` | The allowed elements and their attributes (the `elements` setting); the admin's editor gets them |
 | `UNWRAPPED` | The elements removed with their text kept |
 
 `Campanella\Html\LocalMediaSanitizer` · **Internal** · implements Symfony's

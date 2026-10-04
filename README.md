@@ -15,8 +15,9 @@ folder, changes are listed in the [CHANGELOG](CHANGELOG.md), and plans in the
 - MariaDB 10.6+ or MySQL 8.0+ (InnoDB, utf8mb4)
 - Composer (to download the dependencies; you can also upload the project to your web host together with the `vendor/` folder)
 
-The only PHP dependency is Twig; Bootstrap 5.3 (CSS and JavaScript) is shipped in
-`public/assets/vendor/`. PHPStan is needed for development only.
+PHP dependencies: Twig and symfony/html-sanitizer (with their dependencies,
+all MIT or BSD). Bootstrap 5.3 and the Jodit editor (CSS and JavaScript) are
+shipped in `public/assets/vendor/`. PHPStan is needed for development only.
 
 ## Installation
 
@@ -197,7 +198,8 @@ there is no default account or password. Details: [docs/php-api/11-users.md](doc
 
 **Admin UI (0.0.4).** Under `/admin`, for the `administrator` and `editor`
 roles: lists with search and filters, forms generated from the field and
-relation definitions, publishing (also scheduled), deleting. The interface is
+relation definitions, publishing (also scheduled), deleting; since 0.0.5 an
+HTML editor for formatted texts (Jodit), filtered on save. The interface is
 translated (`lang/en.php`, `lang/hu.php`; the `locale` setting) and built on
 Bootstrap 5.3, shipped locally. Users are still managed from the command line.
 Details: [docs/php-api/13-admin.md](docs/php-api/13-admin.md).
@@ -225,11 +227,12 @@ on its own.
 
 User management in the browser, Hierarchical (menu, taxonomy tree),
 Component / Region / Layout, Webform, Event / Action, cache, migrations
-(altering existing tables), multilingual content, WYSIWYG editor (the HTML sanitizer is in place since 0.0.5).
+(altering existing tables), multilingual content, image upload (0.0.5).
 
 ## License
 
 MIT. See [LICENSE](LICENSE).
 
 Bundled third-party code: Bootstrap 5.3.8 (MIT,
-[public/assets/vendor/bootstrap/LICENSE](public/assets/vendor/bootstrap/LICENSE)).
+[public/assets/vendor/bootstrap/LICENSE](public/assets/vendor/bootstrap/LICENSE)),
+Jodit 4.17.1 (MIT, [public/assets/vendor/jodit/LICENSE.txt](public/assets/vendor/jodit/LICENSE.txt)).

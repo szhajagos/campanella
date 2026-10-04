@@ -1,2 +1,9 @@
 <textarea class="form-control{{ invalid }}" id="{{ input_id }}" name="{{ field.inputName }}" rows="{{ in_group ?? false ? 3 : (field.attributes.rows ?? 6) }}"
     {%- if field.required and not field.multiple %} required{% endif %}{% if field.disabled %} disabled{% endif %}>{{ value }}</textarea>
+{% if field.attributes.convertible ?? false %}
+    {# Submits the separate convert-html form of form.html.twig (forms cannot be nested). #}
+    <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+        <button type="submit" form="convert-html" class="btn btn-sm btn-outline-primary">{{ t('admin.form.convert_html') }}</button>
+        <span class="small text-body-secondary">{{ t('admin.form.convert_help') }}</span>
+    </div>
+{% endif %}

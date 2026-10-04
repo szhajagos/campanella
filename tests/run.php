@@ -263,7 +263,7 @@ test('An unknown field on create fails', function () use ($repository): void {
 echo "\nRepository\n";
 
 test('Save and reload: table and data fields', function () use ($service, $repository, $admin): void {
-    $object = $service->create($admin, 'article', ['title' => 'Első cikk', 'lead' => 'Bevezető', 'body' => "A\n\nB"]);
+    $object = $service->create($admin, 'article', ['title' => 'Első cikk', 'lead' => 'Bevezető', 'body' => "A\n\nB", 'format' => 'plain']);
     $loaded = $repository->find((int) $object->id());
     check($loaded !== null);
     check($loaded->get('title') === 'Első cikk');
@@ -1285,15 +1285,17 @@ test('Kernel: creating and editing in the admin, with conflict detection', funct
     $list = $send('GET', '/admin/article', []);
     check(str_contains($list->body, 'href="/admin/article/' . $id . '"') && str_contains($list->body, 'href="/admin/article/new"'), 'list: edit link and New button');
 
-    // HTML text is read-only until the HTML filter (0.0.5).
+    // HTML text: edited with the editor, filtered on save (0.0.5).
     $html = $service->create($admin, 'article', ['title' => 'HTML cikk', 'body' => '<p>Eredeti</p>', 'format' => 'html']);
     $htmlForm = $send('GET', '/admin/article/' . $html->id());
-    check(str_contains($htmlForm->body, 'HTML formátumú'), 'read-only notice');
+    check(str_contains($htmlForm->body, 'data-editor="full"') && str_contains($htmlForm->body, 'vendor/jodit/jodit.min.js'), 'the editor is loaded');
+    check(str_contains($htmlForm->body, 'data-allow-tags="{&quot;p&quot;:true'), 'with the allowlist');
+    check(str_contains((string) ($htmlForm->headers['Content-Security-Policy'] ?? ''), "script-src 'self'"), 'admin CSP');
     preg_match('/name="_version" value="([0-9a-f]{64})"/', $htmlForm->body, $hu);
     $send('POST', '/admin/article/' . $html->id(), ['_csrf' => $token($htmlForm->body), '_version' => $hu[1] ?? '', 'f' => [
-        'title' => 'HTML cikk', 'body' => '<script>alert(1)</script>',
+        'title' => 'HTML cikk', 'lead' => '', 'path' => '/html-cikk', 'body' => '<h2>Cím</h2><p onclick="x()">Új</p><script>alert(1)</script>',
     ]]);
-    check($repository->find((int) $html->id())?->get('body') === '<p>Eredeti</p>', 'the HTML body is not changed from the form');
+    check($repository->find((int) $html->id())?->get('body') === '<h2>Cím</h2><p>Új</p>', 'edited, and filtered on save');
 
     check($send('GET', '/admin/article/999999')->status === 404 && $send('GET', '/admin/article/abc')->status === 404);
     check($send('GET', '/admin/article/0' . $id)->status === 404, 'no duplicate URL with a leading zero');
@@ -1673,7 +1675,7 @@ test('Saving filters HTML texts; a too long one is a validation error', function
     $service->update($admin, $article, ['body' => '<p>Új</p><img src=x onerror=alert(1)>']);
     check($article->get('body') === '<p>Új</p><img src="x" />', 'filtered on update: ' . $article->get('body'));
 
-    $plain = $service->create($admin, 'article', ['title' => 'Sima szöveg', 'body' => '<b>marad</b> & így']);
+    $plain = $service->create($admin, 'article', ['title' => 'Sima szöveg', 'body' => '<b>marad</b> & így', 'format' => 'plain']);
     check($plain->get('body') === '<b>marad</b> & így', 'plain text is not touched (it is escaped when shown)');
 
     $short = new ObjectRepository($db, $capabilities, $blueprints, new \Campanella\Html\HtmlSanitizer(['max_length' => 20]));
@@ -1727,6 +1729,85 @@ test('html:sanitize filters texts stored before the sanitizer', function () use 
     [$code, $out] = $run([]);
     $data = json_decode((string) $db->fetchValue('SELECT data FROM {objects} WHERE id = :id', ['id' => $later->id()]), true);
     check($code === 1 && str_contains($out, 'Túl sok címke') && $data['body'] === '<p>y</p>', 'skipped one, filtered the next: ' . $out);
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
+echo "\nHTML editor\n";
+
+test('PlainText::toHtml and Blueprint defaults', function () use ($repository, $capabilities): void {
+    check(\Campanella\Html\PlainText::toHtml("Első <b>&\nsor\r\n\r\n  Második\n\n\nHarmadik ") === "<p>Első &lt;b&gt;&amp;<br>\nsor</p><p>Második</p><p>Harmadik</p>");
+    check(\Campanella\Html\PlainText::toHtml("  \n ") === '');
+
+    check($repository->create('article')->get('format') === 'html', 'a new article is HTML (Blueprint defaults)');
+    check($repository->create('article', ['format' => 'plain'])->get('format') === 'plain', 'a given value wins');
+    check($repository->create('category')->get('format') === 'plain', 'categories keep the field default');
+
+    $registry = new BlueprintRegistry($capabilities);
+    throws(CapabilityException::class, fn () => $registry->define('x', ['capabilities' => [Textual::class], 'defaults' => ['nincs' => 1]]));
+    throws(CapabilityException::class, fn () => $registry->define('y', ['capabilities' => [Textual::class], 'editor' => ['nincs' => 'full']]));
+    check($registry->define('z', ['capabilities' => [Textual::class], 'editor' => ['body' => 'basic']])->editors === ['body' => 'basic']);
+});
+
+test('ObjectForm: the editor widget for HTML, the convert button for a saved plain text', function () use ($repository, $engine, $service, $admin): void {
+    $form = new ObjectForm($engine, new \Campanella\I18n\Translator([], 'hu'), 'Europe/Budapest', new \Campanella\Html\HtmlSanitizer(['elements' => ['p' => [], 'a' => ['href']]]));
+    $byName = static fn (array $fields): array => array_column(array_map(static fn ($f) => ['n' => $f->name, 'f' => $f], $fields), 'f', 'n');
+
+    $html = $byName($form->build($repository->create('article'), $admin, editors: ['body' => 'basic']));
+    check($html['body']->widget === 'html' && $html['body']->attributes['editor'] === 'basic' && !$html['body']->disabled);
+    $allow = json_decode((string) $html['body']->attributes['allow_tags'], true);
+    check($allow['p'] === true && $allow['a'] === ['href' => true] && $allow['span'] === true && !isset($allow['script']), (string) $html['body']->attributes['allow_tags']);
+    check($byName($form->build($repository->create('article'), $admin, editors: ['body' => 'ismeretlen']))['body']->attributes['editor'] === 'full', 'unknown profile → full');
+
+    $plainNew = $byName($form->build($repository->create('article', ['format' => 'plain']), $admin));
+    check($plainNew['body']->widget === 'text' && !isset($plainNew['body']->attributes['convertible']), 'a new plain text cannot be converted yet');
+    $saved = $service->create($admin, 'article', ['title' => 'Sima törzs', 'body' => 'a', 'format' => 'plain']);
+    check(($byName($form->build($saved, $admin))['body']->attributes['convertible'] ?? null) === 1, 'a saved one can');
+    check(!isset($byName($form->build($saved, $admin))['lead']->attributes['convertible']), 'only the body');
+});
+
+test('Kernel: converting a plain body to HTML in the admin', function () use ($editorUser, $service, $admin): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $container = $kernel->container();
+    if ($container->get(Connection::class)->prefix() !== 'test_') {
+        echo "      (skipped: config/local.php sets its own prefix)\n";
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $storage = new ArraySessionStorage();
+    $container->set(Session::class, static fn () => new Session($storage));
+    $container->get(AuthService::class)->login(new Request('GET', '/'), $editorUser);
+    $send = function (string $method, string $path, array $post = []) use ($kernel, $storage) {
+        $storage->endRequest();
+
+        return $kernel->handle(new Request($method, $path, post: $post));
+    };
+    $field = static function (string $name, string $body): string {
+        preg_match('/name="' . $name . '" value="([^"]*)"/', $body, $m);
+
+        return $m[1] ?? '';
+    };
+    $repository = $container->get(ObjectRepository::class);
+
+    $article = $service->create($admin, 'article', ['title' => 'Átalakítandó', 'body' => "Első <b>bekezdés</b>.\n\nMásodik.", 'format' => 'plain']);
+    $path = '/admin/article/' . $article->id();
+    $form = $send('GET', $path);
+    check(str_contains($form->body, 'form="convert-html"') && str_contains($form->body, 'action="' . $path . '/convert-html"'), 'the button and its form');
+    check(!str_contains($form->body, 'jodit.min.js'), 'no editor for a plain text');
+
+    check($send('GET', $path . '/convert-html')->status === 405);
+    $send('POST', $path . '/convert-html', ['_csrf' => $field('_csrf', $form->body), '_version' => str_repeat('0', 64)]);
+    check($repository->find((int) $article->id())?->get('format') === 'plain', 'a stale version is refused');
+
+    $converted = $send('POST', $path . '/convert-html', ['_csrf' => $field('_csrf', $form->body), '_version' => $field('_version', $form->body)]);
+    $stored = $repository->find((int) $article->id());
+    check($converted->status === 303 && $stored?->get('format') === 'html', 'converted');
+    check($stored?->get('body') === '<p>Első &lt;b&gt;bekezdés&lt;/b&gt;.</p><p>Második.</p>', (string) $stored?->get('body'));
+    $after = $send('GET', $path);
+    check(str_contains($after->body, 'Formázott szöveggé alakítva') && str_contains($after->body, 'data-editor='), 'flash, and now the editor');
+
+    check($send('POST', '/admin/article/999999/convert-html')->status === 404);
     putenv('CAMPANELLA_DB_PREFIX');
 });
 

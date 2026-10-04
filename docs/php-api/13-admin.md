@@ -19,6 +19,11 @@ in parts; this chapter grows with them (see the [ROADMAP](../../ROADMAP.md)):
   `DefaultPolicy` does not let an `editor` delete.
 - Admin pages are personal (`Cache-Control: private, no-store`, as every page
   with a session) and are not indexed (`X-Robots-Tag: noindex, nofollow`).
+- Since 0.0.5 they carry a **Content-Security-Policy**
+  (`AdminController::CONTENT_SECURITY_POLICY`): only scripts from this site,
+  no inline script, no frames, no plugins, forms only to this site. Even HTML
+  that got past the filter could not run code in the admin. Styles may be
+  inline, because the editor creates style elements.
 
 ## AdminAccess
 
@@ -50,6 +55,7 @@ The `subpath` route parameter selects the page. Everything goes through the
 | `POST /admin/<blueprint>/<id>/publish` | Publishing, now or at a given time ([below](#publishing-and-deleting)) |
 | `POST /admin/<blueprint>/<id>/unpublish` | Unpublishing |
 | `/admin/<blueprint>/<id>/delete` | Deleting: a confirmation page; POST deletes |
+| `POST /admin/<blueprint>/<id>/convert-html` | Converts a saved plain body to a formatted one ([below](#formatted-text-the-html-editor)) |
 | `/admin/system` | The System page ([below](#the-system-page)) |
 | `POST /admin/system/clear-cache` | Clears the template cache |
 
@@ -91,9 +97,11 @@ definitions, so a new Blueprint or capability gets its form automatically.
 
 | Member | Description |
 |---|---|
-| `build(CampanellaObject $object, Actor $actor, ?array $input = null, array $errors = [], array $order = []): list<FormField>` | The form elements; with `$input`, the submitted values are shown again (after a failed save); `$order` is the Blueprint's `form_order` |
+| `__construct(QueryEngine $queries, Translator $translator, string $timezone = 'UTC', ?HtmlSanitizer $html = null)` | `$html`: its allowlist is given to the HTML editor (since 0.0.5) |
+| `build(CampanellaObject $object, Actor $actor, ?array $input = null, array $errors = [], array $order = [], array $editors = []): list<FormField>` | The form elements; with `$input`, the submitted values are shown again (after a failed save); `$order` is the Blueprint's `form_order`, `$editors` its `editor` key |
 | `read(CampanellaObject $object, array $post, Actor $actor): array` | The submitted form as `values`, `relations` (name → target IDs) and `errors` (values that cannot be read) |
-| `MANAGED_FIELDS` | `status`, `published_at`, `format`: not in the form (publishing is a separate action; the text format belongs to the HTML editor in 0.0.5) |
+| `MANAGED_FIELDS` | `status`, `published_at`, `format`: not in the form (publishing and converting a text to HTML are separate actions) |
+| `EDITOR_PROFILES` | `full`, `basic`: the editor's toolbar profiles; the first is the default |
 | `MAX_OPTIONS` | 500: the most relation targets offered (the current targets are always offered too) |
 | `parseDateTime(string $text): ?DateTimeImmutable` | A date and time typed in the site's time zone (`2026-10-02T14:30:00`, `2026-10-02 14:30`, …) as UTC; empty: null; `UnexpectedValueException` with the key `validation.invalid_date` |
 | `localDateTime(?DateTimeInterface $time, string $format = 'Y-m-d\TH:i:s'): string` | A time in the site's time zone (by default in the `datetime-local` input format); null: empty text |
@@ -109,6 +117,7 @@ and `inputId()`.
 |---|---|
 | String | `string`: text input with `maxlength` |
 | Text | `text`: text area (tall for `body`) |
+| Text, the `Textual` body in `html` format | `html`: the HTML editor ([below](#formatted-text-the-html-editor)) |
 | Integer | `integer`: number input (the `INT` range) |
 | Boolean | `boolean`: checkbox; in a multi-valued field a yes/no select per value |
 | DateTime | `datetime`: date and time in the site time zone (`timezone` setting), stored in UTC |
@@ -125,13 +134,52 @@ and `inputId()`.
   Blueprints and capabilities that the user may see, ordered by title. Only
   offered targets can be added or removed: a current target that was not
   offered is kept, and a posted ID that was not offered is ignored.
-- **HTML text:** a `body` in `html` format is read-only until the HTML filter
-  arrives in 0.0.5.
+- **HTML text:** a `body` in `html` format is edited with the HTML editor (see
+  below); it is filtered on save like any HTML text.
 - **Path:** may be left empty (Routable makes it from the title). A path that
   a fixed route, the admin or a public folder (`/assets`, `/themes`) already
   uses is rejected (`validation.path_reserved`).
 - **Order:** the Blueprint's `form_order` key, e.g.
   `'form_order' => ['title', 'lead', 'body', 'categories', 'author', 'path']`.
+
+### Formatted text: the HTML editor
+
+Since 0.0.5 a `Textual` body in `html` format is edited with
+[Jodit](https://xdsoft.net/jodit/) (the MIT edition, 4.17, shipped in
+`public/assets/vendor/jodit/`, no CDN). `public/assets/admin-editor.js` turns
+every `<textarea data-editor>` of the `html` widget into an editor; switching
+to another editor means replacing these two files. Without JavaScript the
+textarea with the raw HTML remains.
+
+- **The filter decides.** The editor is a convenience; every saved HTML text
+  is filtered on the server ([chapter 15](15-html.md)). The editor gets the
+  same allowlist (`data-allow-tags`), so it offers and keeps what the filter
+  keeps, and cleans pasted content (e.g. from Word) the same way.
+- **Toolbar profiles** per field, in the Blueprint:
+  `'editor' => ['body' => 'full']`. `full`: paragraph styles (normal, h2–h4,
+  quote, code), bold, italic, strikethrough, sub- and superscript, lists,
+  link, table, horizontal rule, clear formatting, undo/redo, HTML view, full
+  screen. `basic`: bold, italic, lists, link, clear formatting, undo/redo.
+- **Nothing from other servers:** the HTML view is a plain text area (not Ace
+  from a CDN), HTML beautifying (from a CDN) is off, and the plugins that call
+  outside services (AI assistant, speech recognition, the "powered by" link)
+  are disabled.
+- **The editor's language** follows the `locale` setting; its colors follow the
+  light or dark mode.
+- **New articles and pages** get a formatted body: the Blueprint's `defaults`
+  key sets `format` to `html` ([chapter 2](02-objects.md#blueprint)).
+- **Converting a plain text:** the edit form of a saved object with a plain
+  body has a *Convert to formatted text* button. It converts the stored text
+  with `PlainText::toHtml()`, so the paragraphs and line breaks are kept and
+  every character is escaped (`POST /admin/<blueprint>/<id>/convert-html`;
+  CSRF and version checks as for publishing; it needs the `Update` permission).
+  Unsaved changes of the form are not part of it.
+
+`Campanella\Html\PlainText` · **Public** · `final class`
+
+| Method | Description |
+|---|---|
+| `static toHtml(string $text): string` | Plain text as HTML, the way a plain text is shown on the site: blank lines separate paragraphs (`<p>`), a single line break becomes `<br>`, every character is escaped |
 
 ### Saving
 
@@ -205,7 +253,7 @@ theme cannot lock anyone out. The look is Bootstrap 5.3 with a small
 | `admin/delete.html.twig` | The delete confirmation page |
 | `admin/system.html.twig` | The System page |
 | `admin/form/_row.html.twig` | One form row: label, widget (repeated for multi-valued fields), help, error |
-| `admin/form/<widget>.html.twig` | One input per widget (see above) |
+| `admin/form/<widget>.html.twig` | One input per widget (see above); `html` is the editor's textarea, `text` shows the convert button for a saved plain body |
 | `admin/_status.html.twig` | Publication status badge (draft, published, scheduled) |
 
 ## One-time messages: Flash
