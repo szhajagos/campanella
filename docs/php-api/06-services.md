@@ -15,7 +15,8 @@ operations**, not the repository directly.
 | `update(Actor $actor, CampanellaObject $object, array $values, array $relations = []): void` | `Update` | Sets the values (and the given relations; the others stay as they are) and saves |
 | `publish(Actor $actor, CampanellaObject $object, ?DateTimeImmutable $at = null): void` | `Publish` | See `Publishable::publish()`. A future `$at` = scheduled publishing |
 | `unpublish(Actor $actor, CampanellaObject $object): void` | `Unpublish` | Back to draft |
-| `delete(Actor $actor, CampanellaObject $object): void` | `Delete` | Deletes the object and all of its capability data |
+| `delete(Actor $actor, CampanellaObject $object): void` | `Delete` | Deletes the object and all of its capability data, then notifies the listeners |
+| `addListener(ObjectListener $listener): void` | – | Adds a listener (since 0.0.5) |
 
 Errors: `AccessDeniedException` if the policy denies the operation;
 `ValidationException` if the save is invalid; `OutOfBoundsException` if you
@@ -29,6 +30,25 @@ $service = $container->get(ObjectService::class);
 $draft = $service->create($actor, 'article', ['title' => 'Scheduled news item', 'body' => '<p>…</p>']);
 // A plain text body: 'format' => 'plain', or PlainText::toHtml($text) as the body.
 $service->publish($actor, $draft, new DateTimeImmutable('2026-10-01 08:00', new DateTimeZone('Europe/Budapest')));
+```
+
+### ObjectListener
+
+`Campanella\Service\ObjectListener` · **Public** · `interface`
+
+A minimal hook until the Event / Action system: notified by the
+`ObjectService` after deleting (since 0.0.5). The built-in one,
+`DeleteMediaFile`, deletes an image's file together with its object
+([chapter 16](16-media.md)).
+
+| Method | Description |
+|---|---|
+| `afterDelete(CampanellaObject $object): void` | After the object was deleted from the database. An exception thrown here is logged, not passed on |
+
+```php
+$container->get(ObjectService::class)->addListener(new class implements ObjectListener {
+    public function afterDelete(CampanellaObject $object): void { /* e.g. clear a cache */ }
+});
 ```
 
 ## ObjectRepository

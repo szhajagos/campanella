@@ -24,10 +24,19 @@ use DateTimeImmutable;
  */
 final class ObjectService
 {
+    /** @var list<ObjectListener> */
+    private array $listeners = [];
+
     public function __construct(
         private readonly ObjectRepository $repository,
         private readonly AccessPolicy $policy,
     ) {
+    }
+
+    /** Adds a listener, notified after operations (since 0.0.5: after deleting). */
+    public function addListener(ObjectListener $listener): void
+    {
+        $this->listeners[] = $listener;
     }
 
     /**
@@ -95,6 +104,13 @@ final class ObjectService
     {
         $this->authorize($actor, Operation::Delete, $object);
         $this->repository->delete($object);
+        foreach ($this->listeners as $listener) {
+            try {
+                $listener->afterDelete($object);
+            } catch (\Throwable $e) {
+                error_log('Campanella: ' . $listener::class . ' failed after deleting #' . $object->id() . ': ' . $e->getMessage());
+            }
+        }
     }
 
     private function authorize(Actor $actor, Operation $operation, CampanellaObject $object): void

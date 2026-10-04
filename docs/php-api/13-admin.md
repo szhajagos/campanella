@@ -67,7 +67,10 @@ The `subpath` route parameter selects the page. Everything goes through the
 | `MAX_REFERRERS` | 20: the most referring objects listed on the delete page |
 
 Blueprints with the `Authenticatable` capability (users) are not managed as
-content; user management in the browser comes later. `system` and `media` are
+content; user management in the browser comes later. The objects of a
+Blueprint with the `MediaFile` capability (images) are listed and edited
+(title, alternative text), but not created from an empty form: they are
+created by uploading ([chapter 16](16-media.md)). `system` and `media` are
 admin paths, so no Blueprint can have these names (`BlueprintRegistry::RESERVED_NAMES`).
 
 ### The list

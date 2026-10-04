@@ -20,6 +20,7 @@ namespace, in the `src/` folder (PSR-4).
 13. [Admin UI](13-admin.md): access, `AdminAccess`, `Flash`, admin templates
 14. [System check](14-system-check.md): `SystemCheck`, `CheckResult`, `TemplateCache`, the System page
 15. [HTML texts](15-html.md): the allowlist, `HtmlSanitizer`, `html:sanitize`
+16. [Images](16-media.md): the `image` Blueprint, `MediaFile`, `MediaService`, `ImageProcessor`, `MediaStorage`
 
 ## Namespaces
 
@@ -41,6 +42,7 @@ namespace, in the `src/` folder (PSR-4).
 | `Campanella\Core` | Infrastructure | Kernel, container, configuration |
 | `Campanella\System` | Infrastructure | System check, template cache |
 | `Campanella\Html` | Infrastructure | HTML filter |
+| `Campanella\Media` | Service | Uploaded images: checking, re-encoding, storing |
 | `Campanella\Cli` | Infrastructure | Command-line tool |
 | `Campanella\Support` | Helper | Slug, UUID |
 

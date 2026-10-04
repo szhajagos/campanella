@@ -2,3 +2,5 @@
 /var/cache/*
 !/var/cache/.gitkeep
 /config/local.php
+/public/media/*
+!/public/media/.htaccess

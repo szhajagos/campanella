@@ -48,6 +48,20 @@ backward-incompatible.
   are kept). New `Campanella\Html\PlainText::toHtml()`.
 - The admin pages send a Content-Security-Policy: only this site's scripts,
   no inline scripts.
+- **Images, server side.** An uploaded image becomes an object of the new
+  `image` Blueprint (title, alternative text, author) with the new `MediaFile`
+  capability (file path, type, size, dimensions, SHA-256 checksum; own table
+  `cap_media_file`). `MediaService::uploadImage()` checks the access, the
+  size, the type from the content (JPEG, PNG, WebP, GIF; no SVG) and the
+  dimensions and structure before decoding (including JPEGs crafted to keep
+  the decoder busy), re-encodes the image with GD (metadata such as
+  GPS positions and anything hidden in the file are removed, EXIF orientation
+  applied, scaled down to 2560 px), and stores it under a random name in
+  `public/media/YYYY/MM/`, where a `.htaccess` forbids running code. Deleting
+  the object deletes the file. New `media` settings. The admin lists and
+  edits images; uploading from the admin comes next.
+- `ObjectService::addListener()` and `ObjectListener` (`afterDelete()`): a
+  minimal hook until the Event / Action system.
 - `php bin/campanella html:sanitize [--dry-run]`: filters the HTML texts
   stored before. **Run it once after upgrading** (texts stored by earlier
   versions were not filtered).
@@ -63,6 +77,8 @@ backward-incompatible.
   does it).
 - `php bin/campanella status` exits with `1` if a check reports an error
   (e.g. a missing PHP extension, or the database is not installed yet).
+- Schema version 5 (new `cap_media_file` table): after upgrading, run
+  `php bin/campanella install`.
 - New dependencies: `symfony/html-sanitizer` and its dependencies
   (`masterminds/html5`, `league/uri`, `league/uri-interfaces`,
   `psr/http-message`, `psr/http-factory`, all MIT), and the `dom` PHP

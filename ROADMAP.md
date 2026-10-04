@@ -75,7 +75,9 @@ Agreed in detail on 2026-10-02. In five parts, each its own commit:
      become `<p>`, nothing is lost).
    - A Content-Security-Policy header for the admin that allows only our own
      scripts, as a second line of defense.
-3. **Image upload** to our own endpoint (`POST /admin/media/upload`, without
+3. **Image upload**, in three commits: (a) ✅ the image object and the
+   upload service, server side; (b) uploading from the admin and the editor;
+   (c) the "Images" list, system checks, Docker php.ini. To our own endpoint (`POST /admin/media/upload`, without
    Jodit's PHP connector; CSRF; only for users the policy lets create).
    - Checked by content, not by extension: JPEG, PNG, WebP, GIF. No SVG (it
      can carry scripts). A size limit (e.g. 5 MB) and a pixel limit.
@@ -84,10 +86,12 @@ Agreed in detail on 2026-10-02. In five parts, each its own commit:
      files. Without GD the original is stored, and the system page warns.
    - Stored as `public/media/YYYY/MM/<random name>.<ext>`; a `.htaccess` there
      forbids running PHP.
-   - Every image is an object (`image` Blueprint: file path, type, size,
-     width, height, alternative text), following the decision that anything
-     referred to is an object. An "Images" list in the admin; deleting the
-     object deletes the file. New table: run `install` after upgrading.
+   - Every image is an object (`image` Blueprint), following the decision that
+     anything referred to is an object. Its file data (path, type, size,
+     width, height) is a new capability with its own table, so it can be
+     queried; the alternative text is a field too. An "Images" list in the
+     admin; deleting the object deletes the file. New table: run `install`
+     after upgrading.
 4. Release `v0.0.5`.
 
 **Done when:** an article's body can be formatted in the browser, including
@@ -134,6 +138,26 @@ on, the system is suitable for running a real website.
 - **JSON API** according to the [HTTP API draft](docs/http-api/README.md).
 - **Media:** file storage, images, image variants.
 - **User management in the browser** (until then: the `user:*` commands).
+- **Blueprints defined in the admin** (until then: `config/blueprints.php`).
+  Every object stays in `objects`; the question is only where a custom field
+  of such a Blueprint is stored. A per-field (or per-Blueprint) setting
+  decides (2026-10-04):
+  - *not queryable*: in the `data` JSON column (as custom fields are now);
+  - *queryable* (filtering, sorting, indexes): in a table of its own. Either a
+    table generated for the Blueprint (its own columns; needs the migration
+    system of 0.0.6, because the admin would change the database schema), or
+    the shared typed value table (`cc_field_values`), which needs no schema
+    change at all. To be decided when the feature is planned.
+  - Order: after the migrations (0.0.6), because every change also affects
+    the existing content.
+  - Operations: creating and modifying Blueprints; choosing capabilities from
+    the installed ones (adding one is applied to the existing objects too;
+    removing one keeps their data); custom fields; labels, form order,
+    defaults, editor profile.
+  - Blueprints from `config/blueprints.php` would appear as protected ("defined
+    in code"); those created in the admin would be fully editable.
+  - New kinds of capabilities stay code (they carry behaviour): they come from
+    modules, not from the admin.
 - **Multilingual content.**
 - **Search**, URL aliases and redirects, trash, audit log.
 - **Login extensions:** two-factor authentication (e.g. TOTP) as its own

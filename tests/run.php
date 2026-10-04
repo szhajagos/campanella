@@ -1811,6 +1811,275 @@ test('Kernel: converting a plain body to HTML in the admin', function () use ($e
     putenv('CAMPANELLA_DB_PREFIX');
 });
 
+echo "\nImages\n";
+
+/**
+ * A test image file (made with GD) in a temporary folder; returns its path.
+ * $type: jpeg, png, webp, gif, bmp.
+ */
+function testImage(string $type, int $width, int $height, bool $transparent = false): string
+{
+    $image = imagecreatetruecolor($width, $height);
+    if ($transparent) {
+        imagealphablending($image, false);
+        imagesavealpha($image, true);
+        imagefill($image, 0, 0, (int) imagecolorallocatealpha($image, 255, 0, 0, 127));
+    } else {
+        imagefill($image, 0, 0, (int) imagecolorallocate($image, 30, 120, 200));
+        imagefilledrectangle($image, 0, 0, intdiv($width, 2), intdiv($height, 2), (int) imagecolorallocate($image, 250, 200, 0));
+    }
+    $file = tempnam(sys_get_temp_dir(), 'cimg');
+    match ($type) {
+        'jpeg' => imagejpeg($image, $file, 90),
+        'png' => imagepng($image, $file),
+        'webp' => imagewebp($image, $file),
+        'gif' => imagegif($image, $file),
+        'bmp' => imagebmp($image, $file),
+    };
+
+    return $file;
+}
+
+/** The message key of the ValidationException the call throws on the `file` field. */
+function mediaError(callable $call): string
+{
+    try {
+        $call();
+    } catch (ValidationException $e) {
+        return $e->errors['file']->key ?? '(other field)';
+    }
+
+    return '(no error)';
+}
+
+/** A JPEG with an EXIF orientation and a comment segment holding a "GPS position" inserted after its SOI marker. */
+function jpegWithMetadata(string $jpeg, int $orientation): string
+{
+    $bytes = (string) file_get_contents($jpeg);
+    // EXIF (big-endian TIFF): one IFD entry, Orientation (0x0112), SHORT, count 1.
+    $tiff = "MM\x00\x2A" . pack('N', 8) . pack('n', 1) . pack('nnN', 0x0112, 3, 1) . pack('n', $orientation) . "\x00\x00" . pack('N', 0);
+    $app1 = "Exif\x00\x00" . $tiff;
+    $comment = 'GPSLatitude 47.4979 GPSLongitude 19.0402 secret';
+    $segments = "\xFF\xE1" . pack('n', strlen($app1) + 2) . $app1 . "\xFF\xFE" . pack('n', strlen($comment) + 2) . $comment;
+    $file = tempnam(sys_get_temp_dir(), 'cimg');
+    file_put_contents($file, substr($bytes, 0, 2) . $segments . substr($bytes, 2));
+
+    return $file;
+}
+
+test('ImageProcessor: accepted types, re-encoding, scaling, transparency', function (): void {
+    if (!extension_loaded('gd')) {
+        echo "      (skipped: no gd extension)\n";
+
+        return;
+    }
+    $processor = new \Campanella\Media\ImageProcessor(maxDimension: 100);
+    foreach (['jpeg' => ['image/jpeg', 'jpg'], 'png' => ['image/png', 'png'], 'webp' => ['image/webp', 'webp'], 'gif' => ['image/gif', 'gif']] as $type => [$mime, $ext]) {
+        $result = $processor->process(testImage($type, 80, 60));
+        check($result->mimeType === $mime && $result->extension === $ext && $result->reencoded, $type);
+        check($result->width === 80 && $result->height === 60, "{$type}: size kept");
+        check(getimagesizefromstring($result->bytes)['mime'] === $mime, "{$type}: a valid image");
+    }
+
+    $big = $processor->process(testImage('jpeg', 400, 300));
+    check($big->width === 100 && $big->height === 75, 'scaled down to max_dimension: ' . $big->width . 'x' . $big->height);
+    $tall = $processor->process(testImage('png', 50, 200));
+    check($tall->width === 25 && $tall->height === 100, 'by the longer side');
+
+    $alpha = $processor->process(testImage('png', 300, 300, transparent: true));
+    $decoded = imagecreatefromstring($alpha->bytes);
+    check($decoded !== false && (imagecolorat($decoded, 10, 10) >> 24) === 127, 'transparency survives scaling');
+});
+
+test('ImageProcessor: hostile and broken files are refused or made harmless', function (): void {
+    if (!extension_loaded('gd')) {
+        echo "      (skipped: no gd extension)\n";
+
+        return;
+    }
+    $processor = new \Campanella\Media\ImageProcessor(maxBytes: 200_000);
+    $temp = static function (string $content): string {
+        $file = tempnam(sys_get_temp_dir(), 'cimg');
+        file_put_contents($file, $content);
+
+        return $file;
+    };
+
+    check(mediaError(fn () => $processor->process($temp(''))) === 'media.empty');
+    check(mediaError(fn () => $processor->process('/nincs/ilyen/fajl.jpg')) === 'media.empty');
+    check(mediaError(fn () => $processor->process($temp(str_repeat('x', 200_001)))) === 'media.too_large');
+    check(mediaError(fn () => $processor->process($temp('<?php system($_GET["c"]); ?>'))) === 'media.not_image', 'PHP code named .jpg');
+    check(mediaError(fn () => $processor->process($temp('<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><script>alert(1)</script></svg>'))) === 'media.not_image', 'SVG');
+    check(mediaError(fn () => $processor->process($temp("GIF89a\x01\x00\x01\x00<?php echo 1; ?>"))) !== '(no error)', 'a broken GIF with code');
+    check(mediaError(fn () => $processor->process(testImage('bmp', 10, 10))) === 'media.type_not_allowed', 'BMP');
+
+    // A tiny PNG whose header claims 30 000 × 30 000 pixels: refused before decoding.
+    $ihdr = pack('NN', 30000, 30000) . "\x08\x02\x00\x00\x00";
+    $chunk = static fn (string $type, string $data): string => pack('N', strlen($data)) . $type . $data . pack('N', crc32($type . $data));
+    $bomb = $temp("\x89PNG\r\n\x1a\n" . $chunk('IHDR', $ihdr) . $chunk('IDAT', gzcompress('')) . $chunk('IEND', ''));
+    check(mediaError(fn () => $processor->process($bomb)) === 'media.too_many_pixels', 'decompression bomb');
+
+    // A real image with PHP code appended: accepted, but the code does not survive re-encoding.
+    $gif = testImage('gif', 20, 20);
+    file_put_contents($gif, '<?php system($_GET["c"]); ?>', FILE_APPEND);
+    $clean = $processor->process($gif);
+    check(!str_contains($clean->bytes, '<?php') && !str_contains($clean->bytes, 'system('), 'the appended code is gone');
+
+    // Metadata (here a "GPS position" in a comment, and the EXIF block) is removed;
+    // the EXIF orientation is applied first, so the photo stays upright.
+    $photo = jpegWithMetadata(testImage('jpeg', 40, 20), 6);
+    check(str_contains((string) file_get_contents($photo), 'GPSLatitude'));
+    $result = $processor->process($photo);
+    check(!str_contains($result->bytes, 'GPSLatitude') && !str_contains($result->bytes, 'Exif'), 'metadata removed');
+    if (function_exists('exif_read_data')) {
+        check($result->width === 20 && $result->height === 40, 'turned upright: ' . $result->width . 'x' . $result->height);
+    }
+
+    // A JPEG with too many scans (start-of-scan markers) is refused before decoding.
+    $scans = testImage('jpeg', 20, 20);
+    file_put_contents($scans, str_repeat("\xFF\xDA\x00\x08\x01\x01\x00\x00\x3F\x00", 101), FILE_APPEND);
+    check(mediaError(fn () => $processor->process($scans)) === 'media.too_complex', 'too many JPEG scans');
+
+    // Every EXIF orientation is turned upright. The stored image is 40×20, yellow in its
+    // top-left quarter; the corner where the yellow ends up, and the size, after correction:
+    if (function_exists('exif_read_data')) {
+        $expected = [1 => ['tl', 40, 20], 2 => ['tr', 40, 20], 3 => ['br', 40, 20], 4 => ['bl', 40, 20],
+            5 => ['tl', 20, 40], 6 => ['tr', 20, 40], 7 => ['br', 20, 40], 8 => ['bl', 20, 40]];
+        foreach ($expected as $orientation => [$corner, $w, $h]) {
+            $upright = $processor->process(jpegWithMetadata(testImage('jpeg', 40, 20), $orientation));
+            $img = imagecreatefromstring($upright->bytes);
+            $x = str_ends_with($corner, 'l') ? intdiv($w, 4) : intdiv($w * 3, 4);
+            $y = str_starts_with($corner, 't') ? intdiv($h, 4) : intdiv($h * 3, 4);
+            $rgb = imagecolorat($img, $x, $y);
+            check($upright->width === $w && $upright->height === $h && ($rgb >> 16 & 255) > 180 && ($rgb & 255) < 120, "orientation {$orientation}: yellow expected at {$corner}");
+        }
+    }
+
+    // Without GD: the checked original is stored as it is.
+    $original = testImage('png', 30, 30);
+    $plain = (new \Campanella\Media\ImageProcessor(useGd: false))->process($original);
+    check(!$plain->reencoded && $plain->bytes === file_get_contents($original) && $plain->width === 30);
+    check(mediaError(fn () => (new \Campanella\Media\ImageProcessor(useGd: false))->process($temp('<?php ?>'))) === 'media.not_image', 'checked without GD too');
+
+    // The pixel limit follows memory_limit, which is raised for image processing if allowed.
+    $limit = (string) ini_get('memory_limit');
+    ini_set('memory_limit', '128M');
+    $small = new \Campanella\Media\ImageProcessor(memoryLimit: '');
+    $raising = new \Campanella\Media\ImageProcessor(memoryLimit: '512M');
+    $pixels = $small->maxPixels();
+    check($pixels < 25_000_000, 'lower with less memory: ' . $pixels);
+    check($raising->maxPixels() > $pixels && ini_get('memory_limit') === '512M', 'raised: ' . $raising->maxPixels());
+    ini_set('memory_limit', $limit);
+    check(\Campanella\Media\ImageProcessor::iniBytes('128M') === 134217728 && \Campanella\Media\ImageProcessor::iniBytes('-1') === -1);
+    throws(\InvalidArgumentException::class, fn () => new \Campanella\Media\ImageProcessor(quality: 0));
+});
+
+test('MediaStorage: random names, safe paths, the .htaccess', function (): void {
+    $dir = sys_get_temp_dir() . '/campanella-media-' . bin2hex(random_bytes(4));
+    $storage = new \Campanella\Media\MediaStorage($dir, '/media');
+    check($storage->isWritable());
+    $path = $storage->store('tartalom', 'jpg', new DateTimeImmutable('2026-10-04', new DateTimeZone('UTC')));
+    check(preg_match('#^2026/10/[0-9a-f]{24}\.jpg$#', $path) === 1, $path);
+    check(file_get_contents($dir . '/' . $path) === 'tartalom' && $storage->path($path) === $dir . '/' . $path);
+    check($storage->url($path) === '/media/' . $path);
+    check(str_contains((string) file_get_contents($dir . '/.htaccess'), 'php_flag engine off'), 'the .htaccess is written');
+    check($storage->store('x', 'png') !== $storage->store('x', 'png'), 'a new name every time');
+
+    foreach (['../config/app.php', '2026/10/abc.php', '/etc/passwd', '2026/10/' . str_repeat('a', 24) . '.php', ''] as $bad) {
+        throws(\InvalidArgumentException::class, fn () => $storage->path($bad));
+    }
+    throws(\InvalidArgumentException::class, fn () => $storage->store('x', 'php'));
+    throws(\InvalidArgumentException::class, fn () => $storage->path($path . "\n"));
+    check($storage->delete($path) && !is_file($dir . '/' . $path) && !$storage->delete($path), 'deleted once');
+});
+
+test('MediaService: uploading creates an image object; deleting it deletes the file', function () use ($repository, $policy, $admin, $editorUser): void {
+    if (!extension_loaded('gd')) {
+        echo "      (skipped: no gd extension)\n";
+
+        return;
+    }
+    $dir = sys_get_temp_dir() . '/campanella-media-' . bin2hex(random_bytes(4));
+    $storage = new \Campanella\Media\MediaStorage($dir);
+    $objects = new ObjectService($repository, $policy);
+    $objects->addListener(new \Campanella\Media\DeleteMediaFile($storage));
+    $media = new \Campanella\Media\MediaService($objects, $repository, $policy, new \Campanella\Media\ImageProcessor(), $storage);
+    $files = static fn (): array => glob($dir . '/*/*/*') ?: [];
+
+    $editor = new Actor(\Campanella\Access\ActorKind::User, (int) $editorUser->id(), ['editor']);
+    $image = $media->uploadImage($editor, testImage('jpeg', 64, 48), 'C:\\Képek\\Nyaralás 2026.JPG', '  Tengerpart  ');
+    $file = $image->as(\Campanella\Capability\MediaFile::class);
+    check($image->blueprint() === 'image' && $image->id() !== null);
+    check($image->get('title') === 'Nyaralás 2026' && $image->get('alt') === 'Tengerpart', (string) $image->get('title'));
+    check($file->mimeType() === 'image/jpeg' && $file->width() === 64 && $file->height() === 48);
+    check(is_file($storage->path($file->path())) && $file->size() === filesize($storage->path($file->path())));
+    check($file->hash() === hash_file('sha256', $storage->path($file->path())));
+    check($image->as(\Campanella\Capability\Authorable::class)->authorId() === $editorUser->id(), 'the uploader is the author');
+    check($media->url($image) === '/media/' . $file->path());
+
+    $reloaded = $repository->find((int) $image->id());
+    check($reloaded?->get('file_path') === $file->path() && $reloaded->get('width') === 64, 'stored in its capability table');
+
+    // Nothing is stored for an invalid file or a user who may not upload.
+    $before = count($files());
+    check(mediaError(fn () => $media->uploadImage($admin, (string) tempnam(sys_get_temp_dir(), 'x'), 'ures.jpg')) === 'media.empty');
+    throws(\Campanella\Access\AccessDeniedException::class, fn () => $media->uploadImage(Actor::anonymous(), testImage('png', 10, 10), 'a.png'));
+    check(count($files()) === $before, 'no file left behind');
+
+    $objects->delete($admin, $image);
+    check(!is_file($storage->path($file->path())) && $repository->find((int) $image->id()) === null, 'deleted with its file');
+
+    check(\Campanella\Media\MediaService::titleFrom('../../etc/passwd') === 'passwd');
+    check(\Campanella\Media\MediaService::titleFrom('.jpg') === 'image' && \Campanella\Media\MediaService::titleFrom("a\x00b\n.png") === 'ab');
+    check(\Campanella\Media\MediaService::titleFrom("szamla\u{202E}gpj.exe") === 'szamlagpj', 'direction-changing characters removed');
+});
+
+test('Kernel: images in the admin are listed, edited, but not created from a form', function () use ($editorUser, $admin): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $container = $kernel->container();
+    if ($container->get(Connection::class)->prefix() !== 'test_' || !extension_loaded('gd')) {
+        echo "      (skipped: config/local.php sets its own prefix, or no gd)\n";
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $dir = sys_get_temp_dir() . '/campanella-media-' . bin2hex(random_bytes(4));
+    $container->set(\Campanella\Media\MediaStorage::class, static fn () => new \Campanella\Media\MediaStorage($dir));
+    $storage = new ArraySessionStorage();
+    $container->set(Session::class, static fn () => new Session($storage));
+    $container->get(AuthService::class)->login(new Request('GET', '/'), $editorUser);
+    $send = function (string $method, string $path, array $post = []) use ($kernel, $storage) {
+        $storage->endRequest();
+
+        return $kernel->handle(new Request($method, $path, post: $post));
+    };
+
+    $image = $container->get(\Campanella\Media\MediaService::class)->uploadImage($admin, testImage('png', 20, 20), 'logo.png');
+
+    // The system check reports the media folder and the re-encoded types.
+    $checks = [];
+    foreach ($container->get(\Campanella\System\SystemCheck::class)->run() as $result) {
+        $checks[$result->label] = $result;
+    }
+    check($checks['admin.system.media_folder']->status === \Campanella\System\CheckStatus::Ok && $checks['admin.system.media_folder']->value === $dir);
+    check(str_contains($checks['admin.system.media_reencode']->value, 'image/jpeg'), 'reencoded types listed');
+    $list = $send('GET', '/admin/image');
+    check($list->status === 200 && str_contains($list->body, 'logo') && !str_contains($list->body, 'href="/admin/image/new"'), 'listed, no New button');
+    check($send('GET', '/admin/image/new')->status === 404, 'no empty form for a file');
+    $form = $send('GET', '/admin/image/' . $image->id());
+    check($form->status === 200 && str_contains($form->body, 'name="f[alt]"') && !str_contains($form->body, 'f[file_path]') && !str_contains($form->body, 'f[file_hash]'), 'file data is not in the form');
+
+    preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $form->body, $c);
+    preg_match('/name="_version" value="([0-9a-f]{64})"/', $form->body, $v);
+    $send('POST', '/admin/image/' . $image->id(), ['_csrf' => $c[1] ?? '', '_version' => $v[1] ?? '', 'f' => [
+        'title' => 'Logó', 'alt' => 'A Campanella logója', 'file_path' => '../../config/local.php',
+    ]]);
+    $saved = $container->get(ObjectRepository::class)->find((int) $image->id());
+    check($saved?->get('alt') === 'A Campanella logója' && $saved->get('file_path') === $image->get('file_path'), 'a posted file path is ignored');
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
 echo "\nDocumentation examples\n";
 
 test('New capability as in the docs example (Weighted)', function () use ($db, $admin): void {

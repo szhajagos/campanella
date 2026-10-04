@@ -39,6 +39,11 @@ use Campanella\View\CampanellaTwigExtension;
 use Campanella\View\Presentation;
 use Campanella\View\Theme;
 use Campanella\Html\HtmlSanitizer;
+use Campanella\Media\DeleteMediaFile;
+use Campanella\Media\ImageProcessor;
+use Campanella\Media\MediaCheck;
+use Campanella\Media\MediaService;
+use Campanella\Media\MediaStorage;
 use Campanella\System\SystemCheck;
 use Campanella\System\TemplateCache;
 use Twig\Environment;
@@ -176,13 +181,18 @@ final class Kernel
         });
 
         $c->set(TemplateCache::class, static fn (): TemplateCache => new TemplateCache($root . '/var/cache/twig', Version::CAMPANELLA));
-        $c->set(SystemCheck::class, static fn (Container $c): SystemCheck => new SystemCheck(
-            $c->get(Config::class),
-            $c->get(Connection::class),
-            $c->get(Installer::class),
-            $c->get(TemplateCache::class),
-            $root,
-        ));
+        $c->set(SystemCheck::class, static function (Container $c) use ($root): SystemCheck {
+            $system = new SystemCheck(
+                $c->get(Config::class),
+                $c->get(Connection::class),
+                $c->get(Installer::class),
+                $c->get(TemplateCache::class),
+                $root,
+            );
+            $system->add(MediaCheck::checks($c->get(ImageProcessor::class), $c->get(MediaStorage::class)));
+
+            return $system;
+        });
 
         $c->set(Translator::class, static fn (Container $c): Translator => Translator::fromDirectory(
             $root . '/lang',
@@ -201,9 +211,41 @@ final class Kernel
             self::guards((array) $c->get(Config::class)->get('auth.guards', [])),
         ));
 
-        $c->set(ObjectService::class, static fn (Container $c): ObjectService => new ObjectService(
+        $c->set(ObjectService::class, static function (Container $c): ObjectService {
+            $service = new ObjectService($c->get(ObjectRepository::class), $c->get(AccessPolicy::class));
+            // A deleted image takes its file with it.
+            $service->addListener(new DeleteMediaFile($c->get(MediaStorage::class)));
+
+            return $service;
+        });
+
+        $c->set(MediaStorage::class, static function (Container $c) use ($root): MediaStorage {
+            $config = $c->get(Config::class);
+            $directory = (string) $config->get('media.directory', 'public/media');
+
+            return new MediaStorage(
+                str_starts_with($directory, '/') ? $directory : $root . '/' . $directory,
+                (string) $config->get('media.url', '/media'),
+            );
+        });
+        $c->set(ImageProcessor::class, static function (Container $c): ImageProcessor {
+            $config = $c->get(Config::class);
+
+            return new ImageProcessor(
+                (int) $config->get('media.max_bytes', 10 * 1024 * 1024),
+                (int) $config->get('media.max_pixels', 25_000_000),
+                (int) $config->get('media.max_dimension', 2560),
+                (int) $config->get('media.quality', 85),
+                null,
+                (string) $config->get('media.memory_limit', '256M'),
+            );
+        });
+        $c->set(MediaService::class, static fn (Container $c): MediaService => new MediaService(
+            $c->get(ObjectService::class),
             $c->get(ObjectRepository::class),
             $c->get(AccessPolicy::class),
+            $c->get(ImageProcessor::class),
+            $c->get(MediaStorage::class),
         ));
 
         $c->set(Installer::class, static fn (Container $c): Installer => new Installer(

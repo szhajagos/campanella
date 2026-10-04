@@ -251,7 +251,7 @@ final class AdminController implements Controller
 
         return $this->render('list', $blueprint->name, [
             'editable' => $editable,
-            'can_create' => $this->policy->allows($actor, Operation::Create, $this->repository->create($blueprint->name)),
+            'can_create' => !self::isFile($blueprint) && $this->policy->allows($actor, Operation::Create, $this->repository->create($blueprint->name)),
             'title' => $blueprint->label,
             'blueprint' => $blueprint,
             'result' => $result,
@@ -267,6 +267,10 @@ final class AdminController implements Controller
     /** /admin/<blueprint>/new: the empty form, and creating the object from it. */
     private function create(Request $request, Actor $actor, Blueprint $blueprint): Response
     {
+        // A file (e.g. an image) is created by uploading it, not from an empty form.
+        if (self::isFile($blueprint)) {
+            throw HttpException::notFound();
+        }
         $object = $this->repository->create($blueprint->name);
         if (!$this->policy->allows($actor, Operation::Create, $object)) {
             throw new HttpException(403, 'error.forbidden');
@@ -656,6 +660,12 @@ final class AdminController implements Controller
             'can_publish' => $this->policy->allows($actor, Operation::Publish, $object),
             'can_unpublish' => $published && $this->policy->allows($actor, Operation::Unpublish, $object),
         ];
+    }
+
+    /** Whether the Blueprint's objects are files (MediaFile): created by uploading, not by a form. */
+    private static function isFile(Blueprint $blueprint): bool
+    {
+        return isset($blueprint->capabilities['media_file']);
     }
 
     /** Whether a new object may be published right when it is created. */

@@ -60,6 +60,7 @@ by explicit factory functions in the `Kernel`, on first request, once.
 | `Twig\Environment::class`, `Presentation::class` | Rendering |
 | `Router::class` | Routing |
 | `HtmlSanitizer::class` | The HTML filter ([chapter 15](15-html.md)) |
+| `MediaService::class`, `ImageProcessor::class`, `MediaStorage::class` | Uploaded images ([chapter 16](16-media.md)) |
 | `TemplateCache::class`, `SystemCheck::class` | The template cache folder, the system check ([chapter 14](14-system-check.md)) |
 | `controller.object`, `controller.query`, `controller.auth`, `controller.admin` | Controllers; following the `controller.<handler>` pattern |
 
@@ -103,6 +104,7 @@ New controller: a `controller.<name>` entry in the container, and a route in
 | `locale` | `'hu'` | `CAMPANELLA_LOCALE` ([chapter 12](12-translation.md#choosing-the-language)) |
 | `theme` | `''` (no theme) | `CAMPANELLA_THEME` ([chapter 7](07-http-and-view.md#theme)) |
 | `admin.path`, `admin.roles` | `'/admin'`, `['administrator', 'editor']` | ([chapter 13](13-admin.md#access)) |
+| `media.*` | see [chapter 16](16-media.md#settings-configappphp-media) | Uploaded images |
 | `admin.system_roles` | `['administrator']` | Who may open the System page ([chapter 14](14-system-check.md)) |
 | `site.name`, `site.slogan` | `'Campanella'`, … | |
 | `database.host` | `'localhost'` | `CAMPANELLA_DB_HOST` |
@@ -123,7 +125,7 @@ set, it is the project root (by default the parent directory of `public/`).
 
 `Campanella\Core\Version` · **Public**
 
-`CAMPANELLA = '0.0.4'` (the system version) and `SCHEMA = '4'` (the database
+`CAMPANELLA = '0.0.4'` (the system version) and `SCHEMA = '5'` (the database
 schema version; incremented for a new table or migration).
 
 ## CLI

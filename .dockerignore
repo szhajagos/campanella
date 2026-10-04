@@ -2,3 +2,5 @@
 vendor
 var/cache/*
 config/local.php
+public/media/*
+!public/media/.htaccess

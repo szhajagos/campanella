@@ -171,6 +171,12 @@ visible until that time comes, and then appears on its own.
 `Identifiable`, `Authenticatable` and `Authorable` are described in chapter
 [11. Users and login](11-users.md#capabilities).
 
+### MediaFile
+
+A stored file (e.g. an uploaded image): path, type, size, dimensions,
+checksum, in its own table. Since 0.0.5; described in chapter
+[16. Images](16-media.md#the-image-blueprint-and-the-mediafile-capability).
+
 ## Writing a new capability
 
 Example: a `Weighted` capability that gives the object a weight, so that lists

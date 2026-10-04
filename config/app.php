@@ -6,6 +6,7 @@ use Campanella\Auth\Guard\HoneypotGuard;
 use Campanella\Capability\Authenticatable;
 use Campanella\Capability\Authorable;
 use Campanella\Capability\Identifiable;
+use Campanella\Capability\MediaFile;
 use Campanella\Capability\Publishable;
 use Campanella\Capability\Routable;
 use Campanella\Capability\Textual;
@@ -59,6 +60,19 @@ return [
         Identifiable::class,
         Authenticatable::class,
         Authorable::class,
+        MediaFile::class,
+    ],
+
+    // Uploaded files (images). The folder is under public/, so the files are served
+    // directly by the web server; a .htaccess there forbids running scripts.
+    'media' => [
+        'directory' => 'public/media',      // relative to the project root
+        'url' => '/media',                  // the folder's address on the site
+        'max_bytes' => 10 * 1024 * 1024,    // the largest file accepted (also limited by php.ini)
+        'max_pixels' => 25_000_000,         // the largest image (width × height); also limited by memory_limit
+        'max_dimension' => 2560,            // larger images are scaled down to this width or height
+        'quality' => 85,                    // JPEG and WebP quality when re-encoding (1–100)
+        'memory_limit' => '256M',           // memory_limit is raised to this while processing an image, if allowed
     ],
 
     // Session (login). The session only starts at login; anonymous

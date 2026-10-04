@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Campanella\Capability\Authenticatable;
 use Campanella\Capability\Authorable;
+use Campanella\Capability\MediaFile;
 use Campanella\Capability\Publishable;
 use Campanella\Capability\Routable;
 use Campanella\Capability\Textual;
@@ -60,6 +61,17 @@ return [
     'user' => [
         'label' => 'blueprint.user',
         'capabilities' => [Titled::class, Authenticatable::class],
+    ],
+
+    // An uploaded image: its file data (MediaFile), a title (the original file name
+    // at first) and an alternative text. The uploader becomes the author.
+    'image' => [
+        'label' => 'blueprint.image',
+        'capabilities' => [Titled::class, MediaFile::class, Authorable::class],
+        'fields' => [
+            new Field('alt', FieldType::String, label: 'field.alt'),
+        ],
+        'form_order' => ['title', 'alt', 'author'],
     ],
 
     'category' => [
