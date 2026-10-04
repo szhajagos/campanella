@@ -116,7 +116,12 @@ final class ObjectForm
                 },
                 attributes: match (true) {
                     // The editor gets its toolbar profile and the filter's allowlist.
-                    $htmlBody => ['rows' => 18, 'editor' => $profile, 'allow_tags' => $this->editorAllowlist()],
+                    $htmlBody => [
+                        'rows' => 18,
+                        'editor' => $profile,
+                        'allow_tags' => $this->editorAllowlist(),
+                        'external_images' => $this->html->allowsExternalImages() ? 1 : 0,
+                    ],
                     $field->type === FieldType::String => ['maxlength' => $field->length],
                     // The main text (Textual body) gets a tall box, other texts a shorter one; a saved
                     // plain body can be converted to a formatted one (AdminController's convert-html).

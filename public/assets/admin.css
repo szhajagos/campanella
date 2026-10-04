@@ -20,3 +20,4 @@
     --jd-color-border: var(--bs-border-color);
 }
 .jodit_theme_dark .jodit-wysiwyg { background-color: var(--bs-body-bg); color: var(--bs-body-color); }
+.jodit-wysiwyg img { max-width: 100%; height: auto; }

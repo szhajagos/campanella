@@ -289,4 +289,7 @@ return [
     'admin.system.media_refused' => 'Not accepted, because the gd extension cannot process them: {types}. See the gd line above.',
     'admin.system.media_unprocessed' => 'Stored as uploaded, metadata included (store_unprocessed is on): {types}.',
     'admin.system.media_no_gd' => 'Without the gd extension no image can be uploaded (or turn on store_unprocessed).',
+    'media.server_error' => 'The server could not receive the file (temporary folder or disk). Try again later.',
+    'media.session_expired' => 'Your session has expired. Log in again (e.g. in another tab), then try again.',
+    'admin.form.external_image_removed' => 'An image from another site was removed: only images uploaded here can be used.',
 ];

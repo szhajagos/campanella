@@ -55,6 +55,7 @@ The `subpath` route parameter selects the page. Everything goes through the
 | `POST /admin/<blueprint>/<id>/publish` | Publishing, now or at a given time ([below](#publishing-and-deleting)) |
 | `POST /admin/<blueprint>/<id>/unpublish` | Unpublishing |
 | `/admin/<blueprint>/<id>/delete` | Deleting: a confirmation page; POST deletes |
+| `POST /admin/media/upload` | Uploading an image, for the editor; JSON ([chapter 16](16-media.md#uploading-from-the-admin)) |
 | `POST /admin/<blueprint>/<id>/convert-html` | Converts a saved plain body to a formatted one ([below](#formatted-text-the-html-editor)) |
 | `/admin/system` | The System page ([below](#the-system-page)) |
 | `POST /admin/system/clear-cache` | Clears the template cache |
@@ -161,8 +162,8 @@ textarea with the raw HTML remains.
 - **Toolbar profiles** per field, in the Blueprint:
   `'editor' => ['body' => 'full']`. `full`: paragraph styles (normal, h2–h4,
   quote, code), bold, italic, strikethrough, sub- and superscript, lists,
-  link, table, horizontal rule, clear formatting, undo/redo, HTML view, full
-  screen. `basic`: bold, italic, lists, link, clear formatting, undo/redo.
+  link, image (if the user may upload images), table, horizontal rule, clear
+  formatting, undo/redo, HTML view, full screen. `basic`: bold, italic, lists, link, clear formatting, undo/redo.
 - **Nothing from other servers:** the HTML view is a plain text area (not Ace
   from a CDN), HTML beautifying (from a CDN) is off, and the plugins that call
   outside services (AI assistant, speech recognition, the "powered by" link)

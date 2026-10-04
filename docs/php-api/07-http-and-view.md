@@ -10,15 +10,25 @@
 | `$path` | The path relative to the installation root, normalized: starts with `/`, does not end with `/` |
 | `$query`, `$post` | `$_GET`, `$_POST` |
 | `$basePath` | URL prefix for an installation in a subdirectory, e.g. `/campanella`; otherwise `''` |
-| `$headers` | Keyed by lowercase header names, e.g. `'accept-language'` |
+| `$headers` | Keyed by lowercase header names, e.g. `'accept-language'`; also `'content-length'` (since 0.0.5) |
 | `$cookies` | `$_COOKIE` (string values only) |
 | `$ip` | `REMOTE_ADDR` |
 | `$secure` | Whether the request arrived over HTTPS |
+| `$files` | Uploaded files by field name (`array<string, UploadedFile>`, single-file fields; since 0.0.5) |
+| `file(string $name): ?UploadedFile` | An uploaded file field |
 | `isPost(): bool` | |
 | `postString(string $name): string`, `queryString(string $name): string` | A single field as a string; if missing or not a string: `''` |
 | `static fromGlobals(): self` | From the PHP superglobals |
 | `static normalizePath(string $path): string` | `'/hirek/'` → `'/hirek'`; `'/index.php'` → `'/'` |
 | `queryInt(string $name, int $default = 0): int` | An integer from the query string |
+
+`Campanella\Http\UploadedFile` · **Public** · `final readonly class`:
+`$name` (as the client gave it; only for display, never used as a path),
+`$path` (PHP's temporary file), `$size`, `$error` (`UPLOAD_ERR_*`);
+`isOk(): bool`, `isTooLarge(): bool` (refused by PHP for its size).
+`fromGlobals()` only accepts a file PHP confirms it received as an upload
+(`is_uploaded_file()`), so a path given by the client can never pass for one;
+a failed upload keeps its error code.
 
 If the `.htaccess` in the root directs the request under `public/`,
 `basePath` hides this, so `/public` does not appear in URLs.
@@ -32,6 +42,7 @@ If the `.htaccess` in the root directs the request under `public/`,
 | `__construct(string $body = '', int $status = 200, array $headers = [...])` | Default header: `Content-Type: text/html; charset=utf-8` |
 | `$body`, `$status`, `$headers` | Read-only |
 | `static html(string $body, int $status = 200): self` | |
+| `static json(array $data, int $status = 200): self` | JSON (`application/json; charset=utf-8`), never cached (since 0.0.5) |
 | `static redirect(string $url, int $status = 302): self` | |
 | `withHeader(string $name, string $value): self` | A new response with the header added |
 | `send(): void` | Sends the response; also adds the `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN` and `Referrer-Policy: same-origin` headers to every response |

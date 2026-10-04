@@ -287,4 +287,7 @@ return [
     'admin.system.media_refused' => 'Nem fogadja el, mert a gd bővítmény nem tudja feldolgozni: {types}. Lásd fent a gd sorát.',
     'admin.system.media_unprocessed' => 'Feltöltött formában, metaadatokkal együtt tárolódik (store_unprocessed be van kapcsolva): {types}.',
     'admin.system.media_no_gd' => 'A gd bővítmény nélkül nem lehet képet feltölteni (vagy kapcsold be a store_unprocessed beállítást).',
+    'media.server_error' => 'A szerver nem tudta fogadni a fájlt (ideiglenes mappa vagy lemez). Próbáld újra később.',
+    'media.session_expired' => 'A munkamenet lejárt. Jelentkezz be újra (például egy másik lapon), majd próbáld újra.',
+    'admin.form.external_image_removed' => 'Egy másik webhelyről származó kép eltávolítva: csak ide feltöltött képet lehet használni.',
 ];

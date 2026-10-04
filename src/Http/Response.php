@@ -19,6 +19,20 @@ final class Response
         return new self($body, $status);
     }
 
+    /**
+     * A JSON response (e.g. for the editor's image upload). Never cached.
+     *
+     * @param array<string, mixed> $data
+     */
+    public static function json(array $data, int $status = 200): self
+    {
+        return new self(
+            json_encode($data, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            $status,
+            ['Content-Type' => 'application/json; charset=utf-8', 'Cache-Control' => 'no-store'],
+        );
+    }
+
     public static function redirect(string $url, int $status = 302): self
     {
         return new self('', $status, ['Location' => $url]);

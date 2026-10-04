@@ -35,7 +35,8 @@ The default allowlist (`config/html.php`, or `HtmlSanitizer::defaults()`):
 - **Images:** only from this site, i.e. relative addresses such as
   `/media/2026/10/photo.jpg`. External images (including the protocol-relative
   `//host/…`) lose their `src`: they would send the visitors' data to another
-  server, and they can change or vanish (`external_images` setting).
+  server, and they can change or vanish (`external_images` setting). An `<img>`
+  left without an address is dropped.
 - **Attributes:** only the listed ones. `style`, `class`, `id` and every
   `on…` event handler are removed.
 - **Other elements:** removed together with their content (`script`,
@@ -81,6 +82,7 @@ before.
 | `problem(string $html): ?Message` | Why the text cannot be filtered: too long, too many tags, or not valid UTF-8; null if it can |
 | `isTooLong(string $html): bool` | Whether the text is longer than `max_length` (in bytes) |
 | `maxLength(): int` | `max_length` |
+| `allowsExternalImages(): bool` | The `external_images` setting |
 | `allowedElements(): array<string, list<string>>` | The allowed elements and their attributes (the `elements` setting); the admin's editor gets them |
 | `UNWRAPPED` | The elements removed with their text kept |
 

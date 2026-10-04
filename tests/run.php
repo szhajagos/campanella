@@ -1644,6 +1644,8 @@ test('HtmlSanitizer: the allowed content stays, wrappers are unwrapped, links ge
     check($sanitizer->sanitize('<a href="mailto:info@example.com">a</a>') === '<a href="mailto:info&#64;example.com" rel="noopener noreferrer">a</a>', 'mailto (@ encoded, browsers decode it)');
     check($sanitizer->sanitize('<p>&lt;b&gt; &amp; ő</p>') === '<p>&lt;b&gt; &amp; ő</p>', 'entities stay escaped');
     check($sanitizer->sanitize('   ') === '' && $sanitizer->sanitize('csak szöveg') === 'csak szöveg');
+    check($sanitizer->sanitize('<p>a<img src="https://example.com/x.gif" alt="külső"><img alt="nincs"><img src="/media/2026/10/a.jpg"></p>') === '<p>a<img src="/media/2026/10/a.jpg" /></p>', 'images left without an address are dropped');
+    check(!$sanitizer->allowsExternalImages() && (new \Campanella\Html\HtmlSanitizer(['external_images' => true]))->allowsExternalImages());
 
     // Configurable: external images, and a narrower element list.
     $external = new \Campanella\Html\HtmlSanitizer(['external_images' => true]);
@@ -1754,6 +1756,7 @@ test('ObjectForm: the editor widget for HTML, the convert button for a saved pla
 
     $html = $byName($form->build($repository->create('article'), $admin, editors: ['body' => 'basic']));
     check($html['body']->widget === 'html' && $html['body']->attributes['editor'] === 'basic' && !$html['body']->disabled);
+    check($html['body']->attributes['external_images'] === 0, 'the editor knows external images are not kept');
     $allow = json_decode((string) $html['body']->attributes['allow_tags'], true);
     check($allow['p'] === true && $allow['a'] === ['href' => true] && $allow['span'] === true && !isset($allow['script']), (string) $html['body']->attributes['allow_tags']);
     check($byName($form->build($repository->create('article'), $admin, editors: ['body' => 'ismeretlen']))['body']->attributes['editor'] === 'full', 'unknown profile → full');
@@ -2090,6 +2093,87 @@ test('Kernel: images in the admin are listed, edited, but not created from a for
     ]]);
     $saved = $container->get(ObjectRepository::class)->find((int) $image->id());
     check($saved?->get('alt') === 'A Campanella logója' && $saved->get('file_path') === $image->get('file_path'), 'a posted file path is ignored');
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('Request: only files PHP received as uploads are accepted', function (): void {
+    $saved = [$_FILES, $_SERVER];
+    $_SERVER['REQUEST_METHOD'] = 'POST';
+    $_SERVER['REQUEST_URI'] = '/admin/media/upload';
+    $_SERVER['CONTENT_LENGTH'] = '1234';
+    $_FILES = [
+        'file' => ['name' => 'passwd.jpg', 'tmp_name' => '/etc/passwd', 'size' => 100, 'error' => UPLOAD_ERR_OK],
+        'big' => ['name' => 'nagy.jpg', 'tmp_name' => '', 'size' => 0, 'error' => UPLOAD_ERR_INI_SIZE],
+        'many' => ['name' => ['a.jpg', 'b.jpg'], 'tmp_name' => ['/tmp/a', '/tmp/b'], 'size' => [1, 1], 'error' => [0, 0]],
+    ];
+    $request = Request::fromGlobals();
+    check($request->file('file') === null, 'a path that was not uploaded is ignored');
+    check($request->file('big')?->isTooLarge() === true, 'a failed upload keeps its error');
+    check($request->file('many') === null && $request->headers['content-length'] === '1234');
+    [$_FILES, $_SERVER] = $saved;
+});
+
+test('Kernel: uploading an image from the admin (POST /admin/media/upload)', function () use ($editorUser): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $container = $kernel->container();
+    if ($container->get(Connection::class)->prefix() !== 'test_' || !extension_loaded('gd')) {
+        echo "      (skipped: config/local.php sets its own prefix, or no gd)\n";
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $dir = sys_get_temp_dir() . '/campanella-media-' . bin2hex(random_bytes(4));
+    $container->set(\Campanella\Media\MediaStorage::class, static fn () => new \Campanella\Media\MediaStorage($dir));
+    $storage = new ArraySessionStorage();
+    $container->set(Session::class, static fn () => new Session($storage));
+    $auth = $container->get(AuthService::class);
+    $auth->login(new Request('GET', '/'), $editorUser);
+    $send = function (string $method, string $path, array $post = [], array $files = [], array $headers = []) use ($kernel, $storage) {
+        $storage->endRequest();
+
+        return $kernel->handle(new Request($method, $path, post: $post, headers: $headers, files: $files));
+    };
+    $form = $send('GET', '/admin/article/new');
+    preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $form->body, $m);
+    $csrf = $m[1] ?? '';
+    check(str_contains($form->body, 'data-upload-url="/admin/media/upload"') && str_contains($form->body, 'data-upload-max="'), 'the form offers the upload');
+    $json = static fn ($response): array => (array) json_decode($response->body, true);
+    $upload = static fn (string $file, string $name = 'kep.jpg', int $error = UPLOAD_ERR_OK) => ['file' => new \Campanella\Http\UploadedFile($name, $file, (int) @filesize($file), $error)];
+
+    $ok = $send('POST', '/admin/media/upload', ['_csrf' => $csrf], $upload(testImage('jpeg', 120, 80), 'Nyaralás.jpg'));
+    $data = $json($ok);
+    check($ok->status === 201 && ($ok->headers['Content-Type'] ?? '') === 'application/json; charset=utf-8', 'created: ' . $ok->status . ' ' . $ok->body);
+    check($data['success'] === true && $data['title'] === 'Nyaralás' && $data['width'] === 120 && preg_match('#^/media/\d{4}/\d{2}/[0-9a-f]{24}\.jpg$#', (string) $data['url']) === 1, $ok->body);
+    check(is_file($dir . substr((string) $data['url'], strlen('/media'))), 'the file is stored');
+    $image = $container->get(ObjectRepository::class)->find((int) $data['id']);
+    check($image?->as(\Campanella\Capability\Authorable::class)->authorId() === $editorUser->id(), 'the editor is the author');
+
+    $bad = $send('POST', '/admin/media/upload', ['_csrf' => $csrf], $upload((static function (): string {
+        $f = (string) tempnam(sys_get_temp_dir(), 'x');
+        file_put_contents($f, '<?php echo 1; ?>');
+
+        return $f;
+    })(), 'rossz.jpg'));
+    check($bad->status === 422 && $json($bad)['success'] === false && $json($bad)['message'] === 'A fájl nem kép (vagy sérült).', $bad->body);
+
+    check($send('POST', '/admin/media/upload', [], $upload(testImage('png', 10, 10)))->status === 400, 'without the CSRF token');
+    check($json($send('POST', '/admin/media/upload', ['_csrf' => $csrf]))['message'] === 'A fájl üres, vagy nem érkezett meg.', 'no file');
+    $tooLarge = $send('POST', '/admin/media/upload', ['_csrf' => $csrf], $upload('', 'nagy.jpg', UPLOAD_ERR_INI_SIZE));
+    check($tooLarge->status === 413 && str_contains((string) $json($tooLarge)['message'], 'MB'), 'refused by PHP for its size: ' . $tooLarge->body);
+    check($send('POST', '/admin/media/upload', [], [], ['content-length' => '20', 'content-type' => 'application/json'])->status === 400, 'an empty non-form POST is not "too large"');
+    $discarded = $send('POST', '/admin/media/upload', [], [], ['content-length' => '99999999', 'content-type' => 'multipart/form-data; boundary=x']);
+    check($discarded->status === 413, 'a body PHP discarded (post_max_size) is reported as too large, not as an expired form');
+    check($send('POST', '/admin/media/upload', ['_csrf' => $csrf], $upload('', 'x.jpg', UPLOAD_ERR_NO_TMP_DIR))->status === 500);
+    check($send('GET', '/admin/media/upload')->status === 405 && $send('POST', '/admin/media/other')->status === 404);
+    check(str_contains((string) ($ok->headers['X-Robots-Tag'] ?? ''), 'noindex'), 'admin headers');
+
+    // After the session expired, the editor gets JSON, not the login page.
+    $auth->logout();
+    $expired = $send('POST', '/admin/media/upload', ['_csrf' => $csrf], $upload(testImage('png', 10, 10)));
+    check($expired->status === 401 && $json($expired)['message'] === 'A munkamenet lejárt. Jelentkezz be újra (például egy másik lapon), majd próbáld újra.', $expired->body);
+    check($send('GET', '/admin/article')->status === 302, 'other admin pages still redirect to the login page');
+
     putenv('CAMPANELLA_DB_PREFIX');
 });
 

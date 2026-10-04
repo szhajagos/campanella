@@ -62,7 +62,17 @@ backward-incompatible.
   so no image is stored with its metadata (`media.store_unprocessed` turns
   this off). The system page lists gd's formats and the uploadable types. Deleting
   the object deletes the file. New `media` settings. The admin lists and
-  edits images; uploading from the admin comes next.
+  edits images.
+- **Uploading images from the admin:** an image button in the editor's
+  `full` toolbar, and pasted or dropped images are uploaded too, to
+  `POST /admin/media/upload` (JSON; CSRF; errors in the user's language,
+  e.g. for a file too large for the server's limits, or an expired session).
+  Images are never kept in the text as data: pasted base64 images are
+  uploaded; images from other sites are removed in the editor at once, and an
+  `<img>` left without an address is dropped on save. New `Request::$files` / `file()` and
+  `UploadedFile` (only real PHP uploads are accepted), `Response::json()`,
+  `MediaService::maxUploadBytes()`. Images in texts stay within the column
+  (`.body img` in `campanella.css`).
 - `ObjectService::addListener()` and `ObjectListener` (`afterDelete()`): a
   minimal hook until the Event / Action system.
 - `php bin/campanella html:sanitize [--dry-run]`: filters the HTML texts

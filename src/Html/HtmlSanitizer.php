@@ -46,6 +46,8 @@ final class HtmlSanitizer
     /** @var array<string, list<string>> */
     private readonly array $elements;
 
+    private readonly bool $externalImages;
+
     /**
      * @param array{elements?: array<string, list<string>>, link_schemes?: list<string>, external_images?: bool, max_length?: int, max_tags?: int} $config
      *        The allowlist (config/html.php); keys left out keep their default.
@@ -56,6 +58,7 @@ final class HtmlSanitizer
         $this->maxLength = $config['max_length'];
         $this->maxTags = $config['max_tags'];
         $this->elements = $config['elements'];
+        $this->externalImages = $config['external_images'];
         if ($this->maxLength < 1 || $this->maxTags < 1) {
             throw new \InvalidArgumentException('html max_length and max_tags must be at least 1.');
         }
@@ -130,7 +133,10 @@ final class HtmlSanitizer
 
         // The library adds a space to attribute values containing a backtick (a workaround
         // for Internet Explorer 8), which would grow on every save; removed for idempotence.
-        return (string) preg_replace('/="([^"]*&#96;[^"]*) "/', '="$1"', $clean);
+        $clean = (string) preg_replace('/="([^"]*&#96;[^"]*) "/', '="$1"', $clean);
+
+        // An image whose address was removed (external, data: …) would stay as an empty <img>.
+        return trim((string) preg_replace('/<img(?![^>]*\ssrc=)[^>]*>/', '', $clean));
     }
 
     /**
@@ -157,6 +163,12 @@ final class HtmlSanitizer
     public function allowedElements(): array
     {
         return $this->elements;
+    }
+
+    /** Whether images from other servers are kept (the external_images setting). */
+    public function allowsExternalImages(): bool
+    {
+        return $this->externalImages;
     }
 
     /** Whether the text is longer than the max_length setting (in bytes). */

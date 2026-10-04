@@ -17,6 +17,7 @@ final readonly class Request
      * @param array<string, mixed> $post
      * @param array<string, string> $headers
      * @param array<string, string> $cookies
+     * @param array<string, UploadedFile> $files Uploaded files by field name (single-file fields; since 0.0.5)
      */
     public function __construct(
         public string $method,
@@ -28,6 +29,7 @@ final readonly class Request
         public array $cookies = [],
         public string $ip = '',
         public bool $secure = false,
+        public array $files = [],
     ) {
     }
 
@@ -55,6 +57,12 @@ final readonly class Request
             }
         }
         $https = (string) ($_SERVER['HTTPS'] ?? '');
+        // Not an HTTP_ variable, but needed to recognise a body PHP discarded (post_max_size).
+        foreach (['CONTENT_LENGTH' => 'content-length', 'CONTENT_TYPE' => 'content-type'] as $server => $header) {
+            if (isset($_SERVER[$server])) {
+                $headers[$header] = (string) $_SERVER[$server];
+            }
+        }
 
         return new self(
             strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET')),
@@ -66,7 +74,38 @@ final readonly class Request
             $cookies,
             (string) ($_SERVER['REMOTE_ADDR'] ?? ''),
             ($https !== '' && strtolower($https) !== 'off') || (int) ($_SERVER['SERVER_PORT'] ?? 0) === 443,
+            self::uploadedFiles($_FILES),
         );
+    }
+
+    /** A posted file field, if any. */
+    public function file(string $name): ?UploadedFile
+    {
+        return $this->files[$name] ?? null;
+    }
+
+    /**
+     * The single-file fields of $_FILES. A file that arrived is only accepted if PHP
+     * confirms it was uploaded (is_uploaded_file()); a failed upload keeps its error code.
+     *
+     * @param array<mixed> $files
+     * @return array<string, UploadedFile>
+     */
+    private static function uploadedFiles(array $files): array
+    {
+        $result = [];
+        foreach ($files as $field => $file) {
+            if (!is_array($file) || !is_string($file['name'] ?? null) || !is_string($file['tmp_name'] ?? null)) {
+                continue; // multiple files under one name are not supported
+            }
+            $error = (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE);
+            if ($error === UPLOAD_ERR_OK && !is_uploaded_file($file['tmp_name'])) {
+                continue;
+            }
+            $result[(string) $field] = new UploadedFile($file['name'], $file['tmp_name'], (int) ($file['size'] ?? 0), $error);
+        }
+
+        return $result;
     }
 
     public static function normalizePath(string $path): string

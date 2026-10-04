@@ -62,6 +62,23 @@ final class MediaService
         }
     }
 
+    /**
+     * The largest file that can be uploaded, in bytes: the max_bytes setting, or less if
+     * PHP's upload_max_filesize or post_max_size is lower (PHP refuses larger ones first).
+     */
+    public function maxUploadBytes(): int
+    {
+        $limits = [$this->processor->maxBytes()];
+        foreach (['upload_max_filesize', 'post_max_size'] as $setting) {
+            $bytes = ImageProcessor::iniBytes((string) ini_get($setting));
+            if ($bytes > 0) {
+                $limits[] = $bytes;
+            }
+        }
+
+        return min($limits);
+    }
+
     /** The address of an image object's file on the site (e.g. `/media/2026/10/….jpg`). */
     public function url(CampanellaObject $object): string
     {

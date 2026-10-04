@@ -351,6 +351,7 @@ final class Kernel
             $c->get(Router::class),
             $c->get(SystemCheck::class),
             $c->get(TemplateCache::class),
+            $c->get(MediaService::class),
         ));
 
         $c->set('controller.auth', static fn (Container $c): Controller => new AuthController(

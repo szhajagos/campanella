@@ -91,3 +91,8 @@ h1, h2, h3, .h1, .h2, .h3, .h4, .h5 { line-height: 1.25; }
 
 /* The login honeypot (also hidden by an inline style, independent of the theme). */
 .hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+
+/* Images in texts stay within the column, keeping their proportions. */
+.body img { max-width: 100%; height: auto; }
+.body figure { margin: 1.5rem 0; }
+.body figcaption { font-size: .875em; color: var(--bs-secondary-color); }

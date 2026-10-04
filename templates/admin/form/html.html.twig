@@ -2,4 +2,5 @@
    Without JavaScript it stays a textarea with the raw HTML; the server filters it either way. #}
 <textarea class="form-control font-monospace{{ invalid }}" id="{{ input_id }}" name="{{ field.inputName }}" rows="{{ field.attributes.rows ?? 18 }}"
     data-editor="{{ field.attributes.editor ?? 'full' }}" data-allow-tags="{{ field.attributes.allow_tags ?? '' }}"
+    data-external-images="{{ field.attributes.external_images ?? 0 }}" data-external-removed="{{ t('admin.form.external_image_removed') }}"
     {%- if field.required %} required{% endif %}{% if field.disabled %} disabled{% endif %}>{{ value }}</textarea>

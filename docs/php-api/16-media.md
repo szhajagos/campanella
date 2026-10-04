@@ -5,8 +5,9 @@ anything referred to is an object: an `image` Blueprint with a title, an
 alternative text, an author (the uploader) and the file's data. The file
 itself is stored in `public/media/` and served directly by the web server.
 
-Uploading from the admin (and the editor) comes in the next step; this chapter
-describes the server side every upload goes through.
+Images are uploaded from the admin's editor (the image button, pasting,
+dropping; [below](#uploading-from-the-admin)); every upload goes through the
+server side described here.
 
 ## What happens to an uploaded file
 
@@ -97,6 +98,7 @@ Blueprint with this capability (its objects are created by uploading).
 | `__construct(ObjectService $objects, ObjectRepository $repository, AccessPolicy $policy, ImageProcessor $processor, MediaStorage $storage, string $blueprint = 'image')` | |
 | `uploadImage(Actor $actor, string $file, string $originalName, string $alt = ''): CampanellaObject` | Checks, stores and creates the image object (see above). `AccessDeniedException` if the actor may not create images; `ValidationException` (on `file`) for an unaccepted file |
 | `url(CampanellaObject $object): string` | The file's address, e.g. `/media/2026/10/….jpg` |
+| `maxUploadBytes(): int` | The largest file that can be uploaded: `media.max_bytes`, or less if PHP's `upload_max_filesize` or `post_max_size` is lower |
 | `static titleFrom(string $originalName): string` | The original name without folders, extension and control characters (`C:\Képek\Nyaralás.JPG` → `Nyaralás`); `image` if nothing remains |
 
 ```php
@@ -144,6 +146,41 @@ the system check's *Images* lines ([chapter 14](14-system-check.md)).
 `Campanella\Media\DeleteMediaFile` · **Internal** · `ObjectListener`:
 `afterDelete(CampanellaObject $object): void` deletes the file of a deleted
 `MediaFile` object (and logs if it cannot).
+
+## Uploading from the admin
+
+`POST /admin/media/upload` (multipart, field `file`, with the CSRF token),
+for users who may create images (the `DefaultPolicy`: `administrator`,
+`editor`). The answer is JSON:
+
+| Status | Body |
+|---|---|
+| 201 | `{"success": true, "id": 12, "url": "/media/2026/10/….jpg", "title": "Nyaralás", "width": 1920, "height": 1080}` |
+| 400 | No file, or the CSRF token is missing or expired |
+| 401 | The session expired (also JSON, not the login page, so the editor can say so) |
+| 403 | The user may not create images |
+| 405 | Not POST |
+| 413 | Too large (for `media.max_bytes`, or refused by PHP: `upload_max_filesize`, or a body over `post_max_size`, which PHP discards entirely) |
+| 422 | Not an accepted image (`media.*` messages, see above) |
+| 500 | PHP could not receive the file (temporary folder, disk) |
+
+Errors are `{"success": false, "message": "…"}`, in the user's language.
+
+**In the editor** ([chapter 13](13-admin.md#formatted-text-the-html-editor)):
+the edit form carries the address and the size limit (`data-upload-url`,
+`data-upload-max`) if the user may upload. Then the `full` toolbar has an
+image button (upload tab, or an address), and pasted or dropped images are
+uploaded too. A file over the limit is refused in the browser before sending.
+The image is inserted at its own size; the site's CSS (`.body img`) keeps it
+within the column. If several files are uploaded at once, those that succeed
+are inserted and the others are reported.
+
+An image is never kept in the text as data (base64): one pasted as HTML (e.g.
+from another editor) is uploaded like a file. An image from another site is
+removed from the editor at once with a message (the filter would remove it
+on save anyway; meanwhile the admin's Content-Security-Policy does not even
+let the browser load it). Without upload permission, dropping a file on the
+editor does nothing.
 
 ## Web server
 

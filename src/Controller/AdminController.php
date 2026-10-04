@@ -26,6 +26,7 @@ use Campanella\Capability\Publishable;
 use Campanella\Capability\TextFormat;
 use Campanella\Capability\Textual;
 use Campanella\Html\PlainText;
+use Campanella\Media\MediaService;
 use Campanella\Capability\PublishStatus;
 use Campanella\Support\Slugger;
 use Campanella\System\CheckStatus;
@@ -91,6 +92,7 @@ final class AdminController implements Controller
         private readonly Router $router,
         private readonly SystemCheck $system,
         private readonly TemplateCache $templateCache,
+        private readonly MediaService $media,
     ) {
     }
 
@@ -101,6 +103,10 @@ final class AdminController implements Controller
     public function handle(Request $request, RouteMatch $route, Actor $actor): Response
     {
         $this->actor = null;
+        // The editor's upload expects JSON: an expired session gets a message, not the login page.
+        if ($actor->isAnonymous() && $request->path === $this->access->path('media/upload')) {
+            return Response::json(['success' => false, 'message' => $this->translator->translate('media.session_expired')], 401);
+        }
         if ($actor->isAnonymous()) {
             // Back to the requested admin page after logging in.
             $target = $request->path . ($request->query === [] ? '' : '?' . http_build_query($request->query));
@@ -116,6 +122,7 @@ final class AdminController implements Controller
         $segments = array_values(array_filter(explode('/', (string) ($route->params['subpath'] ?? '')), static fn (string $s): bool => $s !== ''));
         $response = match (true) {
             ($segments[0] ?? null) === 'system' => $this->system($request, $actor, array_slice($segments, 1)),
+            ($segments[0] ?? null) === 'media' => $this->mediaUpload($request, $actor, array_slice($segments, 1)),
             default => $this->content($request, $actor, $segments),
         };
 
@@ -181,6 +188,69 @@ final class AdminController implements Controller
             'groups' => $groups,
             'worst' => SystemCheck::worst($results)?->value,
         ]);
+    }
+
+    /**
+     * POST /admin/media/upload: uploads an image (field `file`, with the CSRF token) and
+     * answers in JSON, for the editor: `{success, id, url, title, width, height}`, or
+     * `{success: false, message}` with 400 (form), 403, 405, 413 (too large), 422 (not an
+     * accepted image) or 500 (the server could not receive the file).
+     *
+     * @param list<string> $segments The path after /admin/media
+     */
+    private function mediaUpload(Request $request, Actor $actor, array $segments): Response
+    {
+        $fail = fn (string $key, int $status, array $params = []): Response => Response::json([
+            'success' => false,
+            'message' => $this->translator->translate($key, $params),
+        ], $status);
+        $tooLarge = fn (): Response => $fail('media.too_large', 413, [
+            'max' => rtrim(rtrim(number_format($this->media->maxUploadBytes() / 1024 / 1024, 1, '.', ''), '0'), '.'),
+        ]);
+
+        if ($segments !== ['upload']) {
+            throw HttpException::notFound();
+        }
+        if (!$request->isPost()) {
+            return $fail('error.method_not_allowed', 405);
+        }
+        $file = $request->file('file');
+        // Over post_max_size PHP discards the whole body of a form upload, the CSRF token too.
+        if ($file === null && $request->post === [] && (int) ($request->headers['content-length'] ?? 0) > 0
+            && str_starts_with(strtolower($request->headers['content-type'] ?? ''), 'multipart/form-data')) {
+            return $tooLarge();
+        }
+        if (!$this->csrf->isValid($request)) {
+            return $fail('auth.form_expired', 400);
+        }
+        if ($file === null || in_array($file->error, [UPLOAD_ERR_NO_FILE, UPLOAD_ERR_PARTIAL], true)) {
+            return $fail('media.empty', 400);
+        }
+        if ($file->isTooLarge()) {
+            return $tooLarge();
+        }
+        if (!$file->isOk()) {
+            return $fail('media.server_error', 500);
+        }
+
+        try {
+            $image = $this->media->uploadImage($actor, $file->path, $file->name, $request->postString('alt'));
+        } catch (AccessDeniedException) {
+            return $fail('error.forbidden', 403);
+        } catch (ValidationException $e) {
+            $message = $e->errors['file'] ?? array_values($e->errors)[0] ?? new Message('media.not_image');
+
+            return Response::json(['success' => false, 'message' => $message->translate($this->translator)], 422);
+        }
+
+        return Response::json([
+            'success' => true,
+            'id' => $image->id(),
+            'url' => $request->basePath . $this->media->url($image),
+            'title' => (string) $image->get('title'),
+            'width' => $image->get('width'),
+            'height' => $image->get('height'),
+        ], 201);
     }
 
     private function dashboard(Request $request, Actor $actor): Response
@@ -386,6 +456,7 @@ final class AdminController implements Controller
             'publication' => $object->isNew() ? null : $this->publication($object, $actor),
             'can_publish_new' => $object->isNew() && $this->canPublishNew($actor, $object),
             'can_delete' => !$object->isNew() && $this->policy->allows($actor, Operation::Delete, $object),
+            'upload' => $this->uploadSettings($actor),
         ]);
 
         return $status === 200 ? $response : new Response($response->body, $status, $response->headers);
@@ -659,6 +730,27 @@ final class AdminController implements Controller
             'timezone' => $this->form->timezone(),
             'can_publish' => $this->policy->allows($actor, Operation::Publish, $object),
             'can_unpublish' => $published && $this->policy->allows($actor, Operation::Unpublish, $object),
+        ];
+    }
+
+    /**
+     * The editor's image upload, if the actor may upload images: the address, and the
+     * largest file (so the browser can refuse a larger one before sending it).
+     *
+     * @return array{url: string, max: int, max_mb: string}|null
+     */
+    private function uploadSettings(Actor $actor): ?array
+    {
+        if ($this->blueprints->find('image') === null
+            || !$this->policy->allows($actor, Operation::Create, $this->repository->create('image'))) {
+            return null;
+        }
+        $max = $this->media->maxUploadBytes();
+
+        return [
+            'url' => $this->access->path('media/upload'),
+            'max' => $max,
+            'max_mb' => rtrim(rtrim(number_format($max / 1024 / 1024, 1, '.', ''), '0'), '.'),
         ];
     }
 

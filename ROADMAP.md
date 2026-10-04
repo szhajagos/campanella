@@ -76,7 +76,7 @@ Agreed in detail on 2026-10-02. In five parts, each its own commit:
    - A Content-Security-Policy header for the admin that allows only our own
      scripts, as a second line of defense.
 3. **Image upload**, in three commits: (a) ✅ the image object and the
-   upload service, server side; (b) uploading from the admin and the editor;
+   upload service, server side; (b) ✅ uploading from the admin and the editor;
    (c) the "Images" list, system checks, Docker php.ini. To our own endpoint (`POST /admin/media/upload`, without
    Jodit's PHP connector; CSRF; only for users the policy lets create).
    - Checked by content, not by extension: JPEG, PNG, WebP, GIF. No SVG (it
