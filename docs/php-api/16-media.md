@@ -28,9 +28,12 @@ describes the server side every upload goes through.
    JPEG is turned upright by its EXIF orientation first (with the `exif`
    extension), and an image larger than `media.max_dimension` (2560 px) is
    scaled down. Transparency is kept; an animated GIF keeps only its first frame.
-   Without GD (or a GD that cannot handle the type, e.g. WebP), the checked
-   original is stored as it is (metadata included), and the system page warns
-   (the *Images* group: the media folder, and which types are re-encoded).
+   **Strict by default:** a type this server cannot re-encode (no GD, or a GD
+   built without support for it, e.g. WebP) is refused
+   (`media.type_not_processable`), so no image is ever stored with its
+   metadata. With `media.store_unprocessed` the checked original is stored
+   instead, metadata included. The system page shows the formats gd was built
+   with, and which types can be uploaded (the *Images* group).
 6. **Storing:** under a new, random name with the extension of the recognised
    type: `public/media/YYYY/MM/<24 hex characters>.<jpg|png|webp|gif>`. A
    `.htaccess` in `public/media/` forbids running anything there as code.
@@ -42,8 +45,8 @@ of the `ObjectService`).
 
 Problems are reported as a `ValidationException` on the `file` field, with the
 keys `media.empty`, `media.too_large`, `media.not_image`,
-`media.type_not_allowed`, `media.too_many_pixels`, `media.too_complex`,
-`media.processing_failed`.
+`media.type_not_allowed`, `media.type_not_processable`, `media.too_many_pixels`,
+`media.too_complex`, `media.processing_failed`.
 
 ## Settings (`config/app.php`, `media`)
 
@@ -55,6 +58,7 @@ keys `media.empty`, `media.too_large`, `media.not_image`,
 | `media.max_pixels` | 25 000 000 | The largest image (width × height) |
 | `media.max_dimension` | 2560 | Larger images are scaled down to this width or height |
 | `media.quality` | 85 | JPEG and WebP quality when re-encoding (1–100) |
+| `media.store_unprocessed` | `false` | `true`: a type the server cannot re-encode is stored as uploaded (metadata included) instead of being refused |
 | `media.memory_limit` | `'256M'` | PHP's `memory_limit` is raised to this while processing an image (for that request only), if the server allows it. Decoding a 12-megapixel photo needs about 100 MB; with the common 128 MB limit only a few megapixels would fit |
 
 ## The `image` Blueprint and the MediaFile capability
@@ -105,11 +109,13 @@ $image = $container->get(MediaService::class)->uploadImage($actor, $_FILES['file
 
 | Member | Description |
 |---|---|
-| `__construct(int $maxBytes = 10 MB, int $maxPixels = 25 000 000, int $maxDimension = 2560, int $quality = 85, ?bool $useGd = null, string $memoryLimit = '256M')` | From the `media` settings. `$useGd`: null means "if the gd extension is loaded" |
+| `__construct(int $maxBytes = 10 MB, int $maxPixels = 25 000 000, int $maxDimension = 2560, int $quality = 85, ?bool $useGd = null, string $memoryLimit = '256M', bool $storeUnprocessed = false)` | From the `media` settings. `$useGd`: null means "if the gd extension is loaded" |
 | `process(string $file): ProcessedImage` | Steps 2–5 above; `ValidationException` on the `file` field |
 | `maxPixels(): int` | The largest image accepted now (also limited by `memory_limit`, after raising it to `memoryLimit` if allowed) |
 | `maxBytes(): int` | `max_bytes` |
 | `reencodes(): bool` | Whether GD is used |
+| `storesUnprocessed(): bool` | The `store_unprocessed` setting |
+| `NAMES` | MIME type → name for messages (`image/webp` → `WebP`) |
 | `reencodedTypes(): list<string>` | The MIME types this server re-encodes (the others are stored as uploaded) |
 | `MAX_JPEG_SCANS` | 100 |
 | `static iniBytes(string $size): int` | A php.ini size (`128M`) in bytes; `-1` for no limit |
@@ -153,6 +159,17 @@ location /media/ {
     add_header X-Content-Type-Options nosniff;
     add_header Content-Security-Policy "default-src 'none'; sandbox";
 }
+```
+
+**gd with all formats.** In the official `php` Docker images gd must be built
+with the formats explicitly:
+
+```dockerfile
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libjpeg62-turbo-dev libpng-dev libwebp-dev \
+    && docker-php-ext-configure gd --with-jpeg --with-webp \
+    && docker-php-ext-install gd exif \
+    && rm -rf /var/lib/apt/lists/*
 ```
 
 ## Upgrading

@@ -20,8 +20,10 @@ use Campanella\Model\ValidationException;
  *   file are gone. A JPEG is turned upright by its EXIF orientation first (with
  *   the exif extension), and an image larger than max_dimension is scaled down.
  *   An animated GIF keeps only its first frame.
- * - Without GD (or a GD without support for the type) the checked original is
- *   stored as it is, metadata included; the system page warns about it.
+ * - A type this server cannot re-encode (no GD, or a GD built without support for
+ *   it, e.g. WebP) is refused (media.type_not_processable), so no file is ever
+ *   stored with its metadata. With the store_unprocessed setting the checked
+ *   original is stored instead, metadata included; the system page warns.
  *
  * Problems are reported as a ValidationException on the `file` field.
  */
@@ -34,6 +36,9 @@ final class ImageProcessor
         IMAGETYPE_WEBP => ['image/webp', 'webp'],
         IMAGETYPE_GIF => ['image/gif', 'gif'],
     ];
+
+    /** The types' names for messages. */
+    public const array NAMES = ['image/jpeg' => 'JPEG', 'image/png' => 'PNG', 'image/webp' => 'WebP', 'image/gif' => 'GIF'];
 
     /**
      * Memory needed for one decoded pixel: measured 4.5 bytes for a JPEG and about
@@ -53,6 +58,8 @@ final class ImageProcessor
      * @param bool|null $useGd null: if the gd extension is loaded (false: e.g. to test the fallback)
      * @param string $memoryLimit memory_limit is raised to this while processing images, if the server
      *        allows it (decoding a 12-megapixel photo needs about 100 MB); '' or a lower value: not raised
+     * @param bool $storeUnprocessed Store a type that cannot be re-encoded as it is (metadata included)
+     *        instead of refusing it
      */
     public function __construct(
         private readonly int $maxBytes = 10 * 1024 * 1024,
@@ -61,11 +68,18 @@ final class ImageProcessor
         private readonly int $quality = 85,
         ?bool $useGd = null,
         private readonly string $memoryLimit = '256M',
+        private readonly bool $storeUnprocessed = false,
     ) {
         if ($maxBytes < 1 || $maxPixels < 1 || $maxDimension < 16 || $quality < 1 || $quality > 100) {
             throw new \InvalidArgumentException('Invalid image limits (max_bytes, max_pixels, max_dimension ≥ 16, quality 1–100).');
         }
         $this->gd = $useGd ?? extension_loaded('gd');
+    }
+
+    /** Whether a type that cannot be re-encoded is stored as it is (true) or refused (false, the default). */
+    public function storesUnprocessed(): bool
+    {
+        return $this->storeUnprocessed;
     }
 
     /** Whether images are re-encoded (GD is available). */
@@ -172,6 +186,9 @@ final class ImageProcessor
 
         if ($this->gd && self::canDecode($type)) {
             return $this->reencode($file, $type, $mime, $extension);
+        }
+        if (!$this->storeUnprocessed) {
+            throw self::error('media.type_not_processable', ['type' => self::NAMES[$mime]]);
         }
         $bytes = (string) file_get_contents($file);
 

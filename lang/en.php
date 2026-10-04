@@ -284,5 +284,9 @@ return [
     'admin.system.media_folder_not_writable' => 'Not writable by the web server: images cannot be uploaded.',
     'admin.system.media_reencode' => 'Re-encoded image types',
     'admin.system.media_reencode_ok' => 'Uploaded images are re-encoded: metadata (e.g. GPS positions) and anything hidden in the file are removed.',
-    'admin.system.media_reencode_missing' => 'Not re-encoded (stored as uploaded, metadata included): {types}. Install or update the PHP gd extension.',
+    'media.type_not_processable' => '{type} images cannot be uploaded on this server (it cannot process them).',
+    'admin.system.gd_missing_formats' => 'Built without {formats} support: such images cannot be uploaded. Rebuild gd with them (e.g. docker-php-ext-configure gd --with-jpeg --with-webp).',
+    'admin.system.media_refused' => 'Not accepted, because the gd extension cannot process them: {types}. See the gd line above.',
+    'admin.system.media_unprocessed' => 'Stored as uploaded, metadata included (store_unprocessed is on): {types}.',
+    'admin.system.media_no_gd' => 'Without the gd extension no image can be uploaded (or turn on store_unprocessed).',
 ];

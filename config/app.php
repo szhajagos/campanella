@@ -73,6 +73,9 @@ return [
         'max_dimension' => 2560,            // larger images are scaled down to this width or height
         'quality' => 85,                    // JPEG and WebP quality when re-encoding (1–100)
         'memory_limit' => '256M',           // memory_limit is raised to this while processing an image, if allowed
+        // A type the server cannot re-encode (e.g. GD built without WebP) is refused, so no
+        // image is stored with its metadata (e.g. GPS position). true: stored as uploaded.
+        'store_unprocessed' => false,
     ],
 
     // Session (login). The session only starts at login; anonymous

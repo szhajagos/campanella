@@ -1955,11 +1955,23 @@ test('ImageProcessor: hostile and broken files are refused or made harmless', fu
         }
     }
 
-    // Without GD: the checked original is stored as it is.
+    // A type that cannot be re-encoded (here: no GD) is refused by default, so nothing is
+    // stored with its metadata; with store_unprocessed the checked original is stored.
     $original = testImage('png', 30, 30);
-    $plain = (new \Campanella\Media\ImageProcessor(useGd: false))->process($original);
+    check(mediaError(fn () => (new \Campanella\Media\ImageProcessor(useGd: false))->process($original)) === 'media.type_not_processable', 'strict by default');
+    $plain = (new \Campanella\Media\ImageProcessor(useGd: false, storeUnprocessed: true))->process($original);
     check(!$plain->reencoded && $plain->bytes === file_get_contents($original) && $plain->width === 30);
-    check(mediaError(fn () => (new \Campanella\Media\ImageProcessor(useGd: false))->process($temp('<?php ?>'))) === 'media.not_image', 'checked without GD too');
+    check(mediaError(fn () => (new \Campanella\Media\ImageProcessor(useGd: false, storeUnprocessed: true))->process($temp('<?php ?>'))) === 'media.not_image', 'checked without GD too');
+
+    // The system check: strict without GD is an error (nothing can be uploaded), a warning with store_unprocessed.
+    $storage = new \Campanella\Media\MediaStorage(sys_get_temp_dir() . '/campanella-media-' . bin2hex(random_bytes(4)));
+    $line = static function (\Campanella\Media\ImageProcessor $p) use ($storage): \Campanella\System\CheckResult {
+        return \Campanella\Media\MediaCheck::checks($p, $storage)(null)[1];
+    };
+    check($line(new \Campanella\Media\ImageProcessor(useGd: false))->status === \Campanella\System\CheckStatus::Error);
+    check($line(new \Campanella\Media\ImageProcessor(useGd: false, storeUnprocessed: true))->status === \Campanella\System\CheckStatus::Warning);
+    $full = $line($processor);
+    check(in_array($full->status, [\Campanella\System\CheckStatus::Ok, \Campanella\System\CheckStatus::Warning], true) && str_contains($full->value, 'JPEG'), $full->value);
 
     // The pixel limit follows memory_limit, which is raised for image processing if allowed.
     $limit = (string) ini_get('memory_limit');
@@ -2063,7 +2075,8 @@ test('Kernel: images in the admin are listed, edited, but not created from a for
         $checks[$result->label] = $result;
     }
     check($checks['admin.system.media_folder']->status === \Campanella\System\CheckStatus::Ok && $checks['admin.system.media_folder']->value === $dir);
-    check(str_contains($checks['admin.system.media_reencode']->value, 'image/jpeg'), 'reencoded types listed');
+    check(str_contains($checks['admin.system.media_reencode']->value, 'JPEG'), 'reencoded types listed');
+    check(str_contains($checks['gd']->value, ' · ') && str_contains($checks['gd']->value, 'PNG'), 'gd with its formats: ' . $checks['gd']->value);
     $list = $send('GET', '/admin/image');
     check($list->status === 200 && str_contains($list->body, 'logo') && !str_contains($list->body, 'href="/admin/image/new"'), 'listed, no New button');
     check($send('GET', '/admin/image/new')->status === 404, 'no empty form for a file');

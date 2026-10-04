@@ -57,7 +57,10 @@ backward-incompatible.
   the decoder busy), re-encodes the image with GD (metadata such as
   GPS positions and anything hidden in the file are removed, EXIF orientation
   applied, scaled down to 2560 px), and stores it under a random name in
-  `public/media/YYYY/MM/`, where a `.htaccess` forbids running code. Deleting
+  `public/media/YYYY/MM/`, where a `.htaccess` forbids running code. Strict:
+  a type the server cannot re-encode (e.g. gd built without WebP) is refused,
+  so no image is stored with its metadata (`media.store_unprocessed` turns
+  this off). The system page lists gd's formats and the uploadable types. Deleting
   the object deletes the file. New `media` settings. The admin lists and
   edits images; uploading from the admin comes next.
 - `ObjectService::addListener()` and `ObjectListener` (`afterDelete()`): a

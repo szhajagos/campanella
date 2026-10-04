@@ -171,6 +171,10 @@ final class SystemCheck
                 : new CheckResult('admin.system.group.required', $name, CheckStatus::Error, '–', new Message('admin.system.ext_missing'));
         }
         foreach (self::RECOMMENDED_EXTENSIONS as $name => $loadedName) {
+            if ($name === 'gd' && extension_loaded('gd')) {
+                $results[] = self::gd();
+                continue;
+            }
             $results[] = new CheckResult(
                 'admin.system.group.recommended',
                 $name,
@@ -181,6 +185,28 @@ final class SystemCheck
         }
 
         return $results;
+    }
+
+    /**
+     * The gd extension with the image formats it was built with: a missing format
+     * (e.g. WebP) means such images cannot be uploaded.
+     */
+    private static function gd(): CheckResult
+    {
+        $info = gd_info();
+        $formats = [
+            'JPEG' => (bool) ($info['JPEG Support'] ?? false),
+            'PNG' => (bool) ($info['PNG Support'] ?? false),
+            'WebP' => (bool) ($info['WebP Support'] ?? false),
+            'GIF' => (bool) ($info['GIF Read Support'] ?? false) && (bool) ($info['GIF Create Support'] ?? false),
+        ];
+        $supported = array_keys(array_filter($formats));
+        $missing = array_keys(array_filter($formats, static fn (bool $on): bool => !$on));
+        $value = phpversion('gd') . ' · ' . implode(', ', $supported);
+
+        return $missing === []
+            ? new CheckResult('admin.system.group.recommended', 'gd', CheckStatus::Ok, $value, new Message('admin.system.ext.gd'))
+            : new CheckResult('admin.system.group.recommended', 'gd', CheckStatus::Warning, $value, new Message('admin.system.gd_missing_formats', ['formats' => implode(', ', $missing)]));
     }
 
     /** @return list<CheckResult> */

@@ -238,6 +238,7 @@ final class Kernel
                 (int) $config->get('media.quality', 85),
                 null,
                 (string) $config->get('media.memory_limit', '256M'),
+                (bool) $config->get('media.store_unprocessed', false),
             );
         });
         $c->set(MediaService::class, static fn (Container $c): MediaService => new MediaService(

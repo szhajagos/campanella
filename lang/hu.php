@@ -282,5 +282,9 @@ return [
     'admin.system.media_folder_not_writable' => 'A webszerver nem tud írni bele: képet nem lehet feltölteni.',
     'admin.system.media_reencode' => 'Újrakódolt képtípusok',
     'admin.system.media_reencode_ok' => 'A feltöltött képek újrakódolódnak: a metaadatok (például GPS-koordináták) és a fájlba rejtett tartalom eltűnik.',
-    'admin.system.media_reencode_missing' => 'Nem kódolódik újra (feltöltött formában, metaadatokkal együtt tárolódik): {types}. Telepítsd vagy frissítsd a PHP gd bővítményét.',
+    'media.type_not_processable' => '{type} képet ezen a szerveren nem lehet feltölteni (nem tudja feldolgozni).',
+    'admin.system.gd_missing_formats' => '{formats}-támogatás nélkül fordították: ilyen képet nem lehet feltölteni. Fordítsd újra a gd-t ezekkel (például docker-php-ext-configure gd --with-jpeg --with-webp).',
+    'admin.system.media_refused' => 'Nem fogadja el, mert a gd bővítmény nem tudja feldolgozni: {types}. Lásd fent a gd sorát.',
+    'admin.system.media_unprocessed' => 'Feltöltött formában, metaadatokkal együtt tárolódik (store_unprocessed be van kapcsolva): {types}.',
+    'admin.system.media_no_gd' => 'A gd bővítmény nélkül nem lehet képet feltölteni (vagy kapcsold be a store_unprocessed beállítást).',
 ];
