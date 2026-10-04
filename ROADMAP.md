@@ -137,6 +137,15 @@ on, the system is suitable for running a real website.
 - **Cache:** object, query and render cache with cache tags and contexts.
 - **JSON API** according to the [HTTP API draft](docs/http-api/README.md).
 - **Media:** file storage, images, image variants.
+- **Before going live (by 0.1.0):** a deployment guide and checks for a
+  public server (2026-10-04):
+  - the web server's document root is `public/` (as in Campanella's Docker
+    image), not the project root: the root `.htaccess` that routes requests
+    under `public/` protects the rest only while Apache honours `.htaccess`;
+  - HTTPS behind a proxy: a `trusted_proxies` setting, so `X-Forwarded-Proto`
+    from a trusted proxy marks the request secure (and the login cookie
+    `Secure`);
+  - debug mode off; the system page could check these too.
 - **User management in the browser** (until then: the `user:*` commands).
 - **Blueprints defined in the admin** (until then: `config/blueprints.php`).
   Every object stays in `objects`; the question is only where a custom field
@@ -186,6 +195,12 @@ on, the system is suitable for running a real website.
   (2026-10-02).
 - **System page:** the admin's "System" menu checks the server's requirements;
   administrators only, and it never shows secrets (2026-10-02).
+- **Secure by default (2026-10-04):** Campanella is built for the public, not
+  for one server. The defaults must be safe for someone who changes nothing
+  (e.g. strict image handling, HTML filtering, no default accounts); a weaker
+  option needs an explicit setting, documented with its risk. Until 0.1.0 a
+  documented gap is acceptable (the "Before going live" checklist); from 0.1.0
+  on, a release is not made with a known open security gap.
 - **Language:** code, documentation, comments, commit messages and
   developer-facing messages are English; the UI is multilingual via the
   translation layer, with Hungarian as a first-class translation (2026-09-30).
