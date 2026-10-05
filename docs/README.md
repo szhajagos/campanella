@@ -6,7 +6,7 @@ chapter in the same commit.
 
 | Part | Contents | Status |
 |---|---|---|
-| [PHP API](php-api/README.md) | Classes, contracts and extension points, with examples | Matches 0.0.4 |
+| [PHP API](php-api/README.md) | Classes, contracts and extension points, with examples | Matches 0.0.5 |
 | [HTTP API](http-api/README.md) | The web endpoints: the current HTML routes and the planned JSON API | HTML: done · JSON: draft |
 | [Changelog](../CHANGELOG.md) | What was added, changed or removed in each version | Ongoing |
 

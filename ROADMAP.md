@@ -16,87 +16,10 @@ Completed changes are listed in the [CHANGELOG](CHANGELOG.md).
 | 0.0.2 | Relations (relationships): article → categories, `whereRelated`, `RelationLoader`, Blueprint lists |
 | 0.0.3 | Users and login: `Identifiable`, `Authenticatable`, `Authorable`, session, CSRF, login throttling, `LoginGuard` + honeypot, `editor` role, `user:*` commands; MIT license |
 | 0.0.4 | Admin UI (lists, generated forms, publishing incl. scheduled, deleting), multi-valued fields (cardinality), translation layer (en, hu), Bootstrap 5.3 shipped locally, themes |
+| 0.0.5 | HTML editing: System page, HTML allowlist filter on every save, Jodit editor (shipped locally), Content-Security-Policy for the admin, image upload (checked by content, re-encoded, `image` Blueprint, Images list) |
 | – | Continuous integration (GitHub Actions): PHPStan, documentation, tests on MariaDB 10.6/11.4 and MySQL 8.0/8.4; installation package with `vendor/` for every version tag |
 
 ## Next
-
-### 0.0.5 – HTML editing
-
-Agreed in detail on 2026-10-02. In five parts, each its own commit:
-
-0. ✅ **System page and housekeeping.**
-   - `/admin/system` ("System" menu), for the `administrator` role only (exact
-     versions and settings are useful to an attacker too; an `editor` gets a 403).
-   - Content:
-     - versions: Campanella, the schema version of the code and of the
-       database (with a hint to run `install` if they differ), PHP against the
-       minimum, the database server against the supported range;
-     - required PHP extensions (e.g. `pdo_mysql`, `mbstring`) and recommended
-       ones (e.g. `gd`, `intl`, `opcache`), each with what it enables;
-     - writable folders (`var/cache`, `public/media`);
-     - settings: locale, time zone, theme, admin path; a warning if debug mode
-       is on;
-     - PHP upload limits against the image upload limit;
-     - the opcache state, and a "Clear the template cache" button (POST + CSRF).
-   - Never shown: the database password, environment variables, session data.
-   - Built on a `SystemCheck` service: a list of checks, each with a result
-     (ok / warning / error) and a translatable message. The same checks run
-     from the command line (with `status`), later features can add their own
-     (e.g. the media folder), and the dashboard shows a warning bar if a check
-     reports an error.
-   - The Twig cache goes into a folder per version (`var/cache/twig/<version>`),
-     so uploading a new release never serves stale templates (upload tools
-     often keep the old file times, which defeats `auto_reload`).
-   - A "Create and publish" button on the new-object form.
-1. ✅ **HTML sanitizer.**
-   - `symfony/html-sanitizer` 7.x (MIT, with MIT dependencies; 8.x needs PHP 8.4).
-   - Allowlist, overridable in `config/html.php`: paragraphs, h2–h4,
-     bold/italic/strikethrough, lists, blockquote, code, horizontal rule,
-     line break, links, images, simple tables.
-   - Links: only `http`, `https`, `mailto` or relative; external links get
-     `rel="noopener noreferrer"`. Images: only our own uploads (no external
-     images: they leak visitor data to other servers and can change or vanish).
-   - Everything else is removed: `script`, `style`, `on…` handlers,
-     `javascript:` URLs, `iframe` (video embeds come later, with their own
-     allowlist).
-   - Runs on save in the `ObjectRepository`, the lowest layer, so the CLI, the
-     seed and the later API cannot bypass it. `html:sanitize` cleans HTML
-     stored earlier.
-   - Tests with a collection of known XSS tricks.
-2. ✅ **Jodit editor** (the MIT edition, shipped locally in
-   `public/assets/vendor/jodit/`, no CDN).
-   - An `html` widget template and a small `admin-editor.js`: switching to
-     SunEditor would replace only these. Without JavaScript a plain textarea
-     with the raw HTML remains (sanitized by the server as always).
-   - Toolbar profile per field in the Blueprint:
-     `'editor' => ['body' => 'full']`.
-   - New articles and pages get an HTML body by default; the lead stays plain
-     text. Existing plain texts can be converted with a button (paragraphs
-     become `<p>`, nothing is lost).
-   - A Content-Security-Policy header for the admin that allows only our own
-     scripts, as a second line of defense.
-3. ✅ **Image upload**, in three commits: (a) ✅ the image object and the
-   upload service, server side; (b) ✅ uploading from the admin and the editor;
-   (c) ✅ the "Images" list, system checks, Docker php.ini. To our own endpoint (`POST /admin/media/upload`, without
-   Jodit's PHP connector; CSRF; only for users the policy lets create).
-   - Checked by content, not by extension: JPEG, PNG, WebP, GIF. No SVG (it
-     can carry scripts). A size limit (e.g. 5 MB) and a pixel limit.
-   - Re-encoded with GD and scaled down to a maximum size (e.g. 2560 px): this
-     removes metadata (e.g. the GPS position of phone photos) and disguised
-     files. Without GD the original is stored, and the system page warns.
-   - Stored as `public/media/YYYY/MM/<random name>.<ext>`; a `.htaccess` there
-     forbids running PHP.
-   - Every image is an object (`image` Blueprint), following the decision that
-     anything referred to is an object. Its file data (path, type, size,
-     width, height) is a new capability with its own table, so it can be
-     queried; the alternative text is a field too. An "Images" list in the
-     admin; deleting the object deletes the file. New table: run `install`
-     after upgrading.
-4. Release `v0.0.5`.
-
-**Done when:** an article's body can be formatted in the browser, including
-images, the sanitizer removes every non-allowed element from the submitted
-HTML, and the system page shows whether the server meets the requirements.
 
 ### 0.0.6 – Migrations
 

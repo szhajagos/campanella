@@ -10,6 +10,25 @@ backward-incompatible.
 
 ## [Unreleased]
 
+## [0.0.5] – 2026-10-05
+
+HTML editing: the System page, an HTML filter applied on every save, the Jodit
+editor, and image upload.
+
+**Upgrading from 0.0.4:**
+
+1. Upload the new files, including the `vendor/` folder (it has new
+   dependencies), or run `composer install --no-dev`. The installation
+   package on the releases page contains `vendor/`.
+2. `php bin/campanella install`: schema version 5 (new `cap_media_file`
+   table). Until then the site shows the "needs upgrade" page.
+3. `php bin/campanella html:sanitize`, once: filters the HTML texts stored by
+   earlier versions (`--dry-run` lists them first).
+4. For image upload: the `gd` extension with JPEG, PNG and WebP, and PHP
+   limits that allow the images (`upload_max_filesize`, `post_max_size`); the
+   System page shows what is missing. The `public/media/` folder must be
+   writable by the web server.
+
 ### Added
 
 - **System page** in the admin (`/admin/system`, "System" menu), for the

@@ -1,4 +1,4 @@
-# Campanella 0.0.4
+# Campanella 0.0.5
 
 [![CI](https://github.com/szhajagos/campanella/actions/workflows/ci.yml/badge.svg)](https://github.com/szhajagos/campanella/actions/workflows/ci.yml)
 
@@ -11,7 +11,7 @@ folder, changes are listed in the [CHANGELOG](CHANGELOG.md), and plans in the
 
 ## Requirements
 
-- PHP 8.3 or newer (`pdo_mysql`, `mbstring`, `json`)
+- PHP 8.3 or newer (`pdo_mysql`, `mbstring`, `json`, `dom`; recommended: `gd` with JPEG, PNG and WebP for images, `exif`, `fileinfo`, `opcache`)
 - MariaDB 10.6+ or MySQL 8.0+ (InnoDB, utf8mb4)
 - Composer (to download the dependencies; you can also upload the project to your web host together with the `vendor/` folder)
 
@@ -100,7 +100,9 @@ php bin/campanella seed         # optional: add the new sample content
 
 If the code is newer than the database schema, the website shows a 503 page,
 and the `status` command reports in text that `install` needs to be run.
-The [CHANGELOG](CHANGELOG.md) lists the changes version by version.
+The [CHANGELOG](CHANGELOG.md) lists the changes version by version, and the
+extra steps of an upgrade at the top of the version's section (for 0.0.5:
+`php bin/campanella html:sanitize`, once).
 
 ## Commands
 
@@ -109,7 +111,9 @@ The [CHANGELOG](CHANGELOG.md) lists the changes version by version.
 | `php bin/campanella install` | Create the tables (safe to run repeatedly) |
 | `php bin/campanella install --sql` | Only print the DDL |
 | `php bin/campanella seed` | Sample content |
-| `php bin/campanella status` | Capabilities, Blueprints, object count |
+| `php bin/campanella status` | Version, capabilities, Blueprints, object count, and the system checks (exits with `1` on an error) |
+| `php bin/campanella user:create <e-mail>` | Creates a user (`--name=`, `--role=administrator,editor`); also `user:password`, `user:list` |
+| `php bin/campanella html:sanitize` | Filters the stored HTML texts with the allowlist (`--dry-run`: only lists them) |
 | `composer test` | Tests (on a real database, with a separate `test_` table prefix) |
 | `composer analyse` | PHPStan, level 8, targeting PHP 8.3 |
 | `composer docs:check` | Find undocumented public classes and methods |
@@ -201,11 +205,20 @@ there is no default account or password. Details: [docs/php-api/11-users.md](doc
 
 **Admin UI (0.0.4).** Under `/admin`, for the `administrator` and `editor`
 roles: lists with search and filters, forms generated from the field and
-relation definitions, publishing (also scheduled), deleting; since 0.0.5 an
-HTML editor for formatted texts (Jodit), filtered on save. The interface is
+relation definitions, publishing (also scheduled), deleting. The interface is
 translated (`lang/en.php`, `lang/hu.php`; the `locale` setting) and built on
 Bootstrap 5.3, shipped locally. Users are still managed from the command line.
 Details: [docs/php-api/13-admin.md](docs/php-api/13-admin.md).
+
+**HTML editing and images (0.0.5).** Articles and pages have formatted (HTML)
+bodies, edited with the Jodit editor shipped locally. Every HTML text is
+filtered with an allowlist on save, at the lowest layer, so no script, style
+or foreign image reaches the visitors ([docs/php-api/15-html.md](docs/php-api/15-html.md)).
+Images are uploaded in the editor or on the Images list: checked by their
+content, re-encoded (metadata such as GPS positions is removed) and stored
+under random names ([docs/php-api/16-media.md](docs/php-api/16-media.md)).
+The administrators' System page shows whether the server meets the
+requirements ([docs/php-api/14-system-check.md](docs/php-api/14-system-check.md)).
 
 **Query.** Declarative and immutable:
 
@@ -230,7 +243,8 @@ on its own.
 
 User management in the browser, Hierarchical (menu, taxonomy tree),
 Component / Region / Layout, Webform, Event / Action, cache, migrations
-(altering existing tables), multilingual content, image upload (0.0.5).
+(altering existing tables), multilingual content, image variants and an image
+picker.
 
 ## License
 
