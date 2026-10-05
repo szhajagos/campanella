@@ -23,16 +23,61 @@ Completed changes are listed in the [CHANGELOG](CHANGELOG.md).
 
 ### 0.0.6 – Migrations
 
-- Versioned migration steps (e.g. a new column, a new capability on existing
-  objects, data transformation), tracked in the `cc_system` table.
-- `install` also runs the pending migrations.
-- A warning to back up the database before migrating.
-- First migration: `roles` (and `StringList` in general) becomes a
-  multi-value `String` field; the existing values are moved to
-  `cc_field_values`, so users can be queried by role.
+Agreed in detail on 2026-10-05. In six parts (0–5), each its own commit:
+
+0. **Reading the schema, finding differences.**
+   - The actual database from `information_schema`: tables, columns (type,
+     NULL, default), indexes; the same on MariaDB and MySQL.
+   - `ALTER` statements generated from the definitions: add a column, add an
+     index, drop a column. Portable: `ADD COLUMN IF NOT EXISTS` and
+     `DROP INDEX IF EXISTS` exist only on MariaDB, so the state is checked
+     first, then a plain `ALTER` runs.
+   - A schema comparison (definitions against the database): "column
+     `cap_weighted.weight` is missing", "a column not in the definition". On
+     the System page and in `status`.
+1. **The migration framework.**
+   - A migration is a PHP class: an ID (`core:0006_roles_multi_value`), a
+     description and `up(MigrationContext $m)`. Forward only, no `down()`:
+     a backup instead (see below).
+   - `MigrationContext`: `addColumn`, `addIndex`, `dropColumn`,
+     `renameColumn`, `columnExists`, `sql()`, batched processing of large
+     tables. Migrations work on SQL, never with the current model classes
+     (an old migration may run against a newer model).
+   - Recorded when applied (ID, time, duration); a lock (`GET_LOCK`) so two
+     runs cannot overlap. On an error it stops and says where; DDL cannot be
+     rolled back in MySQL, so a migration is one small step, repeatable if
+     possible.
+   - A fresh installation creates the current tables and marks every
+     migration as applied; an existing one records them from now on and runs
+     only the pending ones. "Needs upgrade" means: a migration is pending
+     (`schema_version` stays, for information).
+   - `php bin/campanella migrate`: lists the pending ones, asks for
+     confirmation after a backup warning (`--yes`), `--dry-run`. `install`
+     runs them too.
+   - `php bin/campanella db:backup`: the database as an SQL file through PDO
+     (no `mysqldump` needed) into `var/backups/`, outside the web root;
+     `migrate` offers it.
+2. **Running the upgrade from the browser**, for web hosts without a command
+   line. A button on the System page: administrators only, CSRF, the lock,
+   a backup first. While a migration is pending, visitors get the 503 page,
+   but logging in and the System page stay available.
+3. **Blueprint and capability changes, automatically.** A new field of a
+   capability or a new capability of a Blueprint: `install`/`migrate` adds
+   the column or table, and the existing objects get the capability with its
+   defaults. A removed capability: the data is kept and reported; deleted
+   only with `--prune`. A new required field without a default cannot be
+   filled in by guessing: reported as an error, a migration has to fill the
+   values. Renaming, changing a type or moving data always needs a migration.
+4. **The first migration: `roles`** becomes a multi-valued `String` field:
+   the values move to `cc_field_values`, the old column is dropped. Users
+   can be queried by role (`user:list --role=editor`). Tested on a schema 5
+   database built from a fixture, compared with a fresh installation.
+   `StringList` is deprecated (removed before 0.1.0).
+5. Release `v0.0.6`.
 
 **Done when:** a new field of a capability, or a capability added to a
-Blueprint, can be applied to existing content without manual SQL.
+Blueprint, can be applied to existing content without manual SQL, also on a
+web host without a command line.
 
 ### 0.0.7 – Hierarchy and menu
 
@@ -72,6 +117,8 @@ on, the system is suitable for running a real website.
     from a trusted proxy marks the request secure (and the login cookie
     `Secure`);
   - debug mode off; the system page could check these too.
+- **Before 0.1.0:** remove the deprecated `FieldType::StringList` (deprecated
+  in 0.0.6; multi-valued fields replace it).
 - **User management in the browser** (until then: the `user:*` commands).
 - **Blueprints defined in the admin** (until then: `config/blueprints.php`).
   Every object stays in `objects`; the question is only where a custom field
@@ -127,6 +174,11 @@ on, the system is suitable for running a real website.
   option needs an explicit setting, documented with its risk. Until 0.1.0 a
   documented gap is acceptable (the "Before going live" checklist); from 0.1.0
   on, a release is not made with a known open security gap.
+- **Migrations (2026-10-05):** forward only, no rollback: a backup before
+  migrating instead (`db:backup`, built in). Additive changes from the
+  definitions are applied automatically; renaming, type changes, moving or
+  deleting data only through an explicit migration, never by guessing. Upgrades
+  can be run from the browser too, for web hosts without a command line.
 - **Language:** code, documentation, comments, commit messages and
   developer-facing messages are English; the UI is multilingual via the
   translation layer, with Hungarian as a first-class translation (2026-09-30).
