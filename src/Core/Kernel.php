@@ -237,7 +237,7 @@ final class Kernel
                 (int) $config->get('media.max_dimension', 2560),
                 (int) $config->get('media.quality', 85),
                 null,
-                (string) $config->get('media.memory_limit', '256M'),
+                (string) $config->get('media.memory_limit', '320M'),
                 (bool) $config->get('media.store_unprocessed', false),
             );
         });

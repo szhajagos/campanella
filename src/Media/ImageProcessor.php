@@ -67,7 +67,7 @@ final class ImageProcessor
         private readonly int $maxDimension = 2560,
         private readonly int $quality = 85,
         ?bool $useGd = null,
-        private readonly string $memoryLimit = '256M',
+        private readonly string $memoryLimit = '320M',
         private readonly bool $storeUnprocessed = false,
     ) {
         if ($maxBytes < 1 || $maxPixels < 1 || $maxDimension < 16 || $quality < 1 || $quality > 100) {

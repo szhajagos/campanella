@@ -313,5 +313,5 @@ return [
     'admin.system.media_max_file' => 'Largest image file',
     'admin.system.media_max_file_limited' => 'media.max_bytes is {max}, but PHP allows less ({settings}). Raise them a little over it, e.g. upload_max_filesize = 16M, post_max_size = 20M.',
     'admin.system.media_max_image' => 'Largest image',
-    'admin.system.media_max_image_limited' => 'media.max_pixels is {max}, but memory_limit allows only this much. Raise memory_limit (or media.memory_limit), e.g. to 256M.',
+    'admin.system.media_max_image_limited' => 'media.max_pixels is {max}, but memory_limit allows only this much. Raise media.memory_limit (e.g. to 320M), or memory_limit in php.ini if PHP may not raise it.',
 ];

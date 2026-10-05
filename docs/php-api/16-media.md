@@ -60,7 +60,7 @@ keys `media.empty`, `media.too_large`, `media.not_image`,
 | `media.max_dimension` | 2560 | Larger images are scaled down to this width or height |
 | `media.quality` | 85 | JPEG and WebP quality when re-encoding (1–100) |
 | `media.store_unprocessed` | `false` | `true`: a type the server cannot re-encode is stored as uploaded (metadata included) instead of being refused |
-| `media.memory_limit` | `'256M'` | PHP's `memory_limit` is raised to this while processing an image (for that request only), if the server allows it. Decoding a 12-megapixel photo needs about 100 MB; with the common 128 MB limit only a few megapixels would fit |
+| `media.memory_limit` | `'320M'` | PHP's `memory_limit` is raised to this while processing an image (for that request only), if the server allows it. Decoding a 12-megapixel photo needs about 100 MB, a 25-megapixel one (`max_pixels`) about 300 MB with the scaled copy; with the common 128 MB limit only a few megapixels would fit |
 
 ## The `image` Blueprint and the MediaFile capability
 
@@ -112,7 +112,7 @@ $image = $container->get(MediaService::class)->uploadImage($actor, $_FILES['file
 
 | Member | Description |
 |---|---|
-| `__construct(int $maxBytes = 10 MB, int $maxPixels = 25 000 000, int $maxDimension = 2560, int $quality = 85, ?bool $useGd = null, string $memoryLimit = '256M', bool $storeUnprocessed = false)` | From the `media` settings. `$useGd`: null means "if the gd extension is loaded" |
+| `__construct(int $maxBytes = 10 MB, int $maxPixels = 25 000 000, int $maxDimension = 2560, int $quality = 85, ?bool $useGd = null, string $memoryLimit = '320M', bool $storeUnprocessed = false)` | From the `media` settings. `$useGd`: null means "if the gd extension is loaded" |
 | `process(string $file): ProcessedImage` | Steps 2–5 above; `ValidationException` on the `file` field |
 | `maxPixels(): int` | The largest image accepted now (also limited by `memory_limit`, after raising it to `memoryLimit` if allowed) |
 | `maxBytes(): int` | `max_bytes` |
@@ -245,6 +245,11 @@ upload_max_filesize = 16M
 post_max_size = 20M
 memory_limit = 256M
 ```
+
+`memory_limit` is enough for ordinary requests; while processing an image,
+Campanella raises it to `media.memory_limit` (320 MB) for that request. If the
+server forbids raising it from PHP, set `memory_limit = 320M` in `php.ini`
+instead, or the largest image accepted is smaller (the system page shows it).
 
 On another server put these into `php.ini` (or `.user.ini`, or the hosting
 panel); `upload_max_filesize` and `post_max_size` cannot be changed from PHP

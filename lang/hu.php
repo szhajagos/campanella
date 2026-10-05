@@ -311,5 +311,5 @@ return [
     'admin.system.media_max_file' => 'Legnagyobb képfájl',
     'admin.system.media_max_file_limited' => 'A media.max_bytes értéke {max}, de a PHP ennél kevesebbet enged ({settings}). Állítsd ezeket valamivel nagyobbra, például upload_max_filesize = 16M, post_max_size = 20M.',
     'admin.system.media_max_image' => 'Legnagyobb kép',
-    'admin.system.media_max_image_limited' => 'A media.max_pixels értéke {max}, de a memory_limit csak ennyit enged. Növeld a memory_limit (vagy a media.memory_limit) értékét, például 256M-ra.',
+    'admin.system.media_max_image_limited' => 'A media.max_pixels értéke {max}, de a memory_limit csak ennyit enged. Növeld a media.memory_limit értékét (például 320M-ra), vagy a php.ini memory_limit értékét, ha a PHP nem emelheti meg.',
 ];
