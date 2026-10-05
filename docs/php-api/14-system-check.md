@@ -22,7 +22,7 @@ details (those are in the server's error log).
 | Versions | Campanella; PHP (at least `SystemCheck::MIN_PHP`, 8.3.0); the database server (MariaDB 10.6+, MySQL 8.0+: `MIN_DATABASE`); the database schema against `Version::SCHEMA` (if they differ: run `install`) |
 | Required PHP extensions | `REQUIRED_EXTENSIONS`: `ctype`, `dom` (the HTML filter), `json`, `mbstring`, `pdo`, `pdo_mysql`, `session`; missing: error |
 | Recommended PHP extensions | `RECOMMENDED_EXTENSIONS`: `gd` (image processing, 0.0.5; with the image formats it was built with, a warning if JPEG, PNG, WebP or GIF is missing), `fileinfo` (recognising uploaded files), `opcache` (speed); missing: warning |
-| Images | The media folder (writable?); which image types can be uploaded: strict by default, a type gd cannot re-encode is refused ([chapter 16](16-media.md)) |
+| Images | The media folder (writable?); which image types can be uploaded: strict by default, a type gd cannot re-encode is refused; the largest file (a warning if `upload_max_filesize` or `post_max_size` is below `media.max_bytes`; `post_max_size` needs 64 KB more for the rest of the form) and the largest image (a warning if `memory_limit` allows less than `media.max_pixels`, an error below 2 megapixels) ([chapter 16](16-media.md)) |
 | Writable folders | `var/cache` |
 | Settings | Debug mode (on: warning), language, time zone, theme, admin path; on the web also whether the server sees HTTPS (if not: warning, the login cookie is not marked `Secure`) |
 | PHP limits (web only) | `upload_max_filesize`, `post_max_size` (smaller than the upload limit: warning), `memory_limit`, `max_execution_time` |

@@ -14,7 +14,14 @@
         <div class="alert alert-danger" role="alert">{{ t(alert) }}</div>
     {% endif %}
 
-    <div class="alert alert-warning" role="alert">{{ t('admin.delete.warning') }}</div>
+    {% if media_url %}
+        <img src="{{ url(media_url) }}" alt="" class="admin-thumb admin-thumb-lg mb-3">
+    {% endif %}
+
+    <div class="alert alert-warning" role="alert">
+        {{ t('admin.delete.warning') }}
+        {% if media_url %}<div class="mt-2">{{ t('admin.delete.image_warning') }}</div>{% endif %}
+    </div>
 
     {% if referrers %}
         <p>{{ t('admin.delete.referrers') }}</p>

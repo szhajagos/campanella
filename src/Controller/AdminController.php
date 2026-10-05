@@ -26,6 +26,7 @@ use Campanella\Capability\Publishable;
 use Campanella\Capability\TextFormat;
 use Campanella\Capability\Textual;
 use Campanella\Html\PlainText;
+use Campanella\Media\ImageProcessor;
 use Campanella\Media\MediaService;
 use Campanella\Capability\PublishStatus;
 use Campanella\Support\Slugger;
@@ -103,13 +104,16 @@ final class AdminController implements Controller
     public function handle(Request $request, RouteMatch $route, Actor $actor): Response
     {
         $this->actor = null;
+        $uploading = $request->path === $this->access->path('media/upload');
         // The editor's upload expects JSON: an expired session gets a message, not the login page.
-        if ($actor->isAnonymous() && $request->path === $this->access->path('media/upload')) {
+        if ($actor->isAnonymous() && $uploading && self::wantsJson($request)) {
             return Response::json(['success' => false, 'message' => $this->translator->translate('media.session_expired')], 401);
         }
         if ($actor->isAnonymous()) {
-            // Back to the requested admin page after logging in.
-            $target = $request->path . ($request->query === [] ? '' : '?' . http_build_query($request->query));
+            // Back to the requested admin page after logging in (from the upload form: its list).
+            $target = $uploading
+                ? $this->access->path('image')
+                : $request->path . ($request->query === [] ? '' : '?' . http_build_query($request->query));
 
             return Response::redirect($request->basePath . '/belepes?vissza=' . rawurlencode($target));
         }
@@ -191,26 +195,48 @@ final class AdminController implements Controller
     }
 
     /**
-     * POST /admin/media/upload: uploads an image (field `file`, with the CSRF token) and
-     * answers in JSON, for the editor: `{success, id, url, title, width, height}`, or
-     * `{success: false, message}` with 400 (form), 403, 405, 413 (too large), 422 (not an
-     * accepted image) or 500 (the server could not receive the file).
+     * POST /admin/media/upload: uploads an image (field `file`, with the CSRF token).
+     *
+     * With `Accept: application/json` (the editor, the Images list's upload button) it
+     * answers in JSON: `{success, id, url, title, width, height}`, or `{success: false,
+     * message}` with 400 (form), 403, 405, 413 (too large), 422 (not an accepted image)
+     * or 500 (the server could not receive the file). Otherwise (the upload form without
+     * JavaScript) it redirects to the Images list with the result as a one-time message.
      *
      * @param list<string> $segments The path after /admin/media
      */
     private function mediaUpload(Request $request, Actor $actor, array $segments): Response
     {
-        $fail = fn (string $key, int $status, array $params = []): Response => Response::json([
-            'success' => false,
-            'message' => $this->translator->translate($key, $params),
-        ], $status);
-        $tooLarge = fn (): Response => $fail('media.too_large', 413, [
-            'max' => rtrim(rtrim(number_format($this->media->maxUploadBytes() / 1024 / 1024, 1, '.', ''), '0'), '.'),
-        ]);
-
         if ($segments !== ['upload']) {
             throw HttpException::notFound();
         }
+        [$status, $data, $error] = $this->uploadResult($request, $actor);
+        if (self::wantsJson($request) || !$request->isPost()) {
+            return Response::json($data, $status);
+        }
+        $this->flash->add(
+            $data['success'] ? Flash::SUCCESS : Flash::DANGER,
+            $error ?? new Message('media.uploaded', ['title' => (string) $data['title']]),
+        );
+
+        return Response::redirect($request->basePath . $this->access->path('image'), 303);
+    }
+
+    /**
+     * The upload's HTTP status, JSON body (see mediaUpload()) and, if it failed, the message.
+     *
+     * @return array{int, array<string, mixed>, ?Message}
+     */
+    private function uploadResult(Request $request, Actor $actor): array
+    {
+        $fail = fn (string $key, int $status, array $params = []): array => [$status, [
+            'success' => false,
+            'message' => $this->translator->translate($key, $params),
+        ], new Message($key, $params)];
+        $tooLarge = fn (): array => $fail('media.too_large', 413, [
+            'max' => rtrim(rtrim(number_format($this->media->maxUploadBytes() / 1024 / 1024, 1, '.', ''), '0'), '.'),
+        ]);
+
         if (!$request->isPost()) {
             return $fail('error.method_not_allowed', 405);
         }
@@ -240,17 +266,23 @@ final class AdminController implements Controller
         } catch (ValidationException $e) {
             $message = $e->errors['file'] ?? array_values($e->errors)[0] ?? new Message('media.not_image');
 
-            return Response::json(['success' => false, 'message' => $message->translate($this->translator)], 422);
+            return [422, ['success' => false, 'message' => $message->translate($this->translator)], $message];
         }
 
-        return Response::json([
+        return [201, [
             'success' => true,
             'id' => $image->id(),
             'url' => $request->basePath . $this->media->url($image),
             'title' => (string) $image->get('title'),
             'width' => $image->get('width'),
             'height' => $image->get('height'),
-        ], 201);
+        ], null];
+    }
+
+    /** Whether the client asked for JSON (the editor's and the upload button's requests do). */
+    private static function wantsJson(Request $request): bool
+    {
+        return str_contains(strtolower($request->headers['accept'] ?? ''), 'application/json');
     }
 
     private function dashboard(Request $request, Actor $actor): Response
@@ -290,6 +322,7 @@ final class AdminController implements Controller
             'updated',
             'created',
             $publishable ? 'published_at' : null,
+            self::isFile($blueprint) ? 'file_size' : null,
         ]));
         $sort = in_array($request->queryString('sort'), $sortable, true) ? $request->queryString('sort') : 'updated';
         $dir = strtolower($request->queryString('dir')) === 'asc' ? 'asc' : 'desc';
@@ -319,8 +352,20 @@ final class AdminController implements Controller
             $editable[(int) $item->id()] = $this->policy->allows($actor, Operation::Update, $item);
         }
 
+        // Files (images): their addresses, for the thumbnails; uploading right from the list.
+        $media = [];
+        if (self::isFile($blueprint)) {
+            foreach ($result as $item) {
+                $media[(int) $item->id()] = $this->media->url($item);
+            }
+        }
+
         return $this->render('list', $blueprint->name, [
             'editable' => $editable,
+            'media' => $media,
+            'is_file' => self::isFile($blueprint),
+            'type_names' => ImageProcessor::NAMES,
+            'upload' => self::isFile($blueprint) && $blueprint->name === 'image' ? $this->uploadSettings($actor) : null,
             'can_create' => !self::isFile($blueprint) && $this->policy->allows($actor, Operation::Create, $this->repository->create($blueprint->name)),
             'title' => $blueprint->label,
             'blueprint' => $blueprint,
@@ -457,6 +502,8 @@ final class AdminController implements Controller
             'can_publish_new' => $object->isNew() && $this->canPublishNew($actor, $object),
             'can_delete' => !$object->isNew() && $this->policy->allows($actor, Operation::Delete, $object),
             'upload' => $this->uploadSettings($actor),
+            'media_url' => self::isFile($blueprint) && !$object->isNew() ? $this->media->url($object) : null,
+            'type_names' => ImageProcessor::NAMES,
         ]);
 
         return $status === 200 ? $response : new Response($response->body, $status, $response->headers);
@@ -638,6 +685,7 @@ final class AdminController implements Controller
             'title_params' => ['title' => self::titleOf($object)],
             'blueprint' => $blueprint,
             'object' => $object,
+            'media_url' => self::isFile($blueprint) ? $this->media->url($object) : null,
             'referrers' => $referrers,
             'more_referrers' => $total - count($referrers),
             'alert' => $alert,

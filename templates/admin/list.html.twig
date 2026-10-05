@@ -25,6 +25,25 @@
         </div>
     </div>
 
+    {% if upload %}
+        {# Images: uploaded right here. Without JavaScript one file at a time (the server redirects back);
+           with admin-upload.js several, chosen or dropped, each reported. #}
+        <form method="post" action="{{ url(upload.url) }}" enctype="multipart/form-data" class="card card-body mb-4 admin-upload" data-media-upload
+              data-upload-max="{{ upload.max }}" data-upload-too-large="{{ t('media.too_large', {max: upload.max_mb}) }}"
+              data-upload-session="{{ t('media.session_expired') }}" data-uploading="{{ t('admin.media.uploading') }}"
+              data-failed="{{ t('admin.media.failed') }}" data-show-uploaded="{{ t('admin.media.show_uploaded') }}">
+            {{ csrf_field() }}
+            <label for="upload-file" class="form-label fw-semibold">{{ t('admin.media.upload') }}</label>
+            <div class="d-flex flex-wrap gap-2">
+                <input type="file" class="form-control flex-grow-1" id="upload-file" name="file" required
+                       accept="image/jpeg,image/png,image/webp,image/gif" aria-describedby="upload-hint">
+                <button type="submit" class="btn btn-primary" data-upload-submit>{{ t('admin.media.upload') }}</button>
+            </div>
+            <div class="form-text" id="upload-hint">{{ t('admin.media.upload_hint', {max: upload.max_mb}) }}</div>
+            <div class="mt-2" data-upload-status role="status" aria-live="polite"></div>
+        </form>
+    {% endif %}
+
     <form method="get" action="{{ url(path) }}" class="row g-2 align-items-end mb-3 admin-filters" role="search">
         {% if searchable %}
             <div class="col-sm-6 col-lg-4">
@@ -60,8 +79,10 @@
             <table class="table table-hover align-middle admin-list">
                 <thead>
                     <tr>
+                        {% if is_file %}<th scope="col"><span class="visually-hidden">{{ t('admin.media.preview') }}</span></th>{% endif %}
                         <th scope="col">{{ _self.sort_header(searchable ? 'admin.column.title' : 'admin.column.id', searchable ? 'title' : 'id', filters, path, sortable) }}</th>
                         {% if statuses %}<th scope="col">{{ t('field.status') }}</th>{% endif %}
+                        {% if is_file %}<th scope="col">{{ _self.sort_header('field.file_size', 'file_size', filters, path, sortable) }}</th>{% endif %}
                         {% if has_author %}<th scope="col">{{ t('relation.author') }}</th>{% endif %}
                         {% if 'published_at' in sortable %}<th scope="col">{{ _self.sort_header('field.published_at', 'published_at', filters, path, sortable) }}</th>{% endif %}
                         <th scope="col" class="text-end">{{ _self.sort_header('admin.column.updated', 'updated', filters, path, sortable) }}</th>
@@ -70,6 +91,11 @@
                 <tbody>
                     {% for item in result %}
                         <tr>
+                            {% if is_file %}
+                                <td class="admin-thumb-cell">
+                                    {% if media[item.id] is defined %}<img class="admin-thumb" src="{{ url(media[item.id]) }}" alt="" width="64" height="64" loading="lazy" decoding="async">{% endif %}
+                                </td>
+                            {% endif %}
                             <td>
                                 {% set label = item.title is defined and item.title ? item.title : t('admin.untitled') %}
                                 {% if editable[item.id] ?? false %}
@@ -80,7 +106,16 @@
                                 {% if item.path is defined and item.path %}
                                     <a class="small ms-2" href="{{ url(item.path) }}" target="_blank" rel="noopener">{{ t('admin.list.view') }}</a>
                                 {% endif %}
+                                {% if is_file and item.alt is defined and not item.alt %}
+                                    <div><span class="badge bg-body-tertiary text-body-secondary border fw-normal">{{ t('admin.media.no_alt') }}</span></div>
+                                {% endif %}
                             </td>
+                            {% if is_file %}
+                                <td class="small text-nowrap">
+                                    {{ type_names[item.mime_type] ?? item.mime_type }} · {{ item.file_size|file_size }}
+                                    {% if item.width and item.height %}<div class="text-body-secondary">{{ t('admin.media.dimensions', {width: item.width, height: item.height}) }}</div>{% endif %}
+                                </td>
+                            {% endif %}
                             {% if statuses %}<td>{% include '@core/admin/_status.html.twig' with {object: item} only %}</td>{% endif %}
                             {% if has_author %}
                                 <td class="small">{% for author in related(item, 'author') %}{{ author.title }}{% else %}<span class="text-body-secondary">–</span>{% endfor %}</td>
@@ -109,4 +144,9 @@
             </nav>
         {% endif %}
     {% endif %}
+{% endblock %}
+
+{% block scripts %}
+    {{ parent() }}
+    {% if upload %}<script src="{{ asset('admin-upload.js') }}" defer></script>{% endif %}
 {% endblock %}

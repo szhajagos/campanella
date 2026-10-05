@@ -23,7 +23,7 @@
     {% endfor %}
 
     <div class="row g-4">
-        <div class="{{ publication or can_delete ? 'col-lg-8' : 'col-12' }}">
+        <div class="{{ publication or can_delete or media_url ? 'col-lg-8' : 'col-12' }}">
             <form method="post" action="{{ url(action) }}" class="admin-form" novalidate
                 {%- if upload and has_editor %} data-upload-url="{{ url(upload.url) }}" data-upload-max="{{ upload.max }}"
                     data-upload-too-large="{{ t('media.too_large', {max: upload.max_mb}) }}"
@@ -52,8 +52,11 @@
             {% endif %}
         </div>
 
-        {% if publication or can_delete %}
+        {% if publication or can_delete or media_url %}
             <aside class="col-lg-4">
+                {% if media_url %}
+                    {% include '@core/admin/_media.html.twig' %}
+                {% endif %}
                 {% if publication %}
                     {% include '@core/admin/_publication.html.twig' %}
                 {% endif %}

@@ -62,6 +62,9 @@ final class MediaService
         }
     }
 
+    /** The space post_max_size needs beyond the file: the other form fields and the multipart framing. */
+    public const int FORM_MARGIN = 64 * 1024;
+
     /**
      * The largest file that can be uploaded, in bytes: the max_bytes setting, or less if
      * PHP's upload_max_filesize or post_max_size is lower (PHP refuses larger ones first).
@@ -72,7 +75,8 @@ final class MediaService
         foreach (['upload_max_filesize', 'post_max_size'] as $setting) {
             $bytes = ImageProcessor::iniBytes((string) ini_get($setting));
             if ($bytes > 0) {
-                $limits[] = $bytes;
+                // The request carries the other fields too (FORM_MARGIN).
+                $limits[] = $setting === 'post_max_size' ? max(0, $bytes - self::FORM_MARGIN) : $bytes;
             }
         }
 

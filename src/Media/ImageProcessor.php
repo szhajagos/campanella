@@ -112,6 +112,12 @@ final class ImageProcessor
         return $this->maxBytes;
     }
 
+    /** The max_pixels setting (maxPixels() may be lower, limited by memory_limit). */
+    public function maxPixelsSetting(): int
+    {
+        return $this->maxPixels;
+    }
+
     /**
      * The largest image (width × height) accepted now: the max_pixels setting, or less
      * if memory_limit would not allow decoding a larger one. Raises memory_limit to the

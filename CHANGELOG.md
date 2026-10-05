@@ -73,6 +73,21 @@ backward-incompatible.
   `UploadedFile` (only real PHP uploads are accepted), `Response::json()`,
   `MediaService::maxUploadBytes()`. Images in texts stay within the column
   (`.body img` in `campanella.css`).
+- **The Images list:** thumbnails, type, size and dimensions (sortable by
+  size), a reminder where the alternative text is missing, and an upload form
+  on top: several files at once, chosen or dropped (`admin-upload.js`), each
+  refusal reported by file name; without JavaScript one file, and the server
+  redirects back with a message. The edit page shows the image, its data and
+  its address beside the form; the delete page warns that texts showing the
+  image will miss it. New Twig filter `file_size` (`1,5 MB` in Hungarian).
+- System page, *Images* group: whether PHP's `upload_max_filesize` and
+  `post_max_size` allow `media.max_bytes`, and whether `memory_limit` allows
+  `media.max_pixels` (`ImageProcessor::maxPixelsSetting()`).
+- Docker image: `gd` (with JPEG, PNG and WebP) and `exif`, `mod_headers`
+  (the media folder's `.htaccess` sets its `nosniff` and sandbox headers with
+  it), and `docker/php.ini` with the limits images need
+  (`upload_max_filesize = 16M`, `post_max_size = 20M`, `memory_limit = 256M`,
+  `expose_php = Off`). Rebuild after upgrading: `docker compose up -d --build`.
 - `ObjectService::addListener()` and `ObjectListener` (`afterDelete()`): a
   minimal hook until the Event / Action system.
 - `php bin/campanella html:sanitize [--dry-run]`: filters the HTML texts
@@ -106,6 +121,10 @@ backward-incompatible.
 - `Cli\Output` takes an optional error stream (`$errors`, default `STDERR`).
 - `system` and `media` are reserved: no Blueprint can have these names
   (`BlueprintRegistry::RESERVED_NAMES`).
+- `POST /admin/media/upload` answers in JSON only to requests with
+  `Accept: application/json` (as the editor sends them); other requests get a
+  redirect to the Images list. `MediaService::maxUploadBytes()` keeps 64 KB of
+  `post_max_size` for the rest of the form (`MediaService::FORM_MARGIN`).
 
 ## [0.0.4] – 2026-10-02
 

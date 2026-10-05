@@ -34,6 +34,7 @@ use Twig\TwigFunction;
  *   {{ admin_url('article') }}          an admin page URL; admin_access(): may the visitor enter it
  *   {{ flash_messages() }}              the one-time messages (and removes them)
  *   {{ object|body }}                   the safe HTML of the Textual body
+ *   {{ 1572864|file_size }}             a size in bytes, readable: 1.5 MB (in the current language)
  */
 final class CampanellaTwigExtension extends AbstractExtension implements GlobalsInterface
 {
@@ -87,6 +88,7 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
     {
         return [
             new TwigFilter('body', $this->body(...), ['is_safe' => ['html']]),
+            new TwigFilter('file_size', $this->fileSize(...)),
         ];
     }
 
@@ -154,6 +156,27 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
     public function translate(string $key, array $params = []): string
     {
         return $this->translator === null ? $key : ($this->translator)()->translate($key, $params);
+    }
+
+    /**
+     * A size in bytes, readable in the current language: `840 bytes`, `56 KB`, `1.5 MB`
+     * (1 KB = 1024 bytes; one decimal below 10 MB; in Hungarian `1,5 MB`).
+     */
+    public function fileSize(int|float|string|null $bytes): string
+    {
+        $bytes = max(0, (int) $bytes);
+        [$key, $value] = match (true) {
+            $bytes < 1024 => ['format.bytes', (float) $bytes],
+            $bytes < 1024 * 1024 => ['format.kb', $bytes / 1024],
+            default => ['format.mb', $bytes / 1024 / 1024],
+        };
+        $decimals = $key !== 'format.bytes' && $value < 10 ? 1 : 0;
+        $number = number_format($value, $decimals, ($this->translator === null ? '.' : $this->translate('format.decimal_point')), "\u{a0}");
+        if ($decimals === 1 && str_ends_with($number, '0')) {
+            $number = substr($number, 0, -2); // 2.0 -> 2
+        }
+
+        return $this->translate($key, ['n' => $number]);
     }
 
     /** The current language code (e.g. for <html lang="...">). */

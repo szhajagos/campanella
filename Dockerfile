@@ -4,12 +4,17 @@
 # so src/, config/, vendor/ are not reachable from outside.
 FROM php:8.3-apache
 
-# pdo_mysql: for the database; mod_rewrite: for the .htaccess URL rewriting.
+# pdo_mysql: for the database; mod_rewrite and mod_headers: for the .htaccess files.
+# gd (with JPEG, PNG and WebP) and exif: for re-encoding uploaded images.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends unzip \
+    && apt-get install -y --no-install-recommends unzip libjpeg62-turbo-dev libpng-dev libwebp-dev \
+    && docker-php-ext-configure gd --with-jpeg --with-webp \
+    && docker-php-ext-install pdo_mysql gd exif \
     && rm -rf /var/lib/apt/lists/* \
-    && docker-php-ext-install pdo_mysql \
-    && a2enmod rewrite
+    && a2enmod rewrite headers
+
+# Upload and memory limits for images (see docker/php.ini).
+COPY docker/php.ini /usr/local/etc/php/conf.d/campanella.ini
 
 # Moving the web root as described in the official PHP image documentation.
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public

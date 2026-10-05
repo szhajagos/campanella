@@ -55,7 +55,7 @@ The `subpath` route parameter selects the page. Everything goes through the
 | `POST /admin/<blueprint>/<id>/publish` | Publishing, now or at a given time ([below](#publishing-and-deleting)) |
 | `POST /admin/<blueprint>/<id>/unpublish` | Unpublishing |
 | `/admin/<blueprint>/<id>/delete` | Deleting: a confirmation page; POST deletes |
-| `POST /admin/media/upload` | Uploading an image, for the editor; JSON ([chapter 16](16-media.md#uploading-from-the-admin)) |
+| `POST /admin/media/upload` | Uploading an image: JSON for the editor and the Images list, a redirect for the form without JavaScript ([chapter 16](16-media.md#uploading-from-the-admin)) |
 | `POST /admin/<blueprint>/<id>/convert-html` | Converts a saved plain body to a formatted one ([below](#formatted-text-the-html-editor)) |
 | `/admin/system` | The System page ([below](#the-system-page)) |
 | `POST /admin/system/clear-cache` | Clears the template cache |
@@ -69,9 +69,13 @@ The `subpath` route parameter selects the page. Everything goes through the
 
 Blueprints with the `Authenticatable` capability (users) are not managed as
 content; user management in the browser comes later. The objects of a
-Blueprint with the `MediaFile` capability (images) are listed and edited
-(title, alternative text), but not created from an empty form: they are
-created by uploading ([chapter 16](16-media.md)). `system` and `media` are
+Blueprint with the `MediaFile` capability (images) are listed with
+thumbnails, type, size and dimensions (sortable by size; a reminder where the
+alternative text is missing), and edited (title, alternative text) with a
+preview and the file's data beside the form, but not created from an empty
+form: they are created by uploading, also right on the Images list
+([chapter 16](16-media.md#in-the-images-list)). Their delete page warns that
+texts showing the image will miss it. `system` and `media` are
 admin paths, so no Blueprint can have these names (`BlueprintRegistry::RESERVED_NAMES`).
 
 ### The list

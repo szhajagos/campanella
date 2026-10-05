@@ -21,3 +21,16 @@
 }
 .jodit_theme_dark .jodit-wysiwyg { background-color: var(--bs-body-bg); color: var(--bs-body-color); }
 .jodit-wysiwyg img { max-width: 100%; height: auto; }
+
+/* Images: thumbnails in the list, the preview on the edit page, the upload form. */
+.admin-thumb {
+    width: 64px; height: 64px; object-fit: cover; border-radius: var(--bs-border-radius-sm);
+    background: var(--bs-tertiary-bg); border: 1px solid var(--bs-border-color-translucent);
+}
+.admin-thumb-lg { width: 160px; height: 160px; }
+.admin-thumb-cell { width: 1%; }
+.admin-media-preview { display: block; background: var(--bs-tertiary-bg); text-align: center; }
+.admin-media-preview img { max-width: 100%; height: auto; max-height: 320px; width: auto; object-fit: contain; }
+.admin-upload { border-style: dashed; }
+.admin-upload input[type="file"] { min-width: 0; flex-basis: 12rem; }
+.admin-upload.is-dragover { border-color: var(--bs-primary); background: var(--bs-primary-bg-subtle); }

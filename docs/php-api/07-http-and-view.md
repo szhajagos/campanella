@@ -229,6 +229,7 @@ without extending it, it decides which CSS and JavaScript it loads.
 | `{{ flash_messages() }}` | `flashMessages()` | The one-time messages, translated (`type`, `text`), removed from the session |
 | `{{ t('auth.login', {…}) }}` | `translate(string $key, array $params = [])` | A user-facing text in the current language ([chapter 12](12-translation.md)) |
 | `{{ locale() }}` | `locale()` | The current language code |
+| `{{ size\|file_size }}` | `fileSize(int\|float\|string\|null $bytes)` | A size in bytes, readable in the current language: `840 bytes`, `56 KB`, `1.5 MB` (Hungarian: `1,5 MB`; 1 KB = 1024 bytes) |
 | `{{ object\|body }}` | `body(CampanellaObject $object)` | The HTML of the Textual body: escaped and split into paragraphs for the `plain` format; as stored for the `html` format, which is filtered on save ([chapter 15](15-html.md)) |
 
 The extension's other methods (`getFunctions()`, `getFilters()`,

@@ -80,9 +80,12 @@ docker compose exec web php bin/campanella seed
 ```
 
 The system is then available at <http://localhost:8080>. The `Dockerfile` is
-based on the official `php:8.3-apache` image: it installs the `pdo_mysql`
-extension, enables the `mod_rewrite` module, and sets the web root to the
-`public/` folder. The database settings come from environment variables in
+based on the official `php:8.3-apache` image: it installs the `pdo_mysql`,
+`gd` (with JPEG, PNG and WebP) and `exif` extensions, enables the
+`mod_rewrite` and `mod_headers` modules, raises PHP's upload and memory limits
+for images (`docker/php.ini`), and sets the web root to the `public/` folder.
+After changing the `Dockerfile` or `docker/php.ini`, rebuild:
+`docker compose up -d --build`. The database settings come from environment variables in
 `compose.yaml` (`CAMPANELLA_DB_HOST`, `CAMPANELLA_DB_NAME`, etc.). Do not create
 a `config/local.php` under Docker, because it would override them.
 

@@ -75,9 +75,9 @@ Agreed in detail on 2026-10-02. In five parts, each its own commit:
      become `<p>`, nothing is lost).
    - A Content-Security-Policy header for the admin that allows only our own
      scripts, as a second line of defense.
-3. **Image upload**, in three commits: (a) ✅ the image object and the
+3. ✅ **Image upload**, in three commits: (a) ✅ the image object and the
    upload service, server side; (b) ✅ uploading from the admin and the editor;
-   (c) the "Images" list, system checks, Docker php.ini. To our own endpoint (`POST /admin/media/upload`, without
+   (c) ✅ the "Images" list, system checks, Docker php.ini. To our own endpoint (`POST /admin/media/upload`, without
    Jodit's PHP connector; CSRF; only for users the policy lets create).
    - Checked by content, not by extension: JPEG, PNG, WebP, GIF. No SVG (it
      can carry scripts). A size limit (e.g. 5 MB) and a pixel limit.
@@ -136,7 +136,10 @@ on, the system is suitable for running a real website.
 - **Webform:** forms as a user interface for object operations.
 - **Cache:** object, query and render cache with cache tags and contexts.
 - **JSON API** according to the [HTTP API draft](docs/http-api/README.md).
-- **Media:** file storage, images, image variants.
+- **Media:** file storage, image variants (thumbnails, sizes for `srcset`),
+  and tracking where an image is used (e.g. a relation filled from the texts
+  on save), so the delete page can list those texts, and an image picker in
+  the editor (choosing an uploaded image).
 - **Before going live (by 0.1.0):** a deployment guide and checks for a
   public server (2026-10-04):
   - the web server's document root is `public/` (as in Campanella's Docker

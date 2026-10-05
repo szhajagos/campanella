@@ -1987,6 +1987,45 @@ test('ImageProcessor: hostile and broken files are refused or made harmless', fu
     ini_set('memory_limit', $limit);
     check(\Campanella\Media\ImageProcessor::iniBytes('128M') === 134217728 && \Campanella\Media\ImageProcessor::iniBytes('-1') === -1);
     throws(\InvalidArgumentException::class, fn () => new \Campanella\Media\ImageProcessor(quality: 0));
+
+    // The system check: PHP's upload limits against max_bytes, memory_limit against max_pixels.
+    $limits = static function (\Campanella\Media\ImageProcessor $p) use ($storage): array {
+        $lines = [];
+        foreach (\Campanella\Media\MediaCheck::checks($p, $storage)(null) as $result) {
+            $lines[$result->label] = $result;
+        }
+
+        return [$lines['admin.system.media_max_file'], $lines['admin.system.media_max_image']];
+    };
+    [$file] = $limits(new \Campanella\Media\ImageProcessor(maxBytes: 1024 * 1024));
+    check($file->status === \Campanella\System\CheckStatus::Ok && $file->value === '1 MB', $file->value);
+    [$file] = $limits(new \Campanella\Media\ImageProcessor(maxBytes: 4 * 1024 ** 3));
+    $upload = \Campanella\Media\ImageProcessor::iniBytes((string) ini_get('upload_max_filesize'));
+    if ($upload > 0) {
+        check($file->status === \Campanella\System\CheckStatus::Warning && str_contains((string) $file->hint?->params['settings'], 'upload_max_filesize') && $file->hint?->params['max'] === '4096 MB', 'limited by PHP: ' . $file->value);
+    }
+    ini_set('memory_limit', '128M');
+    [, $image] = $limits(new \Campanella\Media\ImageProcessor(memoryLimit: ''));
+    check($image->status === \Campanella\System\CheckStatus::Warning && $image->hint?->params['max'] === '25 MP', 'limited by memory: ' . $image->value);
+    [, $image] = $limits(new \Campanella\Media\ImageProcessor(maxPixels: 4_000_000, memoryLimit: ''));
+    check($image->status === \Campanella\System\CheckStatus::Ok && $image->value === '4 MP', $image->value);
+    ini_set('memory_limit', $limit);
+});
+
+test('Admin: file sizes are shown readably in the current language', function (): void {
+    $size = static function (string $locale): \Closure {
+        $translator = Translator::fromDirectory(dirname(__DIR__) . '/lang', $locale);
+        $extension = new \Campanella\View\CampanellaTwigExtension(static fn () => throw new LogicException(), static fn (): string => '', [], null, null, static fn (): Translator => $translator);
+
+        return $extension->fileSize(...);
+    };
+    $hu = $size('hu');
+    $en = $size('en');
+    check($hu(840) === '840 bájt' && $en(840) === '840 bytes');
+    check($hu(1536) === "1,5\u{a0}kB" || $hu(1536) === '1,5 kB', $hu(1536));
+    check($en(1536) === '1.5 KB' && $en(2048) === '2 KB' && $en(56 * 1024) === '56 KB', $en(2048));
+    check($en((int) (1.25 * 1024 * 1024)) === '1.3 MB' && $hu((int) (1.25 * 1024 * 1024)) === '1,3 MB' && $en(25 * 1024 * 1024) === '25 MB', $hu((int) (1.25 * 1024 * 1024)));
+    check($en(1536 * 1024 * 1024) === "1\u{a0}536 MB" && $en(null) === '0 bytes', $en(1536 * 1024 * 1024));
 });
 
 test('MediaStorage: random names, safe paths, the .htaccess', function (): void {
@@ -2049,7 +2088,7 @@ test('MediaService: uploading creates an image object; deleting it deletes the f
     check(\Campanella\Media\MediaService::titleFrom("szamla\u{202E}gpj.exe") === 'szamlagpj', 'direction-changing characters removed');
 });
 
-test('Kernel: images in the admin are listed, edited, but not created from a form', function () use ($editorUser, $admin): void {
+test('Kernel: images in the admin are listed, edited, but not created from a form', function () use ($editorUser, $admin, $newUser): void {
     putenv('CAMPANELLA_DB_PREFIX=test_');
     $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
     $container = $kernel->container();
@@ -2080,11 +2119,21 @@ test('Kernel: images in the admin are listed, edited, but not created from a for
     check($checks['admin.system.media_folder']->status === \Campanella\System\CheckStatus::Ok && $checks['admin.system.media_folder']->value === $dir);
     check(str_contains($checks['admin.system.media_reencode']->value, 'JPEG'), 'reencoded types listed');
     check(str_contains($checks['gd']->value, ' · ') && str_contains($checks['gd']->value, 'PNG'), 'gd with its formats: ' . $checks['gd']->value);
+    check($checks['admin.system.media_max_file']->value !== '' && $checks['admin.system.media_max_image']->value !== '', 'upload limits checked');
     $list = $send('GET', '/admin/image');
     check($list->status === 200 && str_contains($list->body, 'logo') && !str_contains($list->body, 'href="/admin/image/new"'), 'listed, no New button');
+    $url = $container->get(\Campanella\Media\MediaService::class)->url($image);
+    check(str_contains($list->body, 'class="admin-thumb" src="' . $url . '"'), 'a thumbnail');
+    check(str_contains($list->body, 'PNG · ') && str_contains($list->body, '20 × 20 px') && str_contains($list->body, 'nincs alternatív szöveg'), 'type, size, dimensions, missing alt');
+    check(str_contains($list->body, 'data-media-upload') && str_contains($list->body, 'enctype="multipart/form-data"') && str_contains($list->body, 'admin-upload.js'), 'the upload form');
+    $storage->endRequest();
+    $sorted = $kernel->handle(new Request('GET', '/admin/image', query: ['sort' => 'file_size', 'dir' => 'asc']));
+    check(str_contains($list->body, 'sort=file_size') && $sorted->status === 200, 'sortable by size: ' . $sorted->status . ' ' . substr(strip_tags($sorted->body), 0, 600));
+    check(!str_contains($send('GET', '/admin/article')->body, 'data-media-upload'), 'no upload form on other lists');
     check($send('GET', '/admin/image/new')->status === 404, 'no empty form for a file');
     $form = $send('GET', '/admin/image/' . $image->id());
     check($form->status === 200 && str_contains($form->body, 'name="f[alt]"') && !str_contains($form->body, 'f[file_path]') && !str_contains($form->body, 'f[file_hash]'), 'file data is not in the form');
+    check(str_contains($form->body, 'class="card mb-3 admin-media"') && str_contains($form->body, '<code class="text-break user-select-all">' . $url . '</code>') && str_contains($form->body, '20 × 20 px'), 'the preview and file data beside the form');
 
     preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $form->body, $c);
     preg_match('/name="_version" value="([0-9a-f]{64})"/', $form->body, $v);
@@ -2093,6 +2142,12 @@ test('Kernel: images in the admin are listed, edited, but not created from a for
     ]]);
     $saved = $container->get(ObjectRepository::class)->find((int) $image->id());
     check($saved?->get('alt') === 'A Campanella logója' && $saved->get('file_path') === $image->get('file_path'), 'a posted file path is ignored');
+
+    // Deleting (administrators): a warning that texts showing the image lose it.
+    $container->get(AuthService::class)->login(new Request('GET', '/'), $newUser('kep-torlo@example.hu', 'kep-torlo-jelszo', ['administrator']));
+    $delete = $send('GET', '/admin/image/' . $image->id() . '/delete');
+    check($delete->status === 200 && str_contains($delete->body, 'hiányzó kép lesz') && str_contains($delete->body, 'src="' . $url . '"'), 'the delete page warns about texts: ' . $delete->status);
+    check(!str_contains($send('GET', '/admin/article')->body, 'hiányzó kép'), 'no image warning elsewhere');
     putenv('CAMPANELLA_DB_PREFIX');
 });
 
@@ -2129,7 +2184,7 @@ test('Kernel: uploading an image from the admin (POST /admin/media/upload)', fun
     $container->set(Session::class, static fn () => new Session($storage));
     $auth = $container->get(AuthService::class);
     $auth->login(new Request('GET', '/'), $editorUser);
-    $send = function (string $method, string $path, array $post = [], array $files = [], array $headers = []) use ($kernel, $storage) {
+    $send = function (string $method, string $path, array $post = [], array $files = [], array $headers = ['accept' => 'application/json']) use ($kernel, $storage) {
         $storage->endRequest();
 
         return $kernel->handle(new Request($method, $path, post: $post, headers: $headers, files: $files));
@@ -2161,18 +2216,28 @@ test('Kernel: uploading an image from the admin (POST /admin/media/upload)', fun
     check($json($send('POST', '/admin/media/upload', ['_csrf' => $csrf]))['message'] === 'A fájl üres, vagy nem érkezett meg.', 'no file');
     $tooLarge = $send('POST', '/admin/media/upload', ['_csrf' => $csrf], $upload('', 'nagy.jpg', UPLOAD_ERR_INI_SIZE));
     check($tooLarge->status === 413 && str_contains((string) $json($tooLarge)['message'], 'MB'), 'refused by PHP for its size: ' . $tooLarge->body);
-    check($send('POST', '/admin/media/upload', [], [], ['content-length' => '20', 'content-type' => 'application/json'])->status === 400, 'an empty non-form POST is not "too large"');
-    $discarded = $send('POST', '/admin/media/upload', [], [], ['content-length' => '99999999', 'content-type' => 'multipart/form-data; boundary=x']);
+    check($send('POST', '/admin/media/upload', [], [], ['accept' => 'application/json', 'content-length' => '20', 'content-type' => 'application/json'])->status === 400, 'an empty non-form POST is not "too large"');
+    $discarded = $send('POST', '/admin/media/upload', [], [], ['accept' => 'application/json', 'content-length' => '99999999', 'content-type' => 'multipart/form-data; boundary=x']);
     check($discarded->status === 413, 'a body PHP discarded (post_max_size) is reported as too large, not as an expired form');
     check($send('POST', '/admin/media/upload', ['_csrf' => $csrf], $upload('', 'x.jpg', UPLOAD_ERR_NO_TMP_DIR))->status === 500);
     check($send('GET', '/admin/media/upload')->status === 405 && $send('POST', '/admin/media/other')->status === 404);
     check(str_contains((string) ($ok->headers['X-Robots-Tag'] ?? ''), 'noindex'), 'admin headers');
+
+    // The upload form without JavaScript (no Accept: application/json): back to the list, with a message.
+    $html = ['accept' => 'text/html'];
+    $plain = $send('POST', '/admin/media/upload', ['_csrf' => $csrf], $upload(testImage('png', 12, 12), 'Űrlapról.png'), $html);
+    check($plain->status === 303 && ($plain->headers['Location'] ?? '') === '/admin/image', 'redirected: ' . $plain->status);
+    check(str_contains($send('GET', '/admin/image', [], [], $html)->body, 'Feltöltve: Űrlapról'), 'success message');
+    $plainBad = $send('POST', '/admin/media/upload', ['_csrf' => $csrf], $upload('', 'nagy.jpg', UPLOAD_ERR_INI_SIZE), $html);
+    check($plainBad->status === 303 && str_contains($send('GET', '/admin/image', [], [], $html)->body, 'A fájl túl nagy'), 'error message');
 
     // After the session expired, the editor gets JSON, not the login page.
     $auth->logout();
     $expired = $send('POST', '/admin/media/upload', ['_csrf' => $csrf], $upload(testImage('png', 10, 10)));
     check($expired->status === 401 && $json($expired)['message'] === 'A munkamenet lejárt. Jelentkezz be újra (például egy másik lapon), majd próbáld újra.', $expired->body);
     check($send('GET', '/admin/article')->status === 302, 'other admin pages still redirect to the login page');
+    $plainExpired = $send('POST', '/admin/media/upload', ['_csrf' => $csrf], $upload(testImage('png', 10, 10)), ['accept' => 'text/html']);
+    check($plainExpired->status === 302 && str_ends_with($plainExpired->headers['Location'] ?? '', '?vissza=%2Fadmin%2Fimage'), 'the form without JavaScript: to the login page, then back to the list');
 
     putenv('CAMPANELLA_DB_PREFIX');
 });

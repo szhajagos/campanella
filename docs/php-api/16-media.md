@@ -6,8 +6,8 @@ alternative text, an author (the uploader) and the file's data. The file
 itself is stored in `public/media/` and served directly by the web server.
 
 Images are uploaded from the admin's editor (the image button, pasting,
-dropping; [below](#uploading-from-the-admin)); every upload goes through the
-server side described here.
+dropping) or on the Images list ([below](#uploading-from-the-admin)); every
+upload goes through the server side described here.
 
 ## What happens to an uploaded file
 
@@ -55,7 +55,7 @@ keys `media.empty`, `media.too_large`, `media.not_image`,
 |---|---|---|
 | `media.directory` | `'public/media'` | The folder, relative to the project root (or absolute) |
 | `media.url` | `'/media'` | Its address on the site |
-| `media.max_bytes` | 10 MB | The largest file accepted. PHP's `upload_max_filesize` and `post_max_size` must allow it too |
+| `media.max_bytes` | 10 MB | The largest file accepted. PHP's `upload_max_filesize` and `post_max_size` must allow it too (the system page checks it; [below](#web-server)) |
 | `media.max_pixels` | 25 000 000 | The largest image (width × height) |
 | `media.max_dimension` | 2560 | Larger images are scaled down to this width or height |
 | `media.quality` | 85 | JPEG and WebP quality when re-encoding (1–100) |
@@ -98,7 +98,8 @@ Blueprint with this capability (its objects are created by uploading).
 | `__construct(ObjectService $objects, ObjectRepository $repository, AccessPolicy $policy, ImageProcessor $processor, MediaStorage $storage, string $blueprint = 'image')` | |
 | `uploadImage(Actor $actor, string $file, string $originalName, string $alt = ''): CampanellaObject` | Checks, stores and creates the image object (see above). `AccessDeniedException` if the actor may not create images; `ValidationException` (on `file`) for an unaccepted file |
 | `url(CampanellaObject $object): string` | The file's address, e.g. `/media/2026/10/….jpg` |
-| `maxUploadBytes(): int` | The largest file that can be uploaded: `media.max_bytes`, or less if PHP's `upload_max_filesize` or `post_max_size` is lower |
+| `maxUploadBytes(): int` | The largest file that can be uploaded: `media.max_bytes`, or less if PHP's `upload_max_filesize` or `post_max_size` (minus `FORM_MARGIN`) is lower |
+| `FORM_MARGIN` | 64 KB: what `post_max_size` must allow beyond the file (the other fields, the multipart framing) |
 | `static titleFrom(string $originalName): string` | The original name without folders, extension and control characters (`C:\Képek\Nyaralás.JPG` → `Nyaralás`); `image` if nothing remains |
 
 ```php
@@ -115,6 +116,7 @@ $image = $container->get(MediaService::class)->uploadImage($actor, $_FILES['file
 | `process(string $file): ProcessedImage` | Steps 2–5 above; `ValidationException` on the `file` field |
 | `maxPixels(): int` | The largest image accepted now (also limited by `memory_limit`, after raising it to `memoryLimit` if allowed) |
 | `maxBytes(): int` | `max_bytes` |
+| `maxPixelsSetting(): int` | `max_pixels` (`maxPixels()` may be lower) |
 | `reencodes(): bool` | Whether GD is used |
 | `storesUnprocessed(): bool` | The `store_unprocessed` setting |
 | `NAMES` | MIME type → name for messages (`image/webp` → `WebP`) |
@@ -141,7 +143,9 @@ $image = $container->get(MediaService::class)->uploadImage($actor, $_FILES['file
 | `HTACCESS` | The `.htaccess` written into the folder if missing (a copy ships in `public/media/`) |
 
 `Campanella\Media\MediaCheck` · **Internal**: `static checks(ImageProcessor $processor, MediaStorage $storage): Closure`,
-the system check's *Images* lines ([chapter 14](14-system-check.md)).
+the system check's *Images* lines ([chapter 14](14-system-check.md)): the
+folder, the re-encoded types, the largest file and the largest image that
+PHP's settings allow.
 
 `Campanella\Media\DeleteMediaFile` · **Internal** · `ObjectListener`:
 `afterDelete(CampanellaObject $object): void` deletes the file of a deleted
@@ -151,7 +155,8 @@ the system check's *Images* lines ([chapter 14](14-system-check.md)).
 
 `POST /admin/media/upload` (multipart, field `file`, with the CSRF token),
 for users who may create images (the `DefaultPolicy`: `administrator`,
-`editor`). The answer is JSON:
+`editor`). With `Accept: application/json` (as the editor and the Images
+list send it) the answer is JSON:
 
 | Status | Body |
 |---|---|
@@ -165,6 +170,25 @@ for users who may create images (the `DefaultPolicy`: `administrator`,
 | 500 | PHP could not receive the file (temporary folder, disk) |
 
 Errors are `{"success": false, "message": "…"}`, in the user's language.
+
+Without `Accept: application/json` (the Images list's form without
+JavaScript) the answer is a redirect (303) to the Images list, with the result
+as a one-time message (`media.uploaded`, or the error). An expired session
+then leads to the login page, and back to the list.
+
+### In the Images list
+
+`/admin/image` starts with an upload form (for users who may upload): choose
+files, or drop them on the form. With JavaScript (`public/assets/admin-upload.js`)
+several files are uploaded one after the other, then the list is reloaded; if
+any is refused, the reasons are listed by file name instead (with a button to
+show those that did go up). Without JavaScript the form uploads one file.
+
+The list shows a thumbnail, the type, size and dimensions (sortable by size),
+and "no alternative text" where it is missing. The edit page shows the image,
+its data and its address (`/media/…`) beside the form. Deleting warns that
+texts showing the image will have a missing image in its place: where images
+are used is not tracked yet (planned; the texts keep the address).
 
 **In the editor** ([chapter 13](13-admin.md#formatted-text-the-html-editor)):
 the edit form carries the address and the size limit (`data-upload-url`,
@@ -199,7 +223,7 @@ location /media/ {
 ```
 
 **gd with all formats.** In the official `php` Docker images gd must be built
-with the formats explicitly:
+with the formats explicitly (Campanella's `Dockerfile` does so since 0.0.5):
 
 ```dockerfile
 RUN apt-get update \
@@ -208,6 +232,23 @@ RUN apt-get update \
     && docker-php-ext-install gd exif \
     && rm -rf /var/lib/apt/lists/*
 ```
+
+The `.htaccess` sets its headers with `mod_headers`, which the official image
+does not enable: `a2enmod headers` (also in Campanella's `Dockerfile`).
+
+**PHP's limits.** PHP's defaults (`upload_max_filesize = 2M`,
+`post_max_size = 8M`, often `memory_limit = 128M`) are below what images need.
+Campanella's Docker image sets them in `docker/php.ini`:
+
+```ini
+upload_max_filesize = 16M
+post_max_size = 20M
+memory_limit = 256M
+```
+
+On another server put these into `php.ini` (or `.user.ini`, or the hosting
+panel); `upload_max_filesize` and `post_max_size` cannot be changed from PHP
+code. The system page's *Images* group shows whether they are enough.
 
 ## Upgrading
 

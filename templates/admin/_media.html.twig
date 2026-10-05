@@ -1,0 +1,22 @@
+{# The file of an image object: a preview and its data (the edit form's side panel). #}
+<section class="card mb-3 admin-media" aria-labelledby="media-heading">
+    <a href="{{ url(media_url) }}" target="_blank" rel="noopener" class="admin-media-preview">
+        <img src="{{ url(media_url) }}" alt="{{ object.alt ?? '' }}" class="card-img-top"{% if object.width and object.height %} width="{{ object.width }}" height="{{ object.height }}"{% endif %}>
+    </a>
+    <div class="card-body small">
+        <h2 class="h6" id="media-heading">{{ t('admin.media.file') }}</h2>
+        <dl class="row mb-0">
+            <dt class="col-5 fw-normal text-body-secondary">{{ t('field.mime_type') }}</dt>
+            <dd class="col-7">{{ type_names[object.mime_type] ?? object.mime_type }}</dd>
+            <dt class="col-5 fw-normal text-body-secondary">{{ t('field.file_size') }}</dt>
+            <dd class="col-7">{{ object.file_size|file_size }}</dd>
+            {% if object.width and object.height %}
+                <dt class="col-5 fw-normal text-body-secondary">{{ t('admin.media.dimensions_label') }}</dt>
+                <dd class="col-7">{{ t('admin.media.dimensions', {width: object.width, height: object.height}) }}</dd>
+            {% endif %}
+            <dt class="col-5 fw-normal text-body-secondary">{{ t('admin.media.address') }}</dt>
+            <dd class="col-7 mb-0"><code class="text-break user-select-all">{{ url(media_url) }}</code></dd>
+        </dl>
+        <a class="d-inline-block mt-2" href="{{ url(media_url) }}" target="_blank" rel="noopener">{{ t('admin.media.open') }}</a>
+    </div>
+</section>
