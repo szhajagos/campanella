@@ -20,6 +20,7 @@ details (those are in the server's error log).
 | Group | Checks |
 |---|---|
 | Versions | Campanella; PHP (at least `SystemCheck::MIN_PHP`, 8.3.0); the database server (MariaDB 10.6+, MySQL 8.0+: `MIN_DATABASE`); the database schema against `Version::SCHEMA` (if they differ: run `install`) |
+| Database tables | The tables against their definitions ([chapter 8](08-database.md#comparing-schemacomparator)): one line per difference (a warning; a table no definition has: info), at most `MAX_SCHEMA_LINES` (10), or one line saying they match. Once installed (since 0.0.6) |
 | Required PHP extensions | `REQUIRED_EXTENSIONS`: `ctype`, `dom` (the HTML filter), `json`, `mbstring`, `pdo`, `pdo_mysql`, `session`; missing: error |
 | Recommended PHP extensions | `RECOMMENDED_EXTENSIONS`: `gd` (image processing, 0.0.5; with the image formats it was built with, a warning if JPEG, PNG, WebP or GIF is missing), `fileinfo` (recognising uploaded files), `opcache` (speed); missing: warning |
 | Images | The media folder (writable?); which image types can be uploaded: strict by default, a type gd cannot re-encode is refused; the largest file (a warning if `upload_max_filesize` or `post_max_size` is below `media.max_bytes`; `post_max_size` needs 64 KB more for the rest of the form) and the largest image (a warning if `memory_limit` allows less than `media.max_pixels`, an error below 2 megapixels) ([chapter 16](16-media.md)) |
@@ -44,6 +45,7 @@ opcache, other limits).
 | `static worst(array $results): ?CheckStatus` | `Error` if any result is an error, else `Warning` if any is a warning, else `Ok`/`Info`; null for no results |
 | `static parseDatabaseVersion(string $version): ?array` | `SELECT VERSION()` text → `[product, version]`, e.g. `'10.11.6-MariaDB-0+deb12u1'` → `['MariaDB', '10.11.6']` |
 | `MIN_PHP`, `MIN_DATABASE`, `REQUIRED_EXTENSIONS`, `RECOMMENDED_EXTENSIONS` | The requirements (see above) |
+| `MAX_SCHEMA_LINES` | 10: the most schema differences listed one by one |
 
 A feature can add its own check, e.g. for a folder it writes:
 

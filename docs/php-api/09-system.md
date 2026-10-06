@@ -137,6 +137,7 @@ schema version; incremented for a new table or migration).
 | `install` | Creates the tables; `--sql`: only prints the SQL |
 | `seed` | Sample content. Can be run repeatedly: whatever already exists by path is not created again |
 | `status` | Version, the system check ([chapter 14](14-system-check.md)), capabilities, Blueprints, object count; reports if the database needs an upgrade. Exits with `1` if a check reports an error |
+| `schema:check` | Compares the table definitions with the database and lists the differences (exits with `1` if there is one; a table no definition has is only reported); `--sql`: prints the statements of the additive ones, and those that would lose data as comments. Changes nothing ([chapter 8](08-database.md#comparing-schemacomparator)) |
 | `html:sanitize` | Filters the stored HTML texts with the allowlist; `--dry-run`: only lists them ([chapter 15](15-html.md#texts-stored-earlier-htmlsanitize)) |
 | `user:create`, `user:password`, `user:list` | User management ([chapter 11](11-users.md#command-line)) |
 | `help` | Command list |
@@ -176,7 +177,7 @@ module system it will become registrable.
 |---|---|
 | `Console` · **Internal** | `__construct(Kernel $kernel, Output $output = new Output())`, `run(array $argv): int` |
 | `Output` · **Public** | `__construct($stream = STDOUT, $errors = STDERR)`; `line(string $text = '')`, `success(string $text)` (with a ✔ mark), `error(string $text)` (with a ✘ mark, to the error stream) |
-| `InstallCommand`, `SeedCommand`, `StatusCommand`, `HtmlSanitizeCommand` · **Internal** | The built-in commands |
+| `InstallCommand`, `SeedCommand`, `StatusCommand`, `HtmlSanitizeCommand`, `SchemaCheckCommand` · **Internal** | The built-in commands |
 
 ## Helper classes
 

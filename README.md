@@ -113,6 +113,7 @@ extra steps of an upgrade at the top of the version's section (for 0.0.5:
 | `php bin/campanella seed` | Sample content |
 | `php bin/campanella status` | Version, capabilities, Blueprints, object count, and the system checks (exits with `1` on an error) |
 | `php bin/campanella user:create <e-mail>` | Creates a user (`--name=`, `--role=administrator,editor`); also `user:password`, `user:list` |
+| `php bin/campanella schema:check` | Compares the table definitions with the database (`--sql`: the statements of the additive changes); changes nothing |
 | `php bin/campanella html:sanitize` | Filters the stored HTML texts with the allowlist (`--dry-run`: only lists them) |
 | `composer test` | Tests (on a real database, with a separate `test_` table prefix) |
 | `composer analyse` | PHPStan, level 8, targeting PHP 8.3 |

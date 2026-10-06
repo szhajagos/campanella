@@ -38,7 +38,7 @@ namespace, in the `src/` folder (PSR-4).
 | `Campanella\Controller` | Controller | Handling HTTP requests |
 | `Campanella\View` | View | Presentation, Twig integration |
 | `Campanella\Http` | Infrastructure | Request, response, routing |
-| `Campanella\Database` | Infrastructure | PDO layer, schema, installer |
+| `Campanella\Database` | Infrastructure | PDO layer, schema (definitions, reading the database, comparing), installer |
 | `Campanella\Core` | Infrastructure | Kernel, container, configuration |
 | `Campanella\System` | Infrastructure | System check, template cache |
 | `Campanella\Html` | Infrastructure | HTML filter |

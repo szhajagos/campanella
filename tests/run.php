@@ -2242,6 +2242,172 @@ test('Kernel: uploading an image from the admin (POST /admin/media/upload)', fun
     putenv('CAMPANELLA_DB_PREFIX');
 });
 
+echo "\nDatabase schema\n";
+
+// A database of its own (prefix sch_), so the comparison sees only these tables.
+$schemaDb = Connection::fromConfig(['prefix' => 'sch_'] + $config->get('database'));
+$dropSchema = static function () use ($schemaDb): void {
+    $schemaDb->execute('SET FOREIGN_KEY_CHECKS = 0');
+    foreach ((new \Campanella\Database\Schema\SchemaReader($schemaDb))->tableNames() as $name) {
+        $schemaDb->execute('DROP TABLE IF EXISTS ' . $schemaDb->table($name));
+    }
+    $schemaDb->execute('SET FOREIGN_KEY_CHECKS = 1');
+};
+
+test('SchemaReader: defaults are read alike on MariaDB and MySQL', function (): void {
+    $n = \Campanella\Database\Schema\SchemaReader::normalizeDefault(...);
+    check($n("'active'") === 'active' && $n('active') === 'active' && $n("'it''s'") === "it's");
+    check($n('NULL') === null && $n(null) === null && $n('0') === '0' && $n(0) === '0' && $n("''") === '');
+});
+
+test('SchemaReader: a fresh installation is read as defined, and matches its definitions', function () use ($schemaDb, $dropSchema, $capabilities): void {
+    $dropSchema();
+    $installer = new Installer($schemaDb, $capabilities);
+    $installer->install();
+    $differences = $installer->differences();
+    check($differences === [], implode(' | ', array_map(static fn ($d): string => $d->kind->value . ' ' . $d->table . '.' . $d->name . ' ' . $d->actual, $differences)));
+
+    $reader = new \Campanella\Database\Schema\SchemaReader($schemaDb);
+    $names = $reader->tableNames();
+    check(in_array('objects', $names, true) && in_array('cap_media_file', $names, true) && !in_array('sch_objects', $names, true), implode(', ', $names));
+    $objects = $reader->read('objects');
+    check($objects !== null && $objects->primaryKey === ['id'] && $objects->column('id')?->type === \Campanella\Database\Schema\ColumnType::Id && $objects->column('id')->autoIncrement);
+    check($objects->column('uuid')?->type === \Campanella\Database\Schema\ColumnType::Uuid && $objects->column('data')?->type === \Campanella\Database\Schema\ColumnType::Json);
+    check($objects->column('blueprint')?->length === 64 && !$objects->column('blueprint')->nullable && $objects->uniques === ['uniq_uuid' => ['uuid']]);
+    $relationships = $reader->read('relationships');
+    check($relationships?->column('weight')?->default === '0' && $relationships->indexes['idx_source'] === ['source_id', 'type', 'weight']);
+    $fks = array_values($relationships->foreignKeys);
+    check(count($fks) === 2 && $fks[0]['table'] === 'objects' && $fks[0]['cascadeDelete'], json_encode($fks));
+    check($reader->read('missing') === null && $reader->tableExists('objects') && !$reader->tableExists('missing'));
+    check($reader->columnExists('objects', 'uuid') && !$reader->columnExists('objects', 'nope') && $reader->indexExists('objects', 'idx_blueprint'));
+});
+
+test('SchemaComparator: finds the differences; the additive ones are applied with the generated SQL', function () use ($schemaDb): void {
+    $builder = new \Campanella\Database\Schema\SchemaBuilder($schemaDb);
+    $reader = new \Campanella\Database\Schema\SchemaReader($schemaDb);
+    $comparator = new \Campanella\Database\Schema\SchemaComparator($reader, $builder);
+
+    $v1 = new \Campanella\Database\Schema\Table('demo', [
+        new \Campanella\Database\Schema\Column('object_id', \Campanella\Database\Schema\ColumnType::Id),
+        new \Campanella\Database\Schema\Column('title', \Campanella\Database\Schema\ColumnType::String, length: 100),
+        new \Campanella\Database\Schema\Column('note', \Campanella\Database\Schema\ColumnType::Text, nullable: true),
+        new \Campanella\Database\Schema\Column('hits', \Campanella\Database\Schema\ColumnType::Integer, default: 0),
+    ], ['object_id'], indexes: ['idx_title' => ['title']], foreignKeys: [new \Campanella\Database\Schema\ForeignKey('object_id', 'objects')]);
+    $schemaDb->execute('DROP TABLE IF EXISTS ' . $schemaDb->table('demo'));
+    $builder->create($v1);
+    check($comparator->compareTable($v1, $reader->read('demo')) === [], 'v1 matches');
+    $object = $schemaDb->insert('objects', ['uuid' => '00000000-0000-4000-8000-000000000001', 'blueprint' => 'x', 'data' => '{}', 'created_at' => '2026-01-01 00:00:00', 'updated_at' => '2026-01-01 00:00:00']);
+    $schemaDb->insert('demo', ['object_id' => $object, 'title' => 'Régi sor', 'note' => 'x', 'hits' => 3]);
+
+    // The next version of the definition.
+    $v2 = new \Campanella\Database\Schema\Table('demo', [
+        new \Campanella\Database\Schema\Column('object_id', \Campanella\Database\Schema\ColumnType::Id),
+        new \Campanella\Database\Schema\Column('title', \Campanella\Database\Schema\ColumnType::String, length: 120),
+        new \Campanella\Database\Schema\Column('subtitle', \Campanella\Database\Schema\ColumnType::String, nullable: true, length: 80),
+        new \Campanella\Database\Schema\Column('hits', \Campanella\Database\Schema\ColumnType::Integer, default: 1),
+        new \Campanella\Database\Schema\Column('weight', \Campanella\Database\Schema\ColumnType::Integer, default: 5),
+        new \Campanella\Database\Schema\Column('code', \Campanella\Database\Schema\ColumnType::String, length: 16),
+    ], ['object_id'], indexes: ['idx_title' => ['title'], 'idx_weight' => ['weight']], uniques: ['uniq_code' => ['code']], foreignKeys: [new \Campanella\Database\Schema\ForeignKey('object_id', 'objects')]);
+    $found = [];
+    foreach ($comparator->compareTable($v2, $reader->read('demo')) as $d) {
+        $found[$d->kind->value . ':' . $d->name] = $d;
+    }
+    ksort($found);
+    check(array_keys($found) === [
+        'column_default:hits', 'column_type:title', 'extra_column:note', 'missing_column:code', 'missing_column:subtitle',
+        'missing_column:weight', 'missing_index:idx_weight', 'missing_index:uniq_code',
+    ], implode(', ', array_keys($found)));
+    check($found['column_type:title']->expected === 'VARCHAR(120)' && $found['column_type:title']->actual === 'varchar(100)' && $found['column_default:hits']->actual === '0');
+    check($found['missing_column:subtitle']->additive && $found['missing_column:weight']->additive && $found['missing_index:idx_weight']->additive, 'NULL or a default: additive');
+    check(!$found['missing_column:code']->additive && !$found['extra_column:note']->additive && $found['column_type:title']->sql === null, 'no guessing');
+    check(str_contains((string) $found['missing_column:subtitle']->sql, 'AFTER `title`') && str_contains((string) $found['extra_column:note']->sql, 'DROP COLUMN `note`'));
+    check($found['missing_column:code']->message()->key === 'schema.missing_column' && $found['missing_column:code']->message()->params['table'] === 'demo');
+
+    // Applying the additive ones: the existing row gets the default; the rest is left alone.
+    foreach ($found as $d) {
+        if ($d->additive && $d->kind !== \Campanella\Database\Schema\DifferenceKind::MissingIndex) {
+            $schemaDb->execute((string) $d->sql);
+        }
+    }
+    $schemaDb->execute((string) $found['missing_index:idx_weight']->sql);
+    $row = $schemaDb->fetchOne('SELECT * FROM {demo}');
+    check($row !== null && (int) $row['weight'] === 5 && $row['subtitle'] === null && $row['note'] === 'x', json_encode($row));
+    check(array_keys($reader->read('demo')?->columns ?? []) === ['object_id', 'title', 'subtitle', 'note', 'hits', 'weight'], 'in the order of the definition');
+    $left = array_map(static fn ($d): string => $d->kind->value . ':' . $d->name, $comparator->compareTable($v2, $reader->read('demo')));
+    sort($left);
+    check($left === ['column_default:hits', 'column_type:title', 'extra_column:note', 'missing_column:code', 'missing_index:uniq_code'], implode(', ', $left));
+    $schemaDb->execute((string) $found['extra_column:note']->sql);
+    check(!$reader->columnExists('demo', 'note'), 'dropped');
+
+    // An index the server added for a foreign key by itself is not a difference.
+    $fkOnly = new \Campanella\Database\Schema\Table('demo_fk', [
+        new \Campanella\Database\Schema\Column('id', \Campanella\Database\Schema\ColumnType::Id, autoIncrement: true),
+        new \Campanella\Database\Schema\Column('object_id', \Campanella\Database\Schema\ColumnType::Id),
+    ], ['id'], foreignKeys: [new \Campanella\Database\Schema\ForeignKey('object_id', 'objects')]);
+    $schemaDb->execute('DROP TABLE IF EXISTS ' . $schemaDb->table('demo_fk'));
+    $builder->create($fkOnly);
+    $info = $reader->read('demo_fk');
+    check($info !== null && ($info->indexes + $info->uniques) !== [] && $comparator->compareTable($fkOnly, $info) === [], json_encode($info?->indexes));
+    $schemaDb->execute('ALTER TABLE ' . $schemaDb->table('demo_fk') . ' DROP FOREIGN KEY ' . \Campanella\Database\Connection::quoteIdentifier($builder->foreignKeyName($fkOnly, $fkOnly->foreignKeys[0])));
+    $missingFk = $comparator->compareTable($fkOnly, (new \Campanella\Database\Schema\SchemaReader($schemaDb))->read('demo_fk') ?? $info);
+    check(in_array(\Campanella\Database\Schema\DifferenceKind::MissingForeignKey, array_map(static fn ($d) => $d->kind, $missingFk), true), 'a missing foreign key');
+
+    // A missing table: created by its SQL; a table no definition has: reported.
+    $missing = $comparator->compare([new \Campanella\Database\Schema\Table('demo_new', [new \Campanella\Database\Schema\Column('id', \Campanella\Database\Schema\ColumnType::Id)], ['id'])]);
+    $kinds = array_map(static fn ($d): string => $d->kind->value . ':' . $d->table, $missing);
+    check(in_array('missing_table:demo_new', $kinds, true) && in_array('extra_table:demo', $kinds, true) && in_array('extra_table:objects', $kinds, true), implode(', ', $kinds));
+    check(str_starts_with((string) $missing[0]->sql, 'CREATE TABLE IF NOT EXISTS `sch_demo_new`') && $missing[0]->additive);
+});
+
+test('schema:check and the System page report the differences', function () use ($schemaDb, $dropSchema): void {
+    putenv('CAMPANELLA_DB_PREFIX=sch_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    if ($kernel->container()->get(Connection::class)->prefix() !== 'sch_') {
+        echo "      (skipped: config/local.php sets its own prefix)\n";
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $run = static function (array $args) use ($kernel): array {
+        $stream = fopen('php://memory', 'w+');
+        $code = (new \Campanella\Cli\SchemaCheckCommand())->run($kernel->container(), $args, new \Campanella\Cli\Output($stream, $stream));
+        rewind($stream);
+
+        return [$code, (string) stream_get_contents($stream)];
+    };
+    // The previous test left the demo tables: tables no definition has, only reported.
+    [$code, $out] = $run([]);
+    check($code === 0 && str_contains($out, 'Definíció nélküli tábla: demo'), $out);
+
+    $schemaDb->execute('ALTER TABLE ' . $schemaDb->table('cap_media_file') . ' DROP COLUMN `width`');
+    $schemaDb->execute('ALTER TABLE ' . $schemaDb->table('objects') . ' DROP INDEX `idx_created`');
+    [$code, $out] = $run([]);
+    check($code === 1 && str_contains($out, 'Hiányzó oszlop: cap_media_file.width (INT).') && str_contains($out, '[hozzáadó]'), $out);
+    [$code, $sql] = $run(['--sql']);
+    check($code === 0 && str_contains($sql, 'ALTER TABLE `sch_cap_media_file` ADD COLUMN `width` INT NULL AFTER `file_size`;') && str_contains($sql, 'ADD INDEX `idx_created` (`created_at`);'), $sql);
+
+    $lines = [];
+    foreach ($kernel->container()->get(\Campanella\System\SystemCheck::class)->run() as $result) {
+        if ($result->group === 'admin.system.group.schema') {
+            $lines[$result->label] = $result;
+        }
+    }
+    check(isset($lines['cap_media_file.width']) && $lines['cap_media_file.width']->status === \Campanella\System\CheckStatus::Warning && $lines['cap_media_file.width']->value === 'schema.kind.missing_column', implode(', ', array_keys($lines)));
+    check(isset($lines['demo']) && $lines['demo']->status === \Campanella\System\CheckStatus::Info, 'extra table: info');
+
+    // Applying the printed statements makes them match again.
+    foreach (array_filter(explode(";\n", $sql), static fn (string $s): bool => str_starts_with(trim($s), 'ALTER') || str_starts_with(trim($s), 'CREATE')) as $statement) {
+        $schemaDb->execute($statement);
+    }
+    $dropSchema();
+    $kernel->container()->get(Installer::class)->install();
+    [$code, $out] = $run([]);
+    $lines = array_filter($kernel->container()->get(\Campanella\System\SystemCheck::class)->run(), static fn ($r): bool => $r->group === 'admin.system.group.schema');
+    check($code === 0 && str_contains($out, 'megfelel') && count($lines) === 1 && array_values($lines)[0]->status === \Campanella\System\CheckStatus::Ok, $out);
+    $dropSchema();
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
 echo "\nDocumentation examples\n";
 
 test('New capability as in the docs example (Weighted)', function () use ($db, $admin): void {

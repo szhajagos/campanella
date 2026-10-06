@@ -8,14 +8,18 @@ use Campanella\Capability\CapabilityRegistry;
 use Campanella\Core\Version;
 use Campanella\Database\Schema\CoreSchema;
 use Campanella\Database\Schema\SchemaBuilder;
+use Campanella\Database\Schema\SchemaComparator;
+use Campanella\Database\Schema\SchemaDifference;
+use Campanella\Database\Schema\SchemaReader;
 use Campanella\Database\Schema\Table;
 
 /**
  * Creates the core and capability tables.
  *
  * Can be run repeatedly (CREATE TABLE IF NOT EXISTS), so the table of a
- * newly registered capability is created this way too. Changing an
- * existing table requires a migration, which is a task for a later version.
+ * newly registered capability is created this way too. differences() compares
+ * the definitions with the database; changing an existing table requires a
+ * migration.
  */
 final class Installer
 {
@@ -55,6 +59,18 @@ final class Installer
         }
 
         return $names;
+    }
+
+    /**
+     * The differences between the table definitions and the database (empty if
+     * they match). Every table with the prefix is checked, so a table of a
+     * capability that is no longer registered is listed too.
+     *
+     * @return list<SchemaDifference>
+     */
+    public function differences(): array
+    {
+        return (new SchemaComparator(new SchemaReader($this->db), new SchemaBuilder($this->db)))->compare($this->tables());
     }
 
     /** The full DDL, e.g. for manual installation in phpMyAdmin. */

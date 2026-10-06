@@ -8,6 +8,7 @@ use Campanella\Core\Config;
 use Campanella\Core\Version;
 use Campanella\Database\Connection;
 use Campanella\Database\Installer;
+use Campanella\Database\Schema\DifferenceKind;
 use Campanella\Http\Request;
 use Campanella\I18n\Message;
 use Closure;
@@ -31,6 +32,9 @@ final class SystemCheck
 
     /** PHP extensions Campanella cannot run without. */
     public const array REQUIRED_EXTENSIONS = ['ctype', 'dom', 'json', 'mbstring', 'pdo', 'pdo_mysql', 'session'];
+
+    /** The most schema differences listed one by one (schema:check lists all). */
+    public const int MAX_SCHEMA_LINES = 10;
 
     /**
      * Recommended PHP extensions: name shown => name for extension_loaded(). The
@@ -72,6 +76,7 @@ final class SystemCheck
     {
         $results = [
             ...$this->versions(),
+            ...$this->schema(),
             ...$this->extensions(),
             ...$this->folders(),
             ...$this->settings($request),
@@ -156,6 +161,44 @@ final class SystemCheck
         } catch (\Throwable) {
             // The details (host, user) are not shown: they are in the server's error log.
             $results[] = new CheckResult($g, 'admin.system.database', CheckStatus::Error, '–', new Message('admin.system.database_unreachable'));
+        }
+
+        return $results;
+    }
+
+    /**
+     * The tables against their definitions: one line per difference (at most
+     * MAX_SCHEMA_LINES), or one line saying they match. Only once installed.
+     *
+     * @return list<CheckResult>
+     */
+    private function schema(): array
+    {
+        $g = 'admin.system.group.schema';
+        try {
+            if (!$this->installer->isInstalled()) {
+                return [];
+            }
+            $differences = $this->installer->differences();
+        } catch (\Throwable) {
+            return []; // the database line above reports it
+        }
+        if ($differences === []) {
+            return [new CheckResult($g, 'admin.system.schema_tables', CheckStatus::Ok, 'admin.system.schema_matches')];
+        }
+        $results = [];
+        foreach (array_slice($differences, 0, self::MAX_SCHEMA_LINES) as $difference) {
+            $results[] = new CheckResult(
+                $g,
+                $difference->table . ($difference->name !== null ? '.' . $difference->name : ''),
+                $difference->kind === DifferenceKind::ExtraTable ? CheckStatus::Info : CheckStatus::Warning,
+                'schema.kind.' . $difference->kind->value,
+                $difference->message(),
+            );
+        }
+        if (count($differences) > self::MAX_SCHEMA_LINES) {
+            $more = count($differences) - self::MAX_SCHEMA_LINES;
+            $results[] = new CheckResult($g, '…', CheckStatus::Info, (string) $more, new Message('admin.system.schema_more', ['count' => $more]));
         }
 
         return $results;

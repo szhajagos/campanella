@@ -84,10 +84,85 @@ defined in `CoreSchema`, the capability tables in the
 
 ### SchemaBuilder
 
-`Campanella\Database\Schema\SchemaBuilder` · **Internal**
+`Campanella\Database\Schema\SchemaBuilder` · **Public** · `final class`
 
-`createSql(Table $table): string` returns the `CREATE TABLE IF NOT EXISTS …`
-statement; `create(Table $table): void` also executes it.
+Generates the DDL; the only place where `CREATE TABLE` and `ALTER TABLE`
+statements are written. The `ALTER` statements are the plain forms both
+MariaDB and MySQL accept (`ADD COLUMN IF NOT EXISTS` and `DROP INDEX IF EXISTS`
+exist only on MariaDB): check the state first with the `SchemaReader`.
+
+| Method | Description |
+|---|---|
+| `__construct(Connection $db)` | |
+| `createSql(Table $table): string` | `CREATE TABLE IF NOT EXISTS …` |
+| `create(Table $table): void` | Runs it |
+| `columnSql(Column $column): string` | A column's definition: `` `weight` INT NOT NULL DEFAULT 0 `` |
+| `addColumnSql(Table $table, string $column): string` | `ALTER TABLE … ADD COLUMN …`, after the column it follows in the definition (or `FIRST`), so the order matches a fresh installation (since 0.0.6) |
+| `addIndexSql(Table $table, string $index): string` | `ALTER TABLE … ADD [UNIQUE] INDEX …`, an index of the definition (since 0.0.6) |
+| `dropColumnSql(string $table, string $column): string` | `ALTER TABLE … DROP COLUMN …`; its data is lost (since 0.0.6) |
+| `dropIndexSql(string $table, string $index): string` | `ALTER TABLE … DROP INDEX …` (since 0.0.6) |
+| `foreignKeyName(Table $table, ForeignKey $foreignKey): string` | The constraint's name: `cc_fk_<table>_<column>` |
+
+### Reading the database: SchemaReader
+
+`Campanella\Database\Schema\SchemaReader` · **Public** · `final class` (since 0.0.6)
+
+Reads the actual tables from `information_schema`. Only the tables with the
+connection's prefix are seen, and their names are returned without it. The
+differences of the two servers are evened out: `int(11)` (MariaDB) and `int`
+(MySQL 8) are both `Integer`; a default is `active` whether the server reports
+`'active'` (MariaDB) or `active` (MySQL); JSON is `longtext` on MariaDB.
+
+| Method | Description |
+|---|---|
+| `__construct(Connection $db)` | |
+| `tableNames(): list<string>` | The tables with the prefix, without it, sorted |
+| `read(string $table): ?TableInfo` | The table's columns, primary key, indexes and foreign keys; null if it does not exist |
+| `tableExists(string $table): bool`, `columnExists(string $table, string $column): bool`, `indexExists(string $table, string $index): bool` | |
+| `static normalizeDefault(mixed $default): ?string` | A default as either server reports it, as text without quotes; null for none |
+
+`TableInfo` (`name`, `columns` by name in the table's order, `primaryKey`,
+`indexes`, `uniques`, `foreignKeys` by constraint name: `column`, `table`
+without the prefix, `referencedColumn`, `cascadeDelete`; `column(string $name): ?ColumnInfo`,
+`hasIndex(string $name): bool`) and `ColumnInfo` (`name`, `type`: the
+`ColumnType`, or null for a type Campanella does not create, `rawType` as the
+server reports it, `nullable`, `default`, `autoIncrement`, `length` for strings)
+are `final readonly` value classes.
+
+### Comparing: SchemaComparator
+
+`Campanella\Database\Schema\SchemaComparator` · **Public** · `final class` (since 0.0.6)
+
+Compares definitions with the database and lists the differences; it changes
+nothing.
+
+| Method | Description |
+|---|---|
+| `__construct(SchemaReader $reader, SchemaBuilder $builder)` | |
+| `compare(list<Table> $definitions): list<SchemaDifference>` | Every definition against its table, plus the tables with the prefix that no definition has |
+| `compareTable(Table $table, TableInfo $actual): list<SchemaDifference>` | One table |
+
+Not compared: the column order, the engine, the collation, and an index the
+server created for a foreign key by itself.
+
+`SchemaDifference` · `final readonly class`: `kind` (`DifferenceKind`),
+`table` (without the prefix), `name` (the column or index), `expected`,
+`actual`, `sql` (the statement that applies it, if one can be generated),
+`additive`; `message(): Message` (`schema.<kind>` in the language files).
+
+| `DifferenceKind` | Additive | `sql` |
+|---|---|---|
+| `MissingTable` | yes | `CREATE TABLE` |
+| `MissingColumn` | if it may be NULL or has a default: the existing rows get that | `ADD COLUMN` (also when not additive, for a migration to use) |
+| `MissingIndex` | yes (a unique index fails if the data has duplicates) | `ADD INDEX` |
+| `ExtraColumn`, `ExtraIndex` | no: data or an index would be lost | `DROP …` |
+| `ExtraTable` | only reported (e.g. a capability no longer registered; its data is kept) | – |
+| `ColumnType`, `ColumnNullable`, `ColumnDefault`, `PrimaryKey`, `IndexColumns`, `MissingForeignKey` | no: a migration decides | – |
+
+"Additive" means it can be applied without losing or guessing data. A new
+`NOT NULL` column without a default is not: the existing rows would get an
+arbitrary value (the decision of 0.0.6: such a field needs a migration that
+fills it).
 
 ### CoreSchema
 
@@ -119,9 +194,11 @@ never queries into it, so the difference does not matter.
 | `tables(): list<Table>` | The tables of the core and of all registered capabilities |
 | `install(): list<string>` | Creates the missing tables and writes the `schema_version` value. Can be run repeatedly |
 | `sql(): string` | The complete DDL, e.g. for phpMyAdmin |
+| `differences(): list<SchemaDifference>` | The definitions against the database (empty if they match); every table with the prefix is checked (since 0.0.6) |
 | `isInstalled(): bool` | |
 | `needsUpgrade(): bool` | Installed, but the `schema_version` is older than the code: `install` needs to be run |
 | `systemValue(string $name): ?string` | A single `cc_system` value |
 
 `install()` does not alter existing tables (new column, type change); that will
-be the job of migrations.
+be the job of migrations. `differences()` shows what differs, and
+`php bin/campanella schema:check` prints it.

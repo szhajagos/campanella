@@ -10,6 +10,25 @@ backward-incompatible.
 
 ## [Unreleased]
 
+### Added
+
+- **Reading and comparing the database schema.** `SchemaReader` reads the
+  actual tables from `information_schema` (columns, indexes, foreign keys),
+  evening out the differences of MariaDB and MySQL. `SchemaComparator` lists
+  where they differ from the definitions: missing or extra tables, columns
+  and indexes, a different type, NULL setting, default or primary key, a
+  missing foreign key. Additive differences (a missing table, a column that
+  may be NULL or has a default, an index) come with the statement that
+  applies them; the others need a migration. `Installer::differences()`.
+- `php bin/campanella schema:check [--sql]`: lists the differences, or prints
+  the statements of the additive ones (those that would lose data only as
+  comments). Changes nothing.
+- System page: a *Database tables* group with the differences (or that the
+  tables match their definitions).
+- `SchemaBuilder` generates `ALTER TABLE` statements (`addColumnSql()`,
+  `addIndexSql()`, `dropColumnSql()`, `dropIndexSql()`), in the forms both
+  MariaDB and MySQL accept, and is now public.
+
 ## [0.0.5] – 2026-10-05
 
 HTML editing: the System page, an HTML filter applied on every save, the Jodit

@@ -25,7 +25,7 @@ Completed changes are listed in the [CHANGELOG](CHANGELOG.md).
 
 Agreed in detail on 2026-10-05. In six parts (0–5), each its own commit:
 
-0. **Reading the schema, finding differences.**
+0. ✅ **Reading the schema, finding differences.**
    - The actual database from `information_schema`: tables, columns (type,
      NULL, default), indexes; the same on MariaDB and MySQL.
    - `ALTER` statements generated from the definitions: add a column, add an
