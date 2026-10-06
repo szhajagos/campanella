@@ -9,12 +9,14 @@ use Campanella\Database\Connection;
 use Campanella\Database\DatabaseBackup;
 use Campanella\Database\Installer;
 use Campanella\Database\Migration\Migrator;
+use Campanella\Database\Sync\SchemaSync;
 use Campanella\I18n\Translator;
 
 /**
- * `php bin/campanella install [--sql] [--yes] [--no-backup]`: creates the
- * missing tables. On an existing installation the pending migrations run too,
- * as with `migrate` (after a backup, asking first unless `--yes`).
+ * `php bin/campanella install [--sql] [--yes] [--no-backup] [--prune]`: creates
+ * the missing tables. On an existing installation it also does what `migrate`
+ * does: the additive changes, then the pending migrations (after a backup,
+ * asking first unless `--yes`).
  */
 final class InstallCommand implements Command
 {
@@ -48,14 +50,15 @@ final class InstallCommand implements Command
         $db = $container->get(Connection::class);
         $t = $container->get(Translator::class);
         $output->line($t->translate('cli.install.server', ['version' => $db->serverVersion()]));
+        $existing = $installer->isInstalled();
         foreach ($installer->install() as $table) {
             $output->success($table);
         }
         $output->line();
         $output->line($t->translate('cli.install.done'));
 
-        // An existing installation: the migrations of the new version.
-        if ($installer->pendingMigrations() === []) {
+        // An existing installation: the changes and migrations of the new version.
+        if (!$existing) {
             return 0;
         }
         $output->line();
@@ -66,6 +69,7 @@ final class InstallCommand implements Command
             $t,
             $this->input,
             $output,
+            $container->get(SchemaSync::class),
         ))->run(Args::parse($args));
     }
 }

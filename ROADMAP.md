@@ -62,7 +62,7 @@ Agreed in detail on 2026-10-05. In six parts (0–5), each its own commit:
    upgrade key (for when logging in does not work before the upgrade); CSRF,
    the lock, a backup first. While an upgrade is needed, every page answers
    503, except logging in and out and the upgrade page.
-3. **Blueprint and capability changes, automatically.** A new field of a
+3. ✅ **Blueprint and capability changes, automatically.** A new field of a
    capability or a new capability of a Blueprint: `install`/`migrate` adds
    the column or table, and the existing objects get the capability with its
    defaults. A removed capability: the data is kept and reported; deleted

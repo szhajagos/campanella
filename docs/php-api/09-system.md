@@ -137,8 +137,8 @@ are migrations: [chapter 17](17-migrations.md)).
 
 | Command | Description |
 |---|---|
-| `install` | Creates the tables; on an existing installation also runs the pending migrations, like `migrate` (`--yes`, `--no-backup`); `--sql`: only prints the SQL |
-| `migrate` | Runs the pending migrations after a backup; `--dry-run`: only lists them; `--yes`: without asking; `--no-backup` ([chapter 17](17-migrations.md#running-them)) |
+| `install` | Creates the tables; on an existing installation also does what `migrate` does (`--yes`, `--no-backup`, `--prune`); `--sql`: only prints the SQL |
+| `migrate` | Applies the definitions' additive changes and runs the pending migrations after a backup; `--dry-run`: only lists them; `--yes`: without asking; `--no-backup`; `--prune`: deletes the data of capabilities removed from Blueprints ([chapter 17](17-migrations.md#running-them)) |
 | `db:backup` | Saves the tables into `var/backups/` as SQL (`.sql.gz`; `--plain`: `.sql`) ([chapter 17](17-migrations.md#backups-databasebackup)) |
 | `seed` | Sample content. Can be run repeatedly: whatever already exists by path is not created again |
 | `status` | Version, the system check ([chapter 14](14-system-check.md)), capabilities, Blueprints, object count; reports if the database needs an upgrade. Exits with `1` if a check reports an error |

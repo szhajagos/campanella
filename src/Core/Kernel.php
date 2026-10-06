@@ -25,6 +25,8 @@ use Campanella\Database\Installer;
 use Campanella\Database\Migration\CoreMigrations;
 use Campanella\Database\Migration\MigrationRegistry;
 use Campanella\Database\Migration\Migrator;
+use Campanella\Database\Sync\SchemaSync;
+use Campanella\Database\Sync\SyncCheck;
 use Campanella\Http\HttpException;
 use Campanella\Http\NativeSessionStorage;
 use Campanella\Http\Request;
@@ -227,6 +229,7 @@ final class Kernel
                 $root,
             );
             $system->add(MediaCheck::checks($c->get(ImageProcessor::class), $c->get(MediaStorage::class)));
+            $system->add(SyncCheck::checks($c->get(Installer::class), $c->get(SchemaSync::class)));
 
             return $system;
         });
@@ -302,6 +305,12 @@ final class Kernel
             $c->get(Connection::class),
             $c->get(CapabilityRegistry::class),
             $c->get(Migrator::class),
+        ));
+        $c->set(SchemaSync::class, static fn (Container $c): SchemaSync => new SchemaSync(
+            $c->get(Connection::class),
+            $c->get(Installer::class),
+            $c->get(CapabilityRegistry::class),
+            $c->get(BlueprintRegistry::class),
         ));
 
         $c->set(Theme::class, static fn (Container $c): Theme => Theme::fromRoot(
@@ -408,6 +417,7 @@ final class Kernel
         $c->set('controller.upgrade', static fn (Container $c): Controller => new UpgradeController(
             $c->get(Installer::class),
             $c->get(Migrator::class),
+            $c->get(SchemaSync::class),
             $c->get(DatabaseBackup::class),
             $c->get(AdminAccess::class),
             $c->get(Csrf::class),
@@ -461,7 +471,8 @@ final class Kernel
                 if (!$installer->isInstalled()) {
                     return $this->errorResponse(503, 'error.not_installed');
                 }
-                if ($installer->needsUpgrade()) {
+                // A new table, column or capability of the code that is not in the database yet.
+                if ($installer->needsUpgrade() || $this->container()->get(SchemaSync::class)->plan()->hasWork()) {
                     return $this->errorResponse(503, 'error.needs_upgrade');
                 }
             }

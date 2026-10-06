@@ -9,21 +9,29 @@ Decisions (ROADMAP, 2026-10-05):
 - **Forward only.** There is no `down()`: undoing a migration that moved data
   is rarely reliable. A backup is made before migrating instead
   ([`db:backup`](#backups-databasebackup), built in, no `mysqldump` needed).
-- **Additive changes from the definitions are automatic** (a later part of
-  0.0.6); renaming, changing a type, moving or deleting data only happen
-  through an explicit migration, never by guessing.
+- **Additive changes from the definitions are automatic**
+  ([below](#applying-the-definitions-schemasync)); renaming, changing a type,
+  moving or deleting data only happen through an explicit migration, never by
+  guessing.
 
 ## Running them
 
 ```
-php bin/campanella migrate --dry-run   # lists the pending migrations
-php bin/campanella migrate             # asks, makes a backup, runs them
+php bin/campanella migrate --dry-run   # lists what would be done
+php bin/campanella migrate             # applies the definitions; asks, backs up, runs the migrations
 php bin/campanella migrate --yes       # without asking (scripts, deployment)
+php bin/campanella migrate --prune     # also deletes the data of capabilities removed from Blueprints
 ```
 
-`install` also runs the pending migrations of an existing installation, the
-same way (`--yes`, `--no-backup`); the usual upgrade is still
-`php bin/campanella install`. Both create the missing tables first.
+`install` does the same on an existing installation (`--yes`, `--no-backup`,
+`--prune`); the usual upgrade is still `php bin/campanella install`. The order:
+the missing tables, the additive changes of the definitions, the pending
+migrations, then the additive changes again (a migration may have made one
+possible, e.g. by filling a column).
+
+Asking and the backup are for what cannot be undone: migrations and
+`--prune`. Additive changes alone lose nothing, so they are applied without
+either.
 
 - Without `--yes` the command asks; when it is not run from a terminal (a
   script, a cron job), nothing can be asked, so it stops and says to add
@@ -51,11 +59,60 @@ While a migration is pending (or the schema version is older than the code),
 - `status` says to run `migrate`; the System page (once it opens again) shows
   *Migrations applied* in the *Versions* group.
 
+## Applying the definitions: SchemaSync
+
+What changes in the definitions is applied to the existing database without
+writing a migration (the ROADMAP's "done when" of 0.0.6):
+
+| The definitions | What happens |
+|---|---|
+| A new capability (a new table) | The table is created |
+| A new field of a capability, may be NULL or has a database default | The column is added (in the definition's order) |
+| A new **required** field with a default | The column is added; the existing rows get the field's default (added as NULL, filled, then made NOT NULL: the same on MariaDB and MySQL, `TEXT` columns too) |
+| A new required field **without** a default, and the table has rows | **Not guessed:** reported (Blocked); a migration has to fill it |
+| A new index | Added (a unique one fails if the data has duplicates) |
+| A capability added to a Blueprint | Its existing objects get it, with the defaults: the Blueprint's `defaults`, else the field's. Multi-valued fields start empty, `Data` fields use their default when read |
+| … with a required field without a default, or a unique field (one default for many objects) | **Blocked** |
+| A capability removed from a Blueprint | Its objects keep it and its data (a note on the System page and in `migrate`); with `--prune` the data is deleted (its table rows, multi-valued values, keys in the JSON data) and they lose it |
+| Objects of a Blueprint that is not defined any more | A note; kept as they are |
+| A renamed field, a changed type, a removed field | Nothing: a migration (the schema comparison lists them) |
+
+A Blocked step fails the `migrate` run (exit code `1`) after the rest is
+done; the upgrade page and the System page show it.
+
+After uploading code with a new table or column, a page whose query hits it
+answers 503 (needs upgrade) instead of 500, until the upgrade has run.
+
+`Campanella\Database\Sync\SchemaSync` · **Public** · `final class` · container: `SchemaSync::class`
+
+| Method | Description |
+|---|---|
+| `__construct(Connection $db, Installer $installer, CapabilityRegistry $capabilities, BlueprintRegistry $blueprints)` | |
+| `plan(bool $prune = false): SyncPlan` | What would be done; changes nothing |
+| `apply(bool $prune = false): SyncPlan` | Plans and does the steps in order; returns them |
+
+`SyncPlan` · `final readonly class`: `steps` (`list<SyncStep>`), `hasWork(): bool`
+(anything that changes the database), `work()`, `blocked()`, `notes()`,
+`hasPrune(): bool`.
+
+`SyncStep` · `final readonly class`: `kind` (`SyncStepKind`), `message` (a
+`Message`: `sync.*` in the language files), `isWork(): bool`; `run()` is called
+by `apply()`.
+
+`SyncStepKind` (enum): `CreateTable`, `AddColumn`, `AddIndex`,
+`AddCapability`, `PruneCapability`, `Blocked`, `Note`.
+
+`Campanella\Database\Sync\SyncCheck` · **Internal**: `static checks(Installer $installer, SchemaSync $sync): Closure`,
+the System page's lines about the objects' capabilities (in the *Database
+tables* group: capabilities to add, blocked steps, notes).
+
 ## From the browser
 
 For web hosts without a command line: **`/admin/upgrade`** (under the admin's
 path) does the same as `migrate`: creates the missing tables, makes a backup,
-runs the pending migrations, and shows each step and its log lines.
+applies the definitions, runs the pending migrations, and shows each step and
+its log lines. It is offered whenever there is something to do: an older
+schema, a pending migration, or a change of the definitions.
 
 Who may run it:
 

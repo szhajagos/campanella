@@ -92,7 +92,13 @@ final class SystemCheck
             }
         }
 
-        return $results;
+        // Grouped (an added check may add lines to an earlier group), in the order the groups first appear.
+        $groups = [];
+        foreach ($results as $result) {
+            $groups[$result->group][] = $result;
+        }
+
+        return array_merge(...array_values($groups));
     }
 
     /**

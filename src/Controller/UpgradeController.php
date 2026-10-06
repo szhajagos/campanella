@@ -11,6 +11,8 @@ use Campanella\Database\DatabaseBackup;
 use Campanella\Database\Installer;
 use Campanella\Database\Migration\MigrationException;
 use Campanella\Database\Migration\Migrator;
+use Campanella\Database\Sync\SchemaSync;
+use Campanella\Database\Sync\SyncPlan;
 use Campanella\Http\HttpException;
 use Campanella\Http\Request;
 use Campanella\Http\Response;
@@ -47,6 +49,7 @@ final class UpgradeController implements Controller
     public function __construct(
         private readonly Installer $installer,
         private readonly Migrator $migrator,
+        private readonly SchemaSync $sync,
         private readonly DatabaseBackup $backup,
         private readonly AdminAccess $access,
         private readonly Csrf $csrf,
@@ -69,9 +72,10 @@ final class UpgradeController implements Controller
             throw new HttpException(503, 'error.not_installed');
         }
         $admin = !$actor->isAnonymous() && $this->access->allowsSystem($actor);
-        $needed = $this->installer->needsUpgrade();
+        $needed = $this->needed();
         $context = [
             'needed' => $needed,
+            'site_waits' => $this->installer->needsUpgrade(),
             'admin' => $admin,
             'logged_in' => !$actor->isAnonymous(),
             'key_enabled' => self::usableKey($this->key) !== null,
@@ -123,14 +127,17 @@ final class UpgradeController implements Controller
 
         $log = [];
         try {
+            $this->logSync($this->sync->apply(), $log);
             $results = $this->migrator->run(
                 static function ($migration) use (&$log): void {
-                    $log[] = '→ ' . $migration->id() . ': ' . $migration->description();
+                    $log[] = ['text' => '→ ' . $migration->id() . ': ' . $migration->description()];
                 },
                 static function (string $line) use (&$log): void {
-                    $log[] = '    ' . $line;
+                    $log[] = ['text' => '    ' . $line];
                 },
             );
+            $after = $this->sync->apply();
+            $this->logSync($after, $log);
         } catch (MigrationException $e) {
             error_log((string) ($e->getPrevious() ?? $e));
 
@@ -143,11 +150,30 @@ final class UpgradeController implements Controller
         }
 
         return $this->page([
-            'needed' => $this->installer->needsUpgrade(),
+            'needed' => $this->needed(),
+            'blocked' => array_map(static fn ($s): Message => $s->message, $after->blocked()),
             'result' => $results,
             'log' => $log,
             'backup_file' => $file === null ? null : basename($file),
         ] + $this->details(true) + $context);
+    }
+
+    /** A schema or migration upgrade, or additive changes of the definitions. */
+    private function needed(): bool
+    {
+        return $this->installer->needsUpgrade() || $this->sync->plan()->hasWork();
+    }
+
+    /**
+     * The steps done, as log lines.
+     *
+     * @param list<array{text?: string, message?: Message}> $log
+     */
+    private function logSync(SyncPlan $plan, array &$log): void
+    {
+        foreach ($plan->work() as $step) {
+            $log[] = ['message' => $step->message];
+        }
     }
 
     /** Null if the key is right; otherwise why it was refused. */
@@ -181,8 +207,12 @@ final class UpgradeController implements Controller
             return ['details' => false];
         }
 
+        $plan = $this->sync->plan();
+
         return [
             'details' => true,
+            'changes' => array_map(static fn ($s): Message => $s->message, $plan->work()),
+            'blocked' => array_map(static fn ($s): Message => $s->message, $plan->blocked()),
             'schema' => ['database' => $this->installer->systemValue('schema_version'), 'code' => Version::SCHEMA],
             'pending' => array_map(
                 static fn ($m): array => ['id' => $m->id(), 'description' => $m->description()],

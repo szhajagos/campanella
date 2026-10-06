@@ -104,6 +104,66 @@ final class Weighted extends \Campanella\Capability\Capability
     }
 }
 
+/** Versions of one capability, for the SchemaSync tests: v2 adds fields, v3 a required one without a default. */
+#[\Campanella\Capability\AsCapability('rated', label: 'Értékelt')]
+final class RatedV1 extends \Campanella\Capability\Capability
+{
+    #[\Override]
+    public static function fields(): array
+    {
+        return [
+            new Field('score', FieldType::Integer, required: true, default: 3),
+            new Field('rating_note', FieldType::String, length: 50),
+            new Field('rating_tags', FieldType::String, length: 32, cardinality: Field::UNLIMITED),
+            new Field('rating_extra', FieldType::String, storage: FieldStorage::Data),
+        ];
+    }
+}
+
+#[\Campanella\Capability\AsCapability('rated', label: 'Értékelt')]
+final class RatedV2 extends \Campanella\Capability\Capability
+{
+    #[\Override]
+    public static function fields(): array
+    {
+        return [
+            ...RatedV1::fields(),
+            new Field('level', FieldType::Integer, required: true, default: 1, indexed: true),
+            new Field('rating_comment', FieldType::Text, required: true, default: 'nincs'),
+        ];
+    }
+}
+
+#[\Campanella\Capability\AsCapability('rated', label: 'Értékelt')]
+final class RatedV3 extends \Campanella\Capability\Capability
+{
+    #[\Override]
+    public static function fields(): array
+    {
+        return [...RatedV2::fields(), new Field('secret_code', FieldType::String, required: true, length: 16)];
+    }
+}
+
+#[\Campanella\Capability\AsCapability('coded')]
+final class Coded extends \Campanella\Capability\Capability
+{
+    #[\Override]
+    public static function fields(): array
+    {
+        return [new Field('serial', FieldType::String, required: true, length: 16)];
+    }
+}
+
+#[\Campanella\Capability\AsCapability('handled')]
+final class Handled extends \Campanella\Capability\Capability
+{
+    #[\Override]
+    public static function fields(): array
+    {
+        return [new Field('handle', FieldType::String, required: true, default: 'x', unique: true, length: 16)];
+    }
+}
+
 /** A test capability with multi-valued fields only (so it has no table of its own). */
 #[\Campanella\Capability\AsCapability('contactable', label: 'Elérhető')]
 final class Contactable extends \Campanella\Capability\Capability
@@ -2689,6 +2749,7 @@ test('Upgrading from the browser: the site waits, an administrator or the key ru
     $container->set('controller.upgrade', static fn (\Campanella\Core\Container $c) => new \Campanella\Controller\UpgradeController(
         $c->get(Installer::class),
         $c->get(\Campanella\Database\Migration\Migrator::class),
+        $c->get(\Campanella\Database\Sync\SchemaSync::class),
         $c->get(\Campanella\Database\DatabaseBackup::class),
         $c->get(\Campanella\Admin\AdminAccess::class),
         $c->get(Csrf::class),
@@ -2753,6 +2814,132 @@ test('System page: the backup folder and the upgrade key', function (): void {
     }
     check(($lines['var/backups'] ?? null)?->status === \Campanella\System\CheckStatus::Ok, 'var/ writable: fine');
     check(($lines['admin.system.upgrade_key'] ?? null)?->hint?->key === 'admin.system.upgrade_key_short');
+});
+
+echo "\nApplying the definitions\n";
+
+test('SchemaSync: a capability added to a Blueprint, new fields, and what it does not guess', function () use ($schemaDb, $dropSchema): void {
+    $dropSchema();
+    $setup = static function (array $classes, array $blueprints) use ($schemaDb): array {
+        $capabilities = new CapabilityRegistry($classes);
+        $registry = new BlueprintRegistry($capabilities, $blueprints);
+        $installer = new Installer($schemaDb, $capabilities);
+
+        return [new \Campanella\Database\Sync\SchemaSync($schemaDb, $installer, $capabilities, $registry), new ObjectRepository($schemaDb, $capabilities, $registry), $installer];
+    };
+    $kinds = static fn (\Campanella\Database\Sync\SyncPlan $plan): array => array_map(static fn ($s): string => $s->kind->value . ':' . $s->message->key, $plan->steps);
+
+    // v1: notes without the capability.
+    [$sync, $repository, $installer] = $setup([Titled::class, RatedV1::class], ['note' => ['capabilities' => [Titled::class]]]);
+    $installer->install();
+    $ids = [];
+    foreach (['Első', 'Második', 'Harmadik'] as $title) {
+        $note = $repository->create('note', ['title' => $title]);
+        $repository->save($note);
+        $ids[] = (int) $note->id();
+    }
+    check(!$sync->plan()->hasWork() && $sync->plan()->steps === [], 'nothing to do');
+
+    // The Blueprint gets the capability: the existing objects get it, with the defaults.
+    [$sync, $repository] = $setup([Titled::class, RatedV1::class], ['note' => ['capabilities' => [Titled::class, RatedV1::class], 'defaults' => ['rating_note' => 'alap']]]);
+    $plan = $sync->plan();
+    check($kinds($plan) === ['add_capability:sync.add_capability'] && $plan->steps[0]->message->params['count'] === 3, implode(', ', $kinds($plan)));
+    $sync->apply();
+    $loaded = $repository->find($ids[0]);
+    check($loaded !== null && $loaded->has(RatedV1::class) && $loaded->get('score') === 3 && $loaded->get('rating_note') === 'alap' && $loaded->get('rating_tags') === [], json_encode($loaded?->get('score')));
+    check(!$sync->plan()->hasWork(), 'done once');
+
+    // v2: new fields of the capability, required with a default, and an index.
+    $loaded->set('rating_extra', 'adat');
+    $loaded->set('rating_tags', ['a', 'b']);
+    $repository->save($loaded);
+    [$sync, $repository, $installer] = $setup([Titled::class, RatedV2::class], ['note' => ['capabilities' => [Titled::class, RatedV2::class]]]);
+    $plan = $sync->plan();
+    check($kinds($plan) === ['add_column:sync.add_column_default', 'add_column:sync.add_column_default', 'add_index:sync.add_index'], implode(', ', $kinds($plan)));
+    $sync->apply();
+    $loaded = $repository->find($ids[1]);
+    check($loaded?->get('level') === 1 && $loaded->get('rating_comment') === 'nincs', 'the existing rows got the defaults');
+    check($installer->differences() === [], 'the schema matches: ' . implode(', ', array_map(static fn ($d) => $d->kind->value . ' ' . $d->name, $installer->differences())));
+
+    // v3: a required field without a default is not guessed; neither is a unique default, nor a required one.
+    [$sync] = $setup([Titled::class, RatedV3::class, Coded::class, Handled::class], ['note' => ['capabilities' => [Titled::class, RatedV3::class, Coded::class, Handled::class]]]);
+    $plan = $sync->plan();
+    $sorted = $kinds($plan);
+    sort($sorted);
+    check($sorted === ['blocked:sync.blocked_column', 'blocked:sync.blocked_required', 'blocked:sync.blocked_unique', 'create_table:sync.create_table', 'create_table:sync.create_table'], implode(', ', $kinds($plan)));
+    check(count($plan->blocked()) === 3 && $plan->hasWork(), 'blocked, but the new tables are work');
+    $sync->apply();
+    check(!$sync->plan()->hasWork() && count($sync->plan()->blocked()) === 3, 'the blocked ones stay');
+
+    // A capability whose table cannot get its new column is not added to more objects.
+    [$sync, $repository] = $setup([Titled::class, RatedV3::class], ['note' => ['capabilities' => [Titled::class, RatedV3::class]], 'card' => ['capabilities' => [Titled::class, RatedV3::class]]]);
+    $schemaDb->insert('objects', ['uuid' => '00000000-0000-4000-8000-0000000000c1', 'blueprint' => 'card', 'data' => '{}', 'created_at' => '2026-01-01 00:00:00', 'updated_at' => '2026-01-01 00:00:00']);
+    $sorted = $kinds($sync->plan());
+    sort($sorted);
+    check(in_array('blocked:sync.blocked_table', $sorted, true) && in_array('blocked:sync.blocked_column', $sorted, true), implode(', ', $sorted));
+    $schemaDb->execute("DELETE FROM {objects} WHERE blueprint = 'card'");
+
+    // Removed from the Blueprint: kept (a note); with prune: the data is deleted.
+    [$sync, $repository] = $setup([Titled::class, RatedV2::class], ['note' => ['capabilities' => [Titled::class]]]);
+    $plan = $sync->plan();
+    check($kinds($plan) === ['note:sync.kept'] && !$plan->hasWork(), implode(', ', $kinds($plan)));
+    check($repository->find($ids[0])?->has(RatedV2::class) === true, 'kept: the objects still have it');
+    $pruned = $sync->apply(prune: true);
+    check($kinds($pruned) === ['prune_capability:sync.prune'] && $pruned->hasPrune());
+    $after = $repository->find($ids[0]);
+    check($after !== null && !$after->has(RatedV2::class), 'gone');
+    check((int) $schemaDb->fetchValue('SELECT COUNT(*) FROM {cap_rated}') === 0 && (int) $schemaDb->fetchValue("SELECT COUNT(*) FROM {field_values} WHERE field = 'rating_tags'") === 0, 'its rows and values');
+    check(!str_contains((string) $schemaDb->fetchValue('SELECT data FROM {objects} WHERE id = :id', ['id' => $ids[0]]), 'rating_extra'), 'its JSON data');
+    check($after->get('title') === 'Első', 'the rest is untouched');
+
+    // Objects of a Blueprint no longer defined: a note.
+    [$sync] = $setup([Titled::class], ['page' => ['capabilities' => [Titled::class]]]);
+    check($kinds($sync->plan()) === ['note:sync.unknown_blueprint'], implode(', ', $kinds($sync->plan())));
+    $dropSchema();
+});
+
+test('migrate: the additive changes without asking or a backup; blocked ones fail the run', function () use ($schemaDb, $dropSchema): void {
+    $dropSchema();
+    $capabilities = new CapabilityRegistry([Titled::class, RatedV1::class]);
+    $installer = new Installer($schemaDb, $capabilities);
+    $installer->install();
+    $repository = new ObjectRepository($schemaDb, $capabilities, new BlueprintRegistry($capabilities, ['note' => ['capabilities' => [Titled::class]]]));
+    $repository->save($repository->create('note', ['title' => 'Egy']));
+
+    $dir = sys_get_temp_dir() . '/campanella-backup-' . bin2hex(random_bytes(4));
+    $translator = Translator::fromDirectory(dirname(__DIR__) . '/lang', 'hu');
+    $run = static function (array $classes, array $blueprints, array $args) use ($schemaDb, $dir, $translator): array {
+        $capabilities = new CapabilityRegistry($classes);
+        $sync = new \Campanella\Database\Sync\SchemaSync($schemaDb, new Installer($schemaDb, $capabilities), $capabilities, new BlueprintRegistry($capabilities, $blueprints));
+        $stream = fopen('php://memory', 'w+');
+        $runner = new \Campanella\Cli\MigrationRunner(
+            new \Campanella\Database\Migration\Migrator($schemaDb, new \Campanella\Database\Migration\MigrationRegistry()),
+            new \Campanella\Database\DatabaseBackup($schemaDb, $dir),
+            $translator,
+            new \Campanella\Cli\Input(fopen('php://memory', 'r')),
+            new \Campanella\Cli\Output($stream, $stream),
+            $sync,
+        );
+        $code = $runner->run(\Campanella\Cli\Args::parse($args));
+        rewind($stream);
+
+        return [$code, (string) stream_get_contents($stream)];
+    };
+    $v2 = ['note' => ['capabilities' => [Titled::class, RatedV2::class]]];
+    [$code, $out] = $run([Titled::class, RatedV2::class], $v2, ['--dry-run']);
+    check($code === 0 && str_contains($out, 'Alkalmazandó definícióváltozások') && str_contains($out, 'megkapja a(z) rated capability-t'), $out);
+    check(!(new \Campanella\Database\Schema\SchemaReader($schemaDb))->columnExists('cap_rated', 'level'), 'dry run: nothing changed');
+    [$code, $out] = $run([Titled::class, RatedV2::class], $v2, []);
+    check($code === 0 && str_contains($out, '✔') && str_contains($out, 'Új oszlop: cap_rated.level') && !is_dir($dir), 'additive only: not asked, no backup: ' . $out);
+    [$code, $out] = $run([Titled::class, RatedV2::class], $v2, []);
+    check($code === 0 && str_contains($out, 'naprakész'), $out);
+    [$code, $out] = $run([Titled::class, RatedV3::class], ['note' => ['capabilities' => [Titled::class, RatedV3::class]]], []);
+    check($code === 1 && str_contains($out, 'cap_rated.secret_code oszlop nem adható hozzá'), $out);
+    [$code, $out] = $run([Titled::class, RatedV2::class], ['note' => ['capabilities' => [Titled::class]]], ['--prune']);
+    check($code === 1 && str_contains($out, '--yes'), 'pruning asks: ' . $out);
+    [$code, $out] = $run([Titled::class, RatedV2::class], ['note' => ['capabilities' => [Titled::class]]], ['--prune', '--yes']);
+    check($code === 0 && str_contains($out, 'elveszíti') && count(glob($dir . '/*.sql.gz') ?: []) === 1, 'pruned after a backup: ' . $out);
+    $dropSchema();
 });
 
 echo "\nDocumentation examples\n";

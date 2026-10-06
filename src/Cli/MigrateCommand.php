@@ -8,12 +8,16 @@ use Campanella\Core\Container;
 use Campanella\Database\DatabaseBackup;
 use Campanella\Database\Installer;
 use Campanella\Database\Migration\Migrator;
+use Campanella\Database\Sync\SchemaSync;
 use Campanella\I18n\Translator;
 
 /**
- * `php bin/campanella migrate [--dry-run] [--yes] [--no-backup]`: creates the
- * missing tables, then runs the pending migrations after a backup. `--dry-run`
- * only lists them; `--yes` does not ask (needed when not run from a terminal).
+ * `php bin/campanella migrate [--dry-run] [--yes] [--no-backup] [--prune]`:
+ * applies the additive changes of the definitions (new tables, columns,
+ * indexes, capabilities added to Blueprints), then runs the pending migrations
+ * after a backup. `--dry-run` only lists them; `--yes` does not ask (needed when
+ * not run from a terminal); `--prune` deletes the data of capabilities removed
+ * from Blueprints.
  */
 final class MigrateCommand implements Command
 {
@@ -54,6 +58,7 @@ final class MigrateCommand implements Command
             $t,
             $this->input,
             $output,
+            $container->get(SchemaSync::class),
         ))->run($parsed);
     }
 }

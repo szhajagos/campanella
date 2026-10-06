@@ -31,9 +31,13 @@
         {% endif %}
 
         {% if log ?? [] %}
-            <pre class="small bg-body-tertiary border rounded p-3">{% for line in log %}{{ line }}
+            <pre class="small bg-body-tertiary border rounded p-3">{% for line in log %}{% if line.message is defined %}✔ {{ t(line.message.key, line.message.params) }}{% else %}{{ line.text }}{% endif %}
 {% endfor %}</pre>
         {% endif %}
+
+        {% for message in blocked ?? [] %}
+            <div class="alert alert-warning small" role="alert">{{ t(message.key, message.params) }}</div>
+        {% endfor %}
 
         {% if not needed %}
             {% if result is null %}<p>{{ t('upgrade.up_to_date') }}</p>{% endif %}
@@ -42,12 +46,20 @@
                 {% if admin %}<a class="btn btn-outline-secondary" href="{{ url(system_url) }}">{{ t('admin.system.title') }}</a>{% endif %}
             </p>
         {% else %}
-            <p>{{ t('upgrade.intro') }}</p>
+            <p>{{ t(site_waits ? 'upgrade.intro' : 'upgrade.intro_changes') }}</p>
 
             {% if details %}
                 <dl class="row small">
                     <dt class="col-sm-4 fw-normal text-body-secondary">{{ t('admin.system.schema') }}</dt>
                     <dd class="col-sm-8">{{ t('upgrade.schema', {database: schema.database ?? '–', code: schema.code}) }}</dd>
+                    <dt class="col-sm-4 fw-normal text-body-secondary">{{ t('upgrade.changes') }}</dt>
+                    <dd class="col-sm-8">
+                        {% for message in changes %}
+                            <div>{{ t(message.key, message.params) }}</div>
+                        {% else %}
+                            –
+                        {% endfor %}
+                    </dd>
                     <dt class="col-sm-4 fw-normal text-body-secondary">{{ t('upgrade.pending') }}</dt>
                     <dd class="col-sm-8">
                         {% for migration in pending %}

@@ -50,6 +50,16 @@ Upgrading: `php bin/campanella install` (schema version 6, the new
   (`upgrade.key` in `config/local.php`, at least 20 characters, throttled;
   for when logging in does not work before the upgrade). Each step is shown;
   a failure with its cause and the backup made before it.
+- **The definitions are applied automatically** (`SchemaSync`, run by
+  `install`, `migrate` and the upgrade page): new tables, new columns (a
+  required one gets its default in the existing rows), new indexes, and
+  capabilities added to a Blueprint are added to its existing objects with the
+  defaults. What would need guessing (a required field without a default, a
+  unique one) is reported and left to a migration. Data of a capability removed
+  from a Blueprint is kept, or deleted with `--prune`. Additive changes alone
+  are applied without asking or a backup.
+- System page: capabilities to add to existing objects, and what cannot be
+  applied automatically.
 - System page: whether the web server can write `var/backups`, and a warning
   while an upgrade key is set.
 - System page: a *Database tables* group with the differences (or that the
@@ -65,6 +75,10 @@ Upgrading: `php bin/campanella install` (schema version 6, the new
   logging in and out and the upgrade page. Before, only a database error led to
   the "needs upgrade" page. The visitors' message no longer mentions commands.
 - `upgrade` is a reserved Blueprint name too.
+- A database error caused by a table or column of the code that is not in the
+  database yet answers 503 (needs upgrade) instead of 500.
+- The System check's results are grouped (an added check's lines join their
+  group).
 - The Docker image creates `var/backups` for the web server's user.
 
 ## [0.0.5] – 2026-10-05
