@@ -251,7 +251,7 @@ $policy = new DefaultPolicy();
 $engine = new QueryEngine($db, new QueryCompiler($capabilities, $blueprints), $repository, $capabilities, $policy);
 $loader = new RelationLoader($engine);
 $service = new ObjectService($repository, $policy);
-$installer = new Installer($db, $capabilities);
+$installer = new Installer($db, $capabilities, new \Campanella\Database\Migration\Migrator($db, \Campanella\Database\Migration\MigrationRegistry::fromClasses(\Campanella\Database\Migration\CoreMigrations::classes())));
 
 $admin = Actor::system();
 $anon = Actor::anonymous();
@@ -2940,6 +2940,90 @@ test('migrate: the additive changes without asking or a backup; blocked ones fai
     [$code, $out] = $run([Titled::class, RatedV2::class], ['note' => ['capabilities' => [Titled::class]]], ['--prune', '--yes']);
     check($code === 0 && str_contains($out, 'elveszíti') && count(glob($dir . '/*.sql.gz') ?: []) === 1, 'pruned after a backup: ' . $out);
     $dropSchema();
+});
+
+echo "\nThe roles migration (0.0.6)\n";
+
+test('RolesMultiValue: reading the stored lists', function (): void {
+    $d = \Campanella\Database\Migration\Core\RolesMultiValue::decode(...);
+    check($d('["administrator","editor"]') === ['administrator', 'editor'] && $d('editor, administrator,editor') === ['editor', 'administrator']);
+    check($d(null) === [] && $d('') === [] && $d('[]') === [] && $d('[" editor ", "", "editor"]') === ['editor']);
+});
+
+test('Upgrading a 0.0.5 database: the roles move to field_values, the old column goes', function () use ($dropSchema, $capabilities): void {
+    putenv('CAMPANELLA_DB_PREFIX=sch_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $container = $kernel->container();
+    $db = $container->get(Connection::class);
+    if ($db->prefix() !== 'sch_') {
+        echo "      (skipped: config/local.php sets its own prefix)\n";
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $dropSchema();
+    $dir = sys_get_temp_dir() . '/campanella-backup-' . bin2hex(random_bytes(4));
+    $container->set(\Campanella\Database\DatabaseBackup::class, static fn (\Campanella\Core\Container $c) => new \Campanella\Database\DatabaseBackup($c->get(Connection::class), $dir));
+    $storage = new ArraySessionStorage();
+    $container->set(Session::class, static fn () => new Session($storage));
+
+    // The database as 0.0.5 left it: the tables (no migrations recorded), the roles as JSON in a column.
+    (new Installer($db, $container->get(CapabilityRegistry::class)))->install();
+    $db->execute('ALTER TABLE ' . $db->table('cap_authenticatable') . ' ADD COLUMN `roles` MEDIUMTEXT NULL AFTER `account_status`');
+    $repository = $container->get(ObjectRepository::class);
+    $users = [];
+    foreach (['admin@regi.hu' => '["administrator"]', 'szerk@regi.hu' => '["editor"]', 'mindketto@regi.hu' => 'editor, administrator', 'tag@regi.hu' => null] as $email => $roles) {
+        $user = $repository->create('user', ['title' => $email, 'email' => $email]);
+        $user->as(Authenticatable::class)->setPassword('regi-jelszo-123');
+        $repository->save($user);
+        $db->update('cap_authenticatable', ['roles' => $roles], ['object_id' => (int) $user->id()]);
+        $users[$email] = $user;
+    }
+    $installer = $container->get(Installer::class);
+    check(array_map(static fn ($m): string => $m->id(), $installer->pendingMigrations()) === ['core:0006_roles_multi_value'] && $installer->needsUpgrade(), 'the roles migration is pending');
+    $extra = array_map(static fn ($d): string => $d->kind->value . ':' . $d->table . '.' . $d->name, $installer->differences());
+    check($extra === ['extra_column:cap_authenticatable.roles'], implode(', ', $extra));
+
+    // The new code reads no roles yet: the administrator still opens the upgrade page, without a key.
+    $auth = $container->get(AuthService::class);
+    $auth->login(new Request('GET', '/'), $users['admin@regi.hu']);
+    $storage->endRequest();
+    check($auth->currentActor(new Request('GET', '/'))->roles === [], 'no roles before the migration');
+    $storage->endRequest();
+    check($kernel->handle(new Request('GET', '/admin'))->status === 503, 'the admin waits');
+    $storage->endRequest();
+    $page = $kernel->handle(new Request('GET', '/admin/upgrade'));
+    check($page->status === 200 && str_contains($page->body, 'core:0006_roles_multi_value') && !str_contains($page->body, 'name="key"'), 'the administrator of the old roles column sees it');
+    preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $page->body, $m);
+    $storage->endRequest();
+    $done = $kernel->handle(new Request('POST', '/admin/upgrade', post: ['_csrf' => $m[1] ?? '']));
+    check($done->status === 200 && str_contains($done->body, 'A frissítés kész: 1 migráció') && str_contains($done->body, '4 users'), strip_tags($done->body));
+
+    check(!$installer->needsUpgrade() && $installer->differences() === [], 'matches a fresh installation');
+    $roles = static fn (string $email) => $repository->find((int) $users[$email]->id())?->as(Authenticatable::class)->roles();
+    check($roles('admin@regi.hu') === ['administrator'] && $roles('mindketto@regi.hu') === ['editor', 'administrator'] && $roles('tag@regi.hu') === [], json_encode($roles('mindketto@regi.hu')));
+    $storage->endRequest();
+    check($auth->currentActor(new Request('GET', '/'))->roles === ['administrator'], 'the roles are read again');
+
+    // Users can be queried by role.
+    $stream = fopen('php://memory', 'w+');
+    (new \Campanella\Cli\UserListCommand())->run($container, ['--role=editor'], new \Campanella\Cli\Output($stream, $stream));
+    rewind($stream);
+    $out = (string) stream_get_contents($stream);
+    check(str_contains($out, 'szerk@regi.hu') && str_contains($out, 'mindketto@regi.hu') && !str_contains($out, 'admin@regi.hu') && !str_contains($out, 'tag@regi.hu'), $out);
+
+    // Repeatable: running it again changes nothing.
+    (new \Campanella\Database\Migration\Core\RolesMultiValue())->up(new \Campanella\Database\Migration\MigrationContext($db));
+    check($roles('mindketto@regi.hu') === ['editor', 'administrator']);
+
+    $dropSchema();
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('setRoles: trimmed, without empty and repeated roles', function () use ($repository): void {
+    $user = $repository->create('user', ['title' => 'x', 'email' => 'x@example.hu']);
+    $user->as(Authenticatable::class)->setRoles([' editor', 'editor', '', 'administrator']);
+    check($user->as(Authenticatable::class)->roles() === ['editor', 'administrator']);
 });
 
 echo "\nDocumentation examples\n";

@@ -11,7 +11,9 @@ backward-incompatible.
 ## [Unreleased]
 
 Upgrading: `php bin/campanella install` (schema version 6, the new
-`cc_migrations` table).
+`cc_migrations` table, and the roles migration; it asks first and makes a
+backup), or the upgrade page (`/admin/upgrade`) on a web host without a
+command line.
 
 ### Added
 
@@ -58,6 +60,7 @@ Upgrading: `php bin/campanella install` (schema version 6, the new
   unique one) is reported and left to a migration. Data of a capability removed
   from a Blueprint is kept, or deleted with `--prune`. Additive changes alone
   are applied without asking or a backup.
+- `php bin/campanella user:list --role=editor`: the users with the role.
 - System page: capabilities to add to existing objects, and what cannot be
   applied automatically.
 - System page: whether the web server can write `var/backups`, and a warning
@@ -70,6 +73,13 @@ Upgrading: `php bin/campanella install` (schema version 6, the new
 
 ### Changed
 
+- **The users' roles are a multi-valued field** (`String`, `Field::UNLIMITED`,
+  stored in `field_values`), so users can be queried by role
+  (`->where('roles', '=', 'editor')`). Campanella's first migration,
+  `core:0006_roles_multi_value`, moves the stored roles and drops the old
+  `roles` column of `cap_authenticatable`. Until it has run, the roles read
+  as empty; the upgrade page still recognises the administrators.
+  `Authenticatable::setRoles()` leaves out empty and repeated roles.
 - **While an upgrade is needed** (the schema version is older than the code,
   or a migration is pending), every page answers 503 with `Retry-After`, except
   logging in and out and the upgrade page. Before, only a database error led to
@@ -80,6 +90,11 @@ Upgrading: `php bin/campanella install` (schema version 6, the new
 - The System check's results are grouped (an added check's lines join their
   group).
 - The Docker image creates `var/backups` for the web server's user.
+
+### Deprecated
+
+- `FieldType::StringList`: use a multi-valued `String` field instead. It will
+  be removed before 0.1.0.
 
 ## [0.0.5] – 2026-10-05
 

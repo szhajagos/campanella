@@ -273,6 +273,23 @@ first, then the `migrations` setting.
 `applied` (the `MigrationResult`s before the failure); the cause is
 `getPrevious()`.
 
+## Campanella's migrations
+
+| ID | Version | What it does |
+|---|---|---|
+| `core:0006_roles_multi_value` | 0.0.6 | The users' `roles` become a multi-valued field: the JSON lists of the `roles` column of `cap_authenticatable` are copied into `field_values` (one row per role), then the column is dropped. Users can then be queried by role (`user:list --role=editor`) |
+
+`Campanella\Database\Migration\Core\RolesMultiValue` · **Internal** · `Migration`:
+constants `TABLE`, `COLUMN`; `static decode(mixed $stored): list<string>` reads
+a stored list (JSON, or comma-separated), trimmed, without empty and repeated
+roles.
+
+**Before the roles migration has run**, the new code reads no roles (they are
+still in the old column), so a logged-in administrator would not be one. The
+upgrade page therefore also reads the old column while it exists: an
+administrator can run the upgrade from the browser without the upgrade key.
+(`Installer::legacyValue()`; removed with `StringList` before 0.1.0.)
+
 ## Backups: DatabaseBackup
 
 `Campanella\Database\DatabaseBackup` · **Public** · `final class` · container: `DatabaseBackup::class`

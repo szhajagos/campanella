@@ -21,7 +21,12 @@ enum FieldType: string
     case Boolean = 'boolean';
     case DateTime = 'datetime';
 
-    /** A list of short strings (e.g. roles); stored as a JSON array. */
+    /**
+     * A list of short strings; stored as a JSON array.
+     *
+     * @deprecated since 0.0.6: use a multi-valued String field
+     *             (`cardinality: Field::UNLIMITED`), which can be queried. Removed before 0.1.0.
+     */
     case StringList = 'list';
 
     public const string STORAGE_DATE_FORMAT = 'Y-m-d H:i:s';

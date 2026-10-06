@@ -121,6 +121,23 @@ final class Installer
         return $this->migrator?->pending() ?? [];
     }
 
+    /**
+     * A value of a column that the definitions no longer have (e.g. before a migration
+     * moved it), for an object; null if the column or the row is not there.
+     */
+    public function legacyValue(string $table, string $column, int $objectId): ?string
+    {
+        if (!(new SchemaReader($this->db))->columnExists($table, $column)) {
+            return null;
+        }
+        $value = $this->db->fetchValue(
+            sprintf('SELECT %s FROM %s WHERE object_id = :id', Connection::quoteIdentifier($column), $this->db->table($table)),
+            ['id' => $objectId],
+        );
+
+        return $value === null ? null : (string) $value;
+    }
+
     public function migrator(): ?Migrator
     {
         return $this->migrator;

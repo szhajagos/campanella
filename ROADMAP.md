@@ -69,7 +69,7 @@ Agreed in detail on 2026-10-05. In six parts (0–5), each its own commit:
    only with `--prune`. A new required field without a default cannot be
    filled in by guessing: reported as an error, a migration has to fill the
    values. Renaming, changing a type or moving data always needs a migration.
-4. **The first migration: `roles`** becomes a multi-valued `String` field:
+4. ✅ **The first migration: `roles`** becomes a multi-valued `String` field:
    the values move to `cc_field_values`, the old column is dropped. Users
    can be queried by role (`user:list --role=editor`). Tested on a schema 5
    database built from a fixture, compared with a fresh installation.

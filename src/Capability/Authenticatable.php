@@ -40,7 +40,8 @@ final class Authenticatable extends Capability
                 length: 16,
                 label: 'field.account_status',
             ),
-            new Field('roles', FieldType::StringList, default: [], label: 'field.roles'),
+            // Multi-valued (since 0.0.6; before: a StringList), so users can be queried by role.
+            new Field('roles', FieldType::String, length: 32, cardinality: Field::UNLIMITED, label: 'field.roles'),
         ];
     }
 
@@ -107,10 +108,17 @@ final class Authenticatable extends Capability
         return $this->object->get('roles') ?? [];
     }
 
-    /** @param list<string> $roles */
+    /** @param list<string> $roles Trimmed; empty and repeated ones are left out. */
     public function setRoles(array $roles): void
     {
-        $this->object->set('roles', $roles);
+        $clean = [];
+        foreach ($roles as $role) {
+            $role = trim($role);
+            if ($role !== '' && !in_array($role, $clean, true)) {
+                $clean[] = $role;
+            }
+        }
+        $this->object->set('roles', $clean);
     }
 
     public function hasRole(string $role): bool

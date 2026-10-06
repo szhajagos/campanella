@@ -113,7 +113,7 @@ extra steps of an upgrade at the top of the version's section (for 0.0.5:
 | `php bin/campanella install --sql` | Only print the DDL |
 | `php bin/campanella seed` | Sample content |
 | `php bin/campanella status` | Version, capabilities, Blueprints, object count, and the system checks (exits with `1` on an error) |
-| `php bin/campanella user:create <e-mail>` | Creates a user (`--name=`, `--role=administrator,editor`); also `user:password`, `user:list` |
+| `php bin/campanella user:create <e-mail>` | Creates a user (`--name=`, `--role=administrator,editor`); also `user:password`, `user:list` (`--role=editor`) |
 | `php bin/campanella migrate` | Applies the changes of the definitions (new tables, columns, capabilities of Blueprints) and runs the pending migrations after a backup (`--dry-run`, `--yes`, `--no-backup`, `--prune`); `install` does it too |
 | `php bin/campanella db:backup` | Saves the database tables into `var/backups/` (`.sql.gz`) |
 | `php bin/campanella schema:check` | Compares the table definitions with the database (`--sql`: the statements of the additive changes); changes nothing |

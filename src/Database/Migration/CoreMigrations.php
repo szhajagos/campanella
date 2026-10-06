@@ -13,6 +13,8 @@ final class CoreMigrations
     /** @return list<class-string<Migration>> */
     public static function classes(): array
     {
-        return [];
+        return [
+            Core\RolesMultiValue::class,
+        ];
     }
 }

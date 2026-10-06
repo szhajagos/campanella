@@ -181,7 +181,7 @@ In templates the value is a list as well:
 | `Integer` | `int` | `INT` |
 | `Boolean` | `bool` | `TINYINT(1)` |
 | `DateTime` | `DateTimeImmutable` (UTC) | `DATETIME` |
-| `StringList` | `list<string>` (without duplicates and empty items) | `MEDIUMTEXT`, as a JSON array (since 0.0.3) |
+| `StringList` | `list<string>` (without duplicates and empty items) | `MEDIUMTEXT`, as a JSON array (since 0.0.3). **Deprecated** since 0.0.6, removed before 0.1.0: use a multi-valued `String` field (`cardinality: Field::UNLIMITED`), which can be queried |
 
 | Method | Description |
 |---|---|

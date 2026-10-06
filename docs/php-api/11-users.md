@@ -38,7 +38,7 @@ user = Titled + Identifiable + Authenticatable
 |---|---|---|---|
 | `password_hash` | String | Table | required, hidden |
 | `account_status` | String | Table | indexed, default: `active` |
-| `roles` | StringList | Table | e.g. `["administrator"]` |
+| `roles` | String, multi-valued (`Field::UNLIMITED`, 32 characters) | Table (`field_values`) | e.g. `administrator`, `editor`; queryable: `->where('roles', '=', 'editor')`. Since 0.0.6; before, a StringList in a column (the migration `core:0006_roles_multi_value` moves them) |
 
 | Method / constant | Description |
 |---|---|
@@ -47,7 +47,7 @@ user = Titled + Identifiable + Authenticatable
 | `verifyPassword(string $password): bool` | `password_verify` |
 | `needsRehash(): bool`, `rehash(string $password): void` | If PHP switches to a stronger default, the hash is upgraded automatically on login |
 | `status(): AccountStatus`, `isActive(): bool`, `block()`, `activate()` | Account status |
-| `roles(): list<string>`, `setRoles(array $roles)`, `hasRole(string $role): bool` | Roles (`^[a-z][a-z0-9_]{0,31}$`) |
+| `roles(): list<string>`, `setRoles(array $roles)`, `hasRole(string $role): bool` | Roles (`^[a-z][a-z0-9_]{0,31}$`); `setRoles()` trims them and leaves out empty and repeated ones |
 | `validate()` | Returns an error for an invalid role name |
 
 `AccountStatus` (`enum: string`): `Active = 'active'`, `Blocked = 'blocked'`.
@@ -243,7 +243,7 @@ In templates: `{{ current_user() }}` is the logged-in user (or `null`),
 | `user:create <e-mail> [--name="Name"] [--role=administrator,editor]` | New user. The command prompts for the password, hidden, twice |
 | `user:password <e-mail>` | New password |
 | `user:password <e-mail> --block` / `--activate` | Blocks or re-enables the account |
-| `user:list` | List of users |
+| `user:list` | List of users; `--role=editor`: only those with the role (since 0.0.6) |
 
 The system never creates a default account or password; the first
 administrator must be created with this:
