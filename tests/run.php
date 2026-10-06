@@ -2636,6 +2636,125 @@ test('migrate, install and the System page: pending migrations', function () use
     putenv('CAMPANELLA_DB_PREFIX');
 });
 
+test('Upgrading from the browser: the site waits, an administrator or the key runs it', function () use ($dropSchema, $migration): void {
+    putenv('CAMPANELLA_DB_PREFIX=sch_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $container = $kernel->container();
+    if ($container->get(Connection::class)->prefix() !== 'sch_') {
+        echo "      (skipped: config/local.php sets its own prefix)\n";
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $dropSchema();
+    $dir = sys_get_temp_dir() . '/campanella-backup-' . bin2hex(random_bytes(4));
+    $registry = new \Campanella\Database\Migration\MigrationRegistry();
+    $container->set(\Campanella\Database\Migration\Migrator::class, static fn (\Campanella\Core\Container $c) => new \Campanella\Database\Migration\Migrator($c->get(Connection::class), $registry));
+    $container->set(\Campanella\Database\DatabaseBackup::class, static fn (\Campanella\Core\Container $c) => new \Campanella\Database\DatabaseBackup($c->get(Connection::class), $dir));
+    $storage = new ArraySessionStorage();
+    $container->set(Session::class, static fn () => new Session($storage));
+    $installer = $container->get(Installer::class);
+    $installer->install();
+    $send = function (string $method, string $path, array $post = [], string $ip = '10.1.1.1') use ($kernel, $storage) {
+        $storage->endRequest();
+
+        return $kernel->handle(new Request($method, $path, post: $post, ip: $ip));
+    };
+    $csrfOf = static fn ($response): string => preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $response->body, $m) === 1 ? $m[1] : '';
+
+    check($send('GET', '/')->status === 200 && $send('GET', '/admin/upgrade')->status === 200, 'nothing pending: the site works');
+    check(str_contains($send('GET', '/admin/upgrade')->body, 'naprakész'), 'up to date');
+
+    $ran = 0;
+    $registry->add($migration('test:0030_web', function (\Campanella\Database\Migration\MigrationContext $m) use (&$ran): void {
+        $ran++;
+        $m->log('webes sor');
+    }, 'Web test'));
+    $home = $send('GET', '/');
+    check($home->status === 503 && ($home->headers['Retry-After'] ?? '') === '300' && str_contains($home->body, 'frissítés alatt'), 'visitors wait: ' . $home->status);
+    $admin = $send('GET', '/admin');
+    check($admin->status === 503 && str_contains($admin->body, '/admin/upgrade'), 'the admin points to the upgrade page');
+    check($send('GET', '/belepes')->status === 200, 'logging in still works');
+
+    // Anonymous, no key configured: no details, how to set a key, no running.
+    $page = $send('GET', '/admin/upgrade');
+    check($page->status === 200 && !str_contains($page->body, 'test:0030_web') && str_contains($page->body, "'upgrade' => ['key' => '") && str_contains($page->body, '/belepes?vissza=%2Fadmin%2Fupgrade'), 'anonymous: no details');
+    check(!str_contains($page->body, 'name="key"') && str_contains((string) ($page->headers['Content-Security-Policy'] ?? ''), "script-src 'self'"));
+    // (The page has no form without a key; a token from the login page.)
+    $refused = $send('POST', '/admin/upgrade', ['_csrf' => $csrfOf($send('GET', '/belepes'))]);
+    check($refused->status === 403 && $ran === 0 && str_contains($refused->body, 'csak adminisztrátor'), $refused->status . ' ' . strip_tags($refused->body));
+
+    // With a key in the configuration.
+    $key = str_repeat('k', 24);
+    $container->set('controller.upgrade', static fn (\Campanella\Core\Container $c) => new \Campanella\Controller\UpgradeController(
+        $c->get(Installer::class),
+        $c->get(\Campanella\Database\Migration\Migrator::class),
+        $c->get(\Campanella\Database\DatabaseBackup::class),
+        $c->get(\Campanella\Admin\AdminAccess::class),
+        $c->get(Csrf::class),
+        $c->get(Throttle::class),
+        $c->get(\Campanella\View\Presentation::class),
+        $key,
+    ));
+    check(\Campanella\Controller\UpgradeController::usableKey('short') === null && \Campanella\Controller\UpgradeController::usableKey($key) === $key);
+    $page = $send('GET', '/admin/upgrade');
+    check(str_contains($page->body, 'name="key"') && !str_contains($page->body, 'test:0030_web'), 'the key field');
+    $wrong = $send('POST', '/admin/upgrade', ['_csrf' => $csrfOf($page), 'key' => 'rossz-kulcs-rossz-kulcs']);
+    check($wrong->status === 403 && str_contains($wrong->body, 'Hibás frissítési kulcs') && $ran === 0, 'wrong key');
+    check($send('POST', '/admin/upgrade', ['key' => $key])->status === 400 && $ran === 0, 'without the CSRF token');
+    foreach (range(1, 5) as $_) {
+        $send('POST', '/admin/upgrade', ['_csrf' => $csrfOf($page), 'key' => 'rossz-kulcs-rossz-kulcs'], '10.9.9.9');
+    }
+    $blocked = $send('POST', '/admin/upgrade', ['_csrf' => $csrfOf($page), 'key' => $key], '10.9.9.9');
+    check($blocked->status === 403 && str_contains($blocked->body, 'Túl sok') && $ran === 0, 'throttled, even with the right key');
+
+    $done = $send('POST', '/admin/upgrade', ['_csrf' => $csrfOf($page), 'key' => $key]);
+    check($done->status === 200 && $ran === 1 && str_contains($done->body, 'A frissítés kész: 1 migráció') && str_contains($done->body, 'webes sor'), strip_tags($done->body));
+    check(count(glob($dir . '/campanella-*.sql.gz') ?: []) === 1 && str_contains($done->body, 'var/backups/campanella-'), 'a backup first');
+    check($send('GET', '/')->status === 200 && !$installer->needsUpgrade(), 'the site works again');
+    check($send('POST', '/admin/upgrade', ['_csrf' => $csrfOf($page), 'key' => $key])->status === 200 && $ran === 1, 'nothing left to run');
+
+    // A logged-in administrator needs no key; "without a backup".
+    $repository = $container->get(ObjectRepository::class);
+    $user = $repository->create('user', ['title' => 'Frissítő', 'email' => 'frissito@example.hu']);
+    $user->as(Authenticatable::class)->setPassword('frissito-jelszo-1');
+    $user->as(Authenticatable::class)->setRoles(['administrator']);
+    $repository->save($user);
+    $container->get(AuthService::class)->login(new Request('GET', '/'), $user);
+    $registry->add($migration('test:0031_admin', function () use (&$ran): void {
+        $ran++;
+    }));
+    $page = $send('GET', '/admin/upgrade');
+    check($page->status === 200 && str_contains($page->body, 'test:0031_admin') && !str_contains($page->body, 'name="key"') && str_contains($page->body, 'name="no_backup"'), 'an administrator sees the details');
+    $done = $send('POST', '/admin/upgrade', ['_csrf' => $csrfOf($page), 'no_backup' => '1']);
+    check($done->status === 200 && $ran === 2 && count(glob($dir . '/*.gz') ?: []) === 1, 'run without a backup');
+
+    // A failing migration: reported, the site keeps waiting.
+    $registry->add($migration('test:0032_fails', function (): void {
+        throw new \RuntimeException('hibás lépés');
+    }));
+    $page = $send('GET', '/admin/upgrade');
+    $failed = $send('POST', '/admin/upgrade', ['_csrf' => $csrfOf($page)]);
+    check($failed->status === 500 && str_contains($failed->body, 'test:0032_fails') && str_contains($failed->body, 'hibás lépés') && $send('GET', '/')->status === 503, strip_tags($failed->body));
+
+    $dropSchema();
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('System page: the backup folder and the upgrade key', function (): void {
+    $root = sys_get_temp_dir() . '/campanella-root-' . bin2hex(random_bytes(4));
+    mkdir($root . '/var/cache', 0777, true);
+    $config = new Config(['upgrade' => ['key' => 'short']]);
+    $db = Connection::fromConfig(['prefix' => 'sch_'] + Config::load(dirname(__DIR__) . '/config')->get('database'));
+    $check = new \Campanella\System\SystemCheck($config, $db, new Installer($db, new CapabilityRegistry([])), new \Campanella\System\TemplateCache($root . '/var/cache/twig', '0.0.6'), $root);
+    $lines = [];
+    foreach ($check->run() as $result) {
+        $lines[$result->label] = $result;
+    }
+    check(($lines['var/backups'] ?? null)?->status === \Campanella\System\CheckStatus::Ok, 'var/ writable: fine');
+    check(($lines['admin.system.upgrade_key'] ?? null)?->hint?->key === 'admin.system.upgrade_key_short');
+});
+
 echo "\nDocumentation examples\n";
 
 test('New capability as in the docs example (Weighted)', function () use ($db, $admin): void {

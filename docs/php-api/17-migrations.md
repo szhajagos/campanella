@@ -42,9 +42,56 @@ same way (`--yes`, `--no-backup`); the usual upgrade is still
 so every known migration is recorded as applied without running.
 **Existing installation:** only the ones not recorded yet run.
 
-While a migration is pending, `Installer::needsUpgrade()` is true, the System
-page shows an error in the *Versions* group (*Migrations applied*: `2 / 3`),
-and `status` says to run `migrate`.
+While a migration is pending (or the schema version is older than the code),
+`Installer::needsUpgrade()` is true, and:
+
+- every page answers **503** (`Retry-After: 300`), the admin's with a pointer to
+  the upgrade page; only logging in and out and the upgrade page work, because
+  the code may not match the database yet;
+- `status` says to run `migrate`; the System page (once it opens again) shows
+  *Migrations applied* in the *Versions* group.
+
+## From the browser
+
+For web hosts without a command line: **`/admin/upgrade`** (under the admin's
+path) does the same as `migrate`: creates the missing tables, makes a backup,
+runs the pending migrations, and shows each step and its log lines.
+
+Who may run it:
+
+- a logged-in user of the System page's roles (`admin.system_roles`, by
+  default `administrator`), without anything else;
+- or anyone who enters the **upgrade key**: for when logging in does not work
+  until the upgrade has run (e.g. a migration changes the users' tables). It is
+  off by default. To use it, put it into `config/local.php`, at least 20
+  characters (`UpgradeController::MIN_KEY_LENGTH`; the page suggests a random
+  one), and remove it after the upgrade (the System page warns while it is set):
+
+  ```php
+  'upgrade' => ['key' => '…a long random string…'],
+  ```
+
+  Wrong keys are throttled: 5 per IP address in 15 minutes.
+
+Others see only that an upgrade is needed and how to log in; not what is
+pending. The form needs the CSRF token, like every form.
+
+The backup is made into `var/backups/`, which the **web server** must be able
+to write (the System page checks it). If the command line runs as another user
+(e.g. `root` in Docker) and created the folder first, give it to the web
+server's user: `chown -R www-data:www-data var/backups` (Campanella's Docker
+image creates it for `www-data`). If the backup fails, nothing is changed; the
+"Without a backup" box runs the upgrade anyway. A failure is shown with its
+cause and the backup's name; the site keeps waiting until a successful run.
+
+The page stands alone (not the admin's layout), with the admin's
+Content-Security-Policy. PHP's time limit is lifted for the run, and it goes on
+even if the browser is closed.
+
+`Campanella\Controller\UpgradeController` · **Internal** · `final class`:
+`static usableKey(mixed $key): ?string` (the key if long enough), constants
+`MIN_KEY_LENGTH` (20), `MAX_KEY_ATTEMPTS` (5), `KEY_DECAY_SECONDS` (900),
+`CONTENT_SECURITY_POLICY`.
 
 ## Writing a migration
 
@@ -186,7 +233,9 @@ Import, or `gunzip < file.sql.gz | mysql <database>`. The last line is
 
 The file contains everything, password hashes too. It is written into
 `var/backups/` (outside the web root, with a `.htaccess` that denies access
-in case the project root is served), readable by its owner only (`0600`).
+in case the project root is served), readable by its owner only (`0600`,
+where the file system supports it; it does on Linux servers, and in Docker on
+Windows too).
 Keep a copy off the server too; old files are not deleted automatically.
 
 | Member | Description |

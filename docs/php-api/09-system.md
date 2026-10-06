@@ -114,6 +114,7 @@ New controller: a `controller.<name>` entry in the container, and a route in
 | `database.password` | `''` | `CAMPANELLA_DB_PASSWORD` |
 | `database.prefix` | `'cc_'` | `CAMPANELLA_DB_PREFIX` |
 | `capabilities` | the seven built-in ones | |
+| `upgrade.key` | not set | Opens the upgrade page without logging in, for when logging in does not work until the upgrade has run; at least 20 characters, only in `config/local.php`, removed afterwards ([chapter 17](17-migrations.md#from-the-browser)) |
 | `migrations` | `[]` | The site's own migrations (class names), run after Campanella's ([chapter 17](17-migrations.md#writing-a-migration)) |
 | `session.*`, `auth.*` | see [chapter 11](11-users.md#configuration) | |
 

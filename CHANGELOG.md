@@ -44,11 +44,28 @@ Upgrading: `php bin/campanella install` (schema version 6, the new
   `mysqldump` is needed; readable by its owner only.
 - System page and `status`: the migrations applied, an error while one is
   pending.
+- **Upgrading from the browser:** `/admin/upgrade` creates the missing tables,
+  makes a backup and runs the pending migrations, for web hosts without a
+  command line. For administrators, or with an upgrade key
+  (`upgrade.key` in `config/local.php`, at least 20 characters, throttled;
+  for when logging in does not work before the upgrade). Each step is shown;
+  a failure with its cause and the backup made before it.
+- System page: whether the web server can write `var/backups`, and a warning
+  while an upgrade key is set.
 - System page: a *Database tables* group with the differences (or that the
   tables match their definitions).
 - `SchemaBuilder` generates `ALTER TABLE` statements (`addColumnSql()`,
   `addIndexSql()`, `dropColumnSql()`, `dropIndexSql()`), in the forms both
   MariaDB and MySQL accept, and is now public.
+
+### Changed
+
+- **While an upgrade is needed** (the schema version is older than the code,
+  or a migration is pending), every page answers 503 with `Retry-After`, except
+  logging in and out and the upgrade page. Before, only a database error led to
+  the "needs upgrade" page. The visitors' message no longer mentions commands.
+- `upgrade` is a reserved Blueprint name too.
+- The Docker image creates `var/backups` for the web server's user.
 
 ## [0.0.5] – 2026-10-05
 

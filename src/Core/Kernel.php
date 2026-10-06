@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Campanella\Core;
 
+use Campanella\Controller\UpgradeController;
 use Campanella\Access\AccessPolicy;
 use Campanella\Access\Actor;
 use Campanella\Access\DefaultPolicy;
@@ -90,9 +91,28 @@ final class Kernel
         try {
             $container = $this->container();
             $route = $container->get(Router::class)->match($request);
+
+            // While an upgrade is needed, only logging in and out and the upgrade page work:
+            // the code may not match the database yet.
+            if (!in_array($route->handler, self::DURING_UPGRADE, true) && $this->upgradeNeeded()) {
+                $admin = $container->get(AdminAccess::class);
+                $isAdmin = $request->path === $admin->path() || str_starts_with($request->path, $admin->path() . '/');
+
+                return $this->errorResponse(503, $isAdmin ? 'error.needs_upgrade_admin' : 'error.needs_upgrade', ['path' => $request->basePath . $admin->path('upgrade')])
+                    ->withHeader('Retry-After', '300');
+            }
+
             /** @var Controller $controller */
             $controller = $container->get('controller.' . $route->handler);
-            $actor = $container->get(AuthService::class)->currentActor($request);
+            try {
+                $actor = $container->get(AuthService::class)->currentActor($request);
+            } catch (\Throwable $e) {
+                // The upgrade page must open even if the users cannot be read before the upgrade.
+                if ($route->handler !== 'upgrade') {
+                    throw $e;
+                }
+                $actor = Actor::anonymous();
+            }
 
             $response = $controller->handle($request, $route, $actor);
 
@@ -105,6 +125,19 @@ final class Kernel
             return $this->errorResponse($e->status, $e->getMessage());
         } catch (\Throwable $e) {
             return $this->failure($e);
+        }
+    }
+
+    /** The handlers that work while an upgrade is needed. */
+    private const array DURING_UPGRADE = ['upgrade', 'auth'];
+
+    /** Installed, and an upgrade is needed (a database error: false, handled elsewhere). */
+    private function upgradeNeeded(): bool
+    {
+        try {
+            return $this->container()->get(Installer::class)->needsUpgrade();
+        } catch (\Throwable) {
+            return false;
         }
     }
 
@@ -336,6 +369,7 @@ final class Kernel
         $c->set(Router::class, static function (Container $c) use ($root): Router {
             $router = new Router(require $root . '/config/routes.php');
             $router->prefix($c->get(AdminAccess::class)->path(), 'admin');
+            $router->add($c->get(AdminAccess::class)->path('upgrade'), 'upgrade');
 
             return $router;
         });
@@ -369,6 +403,17 @@ final class Kernel
             $c->get(SystemCheck::class),
             $c->get(TemplateCache::class),
             $c->get(MediaService::class),
+        ));
+
+        $c->set('controller.upgrade', static fn (Container $c): Controller => new UpgradeController(
+            $c->get(Installer::class),
+            $c->get(Migrator::class),
+            $c->get(DatabaseBackup::class),
+            $c->get(AdminAccess::class),
+            $c->get(Csrf::class),
+            $c->get(Throttle::class),
+            $c->get(Presentation::class),
+            UpgradeController::usableKey($c->get(Config::class)->get('upgrade.key')),
         ));
 
         $c->set('controller.auth', static fn (Container $c): Controller => new AuthController(
@@ -428,11 +473,14 @@ final class Kernel
         return $this->errorResponse(500, $debug ? get_class($e) . ': ' . $e->getMessage() : 'error.internal');
     }
 
-    /** @param string $message A message key (see lang/) or a ready-made text. */
-    private function errorResponse(int $status, string $message): Response
+    /**
+     * @param string $message A message key (see lang/) or a ready-made text.
+     * @param array<string, string|int|float> $params
+     */
+    private function errorResponse(int $status, string $message, array $params = []): Response
     {
         try {
-            $message = $this->container()->get(Translator::class)->translate($message);
+            $message = $this->container()->get(Translator::class)->translate($message, $params);
         } catch (\Throwable) {
             // Without a working translator, the key is shown.
         }

@@ -105,8 +105,14 @@ final class Installer
      */
     public function needsUpgrade(): bool
     {
-        return $this->isInstalled()
-            && ($this->systemValue('schema_version') !== Version::SCHEMA || $this->pendingMigrations() !== []);
+        // Checked on every request (Kernel), so without isInstalled()'s extra query.
+        try {
+            $version = $this->systemValue('schema_version');
+        } catch (\PDOException) {
+            return false; // not installed (or the database is unreachable): handled elsewhere
+        }
+
+        return $version !== null && ($version !== Version::SCHEMA || $this->pendingMigrations() !== []);
     }
 
     /** @return list<Migration> The migrations that have not run yet (none without a Migrator) */

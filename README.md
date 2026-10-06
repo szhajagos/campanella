@@ -83,7 +83,8 @@ The system is then available at <http://localhost:8080>. The `Dockerfile` is
 based on the official `php:8.3-apache` image: it installs the `pdo_mysql`,
 `gd` (with JPEG, PNG and WebP) and `exif` extensions, enables the
 `mod_rewrite` and `mod_headers` modules, raises PHP's upload and memory limits
-for images (`docker/php.ini`), and sets the web root to the `public/` folder.
+for images (`docker/php.ini`), creates `var/cache` and `var/backups` for the
+web server's user, and sets the web root to the `public/` folder.
 After changing the `Dockerfile` or `docker/php.ini`, rebuild:
 `docker compose up -d --build`. The database settings come from environment variables in
 `compose.yaml` (`CAMPANELLA_DB_HOST`, `CAMPANELLA_DB_NAME`, etc.). Do not create

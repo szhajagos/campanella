@@ -57,10 +57,11 @@ Agreed in detail on 2026-10-05. In six parts (0–5), each its own commit:
    - `php bin/campanella db:backup`: the database as an SQL file through PDO
      (no `mysqldump` needed) into `var/backups/`, outside the web root;
      `migrate` offers it.
-2. **Running the upgrade from the browser**, for web hosts without a command
-   line. A button on the System page: administrators only, CSRF, the lock,
-   a backup first. While a migration is pending, visitors get the 503 page,
-   but logging in and the System page stay available.
+2. ✅ **Running the upgrade from the browser**, for web hosts without a command
+   line: the upgrade page (`/admin/upgrade`), for administrators or with an
+   upgrade key (for when logging in does not work before the upgrade); CSRF,
+   the lock, a backup first. While an upgrade is needed, every page answers
+   503, except logging in and out and the upgrade page.
 3. **Blueprint and capability changes, automatically.** A new field of a
    capability or a new capability of a Blueprint: `install`/`migrate` adds
    the column or table, and the existing objects get the capability with its

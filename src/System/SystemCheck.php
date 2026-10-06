@@ -7,6 +7,7 @@ namespace Campanella\System;
 use Campanella\Core\Config;
 use Campanella\Core\Version;
 use Campanella\Database\Connection;
+use Campanella\Controller\UpgradeController;
 use Campanella\Database\Installer;
 use Campanella\Database\Schema\DifferenceKind;
 use Campanella\Http\Request;
@@ -263,11 +264,21 @@ final class SystemCheck
     /** @return list<CheckResult> */
     private function folders(): array
     {
-        $dir = $this->rootDir . '/var/cache';
+        $g = 'admin.system.group.folders';
+        $cache = $this->rootDir . '/var/cache';
+        $results = [is_dir($cache) && is_writable($cache)
+            ? new CheckResult($g, 'var/cache', CheckStatus::Ok)
+            : new CheckResult($g, 'var/cache', CheckStatus::Warning, '', new Message('admin.system.folder_not_writable'))];
 
-        return [is_dir($dir) && is_writable($dir)
-            ? new CheckResult('admin.system.group.folders', 'var/cache', CheckStatus::Ok)
-            : new CheckResult('admin.system.group.folders', 'var/cache', CheckStatus::Warning, '', new Message('admin.system.folder_not_writable'))];
+        // Backups before an upgrade (db:backup, the upgrade page). Created when first needed,
+        // so a missing folder is fine if var/ is writable.
+        $backups = $this->rootDir . '/var/backups';
+        $writable = is_dir($backups) ? is_writable($backups) : is_writable($this->rootDir . '/var');
+        $results[] = $writable
+            ? new CheckResult($g, 'var/backups', CheckStatus::Ok)
+            : new CheckResult($g, 'var/backups', CheckStatus::Warning, '', new Message('admin.system.backups_not_writable'));
+
+        return $results;
     }
 
     /** @return list<CheckResult> */
@@ -284,6 +295,13 @@ final class SystemCheck
             new CheckResult($g, 'admin.system.theme', CheckStatus::Info, $theme !== '' ? $theme : '–'),
             new CheckResult($g, 'admin.system.admin_path', CheckStatus::Info, (string) $this->config->get('admin.path', '/admin')),
         ];
+        // The upgrade key opens the upgrade page without logging in: only while it is needed.
+        $key = $this->config->get('upgrade.key');
+        if (is_string($key) && $key !== '') {
+            $results[] = strlen($key) < UpgradeController::MIN_KEY_LENGTH
+                ? new CheckResult($g, 'admin.system.upgrade_key', CheckStatus::Warning, 'admin.system.on', new Message('admin.system.upgrade_key_short', ['min' => UpgradeController::MIN_KEY_LENGTH]))
+                : new CheckResult($g, 'admin.system.upgrade_key', CheckStatus::Warning, 'admin.system.on', new Message('admin.system.upgrade_key_set'));
+        }
         if ($request !== null) {
             $results[] = $request->secure
                 ? new CheckResult($g, 'admin.system.https', CheckStatus::Ok, 'HTTPS')

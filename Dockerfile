@@ -31,5 +31,5 @@ RUN composer install --no-dev --no-interaction --no-scripts --no-autoloader --pr
 
 COPY . .
 RUN composer dump-autoload --optimize --no-dev \
-    && mkdir -p var/cache \
+    && mkdir -p var/cache var/backups \
     && chown -R www-data:www-data var

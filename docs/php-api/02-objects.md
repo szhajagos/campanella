@@ -269,8 +269,8 @@ not have.
 | `relation(string $name): ?Relation` | A relation definition by name, whether provided by a capability or a Blueprint |
 | `all(): array<string, Blueprint>` | All of them |
 
-`RESERVED_NAMES` (since 0.0.5): `system` and `media` cannot be Blueprint
-names, because the admin uses them as its own paths.
+`RESERVED_NAMES` (since 0.0.5): `system`, `media` and `upgrade` (since
+0.0.6) cannot be Blueprint names, because the admin uses them as its own paths.
 
 `define()` throws `CapabilityException` for an invalid or reserved name, an unknown
 capability, if the name of an own field or relation collides with a field

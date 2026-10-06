@@ -1,0 +1,100 @@
+{# The upgrade page. Stand-alone (not the admin layout): while an upgrade is needed,
+   nothing else of the system may be relied on. #}
+<!doctype html>
+<html lang="{{ locale() }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <title>{{ t('upgrade.title') }} – {{ site.name }}</title>
+    <script src="{{ asset('theme.js') }}"></script>
+    <link rel="stylesheet" href="{{ asset('vendor/bootstrap/css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ asset('admin.css') }}">
+</head>
+<body class="admin">
+    <main class="container py-5" style="max-width: 46rem">
+        <h1 class="h3 mb-4">{{ t('upgrade.title') }}</h1>
+
+        {% if error %}
+            <div class="alert alert-danger" role="alert">
+                {{ t(error.key, error.params) }}
+                {% if cause ?? null %}<div class="small mt-2 font-monospace text-break">{{ cause }}</div>{% endif %}
+                {% if backup_file ?? null %}<div class="mt-2">{{ t('upgrade.restore', {file: backup_file}) }}</div>{% endif %}
+            </div>
+        {% endif %}
+
+        {% if result is not null %}
+            <div class="alert alert-success" role="alert">
+                {{ t('upgrade.done', {count: result|length}) }}
+                {% if backup_file ?? null %}<div class="small mt-1">{{ t('upgrade.backup_made', {file: backup_file}) }}</div>{% endif %}
+            </div>
+        {% endif %}
+
+        {% if log ?? [] %}
+            <pre class="small bg-body-tertiary border rounded p-3">{% for line in log %}{{ line }}
+{% endfor %}</pre>
+        {% endif %}
+
+        {% if not needed %}
+            {% if result is null %}<p>{{ t('upgrade.up_to_date') }}</p>{% endif %}
+            <p class="d-flex gap-3">
+                <a class="btn btn-primary" href="{{ url('/') }}">{{ t('upgrade.to_site') }}</a>
+                {% if admin %}<a class="btn btn-outline-secondary" href="{{ url(system_url) }}">{{ t('admin.system.title') }}</a>{% endif %}
+            </p>
+        {% else %}
+            <p>{{ t('upgrade.intro') }}</p>
+
+            {% if details %}
+                <dl class="row small">
+                    <dt class="col-sm-4 fw-normal text-body-secondary">{{ t('admin.system.schema') }}</dt>
+                    <dd class="col-sm-8">{{ t('upgrade.schema', {database: schema.database ?? '–', code: schema.code}) }}</dd>
+                    <dt class="col-sm-4 fw-normal text-body-secondary">{{ t('upgrade.pending') }}</dt>
+                    <dd class="col-sm-8">
+                        {% for migration in pending %}
+                            <div><code>{{ migration.id }}</code> {{ migration.description }}</div>
+                        {% else %}
+                            –
+                        {% endfor %}
+                    </dd>
+                    <dt class="col-sm-4 fw-normal text-body-secondary">{{ t('upgrade.backup_folder') }}</dt>
+                    <dd class="col-sm-8">
+                        <code class="text-break">{{ backup_folder }}</code>
+                        {% if not backup_writable %}<div class="text-danger">{{ t('upgrade.backup_not_writable') }}</div>{% endif %}
+                    </dd>
+                </dl>
+            {% endif %}
+
+            {% if admin or key_enabled %}
+                <form method="post" action="{{ url(action) }}" class="card card-body">
+                    {{ csrf_field() }}
+                    <div class="alert alert-warning small">{{ t('upgrade.warning') }}</div>
+                    {% if not admin %}
+                        <label class="form-label" for="upgrade-key">{{ t('upgrade.key') }}</label>
+                        <input class="form-control mb-3" type="password" id="upgrade-key" name="key" autocomplete="off" required>
+                    {% endif %}
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="no-backup" name="no_backup" value="1">
+                        <label class="form-check-label" for="no-backup">{{ t('upgrade.no_backup') }}</label>
+                    </div>
+                    <div><button type="submit" class="btn btn-primary">{{ t('upgrade.run') }}</button></div>
+                </form>
+            {% endif %}
+
+            {% if not admin %}
+                <div class="mt-4 small">
+                    {% if logged_in %}
+                        <p>{{ t('upgrade.not_admin') }}</p>
+                    {% else %}
+                        <p><a href="{{ url(login_url) }}">{{ t('upgrade.login') }}</a></p>
+                    {% endif %}
+                    {% if not key_enabled %}
+                        <p>{{ t('upgrade.key_howto') }}</p>
+                        <pre class="bg-body-tertiary border rounded p-2">'upgrade' => ['key' => '{{ key_suggestion }}'],</pre>
+                    {% endif %}
+                    <p>{{ t('upgrade.cli') }}</p>
+                </div>
+            {% endif %}
+        {% endif %}
+    </main>
+</body>
+</html>
