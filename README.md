@@ -1,4 +1,4 @@
-# Campanella 0.0.5
+# Campanella 0.0.6
 
 [![CI](https://github.com/szhajagos/campanella/actions/workflows/ci.yml/badge.svg)](https://github.com/szhajagos/campanella/actions/workflows/ci.yml)
 
@@ -99,11 +99,12 @@ php bin/campanella install      # new tables and the pending migrations (after a
 php bin/campanella seed         # optional: add the new sample content
 ```
 
-If the code is newer than the database schema, the website shows a 503 page,
-and the `status` command reports in text that `install` needs to be run.
+If the code is newer than the database, the website answers 503 until the
+upgrade has run, and the `status` command says what to run. Without a command
+line, log in and open `/admin/upgrade`: it does the same, with a backup first
+([docs/php-api/17-migrations.md](docs/php-api/17-migrations.md)).
 The [CHANGELOG](CHANGELOG.md) lists the changes version by version, and the
-extra steps of an upgrade at the top of the version's section (for 0.0.5:
-`php bin/campanella html:sanitize`, once).
+extra steps of an upgrade at the top of the version's section.
 
 ## Commands
 
@@ -131,7 +132,7 @@ On every push, GitHub runs the checks above
 documentation checks, and the tests on MariaDB 10.6 and 11.4, and MySQL 8.0
 and 8.4. The results are shown next to the commits and on the Actions tab.
 
-After a version tag (`git tag v0.0.5 && git push --tags`), GitHub builds the
+After a version tag (`git tag v0.0.6 && git push --tags`), GitHub builds the
 installation package and attaches it to the release. For an existing tag it
 can also be started manually: Actions → CI → Run workflow, entering the tag.
 
@@ -223,6 +224,15 @@ content, re-encoded (metadata such as GPS positions is removed) and stored
 under random names ([docs/php-api/16-media.md](docs/php-api/16-media.md)).
 The administrators' System page shows whether the server meets the
 requirements ([docs/php-api/14-system-check.md](docs/php-api/14-system-check.md)).
+
+**Migrations (0.0.6).** An existing database is brought up to date by
+`install` (or `migrate`), or from the browser on the upgrade page: what is
+additive in the definitions (new tables, columns, indexes, capabilities of a
+Blueprint) is applied automatically, everything else by migrations, small PHP
+steps that run once, in order, after a backup (`db:backup`, built in, no
+`mysqldump` needed). Nothing is guessed: what would need it is reported.
+`schema:check` compares the definitions with the database. Details:
+[docs/php-api/17-migrations.md](docs/php-api/17-migrations.md).
 
 **Query.** Declarative and immutable:
 

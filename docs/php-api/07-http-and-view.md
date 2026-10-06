@@ -218,7 +218,7 @@ without extending it, it decides which CSS and JavaScript it loads.
 | In a template | PHP method | Description |
 |---|---|---|
 | `{{ url('/hirek') }}` | `url(string $path)` | Subdirectory-safe URL |
-| `{{ asset('campanella.css') }}` | `asset(string $path)` | The URL of a file under `public/assets/`, with the version as a cache buster (`…/campanella.css?v=0.0.5`) |
+| `{{ asset('campanella.css') }}` | `asset(string $path)` | The URL of a file under `public/assets/`, with the version as a cache buster (`…/campanella.css?v=0.0.6`) |
 | `{{ render_object(item, 'teaser') }}` | `renderObject(CampanellaObject $object, string $mode)` | One object in one mode |
 | `{{ related(object, 'categories') }}` | `related(CampanellaObject $object, string $relation)` | The loaded target objects of a relation, or an empty list |
 | `{{ current_user() }}` | `currentUser()` | The logged-in user or `null` ([chapter 11](11-users.md#web-interface)) |

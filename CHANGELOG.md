@@ -10,10 +10,22 @@ backward-incompatible.
 
 ## [Unreleased]
 
-Upgrading: `php bin/campanella install` (schema version 6, the new
-`cc_migrations` table, and the roles migration; it asks first and makes a
-backup), or the upgrade page (`/admin/upgrade`) on a web host without a
-command line.
+## [0.0.6] – 2026-10-06
+
+Migrations: reading and comparing the database schema, a migration framework
+with built-in backups, upgrading from the browser, applying the definitions'
+changes automatically, and the first migration (the users' roles).
+
+**Upgrading from 0.0.5:**
+
+1. Upload the new files (the dependencies did not change).
+2. Until the upgrade has run, the site answers 503. Then either:
+   - `php bin/campanella install`: schema version 6 (the new `cc_migrations`
+     table), the changes of the definitions, and the roles migration; it asks
+     first and makes a backup into `var/backups/`;
+   - or, without a command line: log in and open `/admin/upgrade`. The web
+     server must be able to write `var/backups/` (the System page checks it).
+3. Check the users' roles: `php bin/campanella user:list`.
 
 ### Added
 

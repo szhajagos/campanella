@@ -17,68 +17,10 @@ Completed changes are listed in the [CHANGELOG](CHANGELOG.md).
 | 0.0.3 | Users and login: `Identifiable`, `Authenticatable`, `Authorable`, session, CSRF, login throttling, `LoginGuard` + honeypot, `editor` role, `user:*` commands; MIT license |
 | 0.0.4 | Admin UI (lists, generated forms, publishing incl. scheduled, deleting), multi-valued fields (cardinality), translation layer (en, hu), Bootstrap 5.3 shipped locally, themes |
 | 0.0.5 | HTML editing: System page, HTML allowlist filter on every save, Jodit editor (shipped locally), Content-Security-Policy for the admin, image upload (checked by content, re-encoded, `image` Blueprint, Images list) |
+| 0.0.6 | Migrations: reading and comparing the schema (`schema:check`), migrations with built-in backups (`migrate`, `db:backup`), upgrading from the browser (`/admin/upgrade`), the definitions' additive changes applied automatically, roles as a multi-valued field |
 | – | Continuous integration (GitHub Actions): PHPStan, documentation, tests on MariaDB 10.6/11.4 and MySQL 8.0/8.4; installation package with `vendor/` for every version tag |
 
 ## Next
-
-### 0.0.6 – Migrations
-
-Agreed in detail on 2026-10-05. In six parts (0–5), each its own commit:
-
-0. ✅ **Reading the schema, finding differences.**
-   - The actual database from `information_schema`: tables, columns (type,
-     NULL, default), indexes; the same on MariaDB and MySQL.
-   - `ALTER` statements generated from the definitions: add a column, add an
-     index, drop a column. Portable: `ADD COLUMN IF NOT EXISTS` and
-     `DROP INDEX IF EXISTS` exist only on MariaDB, so the state is checked
-     first, then a plain `ALTER` runs.
-   - A schema comparison (definitions against the database): "column
-     `cap_weighted.weight` is missing", "a column not in the definition". On
-     the System page and in `status`.
-1. ✅ **The migration framework.**
-   - A migration is a PHP class: an ID (`core:0006_roles_multi_value`), a
-     description and `up(MigrationContext $m)`. Forward only, no `down()`:
-     a backup instead (see below).
-   - `MigrationContext`: `addColumn`, `addIndex`, `dropColumn`,
-     `renameColumn`, `columnExists`, `sql()`, batched processing of large
-     tables. Migrations work on SQL, never with the current model classes
-     (an old migration may run against a newer model).
-   - Recorded when applied (ID, time, duration); a lock (`GET_LOCK`) so two
-     runs cannot overlap. On an error it stops and says where; DDL cannot be
-     rolled back in MySQL, so a migration is one small step, repeatable if
-     possible.
-   - A fresh installation creates the current tables and marks every
-     migration as applied; an existing one records them from now on and runs
-     only the pending ones. "Needs upgrade" means: a migration is pending
-     (`schema_version` stays, for information).
-   - `php bin/campanella migrate`: lists the pending ones, asks for
-     confirmation after a backup warning (`--yes`), `--dry-run`. `install`
-     runs them too.
-   - `php bin/campanella db:backup`: the database as an SQL file through PDO
-     (no `mysqldump` needed) into `var/backups/`, outside the web root;
-     `migrate` offers it.
-2. ✅ **Running the upgrade from the browser**, for web hosts without a command
-   line: the upgrade page (`/admin/upgrade`), for administrators or with an
-   upgrade key (for when logging in does not work before the upgrade); CSRF,
-   the lock, a backup first. While an upgrade is needed, every page answers
-   503, except logging in and out and the upgrade page.
-3. ✅ **Blueprint and capability changes, automatically.** A new field of a
-   capability or a new capability of a Blueprint: `install`/`migrate` adds
-   the column or table, and the existing objects get the capability with its
-   defaults. A removed capability: the data is kept and reported; deleted
-   only with `--prune`. A new required field without a default cannot be
-   filled in by guessing: reported as an error, a migration has to fill the
-   values. Renaming, changing a type or moving data always needs a migration.
-4. ✅ **The first migration: `roles`** becomes a multi-valued `String` field:
-   the values move to `cc_field_values`, the old column is dropped. Users
-   can be queried by role (`user:list --role=editor`). Tested on a schema 5
-   database built from a fixture, compared with a fresh installation.
-   `StringList` is deprecated (removed before 0.1.0).
-5. Release `v0.0.6`.
-
-**Done when:** a new field of a capability, or a capability added to a
-Blueprint, can be applied to existing content without manual SQL, also on a
-web host without a command line.
 
 ### 0.0.7 – Hierarchy and menu
 

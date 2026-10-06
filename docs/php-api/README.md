@@ -1,6 +1,6 @@
 # PHP API
 
-Reference for the Campanella 0.0.5 PHP API. Every class is in the `Campanella\`
+Reference for the Campanella 0.0.6 PHP API. Every class is in the `Campanella\`
 namespace, in the `src/` folder (PSR-4).
 
 ## Chapters
