@@ -35,7 +35,7 @@ Agreed in detail on 2026-10-05. In six parts (0–5), each its own commit:
    - A schema comparison (definitions against the database): "column
      `cap_weighted.weight` is missing", "a column not in the definition". On
      the System page and in `status`.
-1. **The migration framework.**
+1. ✅ **The migration framework.**
    - A migration is a PHP class: an ID (`core:0006_roles_multi_value`), a
      description and `up(MigrationContext $m)`. Forward only, no `down()`:
      a backup instead (see below).

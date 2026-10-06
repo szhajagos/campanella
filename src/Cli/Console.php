@@ -26,6 +26,8 @@ final class Console
             new UserListCommand(),
             new HtmlSanitizeCommand(),
             new SchemaCheckCommand(),
+            new MigrateCommand(),
+            new DbBackupCommand(),
         ];
         foreach ($commands as $command) {
             $this->commands[$command->name()] = $command;

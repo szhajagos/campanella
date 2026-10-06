@@ -4,3 +4,4 @@
 /config/local.php
 /public/media/*
 !/public/media/.htaccess
+/var/backups/

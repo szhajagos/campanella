@@ -114,6 +114,7 @@ New controller: a `controller.<name>` entry in the container, and a route in
 | `database.password` | `''` | `CAMPANELLA_DB_PASSWORD` |
 | `database.prefix` | `'cc_'` | `CAMPANELLA_DB_PREFIX` |
 | `capabilities` | the seven built-in ones | |
+| `migrations` | `[]` | The site's own migrations (class names), run after Campanella's ([chapter 17](17-migrations.md#writing-a-migration)) |
 | `session.*`, `auth.*` | see [chapter 11](11-users.md#configuration) | |
 
 Precedence: the `app.php` default < environment variable < `local.php`.
@@ -125,8 +126,9 @@ set, it is the project root (by default the parent directory of `public/`).
 
 `Campanella\Core\Version` · **Public**
 
-`CAMPANELLA = '0.0.5'` (the system version) and `SCHEMA = '5'` (the database
-schema version; incremented for a new table or migration).
+`CAMPANELLA = '0.0.5'` (the system version) and `SCHEMA = '6'` (the version of
+the core tables; incremented for a new core table. Changes of existing tables
+are migrations: [chapter 17](17-migrations.md)).
 
 ## CLI
 
@@ -134,7 +136,9 @@ schema version; incremented for a new table or migration).
 
 | Command | Description |
 |---|---|
-| `install` | Creates the tables; `--sql`: only prints the SQL |
+| `install` | Creates the tables; on an existing installation also runs the pending migrations, like `migrate` (`--yes`, `--no-backup`); `--sql`: only prints the SQL |
+| `migrate` | Runs the pending migrations after a backup; `--dry-run`: only lists them; `--yes`: without asking; `--no-backup` ([chapter 17](17-migrations.md#running-them)) |
+| `db:backup` | Saves the tables into `var/backups/` as SQL (`.sql.gz`; `--plain`: `.sql`) ([chapter 17](17-migrations.md#backups-databasebackup)) |
 | `seed` | Sample content. Can be run repeatedly: whatever already exists by path is not created again |
 | `status` | Version, the system check ([chapter 14](14-system-check.md)), capabilities, Blueprints, object count; reports if the database needs an upgrade. Exits with `1` if a check reports an error |
 | `schema:check` | Compares the table definitions with the database and lists the differences (exits with `1` if there is one; a table no definition has is only reported); `--sql`: prints the statements of the additive ones, and those that would lose data as comments. Changes nothing ([chapter 8](08-database.md#comparing-schemacomparator)) |
@@ -177,7 +181,7 @@ module system it will become registrable.
 |---|---|
 | `Console` · **Internal** | `__construct(Kernel $kernel, Output $output = new Output())`, `run(array $argv): int` |
 | `Output` · **Public** | `__construct($stream = STDOUT, $errors = STDERR)`; `line(string $text = '')`, `success(string $text)` (with a ✔ mark), `error(string $text)` (with a ✘ mark, to the error stream) |
-| `InstallCommand`, `SeedCommand`, `StatusCommand`, `HtmlSanitizeCommand`, `SchemaCheckCommand` · **Internal** | The built-in commands |
+| `InstallCommand`, `SeedCommand`, `StatusCommand`, `HtmlSanitizeCommand`, `SchemaCheckCommand`, `MigrateCommand`, `DbBackupCommand`, `MigrationRunner` · **Internal** | The built-in commands |
 
 ## Helper classes
 

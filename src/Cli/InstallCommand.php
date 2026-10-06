@@ -6,11 +6,22 @@ namespace Campanella\Cli;
 
 use Campanella\Core\Container;
 use Campanella\Database\Connection;
+use Campanella\Database\DatabaseBackup;
 use Campanella\Database\Installer;
+use Campanella\Database\Migration\Migrator;
 use Campanella\I18n\Translator;
 
+/**
+ * `php bin/campanella install [--sql] [--yes] [--no-backup]`: creates the
+ * missing tables. On an existing installation the pending migrations run too,
+ * as with `migrate` (after a backup, asking first unless `--yes`).
+ */
 final class InstallCommand implements Command
 {
+    public function __construct(private readonly Input $input = new Input())
+    {
+    }
+
     #[\Override]
     public function name(): string
     {
@@ -43,6 +54,18 @@ final class InstallCommand implements Command
         $output->line();
         $output->line($t->translate('cli.install.done'));
 
-        return 0;
+        // An existing installation: the migrations of the new version.
+        if ($installer->pendingMigrations() === []) {
+            return 0;
+        }
+        $output->line();
+
+        return (new MigrationRunner(
+            $container->get(Migrator::class),
+            $container->get(DatabaseBackup::class),
+            $t,
+            $this->input,
+            $output,
+        ))->run(Args::parse($args));
     }
 }

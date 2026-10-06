@@ -10,6 +10,9 @@ backward-incompatible.
 
 ## [Unreleased]
 
+Upgrading: `php bin/campanella install` (schema version 6, the new
+`cc_migrations` table).
+
 ### Added
 
 - **Reading and comparing the database schema.** `SchemaReader` reads the
@@ -23,6 +26,24 @@ backward-incompatible.
 - `php bin/campanella schema:check [--sql]`: lists the differences, or prints
   the statements of the additive ones (those that would lose data only as
   comments). Changes nothing.
+- **Migrations.** A migration is a small PHP class (`Migration`: `id()`,
+  `description()`, `up(MigrationContext $m)`), forward only. The
+  `MigrationContext` works on SQL and checks the state first (`addColumn()`,
+  `dropColumn()`, `renameColumn()`, `addIndex()`, `dropIndex()`,
+  `createTable()`, batched `eachRow()`), so a migration that failed halfway can
+  run again. The `Migrator` runs the pending ones under a database lock and
+  records each in the new `cc_migrations` table; a failure stops the run with
+  the earlier ones recorded. A fresh installation records every migration as
+  applied. Campanella's own come from `CoreMigrations`, a site's from the new
+  `migrations` setting.
+- `php bin/campanella migrate [--dry-run] [--yes] [--no-backup]`: lists the
+  pending migrations, asks, makes a backup and runs them. `install` runs them
+  too on an existing installation.
+- `php bin/campanella db:backup [--plain]` and `DatabaseBackup`: the tables as
+  an SQL file in `var/backups/` (`.sql.gz`), written through PDO, so no
+  `mysqldump` is needed; readable by its owner only.
+- System page and `status`: the migrations applied, an error while one is
+  pending.
 - System page: a *Database tables* group with the differences (or that the
   tables match their definitions).
 - `SchemaBuilder` generates `ALTER TABLE` statements (`addColumnSql()`,

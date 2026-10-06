@@ -105,6 +105,11 @@ final class StatusCommand implements Command
 
             return $exit;
         }
+        if ($installer->needsUpgrade() && $installer->systemValue('schema_version') === Version::SCHEMA) {
+            $output->line($t->translate('cli.status.migrations_pending', ['count' => count($installer->pendingMigrations())]));
+
+            return $exit;
+        }
         if ($installer->needsUpgrade()) {
             $output->line($t->translate('cli.status.needs_upgrade', [
                 'database' => (string) $installer->systemValue('schema_version'),

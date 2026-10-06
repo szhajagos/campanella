@@ -16,6 +16,7 @@ final class CoreSchema
     public const string RELATIONSHIPS = 'relationships';
     public const string THROTTLE = 'throttle';
     public const string FIELD_VALUES = 'field_values';
+    public const string MIGRATIONS = 'migrations';
 
     /** @return list<Table> */
     public static function tables(): array
@@ -103,6 +104,17 @@ final class CoreSchema
                 ],
                 uniques: ['uniq_value' => ['object_id', 'field', 'delta']],
                 foreignKeys: [new ForeignKey('object_id', self::OBJECTS)],
+            ),
+            // The migrations that have run (since 0.0.6, schema version 6).
+            new Table(
+                name: self::MIGRATIONS,
+                columns: [
+                    new Column('id', ColumnType::String, length: 128),
+                    new Column('description', ColumnType::String, length: 255),
+                    new Column('applied_at', ColumnType::DateTime),
+                    new Column('duration_ms', ColumnType::Integer, default: 0),
+                ],
+                primaryKey: ['id'],
             ),
             // Throttling of attempts (e.g. login). The SHA-256 hash of the key.
             new Table(

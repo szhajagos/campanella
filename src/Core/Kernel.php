@@ -19,7 +19,11 @@ use Campanella\Controller\Controller;
 use Campanella\Controller\ObjectController;
 use Campanella\Controller\QueryController;
 use Campanella\Database\Connection;
+use Campanella\Database\DatabaseBackup;
 use Campanella\Database\Installer;
+use Campanella\Database\Migration\CoreMigrations;
+use Campanella\Database\Migration\MigrationRegistry;
+use Campanella\Database\Migration\Migrator;
 use Campanella\Http\HttpException;
 use Campanella\Http\NativeSessionStorage;
 use Campanella\Http\Request;
@@ -249,9 +253,22 @@ final class Kernel
             $c->get(MediaStorage::class),
         ));
 
+        $c->set(MigrationRegistry::class, static fn (Container $c): MigrationRegistry => MigrationRegistry::fromClasses([
+            ...CoreMigrations::classes(),
+            ...array_values((array) $c->get(Config::class)->get('migrations', [])),
+        ]));
+        $c->set(Migrator::class, static fn (Container $c): Migrator => new Migrator(
+            $c->get(Connection::class),
+            $c->get(MigrationRegistry::class),
+        ));
+        $c->set(DatabaseBackup::class, static fn (Container $c): DatabaseBackup => new DatabaseBackup(
+            $c->get(Connection::class),
+            $root . '/var/backups',
+        ));
         $c->set(Installer::class, static fn (Container $c): Installer => new Installer(
             $c->get(Connection::class),
             $c->get(CapabilityRegistry::class),
+            $c->get(Migrator::class),
         ));
 
         $c->set(Theme::class, static fn (Container $c): Theme => Theme::fromRoot(

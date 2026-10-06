@@ -19,7 +19,7 @@ details (those are in the server's error log).
 
 | Group | Checks |
 |---|---|
-| Versions | Campanella; PHP (at least `SystemCheck::MIN_PHP`, 8.3.0); the database server (MariaDB 10.6+, MySQL 8.0+: `MIN_DATABASE`); the database schema against `Version::SCHEMA` (if they differ: run `install`) |
+| Versions | Campanella; PHP (at least `SystemCheck::MIN_PHP`, 8.3.0); the database server (MariaDB 10.6+, MySQL 8.0+: `MIN_DATABASE`); the database schema against `Version::SCHEMA` (if they differ: run `install`); the migrations applied (`2 / 3`; one pending: error, run `migrate`; since 0.0.6) |
 | Database tables | The tables against their definitions ([chapter 8](08-database.md#comparing-schemacomparator)): one line per difference (a warning; a table no definition has: info), at most `MAX_SCHEMA_LINES` (10), or one line saying they match. Once installed (since 0.0.6) |
 | Required PHP extensions | `REQUIRED_EXTENSIONS`: `ctype`, `dom` (the HTML filter), `json`, `mbstring`, `pdo`, `pdo_mysql`, `session`; missing: error |
 | Recommended PHP extensions | `RECOMMENDED_EXTENSIONS`: `gd` (image processing, 0.0.5; with the image formats it was built with, a warning if JPEG, PNG, WebP or GIF is missing), `fileinfo` (recognising uploaded files), `opcache` (speed); missing: warning |

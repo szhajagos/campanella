@@ -6,6 +6,8 @@ namespace Campanella\Database;
 
 use Campanella\Capability\CapabilityRegistry;
 use Campanella\Core\Version;
+use Campanella\Database\Migration\Migration;
+use Campanella\Database\Migration\Migrator;
 use Campanella\Database\Schema\CoreSchema;
 use Campanella\Database\Schema\SchemaBuilder;
 use Campanella\Database\Schema\SchemaComparator;
@@ -26,6 +28,7 @@ final class Installer
     public function __construct(
         private readonly Connection $db,
         private readonly CapabilityRegistry $capabilities,
+        private readonly ?Migrator $migrator = null,
     ) {
     }
 
@@ -43,9 +46,16 @@ final class Installer
         return $tables;
     }
 
-    /** @return list<string> The names of the created (or already existing) tables. */
+    /**
+     * Creates the missing tables. On a fresh installation every known migration
+     * is recorded as applied (the tables are created as the definitions are now);
+     * on an existing one the pending migrations are left for the Migrator.
+     *
+     * @return list<string> The names of the created (or already existing) tables.
+     */
     public function install(): array
     {
+        $fresh = !$this->isInstalled();
         $builder = new SchemaBuilder($this->db);
         $names = [];
         foreach ($this->tables() as $table) {
@@ -53,6 +63,9 @@ final class Installer
             $names[] = $this->db->prefix() . $table->name;
         }
 
+        if ($fresh) {
+            $this->migrator?->markAllApplied();
+        }
         $this->setSystemValue('schema_version', Version::SCHEMA);
         if ($this->systemValue('installed_at') === null) {
             $this->setSystemValue('installed_at', gmdate('Y-m-d H:i:s'));
@@ -86,10 +99,25 @@ final class Installer
         return $this->db->tableExists(CoreSchema::SYSTEM) && $this->systemValue('schema_version') !== null;
     }
 
-    /** Installed, but the schema is older than the code: install must be run. */
+    /**
+     * Installed, but older than the code: the schema version differs (install must
+     * be run), or a migration is pending (migrate must be run).
+     */
     public function needsUpgrade(): bool
     {
-        return $this->isInstalled() && $this->systemValue('schema_version') !== Version::SCHEMA;
+        return $this->isInstalled()
+            && ($this->systemValue('schema_version') !== Version::SCHEMA || $this->pendingMigrations() !== []);
+    }
+
+    /** @return list<Migration> The migrations that have not run yet (none without a Migrator) */
+    public function pendingMigrations(): array
+    {
+        return $this->migrator?->pending() ?? [];
+    }
+
+    public function migrator(): ?Migrator
+    {
+        return $this->migrator;
     }
 
     public function systemValue(string $name): ?string

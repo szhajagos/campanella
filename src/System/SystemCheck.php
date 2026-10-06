@@ -158,6 +158,14 @@ final class SystemCheck
                 $installed !== Version::SCHEMA => new CheckResult($g, 'admin.system.schema', CheckStatus::Error, $installed, new Message('admin.system.schema_differs', ['code' => Version::SCHEMA])),
                 default => new CheckResult($g, 'admin.system.schema', CheckStatus::Ok, $installed),
             };
+            $migrator = $this->installer->migrator();
+            if ($installed !== null && $migrator !== null) {
+                $total = count($migrator->registry()->all());
+                $pending = count($migrator->pending());
+                $results[] = $pending > 0
+                    ? new CheckResult($g, 'admin.system.migrations', CheckStatus::Error, ($total - $pending) . ' / ' . $total, new Message('admin.system.migrations_pending', ['count' => $pending]))
+                    : new CheckResult($g, 'admin.system.migrations', CheckStatus::Ok, $total . ' / ' . $total);
+            }
         } catch (\Throwable) {
             // The details (host, user) are not shown: they are in the server's error log.
             $results[] = new CheckResult($g, 'admin.system.database', CheckStatus::Error, '–', new Message('admin.system.database_unreachable'));

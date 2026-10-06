@@ -98,6 +98,7 @@ exist only on MariaDB): check the state first with the `SchemaReader`.
 | `create(Table $table): void` | Runs it |
 | `columnSql(Column $column): string` | A column's definition: `` `weight` INT NOT NULL DEFAULT 0 `` |
 | `addColumnSql(Table $table, string $column): string` | `ALTER TABLE … ADD COLUMN …`, after the column it follows in the definition (or `FIRST`), so the order matches a fresh installation (since 0.0.6) |
+| `addColumnDefinitionSql(string $table, Column $column, ?string $after = null, bool $first = false): string` | Adds the given column (e.g. a migration's own definition): after `$after`, first, or at the end (since 0.0.6) |
 | `addIndexSql(Table $table, string $index): string` | `ALTER TABLE … ADD [UNIQUE] INDEX …`, an index of the definition (since 0.0.6) |
 | `dropColumnSql(string $table, string $column): string` | `ALTER TABLE … DROP COLUMN …`; its data is lost (since 0.0.6) |
 | `dropIndexSql(string $table, string $index): string` | `ALTER TABLE … DROP INDEX …` (since 0.0.6) |
@@ -169,7 +170,7 @@ fills it).
 `Campanella\Database\Schema\CoreSchema` · **Public**
 
 `static tables(): list<Table>`, plus constants for the table names: `OBJECTS`,
-`OBJECT_CAPABILITIES`, `SYSTEM`, `RELATIONSHIPS`, `THROTTLE`, `FIELD_VALUES`.
+`OBJECT_CAPABILITIES`, `SYSTEM`, `RELATIONSHIPS`, `THROTTLE`, `FIELD_VALUES`, `MIGRATIONS`.
 
 | Table | Columns | Purpose |
 |---|---|---|
@@ -179,6 +180,7 @@ fills it).
 | `cc_relationships` | `id`, `source_id`, `type`, `target_id`, `weight`; unique: (`source_id`, `type`, `target_id`) | Relations; cascade on deletion of either side (since 0.0.2) |
 | `cc_throttle` | `key_hash` (PK), `hits`, `reset_at` | Login throttling (since 0.0.3) |
 | `cc_field_values` | `id`, `object_id`, `field`, `delta` (order), `value_string`, `value_text`, `value_int`, `value_datetime`; unique key on (`object_id`, `field`, `delta`); covering indexes (`field`, value, `object_id`) for `value_string`, `value_int` and `value_datetime` (`value_text` is not indexed) | The values of the multi-valued queryable fields, one row per value; only the column matching the field's type is filled; cascade on deletion of the object (since 0.0.4, schema version 4) |
+| `cc_migrations` | `id` (PK), `description`, `applied_at`, `duration_ms` | The migrations that have run ([chapter 17](17-migrations.md); since 0.0.6, schema version 6) |
 | `cc_cap_<name>` | `object_id` (PK) + the capability's single-valued `Table` fields | One table per capability (a capability with only multi-valued or `Data` fields has none) |
 
 On MariaDB the `JSON` type is an alias of `LONGTEXT` with a built-in
@@ -192,11 +194,14 @@ never queries into it, so the difference does not matter.
 | Method | Description |
 |---|---|
 | `tables(): list<Table>` | The tables of the core and of all registered capabilities |
-| `install(): list<string>` | Creates the missing tables and writes the `schema_version` value. Can be run repeatedly |
+| `__construct(Connection $db, CapabilityRegistry $capabilities, ?Migrator $migrator = null)` | |
+| `install(): list<string>` | Creates the missing tables and writes the `schema_version` value; on a fresh installation records every known migration as applied ([chapter 17](17-migrations.md)). Can be run repeatedly |
 | `sql(): string` | The complete DDL, e.g. for phpMyAdmin |
 | `differences(): list<SchemaDifference>` | The definitions against the database (empty if they match); every table with the prefix is checked (since 0.0.6) |
 | `isInstalled(): bool` | |
-| `needsUpgrade(): bool` | Installed, but the `schema_version` is older than the code: `install` needs to be run |
+| `needsUpgrade(): bool` | Installed, but the `schema_version` is older than the code (`install` needs to be run), or a migration is pending (`migrate`) |
+| `pendingMigrations(): list<Migration>` | None without a Migrator |
+| `migrator(): ?Migrator` | |
 | `systemValue(string $name): ?string` | A single `cc_system` value |
 
 `install()` does not alter existing tables (new column, type change); that will

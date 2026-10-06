@@ -2408,6 +2408,234 @@ test('schema:check and the System page report the differences', function () use 
     putenv('CAMPANELLA_DB_PREFIX');
 });
 
+echo "\nMigrations\n";
+
+/** A migration for the tests: runs the given function. */
+$migration = static function (string $id, Closure $up, string $description = 'Test migration'): \Campanella\Database\Migration\Migration {
+    return new class ($id, $up, $description) implements \Campanella\Database\Migration\Migration {
+        public function __construct(private string $id, private Closure $up, private string $description)
+        {
+        }
+
+        public function id(): string
+        {
+            return $this->id;
+        }
+
+        public function description(): string
+        {
+            return $this->description;
+        }
+
+        public function up(\Campanella\Database\Migration\MigrationContext $m): void
+        {
+            ($this->up)($m);
+        }
+    };
+};
+
+test('MigrationRegistry: IDs are checked, the order is kept', function () use ($migration): void {
+    $noop = static function (): void {
+    };
+    $registry = new \Campanella\Database\Migration\MigrationRegistry([$migration('core:0002_b', $noop), $migration('core:0001_a', $noop)]);
+    check(array_map(static fn ($m): string => $m->id(), $registry->all()) === ['core:0002_b', 'core:0001_a'], 'registration order');
+    throws(\InvalidArgumentException::class, fn () => $registry->add($migration('core:0001_a', $noop)));
+    foreach (['nosource', 'Core:x', 'core:', 'core:a b', ':x', 'core:' . str_repeat('a', 130)] as $bad) {
+        throws(\InvalidArgumentException::class, fn () => new \Campanella\Database\Migration\MigrationRegistry([$migration($bad, $noop)]));
+    }
+    throws(\LogicException::class, fn () => \Campanella\Database\Migration\MigrationRegistry::fromClasses([\stdClass::class]));
+    throws(\LogicException::class, fn () => \Campanella\Database\Migration\MigrationRegistry::fromClasses(['No\\Such\\Migration']));
+    check(count(\Campanella\Database\Migration\MigrationRegistry::fromClasses(\Campanella\Database\Migration\CoreMigrations::classes())->all()) === count(\Campanella\Database\Migration\CoreMigrations::classes()), 'the core migrations are valid');
+});
+
+test('Migrator: a fresh installation records every migration; an existing one runs the pending ones', function () use ($schemaDb, $dropSchema, $capabilities, $migration): void {
+    $dropSchema();
+    $calls = [];
+    $registry = new \Campanella\Database\Migration\MigrationRegistry([
+        $migration('test:0001_first', function () use (&$calls): void {
+            $calls[] = 'first';
+        }),
+    ]);
+    $migrator = new \Campanella\Database\Migration\Migrator($schemaDb, $registry);
+    $installer = new Installer($schemaDb, $capabilities, $migrator);
+    check($migrator->applied() === [], 'no table yet: nothing applied');
+    $installer->install();
+    check($calls === [] && array_keys($migrator->applied()) === ['test:0001_first'] && $migrator->pending() === [] && !$installer->needsUpgrade(), 'fresh: recorded, not run');
+
+    // A new version brings two more migrations; the second fails the first time.
+    $fail = true;
+    $registry->add($migration('test:0002_add_column', function (\Campanella\Database\Migration\MigrationContext $m) use (&$calls): void {
+        $calls[] = 'second';
+        $m->addColumn('throttle', new \Campanella\Database\Schema\Column('note', \Campanella\Database\Schema\ColumnType::String, nullable: true, length: 32), 'hits');
+        $m->addIndex('throttle', 'idx_note', ['note']);
+        $m->log('note added');
+    }, 'Adds a note'));
+    $registry->add($migration('test:0003_fails', function () use (&$fail, &$calls): void {
+        $calls[] = 'third';
+        if ($fail) {
+            throw new \RuntimeException('boom');
+        }
+    }));
+    check(array_map(static fn ($m): string => $m->id(), $migrator->pending()) === ['test:0002_add_column', 'test:0003_fails'] && $installer->needsUpgrade(), 'pending: upgrade needed');
+    $logged = [];
+    $started = [];
+    try {
+        $migrator->run(function ($m) use (&$started): void {
+            $started[] = $m->id();
+        }, function (string $line) use (&$logged): void {
+            $logged[] = $line;
+        });
+        check(false, 'the failure must be reported');
+    } catch (\Campanella\Database\Migration\MigrationException $e) {
+        check($e->migrationId === 'test:0003_fails' && $e->reason->key === 'migration.failed' && $e->getPrevious()?->getMessage() === 'boom');
+        check(count($e->applied) === 1 && $e->applied[0]->id === 'test:0002_add_column', 'the earlier one is recorded');
+    }
+    check($started === ['test:0002_add_column', 'test:0003_fails'] && $logged === ['note added'], implode(',', $started));
+    check(array_map(static fn ($m): string => $m->id(), $migrator->pending()) === ['test:0003_fails'], 'the failed one is still pending');
+    check((new \Campanella\Database\Schema\SchemaReader($schemaDb))->columnExists('throttle', 'note'), 'the column was added');
+    $row = $schemaDb->fetchOne('SELECT description, duration_ms FROM {migrations} WHERE id = :id', ['id' => 'test:0002_add_column']);
+    check($row !== null && $row['description'] === 'Adds a note' && (int) $row['duration_ms'] >= 0);
+
+    $fail = false;
+    $results = $migrator->run();
+    check(count($results) === 1 && $results[0]->id === 'test:0003_fails' && $migrator->pending() === [] && !$installer->needsUpgrade(), 'run again: done');
+    check($calls === ['second', 'third', 'third'], implode(',', $calls));
+    check($migrator->run() === [], 'nothing left');
+
+    // Repeatable: running a migration's steps again does nothing.
+    $context = new \Campanella\Database\Migration\MigrationContext($schemaDb);
+    check(!$context->addColumn('throttle', new \Campanella\Database\Schema\Column('note', \Campanella\Database\Schema\ColumnType::String, nullable: true)) && !$context->addIndex('throttle', 'idx_note', ['note']));
+});
+
+test('MigrationContext: renaming, dropping, batches', function () use ($schemaDb): void {
+    $m = new \Campanella\Database\Migration\MigrationContext($schemaDb);
+    check($m->renameColumn('throttle', 'note', 'remark') && !$m->renameColumn('throttle', 'note', 'remark') && $m->columnExists('throttle', 'remark') && !$m->columnExists('throttle', 'note'));
+    check($m->dropIndex('throttle', 'idx_note') && !$m->dropIndex('throttle', 'idx_note') && !$m->indexExists('throttle', 'idx_note'));
+    check($m->dropColumn('throttle', 'remark') && !$m->dropColumn('throttle', 'remark'));
+    check($m->tableExists('objects') && !$m->tableExists('nope'));
+    foreach (range(1, 5) as $i) {
+        $m->sql('INSERT INTO {system} (name, value) VALUES (:n, :v)', ['n' => "batch_{$i}", 'v' => (string) $i]);
+    }
+    $seen = [];
+    $count = $m->eachRow('system', 'name', function (array $row) use (&$seen): void {
+        $seen[] = $row['value'];
+    }, 'name LIKE :p', ['p' => 'batch\_%'], 2);
+    check($count === 5 && $seen === ['1', '2', '3', '4', '5'], implode(',', $seen));
+    check($m->db() === $schemaDb);
+});
+
+test('Migrator: only one run at a time', function () use ($schemaDb, $config, $migration): void {
+    $other = Connection::fromConfig(['prefix' => 'sch_'] + $config->get('database'));
+    $name = 'cmp_mig_' . substr(hash('sha256', 'sch_'), 0, 16);
+    check((int) $other->fetchValue('SELECT GET_LOCK(CONCAT(:n, MD5(DATABASE())), 0)', ['n' => $name]) === 1, 'the other run holds the lock');
+    $ran = false;
+    $migrator = new \Campanella\Database\Migration\Migrator($schemaDb, new \Campanella\Database\Migration\MigrationRegistry([
+        $migration('test:0010_locked', function () use (&$ran): void {
+            $ran = true;
+        }),
+    ]));
+    try {
+        $migrator->run();
+        check(false, 'locked');
+    } catch (\Campanella\Database\Migration\MigrationException $e) {
+        check($e->reason->key === 'migration.locked' && !$ran);
+    }
+    $other->fetchValue('SELECT RELEASE_LOCK(CONCAT(:n, MD5(DATABASE())))', ['n' => $name]);
+    check(count($migrator->run()) === 1 && $ran, 'runs once the lock is free');
+});
+
+test('DatabaseBackup: an SQL file that restores the tables', function () use ($schemaDb): void {
+    $dir = sys_get_temp_dir() . '/campanella-backup-' . bin2hex(random_bytes(4));
+    $backup = new \Campanella\Database\DatabaseBackup($schemaDb, $dir);
+    $schemaDb->insert('system', ['name' => 'backup_test', 'value' => "it's \"quoted\";\nnew line \\ backslash, ünnep"]);
+    $schemaDb->insert('system', ['name' => 'backup_null', 'value' => null]);
+
+    $sql = '';
+    $tables = [];
+    $backup->write(function (string $text) use (&$sql): void {
+        $sql .= $text;
+    }, function (string $table, int $rows) use (&$tables): void {
+        $tables[$table] = $rows;
+    });
+    check(str_contains($sql, 'DROP TABLE IF EXISTS `sch_objects`;') && str_contains($sql, 'CREATE TABLE `sch_objects`') && str_ends_with($sql, \Campanella\Database\DatabaseBackup::COMPLETE . "\n"));
+    check(isset($tables['system'], $tables['migrations']) && $tables['system'] >= 2, json_encode($tables));
+
+    // Restoring it brings back the data as it was.
+    $schemaDb->update('system', ['value' => 'changed'], ['name' => 'backup_test']);
+    $schemaDb->delete('system', ['name' => 'backup_null']);
+    $schemaDb->pdo()->exec($sql);
+    check($schemaDb->fetchValue('SELECT value FROM {system} WHERE name = :n', ['n' => 'backup_test']) === "it's \"quoted\";\nnew line \\ backslash, ünnep", 'restored');
+    check($schemaDb->fetchOne('SELECT value FROM {system} WHERE name = :n', ['n' => 'backup_null']) === ['value' => null], 'NULL kept');
+
+    $gz = $backup->create();
+    $plain = $backup->create(false);
+    check(str_ends_with($gz, '.sql.gz') && str_ends_with($plain, '.sql') && is_file($dir . '/.htaccess'), $gz);
+    check((fileperms($plain) & 0777) === 0600, decoct(fileperms($plain) & 0777));
+    check(str_ends_with(trim((string) file_get_contents($plain)), \Campanella\Database\DatabaseBackup::COMPLETE) && str_ends_with(trim((string) gzdecode((string) file_get_contents($gz))), \Campanella\Database\DatabaseBackup::COMPLETE));
+    $files = $backup->files();
+    check(count($files) === 2 && $files[0]['size'] > 0 && glob($dir . '/*.part') === [], json_encode($files));
+    throws(\RuntimeException::class, fn () => (new \Campanella\Database\DatabaseBackup($schemaDb, '/proc/campanella-no'))->create());
+});
+
+test('migrate, install and the System page: pending migrations', function () use ($schemaDb, $dropSchema, $migration): void {
+    putenv('CAMPANELLA_DB_PREFIX=sch_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $container = $kernel->container();
+    if ($container->get(Connection::class)->prefix() !== 'sch_') {
+        echo "      (skipped: config/local.php sets its own prefix)\n";
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $dropSchema();
+    $dir = sys_get_temp_dir() . '/campanella-backup-' . bin2hex(random_bytes(4));
+    $registry = new \Campanella\Database\Migration\MigrationRegistry();
+    $container->set(\Campanella\Database\Migration\Migrator::class, static fn (\Campanella\Core\Container $c) => new \Campanella\Database\Migration\Migrator($c->get(Connection::class), $registry));
+    $container->set(\Campanella\Database\DatabaseBackup::class, static fn (\Campanella\Core\Container $c) => new \Campanella\Database\DatabaseBackup($c->get(Connection::class), $dir));
+    $run = static function (\Campanella\Cli\Command $command, array $args) use ($container): array {
+        $stream = fopen('php://memory', 'w+');
+        $code = $command->run($container, $args, new \Campanella\Cli\Output($stream, $stream));
+        rewind($stream);
+
+        return [$code, (string) stream_get_contents($stream)];
+    };
+    $nonInteractive = static fn () => new \Campanella\Cli\Input(fopen('php://memory', 'r'));
+
+    [$code] = $run(new \Campanella\Cli\InstallCommand($nonInteractive()), []);
+    check($code === 0, 'fresh install');
+    [$code, $out] = $run(new \Campanella\Cli\MigrateCommand($nonInteractive()), []);
+    check($code === 0 && str_contains($out, 'naprakész'), $out);
+
+    $ran = 0;
+    $registry->add($migration('test:0020_cli', function (\Campanella\Database\Migration\MigrationContext $m) use (&$ran): void {
+        $ran++;
+        $m->log('egy sor');
+    }, 'CLI test'));
+    $lines = array_values(array_filter($container->get(\Campanella\System\SystemCheck::class)->run(), static fn ($r): bool => $r->label === 'admin.system.migrations'));
+    check(count($lines) === 1 && $lines[0]->status === \Campanella\System\CheckStatus::Error && $lines[0]->value === '0 / 1', 'the System page: pending is an error');
+
+    [$code, $out] = $run(new \Campanella\Cli\MigrateCommand($nonInteractive()), ['--dry-run']);
+    check($code === 0 && str_contains($out, 'test:0020_cli  CLI test') && $ran === 0, 'dry run lists only');
+    [$code, $out] = $run(new \Campanella\Cli\MigrateCommand($nonInteractive()), []);
+    check($code === 1 && str_contains($out, '--yes') && $ran === 0, 'not a terminal: needs --yes');
+    [$code, $out] = $run(new \Campanella\Cli\InstallCommand($nonInteractive()), ['--yes']);
+    check($code === 0 && $ran === 1 && str_contains($out, 'Mentés: ' . $dir) && str_contains($out, '    egy sor') && str_contains($out, '1 migráció lefutott'), $out);
+    check(count(glob($dir . '/campanella-*.sql.gz') ?: []) === 1, 'a backup was made first');
+    $lines = array_values(array_filter($container->get(\Campanella\System\SystemCheck::class)->run(), static fn ($r): bool => $r->label === 'admin.system.migrations'));
+    check($lines[0]->status === \Campanella\System\CheckStatus::Ok && $lines[0]->value === '1 / 1');
+
+    $registry->add($migration('test:0021_skip_backup', function () use (&$ran): void {
+        $ran++;
+    }));
+    [$code, $out] = $run(new \Campanella\Cli\MigrateCommand($nonInteractive()), ['--yes', '--no-backup']);
+    check($code === 0 && $ran === 2 && !str_contains($out, 'Mentés:') && count(glob($dir . '/*.gz') ?: []) === 1, $out);
+    [$code, $out] = $run(new \Campanella\Cli\DbBackupCommand(), ['--plain']);
+    check($code === 0 && count(glob($dir . '/*.sql') ?: []) === 1 && str_contains($out, 'jelszó-hasheket'), $out);
+
+    $dropSchema();
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
 echo "\nDocumentation examples\n";
 
 test('New capability as in the docs example (Weighted)', function () use ($db, $admin): void {

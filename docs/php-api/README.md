@@ -21,6 +21,7 @@ namespace, in the `src/` folder (PSR-4).
 14. [System check](14-system-check.md): `SystemCheck`, `CheckResult`, `TemplateCache`, the System page
 15. [HTML texts](15-html.md): the allowlist, `HtmlSanitizer`, `html:sanitize`
 16. [Images](16-media.md): the `image` Blueprint, `MediaFile`, `MediaService`, `ImageProcessor`, `MediaStorage`
+17. [Migrations and backups](17-migrations.md): `Migration`, `MigrationContext`, `Migrator`, `migrate`, `DatabaseBackup`, `db:backup`
 
 ## Namespaces
 
@@ -38,7 +39,7 @@ namespace, in the `src/` folder (PSR-4).
 | `Campanella\Controller` | Controller | Handling HTTP requests |
 | `Campanella\View` | View | Presentation, Twig integration |
 | `Campanella\Http` | Infrastructure | Request, response, routing |
-| `Campanella\Database` | Infrastructure | PDO layer, schema (definitions, reading the database, comparing), installer |
+| `Campanella\Database` | Infrastructure | PDO layer, schema (definitions, reading the database, comparing), installer, backups; `Database\Migration`: migrations |
 | `Campanella\Core` | Infrastructure | Kernel, container, configuration |
 | `Campanella\System` | Infrastructure | System check, template cache |
 | `Campanella\Html` | Infrastructure | HTML filter |

@@ -1,0 +1,199 @@
+# 17. Migrations and backups
+
+An existing database is changed by **migrations** (since 0.0.6): small PHP
+steps that add a column, an index, or move and transform data. They run once,
+in order, and are recorded in the `cc_migrations` table.
+
+Decisions (ROADMAP, 2026-10-05):
+
+- **Forward only.** There is no `down()`: undoing a migration that moved data
+  is rarely reliable. A backup is made before migrating instead
+  ([`db:backup`](#backups-databasebackup), built in, no `mysqldump` needed).
+- **Additive changes from the definitions are automatic** (a later part of
+  0.0.6); renaming, changing a type, moving or deleting data only happen
+  through an explicit migration, never by guessing.
+
+## Running them
+
+```
+php bin/campanella migrate --dry-run   # lists the pending migrations
+php bin/campanella migrate             # asks, makes a backup, runs them
+php bin/campanella migrate --yes       # without asking (scripts, deployment)
+```
+
+`install` also runs the pending migrations of an existing installation, the
+same way (`--yes`, `--no-backup`); the usual upgrade is still
+`php bin/campanella install`. Both create the missing tables first.
+
+- Without `--yes` the command asks; when it is not run from a terminal (a
+  script, a cron job), nothing can be asked, so it stops and says to add
+  `--yes`.
+- A backup is made first, into `var/backups/`. If it cannot be made, nothing
+  runs (`--no-backup` runs them without one).
+- Each migration is recorded right after it ran. If one fails, the run stops
+  there: the earlier ones stay recorded, the failed one and the rest stay
+  pending and run next time (after the cause is fixed). MySQL cannot roll back
+  `ALTER TABLE`, which is why a migration should be one small step that can
+  run again.
+- Only one run at a time: a database lock (`GET_LOCK`, per database and table
+  prefix); a second run stops at once with `migration.locked`.
+
+**Fresh installation:** the tables are created as the definitions are now,
+so every known migration is recorded as applied without running.
+**Existing installation:** only the ones not recorded yet run.
+
+While a migration is pending, `Installer::needsUpgrade()` is true, the System
+page shows an error in the *Versions* group (*Migrations applied*: `2 / 3`),
+and `status` says to run `migrate`.
+
+## Writing a migration
+
+```php
+namespace App\Migration;
+
+use Campanella\Database\Migration\Migration;
+use Campanella\Database\Migration\MigrationContext;
+use Campanella\Database\Schema\Column;
+use Campanella\Database\Schema\ColumnType;
+
+final class AddSubtitle implements Migration
+{
+    public function id(): string
+    {
+        return 'site:2026_10_06_add_subtitle';
+    }
+
+    public function description(): string
+    {
+        return 'Adds a subtitle to the titled capability';
+    }
+
+    public function up(MigrationContext $m): void
+    {
+        $m->addColumn('cap_titled', new Column('subtitle', ColumnType::String, nullable: true, length: 255), after: 'title');
+        $moved = $m->eachRow('cap_titled', 'object_id', function (array $row) use ($m): void {
+            // … transform $row, write it back with $m->sql(…)
+        });
+        $m->log("{$moved} rows checked");
+    }
+}
+```
+
+Registered in `config/app.php` (or `config/local.php`), after Campanella's own:
+
+```php
+'migrations' => [App\Migration\AddSubtitle::class],
+```
+
+Rules:
+
+- **SQL only**, through the context: never the model classes
+  (`ObjectRepository`, capabilities). A migration may run a year later, when
+  the model looks different.
+- **Repeatable:** the helpers check the state first (`addColumn()` on an
+  existing column does nothing, returns `false`), so a migration that failed
+  halfway can run again from the start.
+- **Never changed once released.** A fix is a new migration. The ID is
+  recorded; it must never change.
+- IDs: `<source>:<name>` (`MigrationRegistry::ID_PATTERN`: lowercase letters,
+  digits, `_`, `-`, `.`; at most 128 characters), e.g. `core:0006_…` for
+  Campanella's own, `site:…` for a site's.
+
+## Migration
+
+`Campanella\Database\Migration\Migration` · **Public** · interface
+
+| Method | Description |
+|---|---|
+| `id(): string` | `<source>:<name>`; recorded, never changes |
+| `description(): string` | A short English description, shown before running and recorded |
+| `up(MigrationContext $m): void` | The change. An exception stops the run (the migration stays pending) |
+
+## MigrationContext
+
+`Campanella\Database\Migration\MigrationContext` · **Public** · `final class`
+
+Table names without the prefix (`cap_titled`); in SQL `{name}`, as with the
+[Connection](08-database.md#table-names).
+
+| Method | Description |
+|---|---|
+| `__construct(Connection $db, ?Closure $log = null)` | The Migrator creates it |
+| `db(): Connection` | |
+| `sql(string $sql, array $params = []): int` | Runs a statement; the number of affected rows |
+| `log(string $message): void` | A line for the person running it (shown by `migrate`) |
+| `tableExists(string $table): bool`, `columnExists(string $table, string $column): bool`, `indexExists(string $table, string $index): bool` | |
+| `createTable(Table $table): void` | If it does not exist |
+| `addColumn(string $table, Column $column, ?string $after = null): bool` | If missing (`$after`: the column it follows; null: at the end); `false` if it existed |
+| `dropColumn(string $table, string $column): bool` | If it exists; its data is lost |
+| `renameColumn(string $table, string $from, string $to): bool` | Keeps the type and the data; `false` if already renamed |
+| `addIndex(string $table, string $index, array $columns, bool $unique = false): bool`, `dropIndex(string $table, string $index): bool` | |
+| `eachRow(string $table, string $key, Closure $process, string $where = '', array $params = [], int $batchSize = 500): int` | Every row (matching `$where`), in batches ordered by `$key` (a unique, increasing column), so memory does not grow with the table; the number of rows |
+
+## MigrationRegistry and CoreMigrations
+
+`Campanella\Database\Migration\MigrationRegistry` · **Public** · `final class` · container: `MigrationRegistry::class`
+
+The known migrations, in the order they run: `CoreMigrations::classes()`
+first, then the `migrations` setting.
+
+| Member | Description |
+|---|---|
+| `__construct(iterable $migrations = [])` | |
+| `static fromClasses(array $classes): self` | From class names; `LogicException` for anything that is not a `Migration` class |
+| `add(Migration $migration): void` | `InvalidArgumentException` for an invalid or duplicate ID |
+| `all(): list<Migration>`, `isEmpty(): bool` | |
+| `ID_PATTERN` | See above |
+
+`Campanella\Database\Migration\CoreMigrations` · **Internal**:
+`static classes(): list<class-string<Migration>>`, Campanella's own, in order
+(only ever appended).
+
+## Migrator
+
+`Campanella\Database\Migration\Migrator` · **Public** · `final class` · container: `Migrator::class`
+
+| Method | Description |
+|---|---|
+| `__construct(Connection $db, MigrationRegistry $registry)` | |
+| `registry(): MigrationRegistry` | |
+| `applied(): array<string, string>` | The recorded IDs and when they ran (UTC); empty before the table exists |
+| `pending(): list<Migration>` | The registered ones not recorded, in order |
+| `run(?Closure $starting = null, ?Closure $log = null): list<MigrationResult>` | Runs the pending ones under the lock. `$starting(Migration)` before each, `$log(string)` for their lines. `MigrationException` if locked or one fails |
+| `markAllApplied(): void` | Records every registered migration without running it (a fresh installation) |
+
+`MigrationResult` · `final readonly class`: `id`, `description`, `durationMs`.
+
+`MigrationException` · `RuntimeException`: `reason` (a `Message`:
+`migration.locked`, `migration.failed`), `migrationId` (the failed one),
+`applied` (the `MigrationResult`s before the failure); the cause is
+`getPrevious()`.
+
+## Backups: DatabaseBackup
+
+`Campanella\Database\DatabaseBackup` · **Public** · `final class` · container: `DatabaseBackup::class`
+
+```
+php bin/campanella db:backup           # var/backups/campanella-20261006-185816-2b69ce.sql.gz
+php bin/campanella db:backup --plain   # .sql, not compressed
+```
+
+Campanella's tables (those with the prefix) as an SQL file, written through
+PDO, so it works on any web host. It restores them as they were (`DROP TABLE`,
+`CREATE TABLE`, `INSERT`): import it into the database, e.g. phpMyAdmin >
+Import, or `gunzip < file.sql.gz | mysql <database>`. The last line is
+`-- Campanella backup complete` (`COMPLETE`): a file without it was cut off.
+
+The file contains everything, password hashes too. It is written into
+`var/backups/` (outside the web root, with a `.htaccess` that denies access
+in case the project root is served), readable by its owner only (`0600`).
+Keep a copy off the server too; old files are not deleted automatically.
+
+| Member | Description |
+|---|---|
+| `__construct(Connection $db, string $directory)` | The Kernel gives `var/backups` |
+| `create(bool $compress = true, ?Closure $progress = null): string` | Writes a new file (`.sql.gz` if the zlib extension is available) and returns its path; `$progress(string $table, int $rows)`. Written to a `.part` file first, renamed when complete. `RuntimeException` if it cannot write |
+| `write(Closure $write, ?Closure $progress = null): void` | The SQL through a function (create() writes it into the file) |
+| `files(): list<array{name, path, size, time}>` | The backup files, newest first |
+| `directory(): string` | |
+| `BATCH` | 500: rows per `INSERT` and per query |

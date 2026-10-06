@@ -50,6 +50,10 @@ return [
         'prefix' => getenv('CAMPANELLA_DB_PREFIX') ?: 'cc_',
     ],
 
+    // The site's own migrations (class names), run after Campanella's own.
+    // See docs/php-api/17-migrations.md.
+    'migrations' => [],
+
     // The capabilities available in the system. A module will later
     // register its own here.
     'capabilities' => [

@@ -96,11 +96,24 @@ final class SchemaBuilder
             throw new \InvalidArgumentException("No column {$column} in the definition of {$table->name}.");
         }
 
+        return $this->addColumnDefinitionSql($table->name, $definition, $after, first: $after === null);
+    }
+
+    /**
+     * Adds the given column (e.g. in a migration, which has its own definitions):
+     * after `$after`, first (`$first`), or at the end.
+     */
+    public function addColumnDefinitionSql(string $table, Column $column, ?string $after = null, bool $first = false): string
+    {
         return sprintf(
-            'ALTER TABLE %s ADD COLUMN %s %s',
-            $this->db->table($table->name),
-            $this->columnSql($definition),
-            $after === null ? 'FIRST' : 'AFTER ' . Connection::quoteIdentifier($after),
+            'ALTER TABLE %s ADD COLUMN %s%s',
+            $this->db->table($table),
+            $this->columnSql($column),
+            match (true) {
+                $after !== null => ' AFTER ' . Connection::quoteIdentifier($after),
+                $first => ' FIRST',
+                default => '',
+            },
         );
     }
 

@@ -94,7 +94,7 @@ a `config/local.php` under Docker, because it would override them.
 ```bash
 git pull                        # or upload the new package
 composer install --no-dev       # if the dependencies changed
-php bin/campanella install      # create new tables, update the schema version
+php bin/campanella install      # new tables and the pending migrations (after a backup into var/backups/)
 php bin/campanella seed         # optional: add the new sample content
 ```
 
@@ -113,6 +113,8 @@ extra steps of an upgrade at the top of the version's section (for 0.0.5:
 | `php bin/campanella seed` | Sample content |
 | `php bin/campanella status` | Version, capabilities, Blueprints, object count, and the system checks (exits with `1` on an error) |
 | `php bin/campanella user:create <e-mail>` | Creates a user (`--name=`, `--role=administrator,editor`); also `user:password`, `user:list` |
+| `php bin/campanella migrate` | Runs the pending migrations after a backup (`--dry-run`, `--yes`, `--no-backup`); `install` runs them too |
+| `php bin/campanella db:backup` | Saves the database tables into `var/backups/` (`.sql.gz`) |
 | `php bin/campanella schema:check` | Compares the table definitions with the database (`--sql`: the statements of the additive changes); changes nothing |
 | `php bin/campanella html:sanitize` | Filters the stored HTML texts with the allowlist (`--dry-run`: only lists them) |
 | `composer test` | Tests (on a real database, with a separate `test_` table prefix) |
