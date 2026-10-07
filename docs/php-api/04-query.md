@@ -141,7 +141,7 @@ same language.
 | `FieldCondition(string $field, Operator $operator, mixed $value = null)` | `field OPERATOR value` |
 | `HasCapability(string $capability, bool $negated = false)` | Whether the object has (or does not have) the capability |
 | `Group(bool $any, list<Condition> $conditions)` | `$any = false`: AND, `true`: OR. Can be nested |
-| `RelatedTo(string $relation, list<int> $targets = [], bool $negated = false)` | Whether it is related to any of the targets (empty list: to any object) |
+| `RelatedTo(string $relation, list<int> $targets = [], bool $negated = false, ?string $subtree = null)` | Whether it is related to any of the targets (empty list: to any object); with `subtree` (a tree path, since 0.0.7): to an object in that subtree |
 
 `Group` helper methods: `static all(Condition ...)`, `static any(Condition ...)`,
 `with(Condition): self` (a new group extended with the condition).

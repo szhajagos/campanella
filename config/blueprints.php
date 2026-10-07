@@ -84,9 +84,12 @@ return [
         'lists' => [
             'articles' => [
                 'label' => 'list.category.articles',
-                'query' => static fn (CampanellaObject $category): Query => Query::objects()
-                    ->blueprint('article')
-                    ->whereRelated('categories', $category)
+                // The articles of the category and of its subcategories (since 0.0.7).
+                'query' => static fn (CampanellaObject $category): Query => Hierarchical::relatedWithin(
+                    Query::objects()->blueprint('article'),
+                    'categories',
+                    $category,
+                )
                     ->scope('published')
                     ->orderBy('published_at', 'DESC')
                     ->limit(20),

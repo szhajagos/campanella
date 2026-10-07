@@ -220,6 +220,7 @@ without extending it, it decides which CSS and JavaScript it loads.
 | `{{ url('/hirek') }}` | `url(string $path)` | Subdirectory-safe URL |
 | `{{ asset('campanella.css') }}` | `asset(string $path)` | The URL of a file under `public/assets/`, with the version as a cache buster (`…/campanella.css?v=0.0.6`) |
 | `{{ render_object(item, 'teaser') }}` | `renderObject(CampanellaObject $object, string $mode)` | One object in one mode |
+| `{% for node in tree(result) %}` | `tree(iterable $objects, bool $keepOrphans = false)` | The objects as a tree (`list<TreeNode>`, since 0.0.7); an object whose parent is not in the list (e.g. hidden) is left out with its subtree ([chapter 18](18-trees.md#on-the-public-site)) |
 | `{{ related(object, 'categories') }}` | `related(CampanellaObject $object, string $relation)` | The loaded target objects of a relation, or an empty list |
 | `{{ current_user() }}` | `currentUser()` | The logged-in user or `null` ([chapter 11](11-users.md#web-interface)) |
 | `{{ csrf_field() }}` | `csrfField()` | Hidden CSRF field for POST forms |

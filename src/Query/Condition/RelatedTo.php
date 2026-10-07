@@ -10,6 +10,10 @@ namespace Campanella\Query\Condition;
  *
  *     new RelatedTo('categories', [12])      // belongs to category 12
  *     new RelatedTo('categories', [])        // has at least one category
+ *
+ * `$subtree` (since 0.0.7): a tree path (`/1/5/`); the target may be anywhere in
+ * that subtree (Hierarchical::relatedWithin(): the articles of a category and
+ * of its subcategories).
  */
 final readonly class RelatedTo implements Condition
 {
@@ -18,6 +22,10 @@ final readonly class RelatedTo implements Condition
         public string $relation,
         public array $targets = [],
         public bool $negated = false,
+        public ?string $subtree = null,
     ) {
+        if ($subtree !== null && preg_match('#^/(\d+/)+$#', $subtree) !== 1) {
+            throw new \InvalidArgumentException("Invalid tree path: {$subtree}");
+        }
     }
 }

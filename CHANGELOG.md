@@ -36,6 +36,14 @@ backward-incompatible.
 - **Categories form a tree:** the `category` Blueprint has `Hierarchical` and
   `Weighted`. After upgrading, `install` (or the upgrade page) adds them to
   the existing categories, which become roots.
+- **The category tree on the site:** `/kategoriak` shows the categories as a
+  nested list, in their hand-set order; a category page has breadcrumbs
+  (home, the ancestors, the category) and lists its subcategories; **a
+  category's articles include those of its subcategories**
+  (`Hierarchical::relatedWithin()`, the new `subtree` of `RelatedTo`). A
+  draft category's branch stays hidden from visitors.
+- The **`tree()`** Twig function: a query's result as a tree of `TreeNode`s.
+  `TreeBuilder::build()` got a `$keepOrphans` parameter.
 
 ### Changed
 

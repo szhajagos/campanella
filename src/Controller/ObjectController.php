@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Campanella\Controller;
 
 use Campanella\Access\Actor;
+use Campanella\Capability\Hierarchical;
 use Campanella\Capability\Routable;
 use Campanella\Capability\Titled;
+use Campanella\Capability\Weighted;
 use Campanella\Http\HttpException;
 use Campanella\Http\Request;
 use Campanella\Http\Response;
@@ -52,10 +54,24 @@ final class ObjectController implements Controller
             $lists[$name] = ['label' => $list['label'] ?? '', 'result' => $result];
         }
 
+        // A tree node (e.g. a category): its ancestors for the breadcrumbs, and its children.
+        $breadcrumbs = [];
+        $children = [];
+        if ($object->has(Hierarchical::class)) {
+            $breadcrumbs = $this->queries->execute(Hierarchical::ancestorsOf(Query::objects(), $object)->orderBy('depth'), $actor)->items;
+            $childQuery = Hierarchical::childrenOf(Query::objects(), $object);
+            $children = $this->queries->execute(
+                $object->has(Weighted::class) ? $childQuery->scope('by_weight') : $childQuery->orderBy('title'),
+                $actor,
+            )->items;
+        }
+
         return Response::html($this->presentation->render('page/object.html.twig', [
             'object' => $object,
             'title' => $object->has(Titled::class) ? $object->as(Titled::class)->title() : '',
             'lists' => $lists,
+            'breadcrumbs' => $breadcrumbs,
+            'children' => $children,
         ]));
     }
 }

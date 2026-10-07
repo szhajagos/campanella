@@ -25,9 +25,11 @@ return [
         ->orderBy('published_at', 'DESC')
         ->limit(10),
 
+    // Shown as a tree (templates/query/categories.html.twig), so all of them, in
+    // their hand-set order. A category under a draft one is shown at the top level.
     'categories' => static fn (): Query => Query::objects()
         ->blueprint('category')
         ->scope('published')
-        ->orderBy('title', 'ASC')
-        ->limit(50),
+        ->scope('by_weight')
+        ->limit(500),
 ];

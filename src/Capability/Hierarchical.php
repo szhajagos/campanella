@@ -7,6 +7,7 @@ namespace Campanella\Capability;
 use Campanella\Model\CampanellaObject;
 use Campanella\Model\Field;
 use Campanella\Model\FieldType;
+use Campanella\Query\Condition\RelatedTo;
 use Campanella\Query\Query;
 use Campanella\Relation\Cardinality;
 use Campanella\Relation\Relation;
@@ -109,6 +110,21 @@ final class Hierarchical extends Capability
         return $query
             ->where('tree_path', 'LIKE', ($path === '' ? '/-/' : $path) . '%')
             ->where('id', '!=', (int) $node->id());
+    }
+
+    /**
+     * Objects related (by `$relation`) to the node or to any of its descendants, e.g.
+     * the articles of a category and of its subcategories:
+     *
+     *     Hierarchical::relatedWithin(Query::objects()->blueprint('article'), 'categories', $category)
+     */
+    public static function relatedWithin(Query $query, string $relation, CampanellaObject $node): Query
+    {
+        $path = $node->as(self::class)->path();
+
+        return $path === ''
+            ? $query->whereRelated($relation, $node)
+            : $query->whereCondition(new RelatedTo($relation, [], false, $path));
     }
 
     /** The node's ancestors (to be ordered by depth, e.g. for breadcrumbs). */

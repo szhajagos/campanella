@@ -3133,6 +3133,8 @@ test('Hierarchical: paths kept on save, moving a subtree, the rules of a tree', 
     check($flat === ['D', 'A', '-F', '--G', '-E'], implode(' ', $flat));
     $sub = \Campanella\Tree\TreeBuilder::build($engine->execute($H::descendantsOf($node(), $reload($a))->scope('by_weight'), $admin));
     check(array_map(static fn ($n) => $n->object->get('title'), $sub) === ['F', 'E'] && $sub[0]->hasChildren() && !$sub[1]->hasChildren(), 'a subtree: its own roots');
+    $strict = \Campanella\Tree\TreeBuilder::build($engine->execute($node()->where('title', 'IN', ['D', 'F', 'G', 'E'])->scope('by_weight'), $admin), false);
+    check(array_map(static fn ($n) => $n->object->get('title'), \Campanella\Tree\TreeBuilder::flatten($strict)) === ['D'], 'without orphans: the branches under a missing parent are left out');
 
     $db->execute("DELETE FROM {objects} WHERE blueprint IN ('node', 'other')");
 });
@@ -3227,6 +3229,55 @@ test('TreeKeeper: missing paths are filled in from the parents (a capability add
     check($row !== null && $row['tree_path'] === '/' . $root->id() . '/' . $child->id() . '/' && (int) $row['depth'] === 1, json_encode($row));
     $db->execute("DELETE FROM {objects} WHERE blueprint = 'knot' AND id = :id", ['id' => (int) $child->id()]);
     $db->execute("DELETE FROM {objects} WHERE blueprint = 'knot'");
+});
+
+test('Kernel: the category tree on the site: /kategoriak, breadcrumbs, subcategories, their articles', function () use ($service, $admin): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $container = $kernel->container();
+    if ($container->get(Connection::class)->prefix() !== 'test_') {
+        echo "      (skipped: config/local.php sets its own prefix)\n";
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $H = \Campanella\Capability\Hierarchical::class;
+    $repository = $container->get(ObjectRepository::class);
+    $service = $container->get(\Campanella\Service\ObjectService::class);
+    $category = static function (string $title, string $path, ?CampanellaObject $parent, bool $publish = true) use ($service, $admin, $H): CampanellaObject {
+        return $service->create($admin, 'category', ['title' => $title, 'path' => $path], $publish, $parent === null ? [] : ['parent' => [(int) $parent->id()]]);
+    };
+    $root = $category('Fa Gyökér', '/fa-gyoker', null);
+    $sub = $category('Fa Al', '/fa-al', $root);
+    $leaf = $category('Fa Levél', '/fa-level', $sub);
+    $draft = $category('Fa Piszkozat', '/fa-piszkozat', $root, false);
+    $underDraft = $category('Fa Rejtett Ág', '/fa-rejtett-ag', $draft);
+    $article = $service->create($admin, 'article', ['title' => 'Mély cikk', 'path' => '/fa-mely-cikk'], true, ['categories' => [(int) $leaf->id()]]);
+    $other = $service->create($admin, 'article', ['title' => 'Máshol lévő cikk', 'path' => '/fa-mashol'], true);
+
+    $page = $kernel->handle(new Request('GET', '/fa-gyoker'));
+    check($page->status === 200 && str_contains($page->body, 'Mély cikk') && !str_contains($page->body, 'Máshol lévő cikk'), 'the root lists the articles of its subtree');
+    check(str_contains($page->body, 'Alkategóriák') && str_contains($page->body, 'href="/fa-al"') && !str_contains($page->body, 'Fa Piszkozat'), 'its visible children');
+    check(!str_contains($page->body, 'class="breadcrumb'), 'a root has no breadcrumbs');
+    $leafPage = $kernel->handle(new Request('GET', '/fa-level'));
+    check(preg_match('#<ol class="breadcrumb small">.*href="/".*href="/fa-gyoker">Fa Gyökér</a>.*href="/fa-al">Fa Al</a>.*aria-current="page">Fa Levél<#s', $leafPage->body) === 1, 'breadcrumbs: home, root, parent, itself');
+    check(str_contains($kernel->handle(new Request('GET', '/fa-al'))->body, 'Mély cikk'), 'the parent too');
+
+    $list = $kernel->handle(new Request('GET', '/kategoriak'));
+    check($list->status === 200 && preg_match('#Fa Gyökér</a>\s*<ul class="category-tree">\s*<li class="category-tree__item">\s*<a href="/fa-al">Fa Al</a>\s*<ul class="category-tree">.*Fa Levél#s', $list->body) === 1, 'nested lists');
+    check(!str_contains($list->body, 'Fa Piszkozat'), 'drafts are not shown');
+    check(!str_contains($list->body, 'Fa Rejtett Ág'), 'nor the branch under a draft');
+
+    foreach ([$article, $other, $leaf, $underDraft, $draft, $sub, $root] as $object) {
+        $repository->delete($object);
+    }
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('RelatedTo: a subtree path must be a tree path', function (): void {
+    throws(\InvalidArgumentException::class, fn () => new \Campanella\Query\Condition\RelatedTo('categories', [], false, "/1/' OR 1=1 --"));
+    throws(\InvalidArgumentException::class, fn () => new \Campanella\Query\Condition\RelatedTo('categories', [], false, '/1/%'));
+    check((new \Campanella\Query\Condition\RelatedTo('categories', [], false, '/1/22/'))->subtree === '/1/22/');
 });
 
 echo "\nDocumentation examples\n";

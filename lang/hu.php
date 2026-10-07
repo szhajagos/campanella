@@ -434,4 +434,6 @@ return [
     'admin.list.add_child_title' => 'Új elem a(z) „{title}” alá',
     'admin.list.tree_hint' => 'Fa szerinti sorrend; keresés, szűrés vagy rendezés esetén egyszerű lista.',
     'admin.delete.children' => 'Alatta lévő elemek (előbb helyezd át őket máshová):',
+    'content.breadcrumbs' => 'Itt jársz',
+    'content.children' => 'Alkategóriák',
 ];

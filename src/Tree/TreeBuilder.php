@@ -11,7 +11,8 @@ use Campanella\Model\CampanellaObject;
  * Turns a list of Hierarchical objects (e.g. a query's result) into a tree.
  * Siblings keep the order of the list, so ordering the query (e.g. by weight)
  * orders every level. An object whose parent is not in the list becomes a root
- * (so a subtree can be built from descendantsOf()).
+ * (so a subtree can be built from descendantsOf()), or with $keepOrphans false
+ * it is left out together with its subtree (a hidden parent hides its branch).
  *
  *     $tree = TreeBuilder::build($queries->execute(Query::objects()->blueprint('category')->scope('by_weight'), $actor));
  *     foreach (TreeBuilder::flatten($tree) as $node) { echo str_repeat('— ', $node->level), $node->object->get('title'); }
@@ -20,9 +21,10 @@ final class TreeBuilder
 {
     /**
      * @param iterable<CampanellaObject> $objects
+     * @param bool $keepOrphans Whether an object whose parent is not in the list becomes a root
      * @return list<TreeNode> The roots
      */
-    public static function build(iterable $objects): array
+    public static function build(iterable $objects, bool $keepOrphans = true): array
     {
         $byId = [];
         $children = [];
@@ -37,7 +39,7 @@ final class TreeBuilder
             $parent = $byId[$id]->has(Hierarchical::class) ? $byId[$id]->as(Hierarchical::class)->parentId() : null;
             if ($parent !== null && isset($byId[$parent]) && $parent !== $id) {
                 $children[$parent][] = $id;
-            } else {
+            } elseif ($parent === null || $parent === $id || $keepOrphans) {
                 $roots[] = $id;
             }
         }

@@ -223,6 +223,14 @@ final class QueryCompiler
             $placeholders = array_map($this->param(...), $condition->targets);
             $sql .= sprintf(' AND %s.`target_id` IN (%s)', $alias, implode(', ', $placeholders));
         }
+        if ($condition->subtree !== null) {
+            // The path is digits and slashes only (checked): no LIKE wildcard in it.
+            $sql .= sprintf(
+                ' AND %s.`target_id` IN (SELECT h.`object_id` FROM {cap_hierarchical} h WHERE h.`tree_path` LIKE %s)',
+                $alias,
+                $this->param($condition->subtree . '%'),
+            );
+        }
 
         return ($condition->negated ? 'NOT ' : '') . $sql . ')';
     }

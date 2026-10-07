@@ -154,7 +154,10 @@ object.
 
 In the condition tree it is represented by the
 `Campanella\Query\Condition\RelatedTo(string $relation, list<int> $targets = [],
-bool $negated = false)` class.
+bool $negated = false, ?string $subtree = null)` class. With a `subtree` (a
+tree path such as `/1/5/`, since 0.0.7), the target must also lie in that
+subtree: `Hierarchical::relatedWithin()` builds it
+([chapter 18](18-trees.md#hierarchical)).
 
 ## RelationLoader
 

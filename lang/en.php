@@ -436,4 +436,6 @@ return [
     'admin.list.add_child_title' => 'A new item below "{title}"',
     'admin.list.tree_hint' => 'In tree order; searching, filtering or sorting shows a flat list.',
     'admin.delete.children' => 'Items under it (move them elsewhere first):',
+    'content.breadcrumbs' => 'You are here',
+    'content.children' => 'Subcategories',
 ];

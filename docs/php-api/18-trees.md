@@ -66,6 +66,7 @@ parent is the `parent` relation (in `relationships`), as any other relation.
 | `static childrenOf(Query $query, CampanellaObject\|int $parent): Query` | The direct children |
 | `static descendantsOf(Query $query, CampanellaObject $node): Query` | Everything below, at any depth |
 | `static ancestorsOf(Query $query, CampanellaObject $node): Query` | The ancestors (order them by `depth`) |
+| `static relatedWithin(Query $query, string $relation, CampanellaObject $node): Query` | Objects related (by `$relation`) to the node or to any of its descendants, in one condition; e.g. the articles of a category and its subcategories |
 | `MAX_DEPTH` | 10 |
 
 ```php
@@ -81,7 +82,7 @@ $children = $queries->execute(
 
 | Method | Description |
 |---|---|
-| `static build(iterable $objects): list<TreeNode>` | A tree from a list of objects; the siblings keep the list's order (order the query, e.g. by weight). An object whose parent is not in the list becomes a root, so a subtree can be built from `descendantsOf()` |
+| `static build(iterable $objects, bool $keepOrphans = true): list<TreeNode>` | A tree from a list of objects; the siblings keep the list's order (order the query, e.g. by weight). An object whose parent is not in the list becomes a root, so a subtree can be built from `descendantsOf()`; with `$keepOrphans` false it is left out, together with its subtree |
 | `static flatten(array $roots): list<TreeNode>` | The tree in display order (a node, then its subtree), e.g. for an indented list |
 
 ```php
@@ -97,8 +98,9 @@ the built tree), `hasChildren(): bool`.
 
 Note that a query returns only what the actor may see: a draft category's
 children are still found by `childrenOf()`, but a tree built from a visitor's
-query has the draft missing, so its children become roots. Filter what you
-build from accordingly.
+query has the draft missing, so by default its children become roots. Pass
+`$keepOrphans = false` to leave such a branch out (the `tree()` Twig function
+does so).
 
 ## SiblingOrder
 
@@ -114,6 +116,45 @@ new order; only the weights change.
 | `__construct(Connection $db)` | |
 | `move(CampanellaObject $object, int $direction): bool` | `-1`: up, `1`: down; false at the first or last place |
 | `siblings(CampanellaObject $object): list<int>` | The siblings' IDs (the object too), in their order |
+
+## On the public site
+
+- **The page of a tree node** (e.g. a category) shows breadcrumbs above it
+  (the home page, the visible ancestors, then the node itself with
+  `aria-current="page"`) and the list of its visible children below it, by
+  weight when the Blueprint is `Weighted`. The `ObjectController` passes them
+  to `page/object.html.twig` as `breadcrumbs` and `children`.
+- **The articles of a category** include those of its subcategories: the
+  category's `articles` list uses `relatedWithin()`.
+
+```php
+'articles' => [
+    'query' => static fn (CampanellaObject $category): Query => Hierarchical::relatedWithin(
+        Query::objects()->blueprint('article'), 'categories', $category,
+    )->scope('published')->orderBy('published_at', 'DESC')->limit(20),
+],
+```
+
+- **The category list** (`/kategoriak`, the `categories` Query, ordered by
+  weight) is rendered as a nested list by `templates/query/categories.html.twig`
+  with the `tree()` Twig function, which calls `TreeBuilder::build()`. In
+  Twig an object whose parent is not in the list is left out with its
+  subtree; `tree(result, true)` keeps it as a root instead (e.g. for a
+  subtree from `descendantsOf()`):
+
+```twig
+{% macro branch(nodes) %}
+  <ul>
+    {% for node in nodes %}
+      <li><a href="{{ url(node.object.get('path')) }}">{{ node.object.get('title') }}</a>
+        {% if node.hasChildren %}{{ _self.branch(node.children) }}{% endif %}</li>
+    {% endfor %}
+  </ul>
+{% endmacro %}
+{{ _self.branch(tree(result)) }}
+```
+
+So a draft category is missing for visitors, and so is its branch.
 
 ## In the admin
 

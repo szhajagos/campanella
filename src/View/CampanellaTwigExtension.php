@@ -13,6 +13,8 @@ use Campanella\Core\Version;
 use Campanella\I18n\Translator;
 use Campanella\Model\CampanellaObject;
 use Campanella\Security\Csrf;
+use Campanella\Tree\TreeBuilder;
+use Campanella\Tree\TreeNode;
 use Closure;
 use Twig\Extension\AbstractExtension;
 use Twig\Extension\GlobalsInterface;
@@ -33,6 +35,7 @@ use Twig\TwigFunction;
  *   {{ locale() }}                      the current language code
  *   {{ admin_url('article') }}          an admin page URL; admin_access(): may the visitor enter it
  *   {{ flash_messages() }}              the one-time messages (and removes them)
+ *   {{ tree(result) }}                  Hierarchical objects as a tree (TreeNode roots; hidden parents hide their branch)
  *   {{ object|body }}                   the safe HTML of the Textual body
  *   {{ 1572864|file_size }}             a size in bytes, readable: 1.5 MB (in the current language)
  */
@@ -80,6 +83,7 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
             new TwigFunction('admin_access', $this->adminAccess(...)),
             new TwigFunction('flash_messages', $this->flashMessages(...)),
             new TwigFunction('locale', $this->locale(...)),
+            new TwigFunction('tree', $this->tree(...)),
         ];
     }
 
@@ -177,6 +181,21 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
         }
 
         return $this->translate($key, ['n' => $number]);
+    }
+
+    /**
+     * Hierarchical objects (e.g. a query's result) as a tree, in their order
+     * (TreeBuilder::build()): the roots, each with `object`, `children`, `level`.
+     * An object whose parent is not in the list (e.g. a draft the visitor cannot see)
+     * is left out with its subtree, unless $keepOrphans is true (e.g. for a subtree
+     * from descendantsOf(), whose top nodes should become the roots).
+     *
+     * @param iterable<CampanellaObject> $objects
+     * @return list<TreeNode>
+     */
+    public function tree(iterable $objects, bool $keepOrphans = false): array
+    {
+        return TreeBuilder::build($objects, $keepOrphans);
     }
 
     /** The current language code (e.g. for <html lang="...">). */

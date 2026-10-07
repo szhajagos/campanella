@@ -1,0 +1,21 @@
+{# The categories as a tree (the 'categories' query, in their hand-set order). #}
+{% macro branch(nodes) %}
+    <ul class="category-tree{{ nodes and nodes[0].level == 0 ? ' list-unstyled' : '' }}">
+        {% for node in nodes %}
+            {% set category = node.object %}
+            <li class="category-tree__item">
+                {% if category.path is defined and category.path %}<a href="{{ url(category.path) }}">{{ category.title }}</a>{% else %}{{ category.title }}{% endif %}
+                {% if node.hasChildren %}{{ _self.branch(node.children) }}{% endif %}
+            </li>
+        {% endfor %}
+    </ul>
+{% endmacro %}
+
+<div class="result result--{{ name }}">
+    {% set roots = tree(result) %}
+    {% if roots %}
+        {{ _self.branch(roots) }}
+    {% else %}
+        <p class="empty text-body-secondary">{{ t('content.empty') }}</p>
+    {% endif %}
+</div>

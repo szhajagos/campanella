@@ -1,7 +1,31 @@
 {% extends 'base.html.twig' %}
 
 {% block content %}
+    {# A tree node (e.g. a category): where it is (only the ancestors the visitor may see). #}
+    {% if breadcrumbs %}
+        <nav aria-label="{{ t('content.breadcrumbs') }}">
+            <ol class="breadcrumb small">
+                <li class="breadcrumb-item"><a href="{{ url('/') }}">{{ t('site.nav.home') }}</a></li>
+                {% for ancestor in breadcrumbs %}
+                    <li class="breadcrumb-item">{% if ancestor.path is defined and ancestor.path %}<a href="{{ url(ancestor.path) }}">{{ ancestor.title }}</a>{% else %}{{ ancestor.title }}{% endif %}</li>
+                {% endfor %}
+                <li class="breadcrumb-item active" aria-current="page">{{ object.title }}</li>
+            </ol>
+        </nav>
+    {% endif %}
+
     {{ render_object(object, 'full') }}
+
+    {% if children %}
+        <nav class="object-children mt-4" aria-label="{{ t('content.children') }}">
+            <h2 class="h6 text-body-secondary">{{ t('content.children') }}</h2>
+            <ul class="list-inline">
+                {% for child in children %}
+                    <li class="list-inline-item">{% if child.path is defined and child.path %}<a href="{{ url(child.path) }}">{{ child.title }}</a>{% else %}{{ child.title }}{% endif %}</li>
+                {% endfor %}
+            </ul>
+        </nav>
+    {% endif %}
 
     {# The Blueprint's 'lists', e.g. the articles of a category. #}
     {% for name, list in lists %}
