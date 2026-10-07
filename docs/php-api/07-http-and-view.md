@@ -218,7 +218,7 @@ without extending it, it decides which CSS and JavaScript it loads.
 | In a template | PHP method | Description |
 |---|---|---|
 | `{{ url('/hirek') }}` | `url(string $path)` | Subdirectory-safe URL |
-| `{{ asset('campanella.css') }}` | `asset(string $path)` | The URL of a file under `public/assets/`, with the version as a cache buster (`…/campanella.css?v=0.0.6`) |
+| `{{ asset('campanella.css') }}` | `asset(string $path)` | The URL of a file under `public/assets/`, with the version as a cache buster (`…/campanella.css?v=0.0.7`) |
 | `{{ render_object(item, 'teaser') }}` | `renderObject(CampanellaObject $object, string $mode)` | One object in one mode |
 | `{% for node in tree(result) %}` | `tree(iterable $objects, bool $keepOrphans = false)` | The objects as a tree (`list<TreeNode>`, since 0.0.7); an object whose parent is not in the list (e.g. hidden) is left out with its subtree ([chapter 18](18-trees.md#on-the-public-site)) |
 | `{% set main = menu('main') %}` | `menu(string $key, int $levels = 2)` | A menu's items for the current visitor and page (`list<MenuEntry>`), or null if there is no such menu (since 0.0.7; [chapter 19](19-menus.md#in-templates-menu)) |

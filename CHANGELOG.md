@@ -10,6 +10,21 @@ backward-incompatible.
 
 ## [Unreleased]
 
+## [0.0.7] – 2026-10-07
+
+Trees and menus: objects arranged in a tree with a hand-set order, the
+category tree on the site, and the navigation edited in the admin.
+
+**Upgrading from 0.0.6:**
+
+1. Upload the new files (the dependencies did not change).
+2. Run `php bin/campanella install` (or open `/admin/upgrade`). No migration
+   is needed: the new capabilities and Blueprints are added automatically,
+   the existing categories become roots of the category tree.
+3. Create the main menu: `php bin/campanella seed` (it also adds the missing
+   sample content), or in the admin: *Menu* → *New*, machine name `main`, then
+   its items. Until there is a `main` menu, the site keeps its built-in links.
+
 ### Added
 
 - **`Weighted`** is a built-in capability (until now only the documentation's

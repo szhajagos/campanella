@@ -1,4 +1,4 @@
-# Campanella 0.0.6
+# Campanella 0.0.7
 
 [![CI](https://github.com/szhajagos/campanella/actions/workflows/ci.yml/badge.svg)](https://github.com/szhajagos/campanella/actions/workflows/ci.yml)
 
@@ -132,7 +132,7 @@ On every push, GitHub runs the checks above
 documentation checks, and the tests on MariaDB 10.6 and 11.4, and MySQL 8.0
 and 8.4. The results are shown next to the commits and on the Actions tab.
 
-After a version tag (`git tag v0.0.6 && git push --tags`), GitHub builds the
+After a version tag (`git tag v0.0.7 && git push --tags`), GitHub builds the
 installation package and attaches it to the release. For an existing tag it
 can also be started manually: Actions → CI → Run workflow, entering the tag.
 
@@ -234,6 +234,17 @@ steps that run once, in order, after a backup (`db:backup`, built in, no
 `schema:check` compares the definitions with the database. Details:
 [docs/php-api/17-migrations.md](docs/php-api/17-migrations.md).
 
+**Trees and menus (0.0.7).** Objects can be arranged in a tree
+(`Hierarchical`, with `Weighted` for a hand-set order): categories under
+categories, kept consistent by the repository (no circles, at most 10
+levels, a node with children is not deleted). `/kategoriak` shows the
+category tree, a category page has breadcrumbs and lists the articles of its
+subcategories too. The site's navigation is a menu edited in the admin
+(`menu`, `menu_item`); an item leads to an object of the site or to a safe
+URL, and an item whose target the visitor may not see is not shown. Details:
+[docs/php-api/18-trees.md](docs/php-api/18-trees.md),
+[docs/php-api/19-menus.md](docs/php-api/19-menus.md).
+
 **Query.** Declarative and immutable:
 
 ```php
@@ -255,9 +266,8 @@ on its own.
 
 ## Not included yet
 
-User management in the browser, Hierarchical (menu, taxonomy tree),
-Component / Region / Layout, Webform, Event / Action, cache, migrations
-(altering existing tables), multilingual content, image variants and an image
+User management in the browser, Component / Region / Layout, Webform,
+Event / Action, cache, multilingual content, image variants and an image
 picker.
 
 ## Made with AI assistance

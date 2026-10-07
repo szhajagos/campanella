@@ -127,7 +127,7 @@ set, it is the project root (by default the parent directory of `public/`).
 
 `Campanella\Core\Version` · **Public**
 
-`CAMPANELLA = '0.0.6'` (the system version) and `SCHEMA = '6'` (the version of
+`CAMPANELLA = '0.0.7'` (the system version) and `SCHEMA = '6'` (the version of
 the core tables; incremented for a new core table. Changes of existing tables
 are migrations: [chapter 17](17-migrations.md)).
 
