@@ -24,11 +24,45 @@ Completed changes are listed in the [CHANGELOG](CHANGELOG.md).
 
 ### 0.0.7 – Hierarchy and menu
 
-- `Hierarchical` capability: `parent` relation, fast tree queries
-  (materialized path), no circular references.
-- `Weighted`/`Ordered`: manual ordering.
-- Menu as an object, menu items as objects; tree rendering.
-- Taxonomy tree (nested categories).
+Agreed in detail on 2026-10-07. In six parts (0–5), each its own commit:
+
+0. **`Weighted`** becomes a built-in capability (until now only an example in
+   the tests): a `weight` field (integer, indexed) and a scope ordering by it.
+   This is the manual order.
+1. **`Hierarchical`:** a tree.
+   - A `parent` relation, within the same Blueprint (a category under a
+     category; a menu item under an item of the same menu).
+   - `tree_path` (the ancestors' IDs, e.g. `/1/5/12/`) and `depth`, kept up to
+     date on save. No circular references: neither the object itself nor one
+     of its descendants can be its parent. At most 10 levels.
+   - Moving a node updates its descendants' paths with a single `UPDATE`.
+   - **A node with children cannot be deleted** until they are moved
+     elsewhere (the delete page says so, and lists them).
+   - Queries: children, descendants, ancestors (for breadcrumbs); a
+     `TreeBuilder` that turns results into a tree.
+2. **Trees in the admin:** the list indented, in tree order; the parent chosen
+   from an indented list without the object's own descendants; the order
+   changed with up/down buttons (no dependency; drag and drop later, e.g.
+   with SortableJS, MIT, served locally).
+3. **The category tree:** `category` gets `Hierarchical` and `Weighted`;
+   `/kategoriak` shows the tree; breadcrumbs on category pages; **a category
+   page lists the articles of its subcategories too.**
+4. **The menu:**
+   - A `menu` Blueprint (e.g. "Main menu", key `main`) and a `menu_item`
+     Blueprint (`Hierarchical`, `Weighted`, a required relation to its menu).
+   - An item points to an object (its path followed if it changes) or to a URL.
+     An item whose target the visitor may not see (a draft) is not shown.
+   - In Twig: `menu('main')`; the second level as a Bootstrap dropdown, the
+     current item marked with `aria-current`. The main menu shows 2 levels.
+   - Until a `main` menu exists, the current built-in links stay as a
+     fallback, so the navigation does not disappear on an upgrade; `seed`
+     creates the main menu with them.
+   - In the admin: the menu's page shows its items as a tree, with a "New
+     menu item" button that fills in the menu.
+5. Release `v0.0.7`.
+
+The new tables and capabilities are added by the automatic application of the
+definitions (0.0.6): no migration is needed.
 
 **Done when:** the main menu can be edited from the admin UI, and categories
 can be arranged in a tree.
@@ -45,6 +79,14 @@ on, the system is suitable for running a real website.
 - **Component / Region / Layout / Page:** assembling pages from components,
   instead of Drupal-style blocks.
 - **Webform:** forms as a user interface for object operations.
+- **Comments** (2026-10-07), after the Webform and the Event system (they need
+  moderation and protection against spam): a `comment` Blueprint (`Textual`,
+  `Authorable`, `Publishable` for moderation) with a required `subject`
+  relation to the commented object, **not** a parent: the commented object is
+  of another Blueprint. Replies form a tree with `Hierarchical`, among the
+  comments of the same subject; ordered by time, not by weight. A
+  `Commentable` capability on the commented Blueprints (comments open or
+  closed, the count).
 - **Cache:** object, query and render cache with cache tags and contexts.
 - **JSON API** according to the [HTTP API draft](docs/http-api/README.md).
 - **Media:** file storage, image variants (thumbnails, sizes for `srcset`),
@@ -122,6 +164,10 @@ on, the system is suitable for running a real website.
   definitions are applied automatically; renaming, type changes, moving or
   deleting data only through an explicit migration, never by guessing. Upgrades
   can be run from the browser too, for web hosts without a command line.
+- **Trees (2026-10-07):** a parent is always in the same Blueprint; a node
+  with children cannot be deleted; the depth is at most 10. A relation to an
+  object of another kind (e.g. a comment and its article) is a relation, not
+  a parent.
 - **Language:** code, documentation, comments, commit messages and
   developer-facing messages are English; the UI is multilingual via the
   translation layer, with Hungarian as a first-class translation (2026-09-30).

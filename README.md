@@ -260,6 +260,15 @@ Component / Region / Layout, Webform, Event / Action, cache, migrations
 (altering existing tables), multilingual content, image variants and an image
 picker.
 
+## Made with AI assistance
+
+Campanella is developed with the help of artificial intelligence: most of the
+code, the tests and the documentation were written by Anthropic's Claude
+models (Sonnet and Opus), in conversation with the maintainer. The maintainer
+decides what is built and how, reviews and tests every change on his own
+server, commits it, and is responsible for the project. The plans and the
+decisions behind them are recorded in the [ROADMAP](ROADMAP.md).
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
