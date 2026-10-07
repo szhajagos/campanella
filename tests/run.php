@@ -2772,7 +2772,7 @@ test('Upgrading from the browser: the site waits, an administrator or the key ru
     check($blocked->status === 403 && str_contains($blocked->body, 'Túl sok') && $ran === 0, 'throttled, even with the right key');
 
     $done = $send('POST', '/admin/upgrade', ['_csrf' => $csrfOf($page), 'key' => $key]);
-    check($done->status === 200 && $ran === 1 && str_contains($done->body, 'A frissítés kész: 1 migráció') && str_contains($done->body, 'webes sor'), strip_tags($done->body));
+    check($done->status === 200 && $ran === 1 && str_contains($done->body, 'A frissítés kész: 1 migráció') && str_contains($done->body, "Web test\n    webes sor\n"), strip_tags($done->body));
     check(count(glob($dir . '/campanella-*.sql.gz') ?: []) === 1 && str_contains($done->body, 'var/backups/campanella-'), 'a backup first');
     check($send('GET', '/')->status === 200 && !$installer->needsUpgrade(), 'the site works again');
     check($send('POST', '/admin/upgrade', ['_csrf' => $csrfOf($page), 'key' => $key])->status === 200 && $ran === 1, 'nothing left to run');

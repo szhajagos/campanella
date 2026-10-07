@@ -45,6 +45,8 @@ backward-incompatible.
   tree node with children.
 - Fixed: in a `Weighted` list the weight and status columns were swapped in
   the rows.
+- Fixed: the upgrade page showed its log in one line (each step is on its
+  own line again).
 
 ## [0.0.6] – 2026-10-06
 
