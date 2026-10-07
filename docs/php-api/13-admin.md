@@ -76,7 +76,8 @@ alternative text is missing), and edited (title, alternative text) with a
 preview and the file's data beside the form, but not created from an empty
 form: they are created by uploading, also right on the Images list
 ([chapter 16](16-media.md#in-the-images-list)). Their delete page warns that
-texts showing the image will miss it. `system`, `media` and `upgrade` are
+texts showing the image will miss it. A tree node with children
+([chapter 18](18-trees.md)) cannot be deleted: the delete page says so (409). `system`, `media` and `upgrade` are
 admin paths, so no Blueprint can have these names (`BlueprintRegistry::RESERVED_NAMES`).
 
 ### The list

@@ -29,7 +29,7 @@ Agreed in detail on 2026-10-07. In six parts (0–5), each its own commit:
 0. ✅ **`Weighted`** becomes a built-in capability (until now only an example in
    the tests): a `weight` field (integer, indexed) and a scope ordering by it.
    This is the manual order.
-1. **`Hierarchical`:** a tree.
+1. ✅ **`Hierarchical`:** a tree.
    - A `parent` relation, within the same Blueprint (a category under a
      category; a menu item under an item of the same menu).
    - `tree_path` (the ancestors' IDs, e.g. `/1/5/12/`) and `depth`, kept up to

@@ -419,4 +419,12 @@ return [
     'admin.system.sync.note' => 'Note',
     'capability.weighted' => 'Weighted (ordered by hand)',
     'field.weight' => 'Weight',
+    'capability.hierarchical' => 'In a tree',
+    'field.tree_path' => 'Tree path',
+    'field.depth' => 'Depth',
+    'relation.parent' => 'Parent',
+    'tree.too_deep' => 'The tree may have at most {max} levels.',
+    'tree.other_blueprint' => 'The parent must be of the same kind.',
+    'tree.circular' => 'An item cannot be placed under itself or under one of its own descendants.',
+    'tree.has_children' => 'It cannot be deleted while it has items under it ({count}): move them elsewhere first.',
 ];

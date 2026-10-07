@@ -417,4 +417,12 @@ return [
     'admin.system.sync.note' => 'Megjegyzés',
     'capability.weighted' => 'Súlyozott (kézi sorrendű)',
     'field.weight' => 'Súly',
+    'capability.hierarchical' => 'Fába rendezett',
+    'field.tree_path' => 'Útvonal a fában',
+    'field.depth' => 'Mélység',
+    'relation.parent' => 'Szülő',
+    'tree.too_deep' => 'A fa legfeljebb {max} szintes lehet.',
+    'tree.other_blueprint' => 'A szülőnek ugyanolyan fajtájúnak kell lennie.',
+    'tree.circular' => 'Egy elem nem kerülhet önmaga vagy a saját leszármazottja alá.',
+    'tree.has_children' => 'Nem törölhető, amíg elemek vannak alatta ({count}): előbb helyezd át őket máshová.',
 ];

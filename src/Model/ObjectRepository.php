@@ -10,8 +10,10 @@ use Campanella\Database\Connection;
 use Campanella\Database\Schema\CoreSchema;
 use Campanella\I18n\Message;
 use Campanella\Capability\TextFormat;
+use Campanella\Capability\Hierarchical;
 use Campanella\Capability\Textual;
 use Campanella\Html\HtmlSanitizer;
+use Campanella\Tree\TreeKeeper;
 use Campanella\Support\Uuid;
 use DateTimeImmutable;
 use DateTimeZone;
@@ -36,6 +38,7 @@ final class ObjectRepository
     private const int DUPLICATE_KEY = 1062;
 
     private readonly HtmlSanitizer $html;
+    private readonly TreeKeeper $tree;
 
     /**
      * @param HtmlSanitizer|null $html Filters texts in `html` format on save (since 0.0.5);
@@ -48,6 +51,7 @@ final class ObjectRepository
         ?HtmlSanitizer $html = null,
     ) {
         $this->html = $html ?? new HtmlSanitizer();
+        $this->tree = new TreeKeeper($db);
     }
 
     /**
@@ -195,7 +199,8 @@ final class ObjectRepository
         foreach ($object->capabilities() as $definition) {
             $object->as($definition->class)->prepareForSave();
         }
-        $this->validate($object, $this->sanitizeHtml($object));
+        $tree = $object->has(Hierarchical::class);
+        $this->validate($object, $this->sanitizeHtml($object) + ($tree ? $this->tree->validate($object) : []));
 
         $now = self::now();
         $data = [];
@@ -207,7 +212,7 @@ final class ObjectRepository
         $json = json_encode($data, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         $format = FieldType::STORAGE_DATE_FORMAT;
 
-        $id = $this->db->transactional(function (Connection $db) use ($object, $json, $now, $format): int {
+        $id = $this->db->transactional(function (Connection $db) use ($object, $json, $now, $format, $tree): int {
             if ($object->isNew()) {
                 $id = $db->insert(CoreSchema::OBJECTS, [
                     'uuid' => $object->uuid(),
@@ -224,6 +229,9 @@ final class ObjectRepository
                     ['id' => $id],
                 );
             }
+
+            // The position in its tree, now that the ID is known (Hierarchical).
+            $moveSubtree = $tree ? $this->tree->place($object, $id) : null;
 
             $db->delete(CoreSchema::OBJECT_CAPABILITIES, ['object_id' => $id]);
             foreach ($object->capabilityNames() as $name) {
@@ -250,6 +258,9 @@ final class ObjectRepository
                     ]);
                 }
             }
+            if ($moveSubtree !== null) {
+                $moveSubtree();
+            }
 
             return $id;
         });
@@ -257,10 +268,20 @@ final class ObjectRepository
         $object->markSaved($id, $now);
     }
 
+    /**
+     * @throws ValidationException (on `children`) for a tree node that has children:
+     *         they must be moved elsewhere first
+     */
     public function delete(CampanellaObject $object): void
     {
         if ($object->isNew()) {
             return;
+        }
+        if ($object->has(Hierarchical::class)) {
+            $children = $this->tree->childCount((int) $object->id());
+            if ($children > 0) {
+                throw new ValidationException(['children' => new Message('tree.has_children', ['count' => $children])]);
+            }
         }
         // Rows in the capability tables are deleted by ON DELETE CASCADE.
         $this->db->delete(CoreSchema::OBJECTS, ['id' => $object->id()]);

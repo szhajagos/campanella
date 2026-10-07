@@ -67,7 +67,7 @@ writing.
 | `loadMany(array $ids): array<int, CampanellaObject>` | Several objects at once, in the input order, keyed by ID. A single query runs per capability table, plus one for relations |
 | `__construct(Connection $db, CapabilityRegistry $capabilities, BlueprintRegistry $blueprints, ?HtmlSanitizer $html = null)` | `$html`: the HTML filter (since 0.0.5); null: the built-in allowlist |
 | `save(CampanellaObject $object): void` | Save (see below) |
-| `delete(CampanellaObject $object): void` | Delete; the database removes the capability rows by cascade. Does nothing for an unsaved object |
+| `delete(CampanellaObject $object): void` | Delete; the database removes the capability rows by cascade. Does nothing for an unsaved object. `ValidationException` (on `children`) for a tree node with children ([chapter 18](18-trees.md)) |
 
 ### Save steps
 
@@ -76,10 +76,12 @@ writing.
    (`HtmlSanitizer`, [chapter 15](15-html.md)); one longer than the limit is a
    validation error instead.
 3. Validation: required fields and relations (whether required, whether the
-   target exists, whether it matches the definition). On failure:
+   target exists, whether it matches the definition), and for a tree node the
+   rules of a tree ([chapter 18](18-trees.md)). On failure:
    `ValidationException`.
-4. In a single transaction: the `objects` row (the `Data` fields as JSON), the
-   `object_capabilities` rows, the capability table rows and the relations.
+4. In a single transaction: the `objects` row (the `Data` fields as JSON), a
+   tree node's path and depth, the `object_capabilities` rows, the capability
+   table rows and the relations; a moved tree node's descendants are moved too.
 5. On a unique value conflict (e.g. a path already in use) the transaction is
    rolled back and a `ValidationException` is thrown; no half-saved object is
    left in the database.

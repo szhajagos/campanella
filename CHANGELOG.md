@@ -17,10 +17,21 @@ backward-incompatible.
   order of creation). In the admin, the list of a Blueprint with it is shown
   in this order by default, with a *Weight* column.
 
+- **`Hierarchical`:** objects in a tree. A `parent` relation within the same
+  Blueprint; the materialized path (`tree_path`, `/1/5/12/`) and the `depth`
+  are kept by the `ObjectRepository` on save, and moving a node moves its
+  subtree with one `UPDATE`. The repository refuses a parent of another
+  Blueprint, a circle (a node under its own descendant), more than 10 levels,
+  and deleting a node that has children. Queries: `roots()`, `childrenOf()`,
+  `descendantsOf()`, `ancestorsOf()`; `TreeBuilder` builds the tree from a
+  query's result. New `Campanella\Tree` namespace.
+
 ### Changed
 
 - The documentation's example of writing a capability is now `Featured`.
 - The admin lists break ties by ID, so equal values keep a stable order.
+- The admin's delete page shows why an object cannot be deleted (409), e.g. a
+  tree node with children.
 
 ## [0.0.6] – 2026-10-06
 

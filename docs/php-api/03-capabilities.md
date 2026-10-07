@@ -195,6 +195,12 @@ Scope: `by_weight`, i.e. by `weight`, then by `id` (equal weights keep the
 order of creation). In the admin, the list of a Blueprint with this capability
 is shown in this order by default, with a *Weight* column.
 
+### Hierarchical
+
+A node of a tree: a `parent` relation within the same Blueprint, and the
+materialized path kept by the repository. Since 0.0.7; described in chapter
+[18. Trees](18-trees.md).
+
 ## Writing a new capability
 
 Example: a `Featured` capability that marks objects as featured, so that a

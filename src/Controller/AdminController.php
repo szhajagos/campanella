@@ -671,6 +671,9 @@ final class AdminController implements Controller
                 $this->service->delete($actor, $object);
             } catch (AccessDeniedException) {
                 throw new HttpException(403, 'error.forbidden');
+            } catch (ValidationException $e) {
+                // E.g. a tree node with children (they must be moved elsewhere first).
+                return $this->deletePage($blueprint, $object, $actor, array_values($e->errors)[0] ?? 'admin.form.invalid', 409);
             }
             $this->flash->add(Flash::SUCCESS, new Message('admin.delete.done', ['title' => self::titleOf($object)]));
 
@@ -684,7 +687,7 @@ final class AdminController implements Controller
         Blueprint $blueprint,
         CampanellaObject $object,
         Actor $actor,
-        ?string $alert = null,
+        string|Message|null $alert = null,
         int $status = 200,
     ): Response {
         ['items' => $referrers, 'total' => $total] = $this->referrers($object, $actor);

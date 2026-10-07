@@ -22,6 +22,7 @@ namespace, in the `src/` folder (PSR-4).
 15. [HTML texts](15-html.md): the allowlist, `HtmlSanitizer`, `html:sanitize`
 16. [Images](16-media.md): the `image` Blueprint, `MediaFile`, `MediaService`, `ImageProcessor`, `MediaStorage`
 17. [Migrations and backups](17-migrations.md): `Migration`, `MigrationContext`, `Migrator`, `migrate`, `DatabaseBackup`, `db:backup`
+18. [Trees](18-trees.md): `Hierarchical`, the rules of a tree, `TreeBuilder`
 
 ## Namespaces
 
@@ -29,6 +30,7 @@ namespace, in the `src/` folder (PSR-4).
 |---|---|---|
 | `Campanella\Model` | Model | Object, fields, Blueprint, Repository |
 | `Campanella\Capability` | Model | The Capability contract and the built-in capabilities |
+| `Campanella\Tree` | Model | Trees of Hierarchical objects: building them, keeping them consistent |
 | `Campanella\Query` | Model | Query, conditions, compiler, executor |
 | `Campanella\Access` | Model | Actors, operations, policies |
 | `Campanella\Relation` | Model | Relation definitions and loading |

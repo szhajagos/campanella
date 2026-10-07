@@ -36,6 +36,8 @@ use Campanella\Model\FieldStorage;
 use Campanella\Model\FieldType;
 use Campanella\Model\Field;
 use Campanella\Model\ValidationException;
+use Campanella\Model\CampanellaObject;
+use Campanella\I18n\Message;
 use Campanella\Query\Query;
 use Campanella\Query\QueryCompiler;
 use Campanella\Query\QueryEngine;
@@ -3024,6 +3026,115 @@ test('setRoles: trimmed, without empty and repeated roles', function () use ($re
     $user = $repository->create('user', ['title' => 'x', 'email' => 'x@example.hu']);
     $user->as(Authenticatable::class)->setRoles([' editor', 'editor', '', 'administrator']);
     check($user->as(Authenticatable::class)->roles() === ['editor', 'administrator']);
+});
+
+echo "\nTrees (Hierarchical)\n";
+
+test('Hierarchical: paths kept on save, moving a subtree, the rules of a tree', function () use ($db, $admin): void {
+    $H = \Campanella\Capability\Hierarchical::class;
+    $W = \Campanella\Capability\Weighted::class;
+    $registry = new CapabilityRegistry([Titled::class, $H, $W]);
+    $blueprints = new BlueprintRegistry($registry, ['node' => ['capabilities' => [Titled::class, $H, $W]], 'other' => ['capabilities' => [Titled::class, $H]]]);
+    (new Installer($db, $registry))->install();
+    $repository = new ObjectRepository($db, $registry, $blueprints);
+    $engine = new QueryEngine($db, new QueryCompiler($registry, $blueprints), $repository, $registry, new DefaultPolicy());
+    $make = static function (string $title, ?CampanellaObject $parent = null, int $weight = 0, string $blueprint = 'node') use ($repository, $H, $W): CampanellaObject {
+        $node = $repository->create($blueprint, ['title' => $title]);
+        $node->as($H)->setParent($parent);
+        if ($node->has($W)) {
+            $node->as($W)->setWeight($weight);
+        }
+        $repository->save($node);
+
+        return $node;
+    };
+    $reload = static fn (CampanellaObject $o): CampanellaObject => $repository->find((int) $o->id()) ?? throw new LogicException();
+    $path = static fn (CampanellaObject $o): string => $reload($o)->as($H)->path() . ' ' . $reload($o)->as($H)->depth();
+    $id = static fn (CampanellaObject $o): int => (int) $o->id();
+    $error = static function (Closure $f): string {
+        try {
+            $f();
+        } catch (ValidationException $e) {
+            return implode(',', array_map(static fn ($m) => $m instanceof Message ? $m->key : (string) $m, $e->errors));
+        }
+
+        return 'none';
+    };
+
+    $a = $make('A', null, 20);
+    $b = $make('B', $a, 10);
+    $c = $make('C', $b);
+    $d = $make('D', null, 10);
+    check($path($a) === "/{$id($a)}/ 0" && $path($b) === "/{$id($a)}/{$id($b)}/ 1" && $path($c) === "/{$id($a)}/{$id($b)}/{$id($c)}/ 2", $path($c));
+    check($reload($c)->as($H)->ancestorIds() === [$id($a), $id($b)] && $reload($a)->as($H)->isRoot());
+
+    // Moving B (with C) under D.
+    $b = $reload($b);
+    $b->as($H)->setParent($d);
+    $repository->save($b);
+    check($path($b) === "/{$id($d)}/{$id($b)}/ 1" && $path($c) === "/{$id($d)}/{$id($b)}/{$id($c)}/ 2", 'the subtree moved: ' . $path($c));
+    check($path($a) === "/{$id($a)}/ 0", 'the rest is untouched');
+
+    // The rules.
+    $d = $reload($d);
+    $d->as($H)->setParent($c);
+    check($error(fn () => $repository->save($d)) === 'tree.circular', 'under its own descendant');
+    $d = $reload($d);
+    $d->as($H)->setParent($d);
+    check($error(fn () => $repository->save($d)) === 'tree.circular', 'under itself');
+    $alien = $make('Idegen', null, 0, 'other');
+    $x = $repository->create('node', ['title' => 'X']);
+    $x->as($H)->setParent($alien);
+    check($error(fn () => $repository->save($x)) === 'tree.other_blueprint', 'another Blueprint');
+
+    // At most 10 levels, also when a subtree is moved.
+    $chain = [$make('L0')];
+    for ($i = 1; $i < 10; $i++) {
+        $chain[] = $make('L' . $i, $chain[$i - 1]);
+    }
+    check($reload($chain[9])->as($H)->depth() === 9, 'ten levels');
+    $tooDeep = $repository->create('node', ['title' => 'L10']);
+    $tooDeep->as($H)->setParent($chain[9]);
+    check($error(fn () => $repository->save($tooDeep)) === 'tree.too_deep', 'the eleventh level');
+    $b = $reload($b);
+    $b->as($H)->setParent($chain[8]);
+    check($error(fn () => $repository->save($b)) === 'tree.too_deep', 'a subtree that would not fit');
+    $b->as($H)->setParent($chain[7]);
+    $repository->save($b);
+    check($reload($c)->as($H)->depth() === 9, 'it fits exactly');
+
+    // Back to a root.
+    $b = $reload($b);
+    $b->as($H)->setParent(null);
+    $repository->save($b);
+    check($path($b) === "/{$id($b)}/ 0" && $path($c) === "/{$id($b)}/{$id($c)}/ 1");
+
+    // A node with children cannot be deleted.
+    check($error(fn () => $repository->delete($reload($b))) === 'tree.has_children', 'B has a child');
+    $repository->delete($reload($c));
+    $repository->delete($reload($b));
+    check($repository->find($id($b)) === null, 'deleted once empty');
+
+    // Queries and the tree builder.
+    $e = $make('E', $a, 5);
+    $f = $make('F', $a, 1);
+    $g = $make('G', $f);
+    $titles = static fn ($objects): array => array_map(static fn ($o) => $o->get('title'), is_array($objects) ? $objects : $objects->items);
+    $node = static fn () => Query::objects()->blueprint('node');
+    check($titles($engine->execute($H::roots($node())->where('title', 'IN', ['A', 'D'])->scope('by_weight'), $admin)) === ['D', 'A']);
+    check($titles($engine->execute($H::childrenOf($node(), $a)->scope('by_weight'), $admin)) === ['F', 'E']);
+    check($titles($engine->execute($H::descendantsOf($node(), $reload($a))->orderBy('title'), $admin)) === ['E', 'F', 'G']);
+    check($titles($engine->execute($H::ancestorsOf($node(), $reload($g))->orderBy('depth'), $admin)) === ['A', 'F']);
+    check($titles($engine->execute($H::ancestorsOf($node(), $reload($a)), $admin)) === [], 'a root has no ancestors');
+
+    $all = $engine->execute($node()->where('title', 'IN', ['A', 'D', 'E', 'F', 'G'])->scope('by_weight'), $admin);
+    $tree = \Campanella\Tree\TreeBuilder::build($all);
+    $flat = array_map(static fn ($n) => str_repeat('-', $n->level) . $n->object->get('title'), \Campanella\Tree\TreeBuilder::flatten($tree));
+    check($flat === ['D', 'A', '-F', '--G', '-E'], implode(' ', $flat));
+    $sub = \Campanella\Tree\TreeBuilder::build($engine->execute($H::descendantsOf($node(), $reload($a))->scope('by_weight'), $admin));
+    check(array_map(static fn ($n) => $n->object->get('title'), $sub) === ['F', 'E'] && $sub[0]->hasChildren() && !$sub[1]->hasChildren(), 'a subtree: its own roots');
+
+    $db->execute("DELETE FROM {objects} WHERE blueprint IN ('node', 'other')");
 });
 
 echo "\nDocumentation examples\n";
