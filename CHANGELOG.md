@@ -26,12 +26,25 @@ backward-incompatible.
   `descendantsOf()`, `ancestorsOf()`; `TreeBuilder` builds the tree from a
   query's result. New `Campanella\Tree` namespace.
 
+- **Trees in the admin:** a `Hierarchical` Blueprint is listed as a tree
+  (indented, the siblings by weight), with a "+ sub-item" link that preselects
+  the parent; the parent is chosen from an indented list without the object's
+  own descendants; ↑ ↓ buttons move a `Weighted` object among its siblings
+  (`SiblingOrder`, `POST …/move-up`, `…/move-down`); the delete page lists a
+  node's children. A single relation can be preselected in the new form's
+  address (`?parent=12`).
+- **Categories form a tree:** the `category` Blueprint has `Hierarchical` and
+  `Weighted`. After upgrading, `install` (or the upgrade page) adds them to
+  the existing categories, which become roots.
+
 ### Changed
 
 - The documentation's example of writing a capability is now `Featured`.
 - The admin lists break ties by ID, so equal values keep a stable order.
 - The admin's delete page shows why an object cannot be deleted (409), e.g. a
   tree node with children.
+- Fixed: in a `Weighted` list the weight and status columns were swapped in
+  the rows.
 
 ## [0.0.6] – 2026-10-06
 

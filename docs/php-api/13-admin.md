@@ -55,6 +55,7 @@ The `subpath` route parameter selects the page. Everything goes through the
 | `POST /admin/<blueprint>/<id>/publish` | Publishing, now or at a given time ([below](#publishing-and-deleting)) |
 | `POST /admin/<blueprint>/<id>/unpublish` | Unpublishing |
 | `/admin/<blueprint>/<id>/delete` | Deleting: a confirmation page; POST deletes |
+| `POST /admin/<blueprint>/<id>/move-up`, `…/move-down` | Moves a `Weighted` object among its siblings ([below](#trees-and-hand-set-order)) |
 | `POST /admin/media/upload` | Uploading an image: JSON for the editor and the Images list, a redirect for the form without JavaScript ([chapter 16](16-media.md#uploading-from-the-admin)) |
 | `POST /admin/<blueprint>/<id>/convert-html` | Converts a saved plain body to a formatted one ([below](#formatted-text-the-html-editor)) |
 | `/admin/system` | The System page ([below](#the-system-page)) |
@@ -64,6 +65,7 @@ The `subpath` route parameter selects the page. Everything goes through the
 | Constant | Value |
 |---|---|
 | `PER_PAGE` | 20: objects per list page |
+| `TREE_LIMIT` | 500: a tree with more objects is listed flat and paged |
 | `STATUSES` | The status filters of the list |
 | `DISPLAY_DATETIME` | `'Y-m-d H:i'`: how times are shown (in the site's time zone) |
 | `MAX_REFERRERS` | 20: the most referring objects listed on the delete page |
@@ -89,12 +91,35 @@ admin paths, so no Blueprint can have these names (`BlueprintRegistry::RESERVED_
 |---|---|
 | `q` | Search in the title (for `Titled` Blueprints); `%` and `_` are searched literally |
 | `status` | For `Publishable` Blueprints: `draft`, `published` (published and the time has come, i.e. publicly visible), `scheduled` (published, but in the future) — `AdminController::STATUSES` |
-| `sort` | `title`, `updated`, `created`, `published_at` (those the Blueprint has); anything else falls back to `updated` |
-| `dir` | `asc` or `desc` (default) |
+| `sort` | `weight`, `title`, `updated`, `created`, `published_at` (those the Blueprint has); anything else falls back to the default: `weight` for a `Weighted` Blueprint, `updated` otherwise |
+| `dir` | `asc` or `desc` (the default: `asc` for `weight`, `desc` otherwise) |
 
-The columns follow the Blueprint's capabilities: title, status, author
-(`Authorable`; loaded with one query by the `RelationLoader`), publication
-time, modification time. The column headers sort the list.
+The columns follow the Blueprint's capabilities: title, status, weight,
+author (`Authorable`; loaded with one query by the `RelationLoader`),
+publication time, modification time. The column headers sort the list.
+
+### Trees and hand-set order
+
+Since 0.0.7, for Blueprints with `Hierarchical` ([chapter 18](18-trees.md))
+and `Weighted`:
+
+- **A tree is listed as a tree:** all of it (up to `TREE_LIMIT`), each node
+  under its parent, indented, the siblings by weight. Searching, filtering or
+  sorting shows the usual flat, paged list.
+- **"+ sub-item"** next to each node opens the new form with that parent
+  preselected (`/admin/category/new?parent=12`; any single relation can be
+  preselected this way, e.g. `?menu=3`). The form only offers allowed targets,
+  so a preselection cannot bypass anything.
+- **The parent** is chosen from the Blueprint's objects in tree order,
+  indented; the object itself and its descendants are not offered (they would
+  make a circle).
+- **↑ ↓ buttons** move a `Weighted` object among its siblings (the children
+  of the same parent; in a flat list, all objects of the Blueprint), shown
+  when the list is in its default order. The siblings are numbered again
+  (0, 10, 20 …; `SiblingOrder`). POST with the CSRF token, for those who may
+  edit the object; back to the list at the object's row.
+- **A node with children cannot be deleted:** the delete page lists them and
+  the button is disabled (a POST anyway gets 409 with the reason).
 
 ## Forms
 

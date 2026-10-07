@@ -22,7 +22,9 @@ use Campanella\Http\HttpException;
 use Campanella\Http\Request;
 use Campanella\Http\Response;
 use Campanella\Http\RouteMatch;
+use Campanella\Capability\Hierarchical;
 use Campanella\Capability\Publishable;
+use Campanella\Capability\Weighted;
 use Campanella\Capability\TextFormat;
 use Campanella\Capability\Textual;
 use Campanella\Html\PlainText;
@@ -42,6 +44,9 @@ use Campanella\Query\Condition\Group;
 use Campanella\Query\Operator;
 use Campanella\Query\Query;
 use Campanella\Query\QueryEngine;
+use Campanella\Query\ResultSet;
+use Campanella\Tree\SiblingOrder;
+use Campanella\Tree\TreeBuilder;
 use Campanella\Relation\Relation;
 use Campanella\Relation\RelationLoader;
 use Campanella\View\Presentation;
@@ -58,6 +63,9 @@ use DateTimeZone;
 final class AdminController implements Controller
 {
     public const int PER_PAGE = 20;
+
+    /** A tree with more objects than this is listed flat and paged (since 0.0.7). */
+    public const int TREE_LIMIT = 500;
 
     /** Status filters of the list (for Publishable Blueprints). */
     public const array STATUSES = ['draft', 'published', 'scheduled'];
@@ -94,6 +102,7 @@ final class AdminController implements Controller
         private readonly SystemCheck $system,
         private readonly TemplateCache $templateCache,
         private readonly MediaService $media,
+        private readonly SiblingOrder $order,
     ) {
     }
 
@@ -344,12 +353,23 @@ final class AdminController implements Controller
         if ($status !== '') {
             $query = $query->whereCondition(self::statusCondition($status));
         }
-        $result = $this->queries->execute(
-            // Equal values (e.g. weights) keep the order of creation.
-            $query->orderBy($sort, $dir)->orderBy('id', $dir)->page($page, self::PER_PAGE),
-            $actor,
-            withTotal: true,
-        );
+        // A tree (Hierarchical), unfiltered and in its default order: all of it, indented.
+        $levels = [];
+        $tree = isset($blueprint->capabilities['hierarchical']) && !$explicit && $search === '' && $status === ''
+            ? $this->treeRows($query, $weighted, $actor)
+            : null;
+        if ($tree !== null) {
+            [$result, $levels] = $tree;
+        } else {
+            $result = $this->queries->execute(
+                // Equal values (e.g. weights) keep the order of creation.
+                $query->orderBy($sort, $dir)->orderBy('id', $dir)->page($page, self::PER_PAGE),
+                $actor,
+                withTotal: true,
+            );
+        }
+        // Up/down buttons: a hand-ordered list in its own order.
+        $moves = $weighted && !$explicit && $search === '' && $status === '' ? self::moves($result, $levels !== []) : [];
         if (isset($blueprint->capabilities['authorable'])) {
             $this->relations->resolve($result, $actor);
         }
@@ -383,8 +403,82 @@ final class AdminController implements Controller
             'searchable' => $titled,
             'has_author' => isset($blueprint->capabilities['authorable']),
             'has_weight' => $weighted,
+            'levels' => $levels,
+            'is_tree' => $tree !== null,
+            'max_depth' => Hierarchical::MAX_DEPTH,
+            'moves' => $moves,
             'path' => $this->access->path($blueprint->name),
         ]);
+    }
+
+    /**
+     * All objects of a tree, in tree order, with their levels; null if there are more
+     * than TREE_LIMIT (then the list is paged and flat).
+     *
+     * @return array{ResultSet, array<int, int>}|null
+     */
+    private function treeRows(Query $query, bool $weighted, Actor $actor): ?array
+    {
+        $all = $this->queries->execute(
+            $query->orderBy($weighted ? 'weight' : 'title', 'asc')->orderBy('id', 'asc')->limit(self::TREE_LIMIT + 1),
+            $actor,
+        );
+        if (count($all) > self::TREE_LIMIT) {
+            return null;
+        }
+        $items = [];
+        $levels = [];
+        foreach (TreeBuilder::flatten(TreeBuilder::build($all)) as $node) {
+            $items[] = $node->object;
+            $levels[(int) $node->object->id()] = $node->level;
+        }
+
+        return [new ResultSet($items, count($items)), $levels];
+    }
+
+    /**
+     * Which rows can move up or down: among their siblings in the list (the same
+     * parent in a tree, the whole list otherwise).
+     *
+     * @return array<int, array{up: bool, down: bool}>
+     */
+    private static function moves(ResultSet $result, bool $tree): array
+    {
+        $groups = [];
+        foreach ($result as $item) {
+            $parent = $tree && $item->has(Hierarchical::class) ? (int) $item->as(Hierarchical::class)->parentId() : 0;
+            $groups[$parent][] = (int) $item->id();
+        }
+        $moves = [];
+        foreach ($groups as $ids) {
+            $last = count($ids) - 1;
+            foreach ($ids as $i => $id) {
+                $moves[$id] = ['up' => $i > 0, 'down' => $i < $last];
+            }
+        }
+
+        return $moves;
+    }
+
+    /** POST /admin/<blueprint>/<id>/move-up, move-down: among its siblings (Weighted). */
+    private function move(Request $request, Actor $actor, CampanellaObject $object, int $direction): Response
+    {
+        if (!$object->has(Weighted::class)) {
+            throw HttpException::notFound();
+        }
+        if (!$request->isPost()) {
+            throw new HttpException(405, 'error.method_not_allowed');
+        }
+        if (!$this->policy->allows($actor, Operation::Update, $object)) {
+            throw new HttpException(403, 'error.forbidden');
+        }
+        if (!$this->csrf->isValid($request)) {
+            $this->flash->add(Flash::DANGER, 'auth.form_expired');
+        } else {
+            $this->order->move($object, $direction);
+        }
+
+        return Response::redirect($request->basePath . $this->access->path($object->blueprint()) . '#row-' . $object->id(), 303);
     }
 
     /** /admin/<blueprint>/new: the empty form, and creating the object from it. */
@@ -399,6 +493,15 @@ final class AdminController implements Controller
             throw new HttpException(403, 'error.forbidden');
         }
         if (!$request->isPost()) {
+            // A single relation given in the address: preselected (e.g. ?parent=12 for a
+            // child in a tree). Only a target the form offers can be saved anyway.
+            foreach ($object->relations() as $name => $relation) {
+                $target = $request->queryInt($name, 0);
+                if (!$relation->isMany() && $target > 0) {
+                    $object->setRelated($name, [$target]);
+                }
+            }
+
             return $this->formPage($blueprint, $object, $actor);
         }
         if (!$this->csrf->isValid($request)) {
@@ -526,6 +629,8 @@ final class AdminController implements Controller
         return match ($action) {
             'publish', 'unpublish' => $this->changePublication($request, $actor, $object, $action === 'publish'),
             'convert-html' => $this->convertToHtml($request, $actor, $object),
+            'move-up' => $this->move($request, $actor, $object, -1),
+            'move-down' => $this->move($request, $actor, $object, 1),
             'delete' => $this->delete($request, $actor, $object),
             default => throw HttpException::notFound(),
         };
@@ -691,7 +796,12 @@ final class AdminController implements Controller
         int $status = 200,
     ): Response {
         ['items' => $referrers, 'total' => $total] = $this->referrers($object, $actor);
+        // A tree node with children cannot be deleted: they are listed.
+        $children = $object->has(Hierarchical::class)
+            ? $this->queries->execute(Hierarchical::childrenOf(Query::objects(), $object)->orderBy('title')->limit(self::MAX_REFERRERS), Actor::system())->items
+            : [];
         $response = $this->render('delete', $blueprint->name, [
+            'children' => $children,
             'title' => 'admin.delete.title',
             'title_params' => ['title' => self::titleOf($object)],
             'blueprint' => $blueprint,

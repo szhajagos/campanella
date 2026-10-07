@@ -427,4 +427,13 @@ return [
     'tree.other_blueprint' => 'The parent must be of the same kind.',
     'tree.circular' => 'An item cannot be placed under itself or under one of its own descendants.',
     'tree.has_children' => 'It cannot be deleted while it has items under it ({count}): move them elsewhere first.',
+    'admin.list.order' => 'Order',
+    'admin.list.move_up' => 'Move up: {title}',
+    'admin.list.move_down' => 'Move down: {title}',
+    'admin.list.move_up_short' => 'Up',
+    'admin.list.move_down_short' => 'Down',
+    'admin.list.add_child' => 'sub-item',
+    'admin.list.add_child_title' => 'A new item below "{title}"',
+    'admin.list.tree_hint' => 'In tree order; searching, filtering or sorting shows a flat list.',
+    'admin.delete.children' => 'Items under it (move them elsewhere first):',
 ];

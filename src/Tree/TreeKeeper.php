@@ -90,6 +90,45 @@ final class TreeKeeper
         };
     }
 
+    /**
+     * Fills in the missing paths and depths (e.g. after `Hierarchical` was added to a
+     * Blueprint with existing objects, whose rows got no path), from the parent
+     * relations. Returns how many were filled.
+     */
+    public function repair(): int
+    {
+        $rows = $this->db->fetchAll(
+            "SELECT h.object_id FROM {" . self::TABLE . "} h WHERE h.tree_path IS NULL OR h.tree_path = ''",
+        );
+        $memo = [];
+        $count = 0;
+        foreach ($rows as $row) {
+            $id = (int) $row['object_id'];
+            $path = $this->pathOf($id, $memo, 0);
+            $this->db->update(self::TABLE, ['tree_path' => $path, 'depth' => substr_count($path, '/') - 2], ['object_id' => $id]);
+            $count++;
+        }
+
+        return $count;
+    }
+
+    /** @param array<int, string> $memo */
+    private function pathOf(int $id, array &$memo, int $guard): string
+    {
+        if (isset($memo[$id])) {
+            return $memo[$id];
+        }
+        $stored = $this->node($id);
+        if ($stored !== null && $stored['path'] !== '') {
+            return $memo[$id] = $stored['path'];
+        }
+        $parent = $this->db->fetchValue("SELECT target_id FROM {relationships} WHERE source_id = :id AND type = 'parent'", ['id' => $id]);
+        // A broken chain (or a circle in old data) ends as a root rather than looping.
+        $base = $parent === null || $guard >= Hierarchical::MAX_DEPTH ? '/' : $this->pathOf((int) $parent, $memo, $guard + 1);
+
+        return $memo[$id] = $base . $id . '/';
+    }
+
     /** The number of the node's direct children. */
     public function childCount(int $id): int
     {

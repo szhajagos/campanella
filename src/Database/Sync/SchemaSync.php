@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Campanella\Database\Sync;
 
 use Campanella\Capability\CapabilityDefinition;
+use Campanella\Capability\Hierarchical;
 use Campanella\Capability\CapabilityRegistry;
 use Campanella\Database\Connection;
 use Campanella\Database\Installer;
@@ -20,6 +21,7 @@ use Campanella\Model\Blueprint;
 use Campanella\Model\BlueprintRegistry;
 use Campanella\Model\Field;
 use Campanella\Model\FieldStorage;
+use Campanella\Tree\TreeKeeper;
 
 /**
  * Applies the additive changes of the definitions to an existing database,
@@ -260,6 +262,10 @@ final class SchemaSync
                  AND NOT EXISTS (SELECT 1 FROM {object_capabilities} oc WHERE oc.object_id = o.id AND oc.capability = :c2)',
                 ['b' => $blueprint, 'c' => $definition->name, 'c2' => $definition->name],
             );
+            // A tree's rows need their paths (computed, not defaults): the objects become roots.
+            if ($definition->class === Hierarchical::class) {
+                (new TreeKeeper($db))->repair();
+            }
         });
     }
 

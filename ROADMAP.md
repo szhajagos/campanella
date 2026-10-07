@@ -40,11 +40,12 @@ Agreed in detail on 2026-10-07. In six parts (0–5), each its own commit:
      elsewhere (the delete page says so, and lists them).
    - Queries: children, descendants, ancestors (for breadcrumbs); a
      `TreeBuilder` that turns results into a tree.
-2. **Trees in the admin:** the list indented, in tree order; the parent chosen
+2. ✅ **Trees in the admin:** the list indented, in tree order; the parent chosen
    from an indented list without the object's own descendants; the order
    changed with up/down buttons (no dependency; drag and drop later, e.g.
    with SortableJS, MIT, served locally).
-3. **The category tree:** `category` gets `Hierarchical` and `Weighted`;
+3. **The category tree:** `category` gets `Hierarchical` and `Weighted` (done
+   in part 2, to try the admin with it);
    `/kategoriak` shows the tree; breadcrumbs on category pages; **a category
    page lists the articles of its subcategories too.**
 4. **The menu:**

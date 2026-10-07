@@ -40,9 +40,18 @@
         {% endif %}
     {% endif %}
 
+    {% if children %}
+        <p>{{ t('admin.delete.children') }}</p>
+        <ul>
+            {% for child in children %}
+                <li><a href="{{ admin_url(child.blueprint ~ '/' ~ child.id) }}">{{ child.title is defined and child.title ? child.title : '#' ~ child.id }}</a></li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
     <form method="post" action="{{ url(action) }}" class="d-flex gap-2 mt-4">
         {{ csrf_field() }}
-        <button type="submit" class="btn btn-danger">{{ t('admin.delete.confirm') }}</button>
+        <button type="submit" class="btn btn-danger"{% if children %} disabled{% endif %}>{{ t('admin.delete.confirm') }}</button>
         <a class="btn btn-outline-secondary" href="{{ url(edit_path) }}">{{ t('admin.form.cancel') }}</a>
     </form>
 {% endblock %}

@@ -41,6 +41,7 @@ use Campanella\Query\QueryEngine;
 use Campanella\Relation\RelationLoader;
 use Campanella\Security\Csrf;
 use Campanella\Security\Throttle;
+use Campanella\Tree\SiblingOrder;
 use Campanella\Service\ObjectService;
 use Campanella\View\CampanellaTwigExtension;
 use Campanella\View\Presentation;
@@ -412,6 +413,7 @@ final class Kernel
             $c->get(SystemCheck::class),
             $c->get(TemplateCache::class),
             $c->get(MediaService::class),
+            new SiblingOrder($c->get(Connection::class)),
         ));
 
         $c->set('controller.upgrade', static fn (Container $c): Controller => new UpgradeController(

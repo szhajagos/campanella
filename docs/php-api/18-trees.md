@@ -100,6 +100,35 @@ children are still found by `childrenOf()`, but a tree built from a visitor's
 query has the draft missing, so its children become roots. Filter what you
 build from accordingly.
 
+## SiblingOrder
+
+`Campanella\Tree\SiblingOrder` · **Public** · `final class`
+
+Moving a `Weighted` object up or down among its siblings: the objects of its
+Blueprint, or for a `Hierarchical` one, the children of the same parent (the
+roots for a root). The siblings are numbered again, `STEP` (10) apart, in the
+new order; only the weights change.
+
+| Method | Description |
+|---|---|
+| `__construct(Connection $db)` | |
+| `move(CampanellaObject $object, int $direction): bool` | `-1`: up, `1`: down; false at the first or last place |
+| `siblings(CampanellaObject $object): list<int>` | The siblings' IDs (the object too), in their order |
+
+## In the admin
+
+A tree is listed as a tree, the parent is chosen from an indented list
+without the object's own descendants, ↑ ↓ buttons change the order, and the
+delete page lists a node's children
+([chapter 13](13-admin.md#trees-and-hand-set-order)).
+
+## Adding `Hierarchical` to an existing Blueprint
+
+The objects become roots: `install` (or the upgrade page) adds the capability
+([chapter 17](17-migrations.md#applying-the-definitions-schemasync)) and
+fills in their paths (`TreeKeeper::repair()`). Arranging them into a tree is
+then done in the admin.
+
 ## TreeKeeper
 
 `Campanella\Tree\TreeKeeper` · **Internal** · used by the `ObjectRepository`
@@ -110,3 +139,4 @@ build from accordingly.
 | `validate(CampanellaObject $object): array<string, Message>` | The rules above (on `parent`) |
 | `place(CampanellaObject $object, int $id): ?Closure` | Sets the path and the depth; returns the moving of the descendants if the path changed (run after the rows are written, in the same transaction) |
 | `childCount(int $id): int` | The direct children |
+| `repair(): int` | Fills in the missing paths and depths from the parent relations (e.g. after the capability was added to existing objects); how many |

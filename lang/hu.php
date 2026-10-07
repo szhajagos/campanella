@@ -425,4 +425,13 @@ return [
     'tree.other_blueprint' => 'A szülőnek ugyanolyan fajtájúnak kell lennie.',
     'tree.circular' => 'Egy elem nem kerülhet önmaga vagy a saját leszármazottja alá.',
     'tree.has_children' => 'Nem törölhető, amíg elemek vannak alatta ({count}): előbb helyezd át őket máshová.',
+    'admin.list.order' => 'Sorrend',
+    'admin.list.move_up' => 'Feljebb: {title}',
+    'admin.list.move_down' => 'Lejjebb: {title}',
+    'admin.list.move_up_short' => 'Feljebb',
+    'admin.list.move_down_short' => 'Lejjebb',
+    'admin.list.add_child' => 'alelem',
+    'admin.list.add_child_title' => 'Új elem a(z) „{title}” alá',
+    'admin.list.tree_hint' => 'Fa szerinti sorrend; keresés, szűrés vagy rendezés esetén egyszerű lista.',
+    'admin.delete.children' => 'Alatta lévő elemek (előbb helyezd át őket máshová):',
 ];

@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 use Campanella\Capability\Authenticatable;
 use Campanella\Capability\Authorable;
+use Campanella\Capability\Hierarchical;
 use Campanella\Capability\MediaFile;
 use Campanella\Capability\Publishable;
 use Campanella\Capability\Routable;
 use Campanella\Capability\Textual;
 use Campanella\Capability\Titled;
+use Campanella\Capability\Weighted;
 use Campanella\Model\CampanellaObject;
 use Campanella\Model\Field;
 use Campanella\Model\FieldType;
@@ -76,8 +78,9 @@ return [
 
     'category' => [
         'label' => 'blueprint.category',
-        'capabilities' => [Textual::class, Routable::class, Publishable::class],
-        'form_order' => ['title', 'body', 'path'],
+        // A tree (since 0.0.7): a category under a category, in a hand-set order.
+        'capabilities' => [Textual::class, Routable::class, Publishable::class, Hierarchical::class, Weighted::class],
+        'form_order' => ['title', 'parent', 'weight', 'body', 'path'],
         'lists' => [
             'articles' => [
                 'label' => 'list.category.articles',

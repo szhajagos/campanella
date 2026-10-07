@@ -72,6 +72,10 @@
         </div>
     </form>
 
+    {% if is_tree and not result.isEmpty %}
+        <p class="small text-body-secondary mb-2">{{ t('admin.list.tree_hint') }}</p>
+    {% endif %}
+
     {% if result.isEmpty %}
         <p class="text-body-secondary py-4">{{ filters.q or filters.status ? t('admin.list.no_match') : t('admin.recent_empty') }}</p>
     {% else %}
@@ -87,17 +91,20 @@
                         {% if has_author %}<th scope="col">{{ t('relation.author') }}</th>{% endif %}
                         {% if 'published_at' in sortable %}<th scope="col">{{ _self.sort_header('field.published_at', 'published_at', filters, path, sortable) }}</th>{% endif %}
                         <th scope="col" class="text-end">{{ _self.sort_header('admin.column.updated', 'updated', filters, path, sortable) }}</th>
+                        {% if moves %}<th scope="col"><span class="visually-hidden">{{ t('admin.list.order') }}</span></th>{% endif %}
                     </tr>
                 </thead>
                 <tbody>
                     {% for item in result %}
-                        <tr>
+                        {% set level = levels[item.id] ?? 0 %}
+                        <tr id="row-{{ item.id }}">
                             {% if is_file %}
                                 <td class="admin-thumb-cell">
                                     {% if media[item.id] is defined %}<img class="admin-thumb" src="{{ url(media[item.id]) }}" alt="" width="64" height="64" loading="lazy" decoding="async">{% endif %}
                                 </td>
                             {% endif %}
-                            <td>
+                            <td{% if level > 0 %} style="padding-left: {{ 0.5 + level * 1.5 }}rem"{% endif %}>
+                                {% if level > 0 %}<span class="text-body-secondary" aria-hidden="true">└&nbsp;</span>{% endif %}
                                 {% set label = item.title is defined and item.title ? item.title : t('admin.untitled') %}
                                 {% if editable[item.id] ?? false %}
                                     <a class="fw-semibold" href="{{ admin_url(blueprint.name ~ '/' ~ item.id) }}">{{ label }}</a>
@@ -110,7 +117,11 @@
                                 {% if is_file and item.alt is defined and not item.alt %}
                                     <div><span class="badge bg-body-tertiary text-body-secondary border fw-normal">{{ t('admin.media.no_alt') }}</span></div>
                                 {% endif %}
+                                {% if is_tree and can_create and level + 1 < max_depth %}
+                                    <a class="small ms-2 text-body-secondary" href="{{ admin_url(blueprint.name ~ '/new') }}?parent={{ item.id }}" title="{{ t('admin.list.add_child_title', {title: label}) }}">+ {{ t('admin.list.add_child') }}</a>
+                                {% endif %}
                             </td>
+                            {% if statuses %}<td>{% include '@core/admin/_status.html.twig' with {object: item} only %}</td>{% endif %}
                             {% if has_weight %}<td class="text-end small text-body-secondary">{{ item.weight }}</td>{% endif %}
                             {% if is_file %}
                                 <td class="small text-nowrap">
@@ -118,7 +129,6 @@
                                     {% if item.width and item.height %}<div class="text-body-secondary">{{ t('admin.media.dimensions', {width: item.width, height: item.height}) }}</div>{% endif %}
                                 </td>
                             {% endif %}
-                            {% if statuses %}<td>{% include '@core/admin/_status.html.twig' with {object: item} only %}</td>{% endif %}
                             {% if has_author %}
                                 <td class="small">{% for author in related(item, 'author') %}{{ author.title }}{% else %}<span class="text-body-secondary">–</span>{% endfor %}</td>
                             {% endif %}
@@ -126,6 +136,19 @@
                                 <td class="small text-body-secondary">{% if item.published_at %}<time datetime="{{ item.published_at|date('c') }}">{{ item.published_at|date }}</time>{% else %}–{% endif %}</td>
                             {% endif %}
                             <td class="text-end small text-body-secondary"><time datetime="{{ item.updated|date('c') }}">{{ item.updated|date }}</time></td>
+                            {% if moves %}
+                                <td class="text-nowrap text-end">
+                                    {% if editable[item.id] ?? false %}
+                                        {% for dir in ['up', 'down'] %}
+                                            <form method="post" action="{{ admin_url(blueprint.name ~ '/' ~ item.id ~ '/move-' ~ dir) }}" class="d-inline">
+                                                {{ csrf_field() }}
+                                                <button type="submit" class="btn btn-sm btn-outline-secondary py-0 px-2"{% if not (moves[item.id][dir] ?? false) %} disabled{% endif %}
+                                                        aria-label="{{ t('admin.list.move_' ~ dir, {title: item.title ?? item.id}) }}" title="{{ t('admin.list.move_' ~ dir ~ '_short') }}">{{ dir == 'up' ? '↑' : '↓' }}</button>
+                                            </form>
+                                        {% endfor %}
+                                    {% endif %}
+                                </td>
+                            {% endif %}
                         </tr>
                     {% endfor %}
                 </tbody>

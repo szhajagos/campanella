@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Campanella\Admin\Form;
 
+use Campanella\Tree\TreeBuilder;
+use Campanella\Capability\Weighted;
+use Campanella\Capability\Hierarchical;
 use Campanella\Access\Actor;
 use Campanella\Capability\TextFormat;
 use Campanella\Capability\Textual;
@@ -365,6 +368,9 @@ final class ObjectForm
      */
     private function options(Relation $relation, CampanellaObject $object, Actor $actor): array
     {
+        if ($relation->name === 'parent' && $object->has(Hierarchical::class)) {
+            return $this->treeOptions($object, $actor);
+        }
         $query = Query::objects();
         if ($relation->targetBlueprints !== []) {
             $query = $query->blueprint(...$relation->targetBlueprints);
@@ -389,6 +395,36 @@ final class ObjectForm
             }
             $title = $target->hasField('title') ? (string) $target->get('title') : '';
             $options[] = ['value' => (string) $target->id(), 'label' => $title !== '' ? $title : '#' . $target->id()];
+        }
+
+        return $options;
+    }
+
+    /**
+     * The possible parents of a tree node: the objects of its Blueprint, in tree
+     * order, indented, without the object itself and its descendants (they would
+     * make a circle).
+     *
+     * @return list<array{value: string, label: string}>
+     */
+    private function treeOptions(CampanellaObject $object, Actor $actor): array
+    {
+        $query = Query::objects()->blueprint($object->blueprint());
+        $query = $object->has(Weighted::class) ? $query->orderBy('weight')->orderBy('id') : $query->orderBy('title');
+        $all = $this->queries->execute($query->limit(self::MAX_OPTIONS), $actor)->items;
+        $own = $object->isNew() ? '' : $object->as(Hierarchical::class)->path();
+
+        $options = [];
+        foreach (TreeBuilder::flatten(TreeBuilder::build($all)) as $node) {
+            $target = $node->object;
+            if ($target->id() === $object->id() || ($own !== '' && str_starts_with($target->as(Hierarchical::class)->path(), $own))) {
+                continue;
+            }
+            $title = $target->hasField('title') ? (string) $target->get('title') : '';
+            $options[] = [
+                'value' => (string) $target->id(),
+                'label' => str_repeat("\u{2014}\u{a0}", $node->level) . ($title !== '' ? $title : '#' . $target->id()),
+            ];
         }
 
         return $options;

@@ -3137,6 +3137,98 @@ test('Hierarchical: paths kept on save, moving a subtree, the rules of a tree', 
     $db->execute("DELETE FROM {objects} WHERE blueprint IN ('node', 'other')");
 });
 
+test('Kernel: trees in the admin: indented list, the parent offered without circles, up/down, delete', function () use ($newUser): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $container = $kernel->container();
+    if ($container->get(Connection::class)->prefix() !== 'test_') {
+        echo "      (skipped: config/local.php sets its own prefix)\n";
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $H = \Campanella\Capability\Hierarchical::class;
+    $storage = new ArraySessionStorage();
+    $container->set(Session::class, static fn () => new Session($storage));
+    $container->get(AuthService::class)->login(new Request('GET', '/'), $newUser('fa-admin@example.hu', 'fa-admin-jelszo-1', ['administrator']));
+    $send = function (string $method, string $path, array $post = [], array $query = []) use ($kernel, $storage) {
+        $storage->endRequest();
+
+        return $kernel->handle(new Request($method, $path, query: $query, post: $post));
+    };
+    $csrf = static fn ($response): string => preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $response->body, $m) === 1 ? $m[1] : '';
+    $repository = $container->get(ObjectRepository::class);
+    $db = $container->get(Connection::class);
+    $make = static function (string $title, ?CampanellaObject $parent = null) use ($repository, $H): CampanellaObject {
+        $category = $repository->create('category', ['title' => $title, 'path' => '/fa-' . bin2hex(random_bytes(3))]);
+        $category->as($H)->setParent($parent);
+        $repository->save($category);
+
+        return $category;
+    };
+    $a = $make('Fa A');
+    $b = $make('Fa B', $a);
+    $c = $make('Fa C', $b);
+    $d = $make('Fa D');
+    $mine = array_map(static fn ($o): int => (int) $o->id(), [$a, $b, $c, $d]);
+    $order = static function ($response) use ($mine): array {
+        preg_match_all('/<tr id="row-(\d+)"/', $response->body, $m);
+
+        return array_values(array_filter(array_map(intval(...), $m[1]), static fn (int $id): bool => in_array($id, $mine, true)));
+    };
+
+    $list = $send('GET', '/admin/category');
+    check($list->status === 200 && $order($list) === [(int) $a->id(), (int) $b->id(), (int) $c->id(), (int) $d->id()], 'tree order: ' . implode(',', $order($list)));
+    check(str_contains($list->body, 'padding-left: 2rem') && str_contains($list->body, 'padding-left: 3.5rem') && str_contains($list->body, 'Fa szerinti sorrend'), 'indented');
+    check(str_contains($list->body, '/admin/category/new?parent=' . $a->id()) && str_contains($list->body, '/move-up'), 'add a child, order buttons');
+    $flat = $send('GET', '/admin/category', [], ['q' => 'Fa']);
+    check(!str_contains($flat->body, 'Fa szerinti sorrend') && !str_contains($flat->body, 'padding-left'), 'searching: flat');
+
+    // Moving D before A (both roots); C stays where it is (the only child of B).
+    $moved = $send('POST', '/admin/category/' . $d->id() . '/move-up', ['_csrf' => $csrf($list)]);
+    check($moved->status === 303 && str_ends_with($moved->headers['Location'] ?? '', '#row-' . $d->id()));
+    check($order($send('GET', '/admin/category')) === [(int) $d->id(), (int) $a->id(), (int) $b->id(), (int) $c->id()], 'D before A');
+    check($repository->find((int) $d->id())?->get('weight') < $repository->find((int) $a->id())?->get('weight'), 'renumbered');
+    $send('POST', '/admin/category/' . $c->id() . '/move-up', ['_csrf' => $csrf($list)]);
+    check($order($send('GET', '/admin/category'))[3] === (int) $c->id(), 'the only child: unchanged');
+    check($send('GET', '/admin/category/' . $d->id() . '/move-up')->status === 405 && $send('POST', '/admin/article/1/move-up')->status !== 303, 'POST only, Weighted only');
+
+    // The form: the parent preselected; the object itself and its descendants are not offered.
+    $new = $send('GET', '/admin/category/new', [], ['parent' => (string) $a->id()]);
+    check(str_contains($new->body, '<option value="' . $a->id() . '" selected>Fa A</option>'), 'preselected parent');
+    $form = $send('GET', '/admin/category/' . $a->id());
+    check(!str_contains($form->body, '>— Fa B</option>') && !str_contains($form->body, '>Fa A</option>') && str_contains($form->body, '>Fa D</option>'), 'no circle offered');
+    $formB = $send('GET', '/admin/category/' . $b->id());
+    check(str_contains($formB->body, '>Fa A</option>') && !str_contains($formB->body, 'Fa C</option>'), 'B: A offered, its own child not');
+
+    // Deleting: refused while it has children; they are listed.
+    $page = $send('GET', '/admin/category/' . $b->id() . '/delete');
+    check(str_contains($page->body, 'Alatta lévő elemek') && str_contains($page->body, 'Fa C') && str_contains($page->body, 'disabled>'), 'children listed, button disabled');
+    $refused = $send('POST', '/admin/category/' . $b->id() . '/delete', ['_csrf' => $csrf($page)]);
+    check($refused->status === 409 && str_contains($refused->body, 'Nem törölhető, amíg elemek vannak alatta (1)') && $repository->find((int) $b->id()) !== null, 'refused: ' . $refused->status);
+
+    foreach ([$c, $b, $a, $d] as $category) {
+        $repository->delete($category);
+    }
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('TreeKeeper: missing paths are filled in from the parents (a capability added later)', function () use ($db): void {
+    $keeper = new \Campanella\Tree\TreeKeeper($db);
+    $repository = new ObjectRepository($db, new CapabilityRegistry([Titled::class, \Campanella\Capability\Hierarchical::class]), new BlueprintRegistry(new CapabilityRegistry([Titled::class, \Campanella\Capability\Hierarchical::class]), ['knot' => ['capabilities' => [Titled::class, \Campanella\Capability\Hierarchical::class]]]));
+    $root = $repository->create('knot', ['title' => 'gyökér']);
+    $repository->save($root);
+    $child = $repository->create('knot', ['title' => 'gyerek']);
+    $child->as(\Campanella\Capability\Hierarchical::class)->setParent($root);
+    $repository->save($child);
+    $db->execute("UPDATE {cap_hierarchical} SET tree_path = NULL WHERE object_id IN (:a, :b)", ['a' => (int) $root->id(), 'b' => (int) $child->id()]);
+    check($keeper->repair() >= 2);
+    $row = $db->fetchOne('SELECT tree_path, depth FROM {cap_hierarchical} WHERE object_id = :id', ['id' => (int) $child->id()]);
+    check($row !== null && $row['tree_path'] === '/' . $root->id() . '/' . $child->id() . '/' && (int) $row['depth'] === 1, json_encode($row));
+    $db->execute("DELETE FROM {objects} WHERE blueprint = 'knot' AND id = :id", ['id' => (int) $child->id()]);
+    $db->execute("DELETE FROM {objects} WHERE blueprint = 'knot'");
+});
+
 echo "\nDocumentation examples\n";
 
 test('New capability as in the docs example (Featured)', function () use ($db, $admin): void {
