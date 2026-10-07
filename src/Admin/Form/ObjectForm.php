@@ -7,6 +7,7 @@ namespace Campanella\Admin\Form;
 use Campanella\Tree\TreeBuilder;
 use Campanella\Capability\Weighted;
 use Campanella\Capability\Hierarchical;
+use Campanella\Capability\Link;
 use Campanella\Access\Actor;
 use Campanella\Capability\TextFormat;
 use Campanella\Capability\Textual;
@@ -82,6 +83,8 @@ final class ObjectForm
      *        (Blueprint 'form_order'); the rest follow in their natural order.
      * @param array<string, string> $editors The editor profile of HTML text fields (Blueprint
      *        'editor'); an unknown or missing one is the first of EDITOR_PROFILES.
+     * @param string|null $treeScope The Blueprint's 'tree_scope' (e.g. `menu`): the parent is
+     *        offered from the same scope (since 0.0.7)
      * @return list<FormField>
      */
     public function build(
@@ -91,6 +94,7 @@ final class ObjectForm
         array $errors = [],
         array $order = [],
         array $editors = [],
+        ?string $treeScope = null,
     ): array {
         $form = [];
         foreach ($this->editableFields($object) as $name => $field) {
@@ -114,6 +118,8 @@ final class ObjectForm
                 help: match (true) {
                     $htmlBody => 'admin.form.html_help',
                     $name === 'path' => 'admin.form.path_help',
+                    $name === 'url' && $object->has(Link::class) => 'admin.form.url_help',
+                    $name === 'machine_name' => 'admin.form.machine_name_help',
                     $field->type === FieldType::StringList => 'admin.form.list_help',
                     default => null,
                 },
@@ -148,7 +154,7 @@ final class ObjectForm
                 multiple: $relation->isMany(),
                 max: $relation->max,
                 value: $relation->isMany() ? $selected : ($selected[0] ?? ''),
-                options: $this->options($relation, $object, $actor),
+                options: $this->options($relation, $object, $actor, $treeScope),
                 error: isset($errors[$name]) ? $errors[$name]->translate($this->translator) : null,
             );
         }
@@ -366,10 +372,10 @@ final class ObjectForm
      *
      * @return list<array{value: string, label: string}>
      */
-    private function options(Relation $relation, CampanellaObject $object, Actor $actor): array
+    private function options(Relation $relation, CampanellaObject $object, Actor $actor, ?string $treeScope = null): array
     {
         if ($relation->name === 'parent' && $object->has(Hierarchical::class)) {
-            return $this->treeOptions($object, $actor);
+            return $this->treeOptions($object, $actor, $treeScope);
         }
         $query = Query::objects();
         if ($relation->targetBlueprints !== []) {
@@ -403,16 +409,37 @@ final class ObjectForm
     /**
      * The possible parents of a tree node: the objects of its Blueprint, in tree
      * order, indented, without the object itself and its descendants (they would
-     * make a circle).
+     * make a circle). With a scope (e.g. menu): those of the object's own scope; if
+     * it has none yet, all, each prefixed with its scope's title.
      *
      * @return list<array{value: string, label: string}>
      */
-    private function treeOptions(CampanellaObject $object, Actor $actor): array
+    private function treeOptions(CampanellaObject $object, Actor $actor, ?string $treeScope = null): array
     {
         $query = Query::objects()->blueprint($object->blueprint());
+        $scopeTarget = $treeScope === null ? null : ($object->relatedIds($treeScope)[0] ?? null);
+        if ($treeScope !== null && $scopeTarget !== null) {
+            $query = $query->whereRelated($treeScope, $scopeTarget);
+        }
         $query = $object->has(Weighted::class) ? $query->orderBy('weight')->orderBy('id') : $query->orderBy('title');
         $all = $this->queries->execute($query->limit(self::MAX_OPTIONS), $actor)->items;
         $own = $object->isNew() ? '' : $object->as(Hierarchical::class)->path();
+
+        // Without a scope chosen yet: each option says which scope (e.g. menu) it is in.
+        $scopeTitles = [];
+        if ($treeScope !== null && $scopeTarget === null) {
+            $ids = [];
+            foreach ($all as $item) {
+                $ids[] = $item->relatedIds($treeScope)[0] ?? 0;
+            }
+            $ids = array_values(array_filter(array_unique($ids)));
+            if ($ids !== []) {
+                foreach ($this->queries->execute(Query::objects()->where('id', 'IN', $ids), $actor) as $scope) {
+                    $title = $scope->hasField('title') ? (string) $scope->get('title') : '';
+                    $scopeTitles[(int) $scope->id()] = ($title !== '' ? $title : '#' . $scope->id()) . ' › ';
+                }
+            }
+        }
 
         $options = [];
         foreach (TreeBuilder::flatten(TreeBuilder::build($all)) as $node) {
@@ -421,9 +448,10 @@ final class ObjectForm
                 continue;
             }
             $title = $target->hasField('title') ? (string) $target->get('title') : '';
+            $prefix = $treeScope !== null ? ($scopeTitles[$target->relatedIds($treeScope)[0] ?? 0] ?? '') : '';
             $options[] = [
                 'value' => (string) $target->id(),
-                'label' => str_repeat("\u{2014}\u{a0}", $node->level) . ($title !== '' ? $title : '#' . $target->id()),
+                'label' => $prefix . str_repeat("\u{2014}\u{a0}", $node->level) . ($title !== '' ? $title : '#' . $target->id()),
             ];
         }
 

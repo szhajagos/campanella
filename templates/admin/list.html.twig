@@ -21,7 +21,7 @@
         <h1 class="h3 mb-0">{{ t(blueprint.label) }}</h1>
         <div class="d-flex align-items-center gap-3">
             <span class="text-body-secondary small">{{ t('admin.list.total', {count: result.total ?? 0}) }}</span>
-            {% if can_create %}<a class="btn btn-sm btn-primary" href="{{ admin_url(blueprint.name ~ '/new') }}">{{ t('admin.list.new') }}</a>{% endif %}
+            {% if can_create %}<a class="btn btn-sm btn-primary" href="{{ admin_url(blueprint.name ~ '/new') }}{{ scope and scope.selected ? '?' ~ scope.name ~ '=' ~ scope.selected }}">{{ t('admin.list.new') }}</a>{% endif %}
         </div>
     </div>
 
@@ -51,6 +51,18 @@
                 <input type="search" class="form-control form-control-sm" id="filter-q" name="q" value="{{ filters.q }}">
             </div>
         {% endif %}
+        {% if scope %}
+            {# Separate trees (e.g. menus): one of them, or all. #}
+            <div class="col-sm-4 col-lg-3">
+                <label for="filter-scope" class="form-label small mb-1">{{ t(scope.label) }}</label>
+                <select class="form-select form-select-sm" id="filter-scope" name="{{ scope.name }}">
+                    <option value="">{{ t('admin.list.scope_any') }}</option>
+                    {% for option in scope.options %}
+                        <option value="{{ option.value }}"{{ scope.selected == option.value ? ' selected' }}>{{ option.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        {% endif %}
         {% if statuses %}
             <div class="col-sm-4 col-lg-3">
                 <label for="filter-status" class="form-label small mb-1">{{ t('field.status') }}</label>
@@ -66,7 +78,7 @@
         <input type="hidden" name="dir" value="{{ filters.dir }}">
         <div class="col-auto">
             <button type="submit" class="btn btn-sm btn-primary">{{ t('admin.list.filter') }}</button>
-            {% if filters.q or filters.status %}
+            {% if filters.q or filters.status or (scope and scope.selected) %}
                 <a class="btn btn-sm btn-link" href="{{ url(path) }}">{{ t('admin.list.reset') }}</a>
             {% endif %}
         </div>
@@ -77,7 +89,7 @@
     {% endif %}
 
     {% if result.isEmpty %}
-        <p class="text-body-secondary py-4">{{ filters.q or filters.status ? t('admin.list.no_match') : t('admin.recent_empty') }}</p>
+        <p class="text-body-secondary py-4">{{ filters.q or filters.status or (scope and scope.selected) ? t('admin.list.no_match') : t('admin.recent_empty') }}</p>
     {% else %}
         <div class="table-responsive">
             <table class="table table-hover align-middle admin-list">
@@ -97,6 +109,9 @@
                 <tbody>
                     {% for item in result %}
                         {% set level = levels[item.id] ?? 0 %}
+                        {% if groups[item.id] is defined %}
+                            <tr class="admin-list__group"><th colspan="9" scope="colgroup" class="bg-body-tertiary small">{{ t(scope.label) }}: {{ groups[item.id] }}</th></tr>
+                        {% endif %}
                         <tr id="row-{{ item.id }}">
                             {% if is_file %}
                                 <td class="admin-thumb-cell">
@@ -118,7 +133,7 @@
                                     <div><span class="badge bg-body-tertiary text-body-secondary border fw-normal">{{ t('admin.media.no_alt') }}</span></div>
                                 {% endif %}
                                 {% if is_tree and can_create and level + 1 < max_depth %}
-                                    <a class="small ms-2 text-body-secondary" href="{{ admin_url(blueprint.name ~ '/new') }}?parent={{ item.id }}" title="{{ t('admin.list.add_child_title', {title: label}) }}">+ {{ t('admin.list.add_child') }}</a>
+                                    <a class="small ms-2 text-body-secondary" href="{{ admin_url(blueprint.name ~ '/new') }}?parent={{ item.id }}{% if scope and scope_of[item.id] ?? 0 %}&amp;{{ scope.name }}={{ scope_of[item.id] }}{% endif %}" title="{{ t('admin.list.add_child_title', {title: label}) }}">+ {{ t('admin.list.add_child') }}</a>
                                 {% endif %}
                             </td>
                             {% if statuses %}<td>{% include '@core/admin/_status.html.twig' with {object: item} only %}</td>{% endif %}
@@ -140,7 +155,7 @@
                                 <td class="text-nowrap text-end">
                                     {% if editable[item.id] ?? false %}
                                         {% for dir in ['up', 'down'] %}
-                                            <form method="post" action="{{ admin_url(blueprint.name ~ '/' ~ item.id ~ '/move-' ~ dir) }}" class="d-inline">
+                                            <form method="post" action="{{ admin_url(blueprint.name ~ '/' ~ item.id ~ '/move-' ~ dir) }}{{ scope and scope.selected ? '?' ~ scope.name ~ '=' ~ scope.selected }}" class="d-inline">
                                                 {{ csrf_field() }}
                                                 <button type="submit" class="btn btn-sm btn-outline-secondary py-0 px-2"{% if not (moves[item.id][dir] ?? false) %} disabled{% endif %}
                                                         aria-label="{{ t('admin.list.move_' ~ dir, {title: item.title ?? item.id}) }}" title="{{ t('admin.list.move_' ~ dir ~ '_short') }}">{{ dir == 'up' ? '↑' : '↓' }}</button>

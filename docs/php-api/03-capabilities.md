@@ -201,6 +201,13 @@ A node of a tree: a `parent` relation within the same Blueprint, and the
 materialized path kept by the repository. Since 0.0.7; described in chapter
 [18. Trees](18-trees.md).
 
+### Keyed and Link
+
+`Keyed` (`keyed`): a unique machine name (`machine_name`), by which templates
+find an object, e.g. the menu `main`. `Link` (`link`): the object leads to an
+object of the site (`target`) or to a safe URL (`url`). Since 0.0.7; described
+in chapter [19. Menus](19-menus.md#link).
+
 ## Writing a new capability
 
 Example: a `Featured` capability that marks objects as featured, so that a

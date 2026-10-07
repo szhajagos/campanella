@@ -23,12 +23,14 @@ Decided in the ROADMAP (2026-10-07):
 - **At most 10 levels** (`Hierarchical::MAX_DEPTH`): a root and 9 levels
   below it; also checked when a whole subtree is moved.
 - **A node with children cannot be deleted** until they are moved elsewhere.
+- **Separate trees** (since 0.0.7, with a `tree_scope`, see below): the
+  parent is in the same scope, e.g. a menu item's parent is in the same menu.
 
 They are checked by the `ObjectRepository` on save and delete, the lowest
 layer, so neither the admin nor the command line nor a later API can bypass
 them. The errors are `ValidationException`s: on the `parent` relation
-(`tree.circular`, `tree.other_blueprint`, `tree.too_deep`), and on `children`
-when deleting (`tree.has_children`). The admin's delete page shows the latter.
+(`tree.circular`, `tree.other_blueprint`, `tree.too_deep`, `tree.other_scope`),
+and on `children` when deleting (`tree.has_children`, `tree.scope_in_use`). The admin's delete page shows the latter.
 
 ## How it is stored
 
@@ -108,12 +110,12 @@ does so).
 
 Moving a `Weighted` object up or down among its siblings: the objects of its
 Blueprint, or for a `Hierarchical` one, the children of the same parent (the
-roots for a root). The siblings are numbered again, `STEP` (10) apart, in the
+roots for a root; with a `tree_scope`, the roots of the same scope). The siblings are numbered again, `STEP` (10) apart, in the
 new order; only the weights change.
 
 | Method | Description |
 |---|---|
-| `__construct(Connection $db)` | |
+| `__construct(Connection $db, ?BlueprintRegistry $blueprints = null)` | The registry gives the Blueprints' `tree_scope` (since 0.0.7) |
 | `move(CampanellaObject $object, int $direction): bool` | `-1`: up, `1`: down; false at the first or last place |
 | `siblings(CampanellaObject $object): list<int>` | The siblings' IDs (the object too), in their order |
 
@@ -156,6 +158,30 @@ new order; only the weights change.
 
 So a draft category is missing for visitors, and so is its branch.
 
+## Separate trees: `tree_scope`
+
+Some objects form not one tree but several: each menu has its own items. A
+Hierarchical Blueprint names the relation that splits them, a required
+single relation of the Blueprint:
+
+```php
+'menu_item' => [
+    'capabilities' => [Titled::class, Link::class, Hierarchical::class, Weighted::class],
+    'relations' => [new Relation('menu', Cardinality::One, targetBlueprints: ['menu'], required: true)],
+    'tree_scope' => 'menu',
+],
+```
+
+- **The parent must be in the same scope** (`tree.other_scope`).
+- **Moving a node to another scope** (choosing another menu for it) moves the
+  nodes below it too, in the same save.
+- **The roots are siblings within their scope:** `SiblingOrder` moves the top
+  items of one menu among themselves.
+- **A scope object with nodes cannot be deleted** (`tree.scope_in_use`, on
+  `children`), e.g. a menu with items.
+- In the admin, the list is grouped or filtered by the scope, and the scope
+  object's page shows its tree ([chapter 13](13-admin.md#trees-and-hand-set-order)).
+
 ## In the admin
 
 A tree is listed as a tree, the parent is chosen from an indented list
@@ -177,7 +203,9 @@ then done in the admin.
 | Method | Description |
 |---|---|
 | `__construct(Connection $db)` | |
-| `validate(CampanellaObject $object): array<string, Message>` | The rules above (on `parent`) |
+| `validate(CampanellaObject $object, ?string $scope = null): array<string, Message>` | The rules above (on `parent`); `$scope`: the Blueprint's `tree_scope` |
 | `place(CampanellaObject $object, int $id): ?Closure` | Sets the path and the depth; returns the moving of the descendants if the path changed (run after the rows are written, in the same transaction) |
 | `childCount(int $id): int` | The direct children |
+| `carryScope(int $id, string $path, string $scope, int $target): void` | Gives the node's descendants its scope target (in the save transaction, after the relations are written) |
+| `scopeMembers(int $id, list<string> $scopes): int` | How many objects point to the object through a scope relation (e.g. a menu's items) |
 | `repair(): int` | Fills in the missing paths and depths from the parent relations (e.g. after the capability was added to existing objects); how many |

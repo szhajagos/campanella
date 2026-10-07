@@ -49,7 +49,7 @@ Agreed in detail on 2026-10-07. In six parts (0–5), each its own commit:
    `/kategoriak` shows the tree; breadcrumbs and the subcategories on category
    pages; **a category page lists the articles of its subcategories too**
    (`Hierarchical::relatedWithin()`, one SQL condition).
-4. **The menu:**
+4. ✅ **The menu:**
    - A `menu` Blueprint (e.g. "Main menu", key `main`) and a `menu_item`
      Blueprint (`Hierarchical`, `Weighted`, a required relation to its menu).
    - An item points to an object (its path followed if it changes) or to a URL.
@@ -61,6 +61,9 @@ Agreed in detail on 2026-10-07. In six parts (0–5), each its own commit:
      creates the main menu with them.
    - In the admin: the menu's page shows its items as a tree, with a "New
      menu item" button that fills in the menu.
+   - Done with a general `tree_scope` (a menu is its own tree: the parent from
+     the same menu, the subtree follows a moved item, a menu with items is
+     kept), and only safe URLs (no `javascript:`).
 5. Release `v0.0.7`.
 
 The new tables and capabilities are added by the automatic application of the

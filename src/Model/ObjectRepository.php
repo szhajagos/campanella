@@ -200,7 +200,8 @@ final class ObjectRepository
             $object->as($definition->class)->prepareForSave();
         }
         $tree = $object->has(Hierarchical::class);
-        $this->validate($object, $this->sanitizeHtml($object) + ($tree ? $this->tree->validate($object) : []));
+        $scope = $tree ? $this->blueprints->find($object->blueprint())?->treeScope : null;
+        $this->validate($object, $this->sanitizeHtml($object) + ($tree ? $this->tree->validate($object, $scope) : []));
 
         $now = self::now();
         $data = [];
@@ -212,7 +213,7 @@ final class ObjectRepository
         $json = json_encode($data, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         $format = FieldType::STORAGE_DATE_FORMAT;
 
-        $id = $this->db->transactional(function (Connection $db) use ($object, $json, $now, $format, $tree): int {
+        $id = $this->db->transactional(function (Connection $db) use ($object, $json, $now, $format, $tree, $scope): int {
             if ($object->isNew()) {
                 $id = $db->insert(CoreSchema::OBJECTS, [
                     'uuid' => $object->uuid(),
@@ -261,6 +262,11 @@ final class ObjectRepository
             if ($moveSubtree !== null) {
                 $moveSubtree();
             }
+            // A node moved to another scope (e.g. menu) takes its subtree with it.
+            $scopeTarget = $scope === null ? null : ($object->relatedIds($scope)[0] ?? null);
+            if ($scopeTarget !== null) {
+                $this->tree->carryScope($id, (string) $object->get('tree_path'), (string) $scope, $scopeTarget);
+            }
 
             return $id;
         });
@@ -269,8 +275,9 @@ final class ObjectRepository
     }
 
     /**
-     * @throws ValidationException (on `children`) for a tree node that has children:
-     *         they must be moved elsewhere first
+     * @throws ValidationException (on `children`) for a tree node that has children
+     *         (they must be moved elsewhere first), or for an object that is the scope
+     *         of a tree's nodes, e.g. a menu with items (since 0.0.7)
      */
     public function delete(CampanellaObject $object): void
     {
@@ -282,6 +289,10 @@ final class ObjectRepository
             if ($children > 0) {
                 throw new ValidationException(['children' => new Message('tree.has_children', ['count' => $children])]);
             }
+        }
+        $members = $this->tree->scopeMembers((int) $object->id(), $this->blueprints->treeScopes());
+        if ($members > 0) {
+            throw new ValidationException(['children' => new Message('tree.scope_in_use', ['count' => $members])]);
         }
         // Rows in the capability tables are deleted by ON DELETE CASCADE.
         $this->db->delete(CoreSchema::OBJECTS, ['id' => $object->id()]);

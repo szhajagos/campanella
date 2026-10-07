@@ -34,6 +34,7 @@ use Campanella\Http\Response;
 use Campanella\Http\Router;
 use Campanella\Http\Session;
 use Campanella\I18n\Translator;
+use Campanella\Menu\MenuBuilder;
 use Campanella\Model\BlueprintRegistry;
 use Campanella\Model\ObjectRepository;
 use Campanella\Query\QueryCompiler;
@@ -367,10 +368,22 @@ final class Kernel
                 $c->get(AdminAccess::class),
                 static fn (): Actor => $c->get(AuthService::class)->currentActor($currentRequest()),
                 static fn (): Flash => $c->get(Flash::class),
+                static fn (string $key, int $levels): ?array => $c->get(MenuBuilder::class)->build(
+                    $key,
+                    $c->get(AuthService::class)->currentActor($currentRequest()),
+                    $currentRequest()->path,
+                    $levels,
+                    $basePath(),
+                ),
             ));
 
             return $twig;
         });
+
+        $c->set(MenuBuilder::class, static fn (Container $c): MenuBuilder => new MenuBuilder(
+            $c->get(QueryEngine::class),
+            $c->get(RelationLoader::class),
+        ));
 
         $c->set(Presentation::class, static fn (Container $c): Presentation => new Presentation(
             $c->get(Environment::class),
@@ -413,7 +426,7 @@ final class Kernel
             $c->get(SystemCheck::class),
             $c->get(TemplateCache::class),
             $c->get(MediaService::class),
-            new SiblingOrder($c->get(Connection::class)),
+            new SiblingOrder($c->get(Connection::class), $c->get(BlueprintRegistry::class)),
         ));
 
         $c->set('controller.upgrade', static fn (Container $c): Controller => new UpgradeController(

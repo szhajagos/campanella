@@ -7,12 +7,14 @@ namespace Campanella\Tree;
 use Campanella\Capability\Hierarchical;
 use Campanella\Capability\Weighted;
 use Campanella\Database\Connection;
+use Campanella\Model\BlueprintRegistry;
 use Campanella\Model\CampanellaObject;
 
 /**
  * Moving a Weighted object up or down among its siblings: the objects of its
  * Blueprint, or, for a Hierarchical one, the children of the same parent (the
- * roots for a root). The siblings are numbered again (0, 10, 20 …) in the new
+ * roots for a root; for a Blueprint with a 'tree_scope', the roots of the same
+ * scope, e.g. menu). The siblings are numbered again (0, 10, 20 …) in the new
  * order, so equal or scattered weights become a clean sequence.
  *
  * Only the weights change (one UPDATE per changed sibling, in a transaction);
@@ -22,8 +24,11 @@ final class SiblingOrder
 {
     public const int STEP = 10;
 
-    public function __construct(private readonly Connection $db)
-    {
+    /** @param BlueprintRegistry|null $blueprints For the Blueprints' 'tree_scope' (since 0.0.7) */
+    public function __construct(
+        private readonly Connection $db,
+        private readonly ?BlueprintRegistry $blueprints = null,
+    ) {
     }
 
     /**
@@ -65,7 +70,15 @@ final class SiblingOrder
         if ($object->has(Hierarchical::class)) {
             $parent = $object->as(Hierarchical::class)->parentId();
             $sql .= " LEFT JOIN {relationships} p ON p.source_id = o.id AND p.type = 'parent' WHERE o.blueprint = :b";
-            if ($parent === null) {
+            $scope = $this->blueprints?->find($object->blueprint())?->treeScope;
+            $scopeTarget = $scope === null ? null : ($object->relatedIds($scope)[0] ?? null);
+            if ($parent === null && $scopeTarget !== null) {
+                // The roots of the same scope (e.g. the top items of one menu).
+                $sql = str_replace(' WHERE o.blueprint', ' JOIN {relationships} s ON s.source_id = o.id AND s.type = :scope AND s.target_id = :st WHERE o.blueprint', $sql);
+                $sql .= ' AND p.target_id IS NULL';
+                $params['scope'] = (string) $scope;
+                $params['st'] = $scopeTarget;
+            } elseif ($parent === null) {
                 $sql .= ' AND p.target_id IS NULL';
             } else {
                 $sql .= ' AND p.target_id = :parent';

@@ -44,6 +44,28 @@ backward-incompatible.
   draft category's branch stays hidden from visitors.
 - The **`tree()`** Twig function: a query's result as a tree of `TreeNode`s.
   `TreeBuilder::build()` got a `$keepOrphans` parameter.
+- **Menus:** the site's navigation is edited in the admin. A `menu`
+  Blueprint (with a machine name, e.g. `main`) and a `menu_item` Blueprint:
+  in one menu, under another item of the same menu, in a hand-set order,
+  leading to an object of the site (its path followed when it changes) or to
+  a URL. An item whose target the visitor may not see (e.g. a draft) is not
+  shown, nor are the items below it. In templates: `menu('main')`
+  (`MenuBuilder`, `MenuEntry`). The layout shows the main menu, with the
+  second level as a dropdown and the current item marked with
+  `aria-current`; until a `main` menu exists, it keeps the built-in links.
+  `seed` creates the main menu. New `Campanella\Menu` namespace.
+- **Only safe link addresses:** a menu item's URL may be a path of the site,
+  a fragment, an `http(s)://` address, `mailto:` or `tel:`; `javascript:`,
+  `data:` and the like are refused on save (`Link::isSafeUrl()`).
+- New capabilities: **`Keyed`** (a unique machine name) and **`Link`** (an
+  object or a URL).
+- **Separate trees (`tree_scope`):** a Hierarchical Blueprint can name a
+  required relation that splits its objects into separate trees (each menu
+  its own). The parent must be in the same scope, moving a node to another
+  scope moves its subtree too, the top items are ordered within their scope,
+  and a scope object with items (a menu) cannot be deleted. In the admin the
+  list is grouped or filtered by it, and the menu's page lists its items with
+  a "New menu item" button.
 
 ### Changed
 

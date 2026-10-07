@@ -82,6 +82,9 @@ final class AdminController implements Controller
         . "img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; frame-src 'none'; "
         . "base-uri 'self'; form-action 'self'; frame-ancestors 'none'";
 
+    /** The most scope targets (e.g. menus) offered in a list's filter. Since 0.0.7. */
+    public const int MAX_SCOPES = 100;
+
     /** The most referring items listed on the delete confirmation page. */
     public const int MAX_REFERRERS = 20;
 
@@ -347,6 +350,11 @@ final class AdminController implements Controller
         $page = max(1, $request->queryInt('page', 1));
 
         $query = Query::objects()->blueprint($blueprint->name);
+        // Separate trees (e.g. the items of each menu): filtered by one of them, ?menu=3.
+        $scope = $this->scopeFilter($request, $blueprint, $actor);
+        if ($scope !== null && $scope['selected'] > 0) {
+            $query = $query->whereRelated($scope['name'], $scope['selected']);
+        }
         if ($search !== '') {
             $query = $query->where('title', 'LIKE', '%' . addcslashes($search, '%_\\') . '%');
         }
@@ -356,10 +364,11 @@ final class AdminController implements Controller
         // A tree (Hierarchical), unfiltered and in its default order: all of it, indented.
         $levels = [];
         $tree = isset($blueprint->capabilities['hierarchical']) && !$explicit && $search === '' && $status === ''
-            ? $this->treeRows($query, $weighted, $actor)
+            ? $this->treeRows($query, $weighted, $actor, $scope)
             : null;
+        $groups = [];
         if ($tree !== null) {
-            [$result, $levels] = $tree;
+            [$result, $levels, $groups] = $tree;
         } else {
             $result = $this->queries->execute(
                 // Equal values (e.g. weights) keep the order of creation.
@@ -369,7 +378,13 @@ final class AdminController implements Controller
             );
         }
         // Up/down buttons: a hand-ordered list in its own order.
-        $moves = $weighted && !$explicit && $search === '' && $status === '' ? self::moves($result, $levels !== []) : [];
+        $moves = $weighted && !$explicit && $search === '' && $status === '' ? self::moves($result, $levels !== [], $scope['name'] ?? null) : [];
+        $scopeOf = [];
+        if ($scope !== null) {
+            foreach ($result as $item) {
+                $scopeOf[(int) $item->id()] = $item->relatedIds($scope['name'])[0] ?? 0;
+            }
+        }
         if (isset($blueprint->capabilities['authorable'])) {
             $this->relations->resolve($result, $actor);
         }
@@ -397,7 +412,11 @@ final class AdminController implements Controller
             'title' => $blueprint->label,
             'blueprint' => $blueprint,
             'result' => $result,
-            'filters' => ['q' => $search, 'status' => $status, 'sort' => $sort, 'dir' => $dir],
+            'filters' => ['q' => $search, 'status' => $status, 'sort' => $sort, 'dir' => $dir]
+                + ($scope !== null ? [$scope['name'] => $scope['selected'] > 0 ? (string) $scope['selected'] : ''] : []),
+            'scope' => $scope,
+            'scope_of' => $scopeOf,
+            'groups' => $groups,
             'sortable' => $sortable,
             'statuses' => $publishable ? self::STATUSES : [],
             'searchable' => $titled,
@@ -413,11 +432,14 @@ final class AdminController implements Controller
 
     /**
      * All objects of a tree, in tree order, with their levels; null if there are more
-     * than TREE_LIMIT (then the list is paged and flat).
+     * than TREE_LIMIT (then the list is paged and flat). With a scope (e.g. menus)
+     * and no filter on it, the trees follow each other in the order of the scope's
+     * options, and `groups` gives a heading before the first row of each.
      *
-     * @return array{ResultSet, array<int, int>}|null
+     * @param array{name: string, label: string, options: list<array{value: int, label: string}>, selected: int}|null $scope
+     * @return array{ResultSet, array<int, int>, array<int, string>}|null
      */
-    private function treeRows(Query $query, bool $weighted, Actor $actor): ?array
+    private function treeRows(Query $query, bool $weighted, Actor $actor, ?array $scope = null): ?array
     {
         $all = $this->queries->execute(
             $query->orderBy($weighted ? 'weight' : 'title', 'asc')->orderBy('id', 'asc')->limit(self::TREE_LIMIT + 1),
@@ -426,28 +448,82 @@ final class AdminController implements Controller
         if (count($all) > self::TREE_LIMIT) {
             return null;
         }
+        $roots = TreeBuilder::build($all);
+        $groups = [];
+        if ($scope !== null && $scope['selected'] === 0) {
+            $position = [];
+            $titles = [];
+            foreach ($scope['options'] as $i => $option) {
+                $position[$option['value']] = $i;
+                $titles[$option['value']] = $option['label'];
+            }
+            $targetOf = static fn (\Campanella\Tree\TreeNode $node): int => $node->object->relatedIds($scope['name'])[0] ?? 0;
+            // A stable sort: within a scope the roots keep their order.
+            usort($roots, static fn ($a, $b): int => ($position[$targetOf($a)] ?? PHP_INT_MAX) <=> ($position[$targetOf($b)] ?? PHP_INT_MAX));
+            $previous = null;
+            foreach ($roots as $root) {
+                $target = $targetOf($root);
+                if ($target !== $previous) {
+                    $groups[(int) $root->object->id()] = $titles[$target] ?? $this->translator->translate('admin.list.scope_none');
+                    $previous = $target;
+                }
+            }
+        }
         $items = [];
         $levels = [];
-        foreach (TreeBuilder::flatten(TreeBuilder::build($all)) as $node) {
+        foreach (TreeBuilder::flatten($roots) as $node) {
             $items[] = $node->object;
             $levels[(int) $node->object->id()] = $node->level;
         }
 
-        return [new ResultSet($items, count($items)), $levels];
+        return [new ResultSet($items, count($items)), $levels, $groups];
+    }
+
+    /**
+     * The scope filter of a Blueprint with a 'tree_scope' (e.g. which menu's items):
+     * the relation, its label, the possible targets and the chosen one (0: all).
+     *
+     * @return array{name: string, label: string, options: list<array{value: int, label: string}>, selected: int}|null
+     */
+    private function scopeFilter(Request $request, Blueprint $blueprint, Actor $actor): ?array
+    {
+        $name = $blueprint->treeScope;
+        $relation = $name === null ? null : ($blueprint->allRelations()[$name] ?? null);
+        if ($name === null || $relation === null) {
+            return null;
+        }
+        $query = Query::objects();
+        if ($relation->targetBlueprints !== []) {
+            $query = $query->blueprint(...$relation->targetBlueprints);
+        }
+        $options = [];
+        foreach ($this->queries->execute($query->orderBy('title')->orderBy('id')->limit(self::MAX_SCOPES), $actor) as $target) {
+            $options[] = ['value' => (int) $target->id(), 'label' => self::titleOf($target)];
+        }
+        $selected = $request->queryInt($name, 0);
+
+        return [
+            'name' => $name,
+            'label' => $relation->label !== '' ? $relation->label : $name,
+            'options' => $options,
+            'selected' => in_array($selected, array_column($options, 'value'), true) ? $selected : 0,
+        ];
     }
 
     /**
      * Which rows can move up or down: among their siblings in the list (the same
-     * parent in a tree, the whole list otherwise).
+     * parent in a tree, or the same scope for roots; the whole list otherwise).
      *
      * @return array<int, array{up: bool, down: bool}>
      */
-    private static function moves(ResultSet $result, bool $tree): array
+    private static function moves(ResultSet $result, bool $tree, ?string $scope = null): array
     {
         $groups = [];
         foreach ($result as $item) {
             $parent = $tree && $item->has(Hierarchical::class) ? (int) $item->as(Hierarchical::class)->parentId() : 0;
-            $groups[$parent][] = (int) $item->id();
+            // Roots are siblings only within their scope (e.g. the top items of one menu).
+            $key = $parent > 0 || $scope === null ? (string) $parent : 'r' . ($item->relatedIds($scope)[0] ?? 0);
+            $groups[$key][] = (int) $item->id();
         }
         $moves = [];
         foreach ($groups as $ids) {
@@ -478,7 +554,11 @@ final class AdminController implements Controller
             $this->order->move($object, $direction);
         }
 
-        return Response::redirect($request->basePath . $this->access->path($object->blueprint()) . '#row-' . $object->id(), 303);
+        // Back to the list as it was (e.g. filtered to one menu).
+        $scope = $this->blueprints->find($object->blueprint())?->treeScope;
+        $filter = $scope !== null && $request->queryInt($scope, 0) > 0 ? '?' . $scope . '=' . $request->queryInt($scope, 0) : '';
+
+        return Response::redirect($request->basePath . $this->access->path($object->blueprint()) . $filter . '#row-' . $object->id(), 303);
     }
 
     /** /admin/<blueprint>/new: the empty form, and creating the object from it. */
@@ -591,7 +671,7 @@ final class AdminController implements Controller
         ?string $version = null,
     ): Response {
         /** @var array{f?: array<string, mixed>, r?: array<string, mixed>}|null $input */
-        $fields = $this->form->build($object, $actor, $input, $errors, $blueprint->formOrder, $blueprint->editors);
+        $fields = $this->form->build($object, $actor, $input, $errors, $blueprint->formOrder, $blueprint->editors, $blueprint->treeScope);
         // Errors that do not belong to a form field (e.g. a unique key of a capability).
         $shown = array_map(static fn ($f): string => $f->name, $fields);
         $other = array_diff_key($errors, array_flip($shown));
@@ -615,9 +695,49 @@ final class AdminController implements Controller
             'upload' => $this->uploadSettings($actor),
             'media_url' => self::isFile($blueprint) && !$object->isNew() ? $this->media->url($object) : null,
             'type_names' => ImageProcessor::NAMES,
+            'scoped' => $object->isNew() ? [] : $this->scopedTrees($object, $actor),
         ]);
 
         return $status === 200 ? $response : new Response($response->body, $status, $response->headers);
+    }
+
+    /**
+     * The trees whose scope is this object (e.g. the items of a menu), for its page:
+     * each with its Blueprint, rows and levels, and the links to its list and to a new item.
+     *
+     * @return list<array{blueprint: Blueprint, items: ResultSet, levels: array<int, int>, list_url: string, new_url: string, can_create: bool, editable: array<int, bool>}>
+     */
+    private function scopedTrees(CampanellaObject $object, Actor $actor): array
+    {
+        $trees = [];
+        foreach ($this->blueprints->all() as $name => $blueprint) {
+            $relation = $blueprint->treeScope === null ? null : ($blueprint->allRelations()[$blueprint->treeScope] ?? null);
+            if ($relation === null || !self::canTarget($relation, $object)) {
+                continue;
+            }
+            $query = Query::objects()->blueprint($name)->whereRelated($relation->name, $object);
+            $rows = $this->treeRows($query, isset($blueprint->capabilities['weighted']), $actor);
+            if ($rows === null) {
+                $result = $this->queries->execute($query->orderBy('title')->limit(self::TREE_LIMIT), $actor);
+                $rows = [$result, [], []];
+            }
+            $editable = [];
+            foreach ($rows[0] as $item) {
+                $editable[(int) $item->id()] = $this->policy->allows($actor, Operation::Update, $item);
+            }
+            $filter = '?' . $relation->name . '=' . $object->id();
+            $trees[] = [
+                'blueprint' => $blueprint,
+                'items' => $rows[0],
+                'levels' => $rows[1],
+                'list_url' => $this->access->path($name) . $filter,
+                'new_url' => $this->access->path($name . '/new') . $filter,
+                'can_create' => $this->policy->allows($actor, Operation::Create, $this->repository->create($name)),
+                'editable' => $editable,
+            ];
+        }
+
+        return $trees;
     }
 
     /**

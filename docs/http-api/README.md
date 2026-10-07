@@ -20,12 +20,12 @@ shown according to the user's roles (e.g. an `editor` also sees drafts).
 | `GET /` | `config/routes.php` → Query `frontpage` | The 3 most recent published articles |
 | `GET /hirek` | `config/routes.php` → Query `news` | Published articles, 5 per page |
 | `GET /hirek?page=N` | | Pagination; a nonexistent page: 404 |
-| `GET /kategoriak` | `config/routes.php` → Query `categories` | Published categories in alphabetical order (0.0.2) |
+| `GET /kategoriak` | `config/routes.php` → Query `categories` | Published categories (0.0.2); since 0.0.7 as a tree, in their hand-set order |
 | `GET /belepes`, `POST /belepes` | `AuthController` | Login form and login (0.0.3); details: [PHP API chapter 11](../php-api/11-users.md#web-interface) |
 | `POST /kilepes` | `AuthController` | Logout with a CSRF token |
 | `GET /admin/upgrade`, `POST /admin/upgrade` | `UpgradeController` | Running the upgrade from the browser (0.0.6): for administrators, or with the upgrade key; [PHP API chapter 17](../php-api/17-migrations.md#from-the-browser) |
 | `GET /admin…`, `POST /admin…` | `AdminController` | The admin UI (0.0.4): dashboard, lists, forms, publishing, deleting; details: [PHP API chapter 13](../php-api/13-admin.md#admincontroller) |
-| `GET /<path>` | Routable object | The object's own page, e.g. `/neumann-janos`. Its relations as links, and the Blueprint's `lists` below it (e.g. `/tudomany`: the category's articles) |
+| `GET /<path>` | Routable object | The object's own page, e.g. `/neumann-janos`. Its relations as links, and the Blueprint's `lists` below it (e.g. `/tudomany`: the articles of the category and, since 0.0.7, of its subcategories; a tree node also gets breadcrumbs and its children) |
 | `GET /assets/<file>` | `public/assets/` | Static files |
 
 | Status | When |
@@ -43,6 +43,10 @@ shown according to the user's roles (e.g. an `editor` also sees drafts).
 | `503` | The system is not installed yet, or an upgrade is needed (with `Retry-After: 300`; since 0.0.6 also when a migration is pending: every page except logging in and out and the upgrade page) |
 
 Every response gets an `X-Content-Type-Options: nosniff` header.
+
+The navigation at the top of every page is the `main` menu (since 0.0.7),
+edited in the admin ([PHP API chapter 19](../php-api/19-menus.md)); until
+there is one, the built-in links.
 
 ## JSON API 📝
 

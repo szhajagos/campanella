@@ -11,6 +11,8 @@ use Campanella\Capability\Publishable;
 use Campanella\Capability\Routable;
 use Campanella\Capability\Textual;
 use Campanella\Capability\Hierarchical;
+use Campanella\Capability\Keyed;
+use Campanella\Capability\Link;
 use Campanella\Capability\Titled;
 use Campanella\Capability\Weighted;
 
@@ -69,6 +71,8 @@ return [
         MediaFile::class,
         Weighted::class,
         Hierarchical::class,
+        Keyed::class,
+        Link::class,
     ],
 
     // Uploaded files (images). The folder is under public/, so the files are served

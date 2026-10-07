@@ -44,6 +44,37 @@
                 </div>
             </form>
 
+            {# The trees that belong to this object (e.g. a menu's items). #}
+            {% for tree in scoped %}
+                <section class="card mt-4 admin-scoped" aria-labelledby="scoped-{{ tree.blueprint.name }}">
+                    <div class="card-header d-flex flex-wrap align-items-center gap-2">
+                        <h2 class="h6 mb-0 me-auto" id="scoped-{{ tree.blueprint.name }}">{{ t('admin.scoped.title', {type: t(tree.blueprint.label)|lower}) }}</h2>
+                        <a class="btn btn-sm btn-outline-secondary" href="{{ url(tree.list_url) }}">{{ t('admin.scoped.manage') }}</a>
+                        {% if tree.can_create %}
+                            <a class="btn btn-sm btn-primary" href="{{ url(tree.new_url) }}">{{ t('admin.form.new', {type: t(tree.blueprint.label)|lower}) }}</a>
+                        {% endif %}
+                    </div>
+                    {% if tree.items.isEmpty %}
+                        <div class="card-body text-body-secondary small">{{ t('admin.scoped.empty') }}</div>
+                    {% else %}
+                        <ul class="list-group list-group-flush">
+                            {% for item in tree.items %}
+                                {% set level = tree.levels[item.id] ?? 0 %}
+                                {% set label = item.title is defined and item.title ? item.title : t('admin.untitled') %}
+                                <li class="list-group-item"{% if level > 0 %} style="padding-left: {{ 1 + level * 1.5 }}rem"{% endif %}>
+                                    {% if level > 0 %}<span class="text-body-secondary" aria-hidden="true">└&nbsp;</span>{% endif %}
+                                    {% if tree.editable[item.id] ?? false %}
+                                        <a href="{{ admin_url(tree.blueprint.name ~ '/' ~ item.id) }}">{{ label }}</a>
+                                    {% else %}
+                                        {{ label }}
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </section>
+            {% endfor %}
+
             {% if fields|filter(f => f.attributes.convertible ?? false) is not empty %}
                 <form id="convert-html" method="post" action="{{ url(action ~ '/convert-html') }}" class="d-none" data-confirm-unsaved="{{ t('admin.form.unsaved_confirm') }}">
                     {{ csrf_field() }}

@@ -11,6 +11,7 @@ use Campanella\Capability\Textual;
 use Campanella\Capability\TextFormat;
 use Campanella\Core\Version;
 use Campanella\I18n\Translator;
+use Campanella\Menu\MenuEntry;
 use Campanella\Model\CampanellaObject;
 use Campanella\Security\Csrf;
 use Campanella\Tree\TreeBuilder;
@@ -36,6 +37,7 @@ use Twig\TwigFunction;
  *   {{ admin_url('article') }}          an admin page URL; admin_access(): may the visitor enter it
  *   {{ flash_messages() }}              the one-time messages (and removes them)
  *   {{ tree(result) }}                  Hierarchical objects as a tree (TreeNode roots; hidden parents hide their branch)
+ *   {% set main = menu('main') %}       a menu's items for the visitor (MenuEntry tree), or null if there is no such menu
  *   {{ object|body }}                   the safe HTML of the Textual body
  *   {{ 1572864|file_size }}             a size in bytes, readable: 1.5 MB (in the current language)
  */
@@ -52,6 +54,8 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
      * @param AdminAccess|null $admin Where the admin UI is and who may enter it.
      * @param (Closure(): Actor)|null $currentActor The current visitor (lazy).
      * @param (Closure(): Flash)|null $flash One-time messages (lazy).
+     * @param (Closure(string, int): ?list<MenuEntry>)|null $menus Builds a menu for the current
+     *        visitor and page: key, levels (MenuBuilder; since 0.0.7).
      */
     public function __construct(
         private readonly Closure $presentation,
@@ -64,6 +68,7 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
         private readonly ?AdminAccess $admin = null,
         private readonly ?Closure $currentActor = null,
         private readonly ?Closure $flash = null,
+        private readonly ?Closure $menus = null,
     ) {
     }
 
@@ -84,6 +89,7 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
             new TwigFunction('flash_messages', $this->flashMessages(...)),
             new TwigFunction('locale', $this->locale(...)),
             new TwigFunction('tree', $this->tree(...)),
+            new TwigFunction('menu', $this->menu(...)),
         ];
     }
 
@@ -196,6 +202,29 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
     public function tree(iterable $objects, bool $keepOrphans = false): array
     {
         return TreeBuilder::build($objects, $keepOrphans);
+    }
+
+    /**
+     * A menu's items for the current visitor, as a tree of MenuEntry (title, href,
+     * current, active, external, children), at most $levels deep. Null if there is
+     * no menu with this machine name, so a template can fall back to fixed links.
+     * The navigation never takes the page down: if the menu cannot be read (e.g.
+     * before the upgrade has created its tables), it is null too.
+     *
+     * @return list<MenuEntry>|null
+     */
+    public function menu(string $key, int $levels = 2): ?array
+    {
+        if ($this->menus === null) {
+            return null;
+        }
+        try {
+            return ($this->menus)($key, $levels);
+        } catch (\Exception $e) {
+            error_log('Campanella: the menu "' . $key . '" could not be built: ' . $e->getMessage());
+
+            return null;
+        }
     }
 
     /** The current language code (e.g. for <html lang="...">). */

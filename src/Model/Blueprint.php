@@ -33,6 +33,10 @@ final readonly class Blueprint
      *        defaults (e.g. `['format' => 'html']`); values given on creation win. Since 0.0.5.
      * @param array<string, string> $editors The editor (toolbar) profile of HTML text fields in the
      *        admin, e.g. `['body' => 'full']`. Since 0.0.5.
+     * @param string|null $treeScope For a Hierarchical Blueprint: a required single relation that
+     *        splits the objects into separate trees (e.g. a menu item's `menu`). A parent must have
+     *        the same target, siblings are counted within it, and moving a node moves its subtree
+     *        with it. Since 0.0.7.
      */
     public function __construct(
         public string $name,
@@ -45,6 +49,7 @@ final readonly class Blueprint
         public array $formOrder = [],
         public array $defaults = [],
         public array $editors = [],
+        public ?string $treeScope = null,
     ) {
     }
 

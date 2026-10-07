@@ -26,7 +26,7 @@ final class BlueprintRegistry
     private array $blueprintRelations = [];
 
     /**
-     * @param array<string, array{label?: string, capabilities: list<class-string<Capability>|string>, fields?: list<Field>, relations?: list<Relation>, cardinality?: array<string, mixed>, form_order?: list<string>, defaults?: array<string, mixed>, editor?: array<string, string>, lists?: array<string, array{label?: string, query: Closure(CampanellaObject): Query}>}> $config
+     * @param array<string, array{label?: string, capabilities: list<class-string<Capability>|string>, fields?: list<Field>, relations?: list<Relation>, cardinality?: array<string, mixed>, form_order?: list<string>, defaults?: array<string, mixed>, editor?: array<string, string>, tree_scope?: string, lists?: array<string, array{label?: string, query: Closure(CampanellaObject): Query}>}> $config
      */
     public function __construct(private readonly CapabilityRegistry $capabilities, array $config = [])
     {
@@ -36,7 +36,7 @@ final class BlueprintRegistry
     }
 
     /**
-     * @param array{label?: string, capabilities: list<class-string<Capability>|string>, fields?: list<Field>, relations?: list<Relation>, cardinality?: array<string, mixed>, form_order?: list<string>, defaults?: array<string, mixed>, editor?: array<string, string>, lists?: array<string, array{label?: string, query: Closure(CampanellaObject): Query}>} $definition
+     * @param array{label?: string, capabilities: list<class-string<Capability>|string>, fields?: list<Field>, relations?: list<Relation>, cardinality?: array<string, mixed>, form_order?: list<string>, defaults?: array<string, mixed>, editor?: array<string, string>, tree_scope?: string, lists?: array<string, array{label?: string, query: Closure(CampanellaObject): Query}>} $definition
      */
     public function define(string $name, array $definition): Blueprint
     {
@@ -102,7 +102,33 @@ final class BlueprintRegistry
             array_map(strval(...), $definition['form_order'] ?? []),
             $this->checkFieldKeys($name, 'defaults', $definition['defaults'] ?? [], $capabilities, $fields),
             array_map(strval(...), $this->checkFieldKeys($name, 'editor', $definition['editor'] ?? [], $capabilities, $fields)),
+            $this->checkTreeScope($name, $definition['tree_scope'] ?? null, $capabilities, $relations),
         );
+    }
+
+    /**
+     * 'tree_scope': a Hierarchical Blueprint's required single relation that splits its trees.
+     *
+     * @param array<string, \Campanella\Capability\CapabilityDefinition> $capabilities
+     * @param array<string, Relation> $relations The Blueprint's own relations.
+     */
+    private function checkTreeScope(string $blueprint, ?string $scope, array $capabilities, array $relations): ?string
+    {
+        if ($scope === null) {
+            return null;
+        }
+        if (!isset($capabilities['hierarchical'])) {
+            throw new CapabilityException("Blueprint '{$blueprint}': 'tree_scope' needs the Hierarchical capability.");
+        }
+        $relation = $relations[$scope] ?? null;
+        foreach ($capabilities as $capability) {
+            $relation ??= $capability->relations[$scope] ?? null;
+        }
+        if ($relation === null || $relation->isMany() || !$relation->required || $scope === 'parent') {
+            throw new CapabilityException("Blueprint '{$blueprint}': 'tree_scope' must name a required single relation of the Blueprint (not 'parent').");
+        }
+
+        return $scope;
     }
 
     /**
@@ -165,6 +191,19 @@ final class BlueprintRegistry
     public function find(string $name): ?Blueprint
     {
         return $this->blueprints[$name] ?? null;
+    }
+
+    /**
+     * The relations that split trees ('tree_scope' of the Blueprints), each once. Since 0.0.7.
+     *
+     * @return list<string>
+     */
+    public function treeScopes(): array
+    {
+        return array_values(array_unique(array_filter(array_map(
+            static fn (Blueprint $b): ?string => $b->treeScope,
+            $this->blueprints,
+        ))));
     }
 
     /** @return array<string, Blueprint> */

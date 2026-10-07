@@ -3280,6 +3280,223 @@ test('RelatedTo: a subtree path must be a tree path', function (): void {
     check((new \Campanella\Query\Condition\RelatedTo('categories', [], false, '/1/22/'))->subtree === '/1/22/');
 });
 
+test('Link: only safe URLs; either a target or a URL', function () use ($repository, $service, $admin): void {
+    $L = \Campanella\Capability\Link::class;
+    foreach (['/', '/hirek', '/hirek?oldal=2#lista', '#kapcsolat', 'https://example.hu', 'http://example.hu/a?b=c', 'mailto:info@example.hu', 'tel:+36-1-234-5678', '/kategóriák'] as $good) {
+        check($L::isSafeUrl($good), "safe: {$good}");
+    }
+    foreach (['javascript:alert(1)', 'JavaScript:alert(1)', 'data:text/html,x', '//evil.example', '/\\evil', 'https://', 'http:///x', 'hirek', ' /hirek', "/hi\nrek", '/hi rek', 'vbscript:x', 'mailto:', 'tel:abc', 'ftp://example.hu'] as $bad) {
+        check(!$L::isSafeUrl($bad), "unsafe: {$bad}");
+    }
+    check($L::isLocal('/a') && $L::isLocal('#a') && !$L::isLocal('//a') && !$L::isLocal('https://a'));
+
+    $menu = $service->create($admin, 'menu', ['title' => 'Teszt menü', 'machine_name' => 'teszt_link']);
+    $item = static fn (array $values, array $relations = []) => $repository->create('menu_item', ['title' => 'Pont'] + $values);
+    $errorOf = static function ($object, array $relations) use ($repository): ?string {
+        foreach ($relations as $name => $ids) {
+            $object->setRelated($name, $ids);
+        }
+        try {
+            $repository->save($object);
+        } catch (\Campanella\Model\ValidationException $e) {
+            return (string) (($e->errors['url'] ?? null)?->key ?? array_key_first($e->errors));
+        }
+
+        return null;
+    };
+    $page = $service->create($admin, 'page', ['title' => 'Link cél', 'path' => '/link-cel']);
+    check($errorOf($item([]), ['menu' => [(int) $menu->id()]]) === 'link.missing');
+    check($errorOf($item(['url' => '/x']), ['menu' => [(int) $menu->id()], 'target' => [(int) $page->id()]]) === 'link.both');
+    check($errorOf($item(['url' => 'javascript:alert(1)']), ['menu' => [(int) $menu->id()]]) === 'link.invalid_url');
+    check($errorOf($item(['url' => '/x']), []) === 'menu', 'the menu is required');
+    $ok = $item(['url' => '  /hirek  ']);
+    check($errorOf($ok, ['menu' => [(int) $menu->id()]]) === null && $ok->get('url') === '/hirek', 'trimmed');
+    check($ok->as($L)->href() === '/hirek');
+    $toPage = $item([]);
+    check($errorOf($toPage, ['menu' => [(int) $menu->id()], 'target' => [(int) $page->id()]]) === null);
+    check($toPage->as($L)->href(null) === null && $toPage->as($L)->href($page) === '/link-cel', 'a target link needs its loaded target');
+
+    $repository->delete($ok);
+    $repository->delete($toPage);
+    $repository->delete($page);
+    $repository->delete($menu);
+});
+
+test('Keyed: a unique machine name in a fixed format', function () use ($service, $admin, $repository): void {
+    $menu = $service->create($admin, 'menu', ['title' => 'Lábléc', 'machine_name' => '  Footer_1 ']);
+    check($menu->get('machine_name') === 'footer_1', 'trimmed and lowercased');
+    foreach (['1menu', 'fő', 'a-b', 'a b'] as $bad) {
+        try {
+            $service->create($admin, 'menu', ['title' => 'Rossz', 'machine_name' => $bad]);
+            check(false, "accepted: {$bad}");
+        } catch (\Campanella\Model\ValidationException $e) {
+            check(isset($e->errors['machine_name']), $bad);
+        }
+    }
+    try {
+        $service->create($admin, 'menu', ['title' => 'Másik', 'machine_name' => 'footer_1']);
+        check(false, 'a duplicate was accepted');
+    } catch (\Campanella\Model\ValidationException $e) {
+        check(true);
+    }
+    $repository->delete($menu);
+});
+
+test('BlueprintRegistry: tree_scope must be a required single relation of a Hierarchical Blueprint', function () use ($capabilities): void {
+    $H = \Campanella\Capability\Hierarchical::class;
+    $rel = static fn (bool $required = true, $card = \Campanella\Relation\Cardinality::One) => new \Campanella\Relation\Relation('group_of', $card, required: $required);
+    throws(\Campanella\Capability\CapabilityException::class, fn () => new BlueprintRegistry($capabilities, ['x' => ['capabilities' => [Titled::class], 'relations' => [$rel()], 'tree_scope' => 'group_of']]));
+    throws(\Campanella\Capability\CapabilityException::class, fn () => new BlueprintRegistry($capabilities, ['x' => ['capabilities' => [Titled::class, $H], 'relations' => [$rel(false)], 'tree_scope' => 'group_of']]));
+    throws(\Campanella\Capability\CapabilityException::class, fn () => new BlueprintRegistry($capabilities, ['x' => ['capabilities' => [Titled::class, $H], 'relations' => [$rel(true, \Campanella\Relation\Cardinality::Many)], 'tree_scope' => 'group_of']]));
+    throws(\Campanella\Capability\CapabilityException::class, fn () => new BlueprintRegistry($capabilities, ['x' => ['capabilities' => [Titled::class, $H], 'tree_scope' => 'parent']]));
+    $ok = new BlueprintRegistry($capabilities, ['x' => ['capabilities' => [Titled::class, $H], 'relations' => [$rel()], 'tree_scope' => 'group_of']]);
+    check($ok->get('x')->treeScope === 'group_of' && $ok->treeScopes() === ['group_of']);
+});
+
+test('Menu trees: a parent from the same menu, a moved item takes its subtree, siblings per menu, a menu with items is kept', function () use ($service, $admin, $repository, $db, $blueprints): void {
+    $H = \Campanella\Capability\Hierarchical::class;
+    $one = $service->create($admin, 'menu', ['title' => 'Egyik', 'machine_name' => 'fa_egyik']);
+    $two = $service->create($admin, 'menu', ['title' => 'Másik', 'machine_name' => 'fa_masik']);
+    $item = static fn (string $title, CampanellaObject $menu, ?CampanellaObject $parent = null, int $weight = 0) => $service->create($admin, 'menu_item', ['title' => $title, 'url' => '/' . $title, 'weight' => $weight], false, ['menu' => [(int) $menu->id()]] + ($parent === null ? [] : ['parent' => [(int) $parent->id()]]));
+    $a = $item('a', $one);
+    $a1 = $item('a1', $one, $a);
+    $a11 = $item('a11', $one, $a1);
+    $b = $item('b', $two);
+    try {
+        $item('rossz', $two, $a);
+        check(false, 'a parent from another menu was accepted');
+    } catch (\Campanella\Model\ValidationException $e) {
+        check(($e->errors['parent'] ?? null)?->key === 'tree.other_scope');
+    }
+
+    // Moving "a1" (with "a11") under "b" in the other menu: the subtree follows.
+    $a1->setRelated('menu', [(int) $two->id()]);
+    $a1->as($H)->setParent($b);
+    $repository->save($a1);
+    $menuOf = static fn (CampanellaObject $o): int => (int) $db->fetchValue("SELECT target_id FROM {relationships} WHERE source_id = :id AND type = 'menu'", ['id' => (int) $o->id()]);
+    check($menuOf($a11) === (int) $two->id(), 'the subtree moved to the other menu');
+    check($repository->find((int) $a11->id())?->as($H)->path() === '/' . $b->id() . '/' . $a1->id() . '/' . $a11->id() . '/');
+
+    // The top items of a menu are siblings among themselves only.
+    $c = $item('c', $one, null, 10);
+    $order = new \Campanella\Tree\SiblingOrder($db, $blueprints);
+    check($order->siblings($a) === [(int) $a->id(), (int) $c->id()], json_encode($order->siblings($a)));
+    check($order->siblings($b) === [(int) $b->id()]);
+
+    try {
+        $repository->delete($one);
+        check(false, 'a menu with items was deleted');
+    } catch (\Campanella\Model\ValidationException $e) {
+        check(($e->errors['children'] ?? null)?->key === 'tree.scope_in_use');
+    }
+    foreach ([$a11, $a1, $b, $c, $a, $one, $two] as $object) {
+        $repository->delete($object);
+    }
+});
+
+test('MenuBuilder: the visitor\'s items as a tree, hidden targets left out with their subtree, the current item marked', function () use ($service, $admin, $anon, $repository, $engine, $loader): void {
+    $menus = new \Campanella\Menu\MenuBuilder($engine, $loader);
+    check($menus->build('nincs_ilyen', $anon) === null, 'no such menu');
+    $menu = $service->create($admin, 'menu', ['title' => 'Épít', 'machine_name' => 'epit']);
+    check($menus->build('epit', $anon) === [], 'an empty menu');
+    $page = $service->create($admin, 'page', ['title' => 'Látható', 'path' => '/epit-lathato'], true);
+    $draft = $service->create($admin, 'page', ['title' => 'Rejtett', 'path' => '/epit-rejtett']);
+    $item = static fn (string $title, int $weight, array $values, ?CampanellaObject $parent = null, ?CampanellaObject $target = null) => $service->create($admin, 'menu_item', ['title' => $title, 'weight' => $weight] + $values, false, ['menu' => [(int) $menu->id()]] + ($parent === null ? [] : ['parent' => [(int) $parent->id()]]) + ($target === null ? [] : ['target' => [(int) $target->id()]]));
+    $home = $item('Kezdő', 0, ['url' => '/']);
+    $parent = $item('Szülő', 10, ['url' => '#']);
+    $child = $item('Gyerek', 0, [], $parent, $page);
+    $deep = $item('Mély', 0, ['url' => '/mely'], $child);
+    $hidden = $item('Rejtett pont', 20, [], null, $draft);
+    $under = $item('Alatta', 0, ['url' => '/alatta'], $hidden);
+    $external = $item('Külső', 30, ['url' => 'https://example.hu']);
+
+    $built = $menus->build('epit', $anon, '/epit-lathato', 2, '/alkonyvtar');
+    check(array_map(static fn ($e) => $e->title, $built) === ['Kezdő', 'Szülő', 'Külső'], json_encode(array_map(static fn ($e) => $e->title, $built)));
+    check($built[0]->href === '/alkonyvtar/' && !$built[0]->current, 'the base path; home is not current');
+    check($built[1]->href === '#' && $built[1]->active && !$built[1]->current, 'the parent of the current item is active');
+    check(count($built[1]->children) === 1 && $built[1]->children[0]->current && $built[1]->children[0]->href === '/alkonyvtar/epit-lathato', 'a target item: its path, current');
+    check($built[1]->children[0]->children === [], 'two levels only');
+    check($built[2]->external && $built[2]->href === 'https://example.hu');
+    $editor = $menus->build('epit', $admin, '/', 3);
+    check(count($editor) === 4 && count($editor[1]->children[0]->children) === 1, 'the editor sees the draft\'s item and a third level');
+    check($editor[0]->current, 'the home page is current on /');
+
+    foreach ([$deep, $child, $under, $hidden, $home, $parent, $external, $menu, $page, $draft] as $object) {
+        $repository->delete($object);
+    }
+});
+
+test('Kernel: the main menu in the layout (with the built-in links until it exists), and in the admin', function () use ($newUser): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $container = $kernel->container();
+    if ($container->get(Connection::class)->prefix() !== 'test_') {
+        echo "      (skipped: config/local.php sets its own prefix)\n";
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $service = $container->get(\Campanella\Service\ObjectService::class);
+    $repository = $container->get(ObjectRepository::class);
+    $system = Actor::system();
+    $storage = new ArraySessionStorage();
+    $container->set(Session::class, static fn () => new Session($storage));
+
+    $fallback = $kernel->handle(new Request('GET', '/hirek'));
+    check(str_contains($fallback->body, 'href="/rolunk"') && str_contains($fallback->body, 'href="/kategoriak"'), 'the built-in links');
+
+    $main = $service->create($system, 'menu', ['title' => 'Főmenü teszt', 'machine_name' => 'main']);
+    $other = $service->create($system, 'menu', ['title' => 'Lábléc teszt', 'machine_name' => 'labl']);
+    $make = static fn (string $title, int $weight, string $url, CampanellaObject $menu, ?CampanellaObject $parent = null) => $service->create($system, 'menu_item', ['title' => $title, 'url' => $url, 'weight' => $weight], false, ['menu' => [(int) $menu->id()]] + ($parent === null ? [] : ['parent' => [(int) $parent->id()]]));
+    $news = $make('Friss hírek', 0, '/hirek', $main);
+    $more = $make('Továbbiak', 10, '/kategoriak', $main);
+    $sub = $make('Al-menüpont <b>', 0, '/al-pont', $main, $more);
+    $foot = $make('Lábléc pont', 0, '/labl', $other);
+
+    $page = $kernel->handle(new Request('GET', '/hirek'));
+    check(!str_contains($page->body, 'href="/rolunk"'), 'the built-in links are gone');
+    check(preg_match('#<a class="nav-link active" href="/hirek" aria-current="page">Friss hírek</a>#', $page->body) === 1, 'the current item');
+    check(preg_match('#nav-link dropdown-toggle" href="\#" role="button"\s+data-bs-toggle="dropdown" aria-expanded="false">Továbbiak</a>.*href="/kategoriak">Továbbiak</a>.*href="/al-pont">Al-menüpont &lt;b&gt;</a>#s', $page->body) === 1, 'a dropdown, escaped');
+    check(!str_contains($page->body, 'Lábléc pont'), 'only the main menu');
+
+    // The admin: the menu's page lists its items; the item list can be filtered to one menu.
+    $container->get(AuthService::class)->login(new Request('GET', '/'), $newUser('menu-admin@example.hu', 'menu-admin-jelszo-1', ['administrator']));
+    $send = function (string $method, string $path, array $post = [], array $query = []) use ($kernel, $storage) {
+        $storage->endRequest();
+
+        return $kernel->handle(new Request($method, $path, query: $query, post: $post));
+    };
+    $edit = $send('GET', '/admin/menu/' . $main->id());
+    check($edit->status === 200 && str_contains($edit->body, 'A hozzá tartozó elemek (menüpont)'), 'the items section');
+    check(preg_match('#href="/admin/menu_item/' . $more->id() . '">Továbbiak</a>.*padding-left: 2.5rem.*href="/admin/menu_item/' . $sub->id() . '"#s', $edit->body) === 1, 'as a tree');
+    check(str_contains($edit->body, 'href="/admin/menu_item/new?menu=' . $main->id() . '"') && str_contains($edit->body, 'href="/admin/menu_item?menu=' . $main->id() . '"'), 'new item and list links');
+    check(!str_contains($edit->body, 'Lábléc pont'), 'not the other menu\'s items');
+
+    $new = $send('GET', '/admin/menu_item/new', query: ['menu' => (string) $main->id()]);
+    check(preg_match('#<option value="' . $main->id() . '" selected#', $new->body) === 1, 'the menu preselected');
+    check(str_contains($new->body, '>Továbbiak</option>') && !str_contains($new->body, 'Lábléc pont</option>'), 'parents from the same menu');
+
+    $all = $send('GET', '/admin/menu_item');
+    check(preg_match('#scope="colgroup"[^>]*>Menü: Főmenü teszt</th>.*Friss hírek.*scope="colgroup"[^>]*>Menü: Lábléc teszt</th>.*Lábléc pont#s', $all->body) === 1, 'grouped by menu');
+    $filtered = $send('GET', '/admin/menu_item', query: ['menu' => (string) $main->id()]);
+    check(str_contains($filtered->body, 'Friss hírek') && !str_contains($filtered->body, 'Lábléc pont') && str_contains($filtered->body, '/move-down?menu=' . $main->id()), 'filtered to one menu');
+    check(str_contains($filtered->body, 'new?parent=' . $news->id() . '&amp;menu=' . $main->id()), 'a sub-item keeps the menu');
+    preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $filtered->body, $m);
+    $moved = $send('POST', '/admin/menu_item/' . $news->id() . '/move-down', ['_csrf' => $m[1] ?? ''], ['menu' => (string) $main->id()]);
+    check($moved->status === 303 && str_contains($moved->headers['Location'] ?? '', '/admin/menu_item?menu=' . $main->id() . '#row-'), 'back to the filtered list');
+    $after = $kernel->handle(new Request('GET', '/'));
+    check(strpos($after->body, '>Továbbiak</a>') < strpos($after->body, '>Friss hírek</a>'), 'the new order on the site');
+
+    $delete = $send('GET', '/admin/menu/' . $main->id() . '/delete');
+    preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $delete->body, $m);
+    check($send('POST', '/admin/menu/' . $main->id() . '/delete', ['_csrf' => $m[1] ?? ''])->status === 409, 'a menu with items is kept');
+
+    foreach ([$sub, $more, $news, $foot, $main, $other] as $object) {
+        $repository->delete($object);
+    }
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
 echo "\nDocumentation examples\n";
 
 test('New capability as in the docs example (Featured)', function () use ($db, $admin): void {

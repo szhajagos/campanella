@@ -230,6 +230,9 @@ return [
 ];
 ```
 
+A Hierarchical Blueprint may also name a `tree_scope` (since 0.0.7), e.g. a
+menu item's `'tree_scope' => 'menu'` ([chapter 18](18-trees.md#separate-trees-tree_scope)).
+
 | Member | Description |
 |---|---|
 | `$name`, `$label` | Name (`^[a-z][a-z0-9_]{0,62}$`) and label |
@@ -241,6 +244,7 @@ return [
 | `$formOrder` | The order of fields and relations in the admin form (`form_order` key; those not listed follow in their natural order) |
 | `$defaults` | Initial values of a new object (`defaults` key, since 0.0.5): `ObjectRepository::create()` uses them for the fields not given, instead of the fields' own defaults. E.g. `['format' => 'html']`: new articles get a formatted body |
 | `$editors` | The toolbar profile of HTML text fields in the admin (`editor` key, since 0.0.5), e.g. `['body' => 'full']` ([chapter 13](13-admin.md#formatted-text-the-html-editor)) |
+| `$treeScope` | `tree_scope` key (since 0.0.7): the required single relation that splits a Hierarchical Blueprint's objects into separate trees, or null ([chapter 18](18-trees.md#separate-trees-tree_scope)) |
 | `allFields()` | The capability fields (narrowed where configured) and the own fields together |
 | `narrow(array $fields): array` | Applies the narrowed cardinalities to the given field definitions |
 | `allRelations()` | The capability relations and the own relations together |
@@ -268,13 +272,16 @@ not have.
 | `find(string $name): ?Blueprint` | The same, but `null` if there is no such Blueprint |
 | `relation(string $name): ?Relation` | A relation definition by name, whether provided by a capability or a Blueprint |
 | `all(): array<string, Blueprint>` | All of them |
+| `treeScopes(): list<string>` | The `tree_scope` relations of the Blueprints, each once (since 0.0.7) |
 
 `RESERVED_NAMES` (since 0.0.5): `system`, `media` and `upgrade` (since
 0.0.6) cannot be Blueprint names, because the admin uses them as its own paths.
 
 `define()` throws `CapabilityException` for an invalid or reserved name, an unknown
 capability, if the name of an own field or relation collides with a field
-or relation of a capability, and for an invalid `cardinality` entry.
+or relation of a capability, for an invalid `cardinality` entry, and for a
+`tree_scope` that is not a required single relation of a Hierarchical
+Blueprint.
 
 ## Known limitation (0.0.1)
 

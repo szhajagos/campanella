@@ -120,6 +120,13 @@ and `Weighted`:
   edit the object; back to the list at the object's row.
 - **A node with children cannot be deleted:** the delete page lists them and
   the button is disabled (a POST anyway gets 409 with the reason).
+- **Separate trees** (a Blueprint with a `tree_scope`, e.g. menu items): the
+  list can be filtered by the scope (`?menu=3`), and without a filter each
+  tree comes under its own heading; the "+ sub-item" link, the "New" button
+  and the ↑ ↓ buttons keep the scope. The parent is offered from the
+  object's own scope. The page of a scope object (e.g. a menu) lists its
+  tree below the form, with a button for a new item
+  ([chapter 19](19-menus.md#in-the-admin)).
 
 ## Forms
 

@@ -5,6 +5,8 @@ declare(strict_types=1);
 use Campanella\Capability\Authenticatable;
 use Campanella\Capability\Authorable;
 use Campanella\Capability\Hierarchical;
+use Campanella\Capability\Keyed;
+use Campanella\Capability\Link;
 use Campanella\Capability\MediaFile;
 use Campanella\Capability\Publishable;
 use Campanella\Capability\Routable;
@@ -33,6 +35,8 @@ use Campanella\Relation\Relation;
  * 'cardinality': narrows the value limit of a capability's multi-valued field.
  * 'defaults':  initial values of a new object (values given on creation win).
  * 'editor':    the toolbar profile of HTML text fields in the admin: 'full' or 'basic'.
+ * 'tree_scope': for a Hierarchical Blueprint, a required single relation that splits
+ *              the objects into separate trees (a menu item's menu).
  */
 return [
     'article' => [
@@ -95,5 +99,25 @@ return [
                     ->limit(20),
             ],
         ],
+    ],
+
+    // A menu (since 0.0.7): templates find it by its machine name, e.g. menu('main').
+    'menu' => [
+        'label' => 'blueprint.menu',
+        'capabilities' => [Titled::class, Keyed::class],
+        'form_order' => ['title', 'machine_name'],
+    ],
+
+    // A menu item: in a menu, under another item of the same menu (or at the top),
+    // in a hand-set order; it leads to an object of the site or to a URL (Link).
+    'menu_item' => [
+        'label' => 'blueprint.menu_item',
+        'capabilities' => [Titled::class, Link::class, Hierarchical::class, Weighted::class],
+        'relations' => [
+            new Relation('menu', Cardinality::One, targetBlueprints: ['menu'], required: true, label: 'relation.menu'),
+        ],
+        // Each menu is its own tree.
+        'tree_scope' => 'menu',
+        'form_order' => ['title', 'menu', 'parent', 'weight', 'target', 'url'],
     ],
 ];

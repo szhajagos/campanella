@@ -91,9 +91,11 @@ final class SeedCommand implements Command
         $this->ensure('article', 'Piszkozat', [
             'body' => PlainText::toHtml('Ez egy publikálatlan cikk. Anonymous látogató nem látja, és a listákban sem jelenik meg.'),
         ]);
-        $this->ensure('page', 'Rólunk', [
+        $about = $this->ensure('page', 'Rólunk', [
             'body' => PlainText::toHtml("A Campanella egy capability-vezérelt CMS.\n\nEz az oldal egy „page” Blueprint alapján készült objektum."),
         ], new DateTimeImmutable('-10 days', $utc));
+
+        $this->mainMenu($categories, $about);
 
         $output->line();
         $output->line($this->t->translate('cli.seed.done', [
@@ -102,6 +104,43 @@ final class SeedCommand implements Command
         ]));
 
         return 0;
+    }
+
+    /**
+     * The main menu (machine name `main`) with the links the site had built in, the
+     * categories under "Kategóriák" as a dropdown. Only if there is no main menu yet:
+     * a menu edited in the admin is never touched.
+     *
+     * @param array<string, CampanellaObject> $categories
+     */
+    private function mainMenu(array $categories, CampanellaObject $about): void
+    {
+        $exists = $this->queries->first(Query::objects()->blueprint('menu')->where('machine_name', '=', 'main'), $this->actor);
+        if ($exists !== null) {
+            return;
+        }
+        $menu = $this->service->create($this->actor, 'menu', ['title' => 'Főmenü', 'machine_name' => 'main']);
+        $count = 0;
+        $item = function (string $title, int $weight, string $url = '', ?CampanellaObject $target = null, ?CampanellaObject $parent = null) use ($menu, &$count): CampanellaObject {
+            $count++;
+
+            return $this->service->create($this->actor, 'menu_item', ['title' => $title, 'url' => $url, 'weight' => $weight], false, [
+                'menu' => [(int) $menu->id()],
+                'target' => $target === null ? [] : [(int) $target->id()],
+                'parent' => $parent === null ? [] : [(int) $parent->id()],
+            ]);
+        };
+        $item('Kezdőlap', 0, '/');
+        $item('Hírek', 10, '/hirek');
+        $list = $item('Kategóriák', 20, '/kategoriak');
+        $weight = 0;
+        foreach ($categories as $category) {
+            $item($category->as(Titled::class)->title(), $weight, '', $category, $list);
+            $weight += 10;
+        }
+        $item('Rólunk', 30, '', $about);
+
+        $this->output->success($this->t->translate('cli.seed.menu', ['count' => $count]));
     }
 
     /**
