@@ -417,4 +417,6 @@ return [
     'admin.system.sync.add_capability' => 'Capability to add',
     'admin.system.sync.blocked' => 'Cannot be applied',
     'admin.system.sync.note' => 'Note',
+    'capability.weighted' => 'Weighted (ordered by hand)',
+    'field.weight' => 'Weight',
 ];

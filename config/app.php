@@ -11,6 +11,7 @@ use Campanella\Capability\Publishable;
 use Campanella\Capability\Routable;
 use Campanella\Capability\Textual;
 use Campanella\Capability\Titled;
+use Campanella\Capability\Weighted;
 
 /*
  * Base settings. Machine-specific values (database, debug) are overridden
@@ -65,6 +66,7 @@ return [
         Authenticatable::class,
         Authorable::class,
         MediaFile::class,
+        Weighted::class,
     ],
 
     // Uploaded files (images). The folder is under public/, so the files are served

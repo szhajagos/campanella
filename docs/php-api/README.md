@@ -7,7 +7,7 @@ namespace, in the `src/` folder (PSR-4).
 
 1. [Overview](01-overview.md): layers, the path of a request, principles
 2. [Objects](02-objects.md): `CampanellaObject`, `Field`, `FieldType`, `FieldStorage`, `Blueprint`
-3. [Capabilities](03-capabilities.md): the contract, the four built-in capabilities, writing a new capability
+3. [Capabilities](03-capabilities.md): the contract, the built-in capabilities, writing a new capability
 4. [Query](04-query.md): queries, conditions, scopes, `QueryEngine`, `ResultSet`
 5. [Access control](05-access.md): `Actor`, `Operation`, `AccessPolicy`
 6. [Services](06-services.md): `ObjectService`, `ObjectRepository`, validation

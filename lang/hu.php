@@ -415,4 +415,6 @@ return [
     'admin.system.sync.add_capability' => 'Hozzáadandó capability',
     'admin.system.sync.blocked' => 'Nem alkalmazható',
     'admin.system.sync.note' => 'Megjegyzés',
+    'capability.weighted' => 'Súlyozott (kézi sorrendű)',
+    'field.weight' => 'Súly',
 ];

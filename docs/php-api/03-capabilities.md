@@ -177,10 +177,28 @@ A stored file (e.g. an uploaded image): path, type, size, dimensions,
 checksum, in its own table. Since 0.0.5; described in chapter
 [16. Images](16-media.md#the-image-blueprint-and-the-mediafile-capability).
 
+### Weighted
+
+`Campanella\Capability\Weighted` · name: `weighted` · table: `cap_weighted` (since 0.0.7)
+
+A hand-set order: a lighter object comes first.
+
+| Field | Type | Storage | |
+|---|---|---|---|
+| `weight` | Integer | Table | required, indexed, default: `0` |
+
+| Method | Description |
+|---|---|
+| `weight(): int`, `setWeight(int $weight): void` | |
+
+Scope: `by_weight`, i.e. by `weight`, then by `id` (equal weights keep the
+order of creation). In the admin, the list of a Blueprint with this capability
+is shown in this order by default, with a *Weight* column.
+
 ## Writing a new capability
 
-Example: a `Weighted` capability that gives the object a weight, so that lists
-can be ordered by hand.
+Example: a `Featured` capability that marks objects as featured, so that a
+list can show only those.
 
 ### 1. The class
 
@@ -197,15 +215,15 @@ use Campanella\Model\Field;
 use Campanella\Model\FieldType;
 use Campanella\Query\Query;
 
-#[AsCapability('weighted', label: 'Weighted')]
-final class Weighted extends Capability
+#[AsCapability('featured', label: 'Featured')]
+final class Featured extends Capability
 {
     #[\Override]
     public static function fields(): array
     {
         return [
-            // We sort on it, so it is an own-table (Table) and indexed field.
-            new Field('weight', FieldType::Integer, required: true, default: 0, indexed: true, label: 'Weight'),
+            // We filter on it, so it is an own-table (Table) and indexed field.
+            new Field('featured', FieldType::Boolean, required: true, default: false, indexed: true, label: 'Featured'),
         ];
     }
 
@@ -213,18 +231,18 @@ final class Weighted extends Capability
     public static function scopes(): array
     {
         return [
-            'by_weight' => static fn (Query $q): Query => $q->orderBy('weight', 'ASC'),
+            'featured' => static fn (Query $q): Query => $q->where('featured', '=', true),
         ];
     }
 
-    public function weight(): int
+    public function isFeatured(): bool
     {
-        return (int) $this->object->get('weight');
+        return (bool) $this->object->get('featured');
     }
 
-    public function setWeight(int $weight): void
+    public function feature(bool $featured = true): void
     {
-        $this->object->set('weight', $weight);
+        $this->object->set('featured', $featured);
     }
 }
 ```
@@ -236,15 +254,18 @@ final class Weighted extends Capability
 ```php
 'capabilities' => [
     Titled::class, Textual::class, Routable::class, Publishable::class,
-    App\Capability\Weighted::class,
+    App\Capability\Featured::class,
 ],
 ```
 
 ### 3. Creating the table
 
 ```bash
-php bin/campanella install      # creates the cc_cap_weighted table
+php bin/campanella install      # creates the cc_cap_featured table
 ```
+
+Later changes of the capability (a new field) are applied the same way
+([chapter 17](17-migrations.md#applying-the-definitions-schemasync)).
 
 ### 4. Usage
 
@@ -252,17 +273,18 @@ In a Blueprint (`config/blueprints.php`):
 
 ```php
 'page' => [
-    'capabilities' => [Textual::class, Routable::class, Publishable::class, Weighted::class],
+    'capabilities' => [Textual::class, Routable::class, Publishable::class, Featured::class],
 ],
 ```
 
-In code and in queries:
+The existing pages get the capability (with `featured = false`) on the next
+`install`. In code and in queries:
 
 ```php
-$page->as(Weighted::class)->setWeight(10);
+$page->as(Featured::class)->feature();
 
 $pages = $queries->execute(
-    Query::objects()->having('weighted')->scope('by_weight'),
+    Query::objects()->having('featured')->scope('featured'),
     $actor,
 );
 ```

@@ -73,15 +73,15 @@ final class FakeCapability extends \Campanella\Capability\Capability
 $passed = 0;
 $failed = 0;
 
-/** The example from docs/php-api/03-capabilities.md, unchanged. */
-#[\Campanella\Capability\AsCapability('weighted', label: 'Súlyozott')]
-final class Weighted extends \Campanella\Capability\Capability
+/** The capability of the documentation's example (docs/php-api/03-capabilities.md). */
+#[\Campanella\Capability\AsCapability('featured', label: 'Kiemelt')]
+final class Featured extends \Campanella\Capability\Capability
 {
     #[\Override]
     public static function fields(): array
     {
         return [
-            new \Campanella\Model\Field('weight', \Campanella\Model\FieldType::Integer, required: true, default: 0, indexed: true, label: 'Súly'),
+            new \Campanella\Model\Field('featured', \Campanella\Model\FieldType::Boolean, required: true, default: false, indexed: true, label: 'Kiemelt'),
         ];
     }
 
@@ -89,18 +89,18 @@ final class Weighted extends \Campanella\Capability\Capability
     public static function scopes(): array
     {
         return [
-            'by_weight' => static fn (Query $q): Query => $q->orderBy('weight', 'ASC'),
+            'featured' => static fn (Query $q): Query => $q->where('featured', '=', true),
         ];
     }
 
-    public function weight(): int
+    public function isFeatured(): bool
     {
-        return (int) $this->object->get('weight');
+        return (bool) $this->object->get('featured');
     }
 
-    public function setWeight(int $weight): void
+    public function feature(bool $featured = true): void
     {
-        $this->object->set('weight', $weight);
+        $this->object->set('featured', $featured);
     }
 }
 
@@ -258,7 +258,7 @@ $anon = Actor::anonymous();
 
 $dropAll = static function () use ($db, $installer): void {
     $db->execute('SET FOREIGN_KEY_CHECKS = 0');
-    $db->execute('DROP TABLE IF EXISTS ' . $db->table('cap_weighted'));
+    $db->execute('DROP TABLE IF EXISTS ' . $db->table('cap_featured'));
     foreach (array_reverse($installer->tables()) as $table) {
         $db->execute('DROP TABLE IF EXISTS ' . $db->table($table->name));
     }
@@ -3028,26 +3028,46 @@ test('setRoles: trimmed, without empty and repeated roles', function () use ($re
 
 echo "\nDocumentation examples\n";
 
-test('New capability as in the docs example (Weighted)', function () use ($db, $admin): void {
-    $registry = new CapabilityRegistry([Titled::class, Textual::class, Routable::class, Publishable::class, Weighted::class]);
+test('New capability as in the docs example (Featured)', function () use ($db, $admin): void {
+    $registry = new CapabilityRegistry([Titled::class, Textual::class, Routable::class, Publishable::class, Featured::class]);
     $blueprints = new BlueprintRegistry($registry, [
-        'page' => ['capabilities' => [Textual::class, Routable::class, Publishable::class, Weighted::class]],
+        'page' => ['capabilities' => [Textual::class, Routable::class, Publishable::class, Featured::class]],
     ]);
     (new Installer($db, $registry))->install();
     $repository = new ObjectRepository($db, $registry, $blueprints);
     $engine = new QueryEngine($db, new QueryCompiler($registry), $repository, $registry, new DefaultPolicy());
     $service = new ObjectService($repository, new DefaultPolicy());
 
-    foreach (['Harmadik' => 30, 'Első' => 10, 'Második' => 20] as $title => $weight) {
-        $page = $service->create($admin, 'page', ['title' => "Súly {$title}"]);
-        $page->as(Weighted::class)->setWeight($weight);
+    foreach (['Kiemelt egy' => true, 'Sima' => false, 'Kiemelt kettő' => true] as $title => $featured) {
+        $page = $service->create($admin, 'page', ['title' => $title]);
+        $page->as(Featured::class)->feature($featured);
         $repository->save($page);
     }
     $titles = array_map(
         fn ($o) => $o->get('title'),
-        $engine->execute(Query::objects()->having('weighted')->scope('by_weight'), $admin)->items,
+        $engine->execute(Query::objects()->having('featured')->scope('featured')->orderBy('title'), $admin)->items,
     );
-    check($titles === ['Súly Első', 'Súly Második', 'Súly Harmadik'], implode(', ', $titles));
+    check($titles === ['Kiemelt egy', 'Kiemelt kettő'], implode(', ', $titles));
+});
+
+test('Weighted: a hand-set order; equal weights in the order of creation', function () use ($db, $admin): void {
+    $registry = new CapabilityRegistry([Titled::class, \Campanella\Capability\Weighted::class]);
+    $blueprints = new BlueprintRegistry($registry, ['item' => ['capabilities' => [Titled::class, \Campanella\Capability\Weighted::class]]]);
+    (new Installer($db, $registry))->install();
+    $repository = new ObjectRepository($db, $registry, $blueprints);
+    $engine = new QueryEngine($db, new QueryCompiler($registry), $repository, $registry, new DefaultPolicy());
+    foreach (['Harmadik' => 30, 'Első' => 10, 'Második A' => 20, 'Második B' => 20] as $title => $weight) {
+        $item = $repository->create('item', ['title' => $title]);
+        $item->as(\Campanella\Capability\Weighted::class)->setWeight($weight);
+        $repository->save($item);
+    }
+    $plain = $repository->create('item', ['title' => 'Súly nélkül']);
+    $repository->save($plain);
+    check($plain->as(\Campanella\Capability\Weighted::class)->weight() === 0, 'the default is 0');
+    $titles = array_map(fn ($o) => $o->get('title'), $engine->execute(Query::objects()->blueprint('item')->scope('by_weight'), $admin)->items);
+    check($titles === ['Súly nélkül', 'Első', 'Második A', 'Második B', 'Harmadik'], implode(', ', $titles));
+    check(in_array(\Campanella\Capability\Weighted::class, (array) Config::load(dirname(__DIR__) . '/config')->get('capabilities'), true), 'registered by default');
+    $db->execute("DELETE FROM {objects} WHERE blueprint = 'item'");
 });
 
 test('Kernel: an overridden service persists across requests', function (): void {

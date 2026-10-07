@@ -10,6 +10,18 @@ backward-incompatible.
 
 ## [Unreleased]
 
+### Added
+
+- **`Weighted`** is a built-in capability (until now only the documentation's
+  example): a `weight` field and the `by_weight` scope (equal weights in the
+  order of creation). In the admin, the list of a Blueprint with it is shown
+  in this order by default, with a *Weight* column.
+
+### Changed
+
+- The documentation's example of writing a capability is now `Featured`.
+- The admin lists break ties by ID, so equal values keep a stable order.
+
 ## [0.0.6] – 2026-10-06
 
 Migrations: reading and comparing the database schema, a migration framework

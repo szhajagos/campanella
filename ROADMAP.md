@@ -26,7 +26,7 @@ Completed changes are listed in the [CHANGELOG](CHANGELOG.md).
 
 Agreed in detail on 2026-10-07. In six parts (0–5), each its own commit:
 
-0. **`Weighted`** becomes a built-in capability (until now only an example in
+0. ✅ **`Weighted`** becomes a built-in capability (until now only an example in
    the tests): a `weight` field (integer, indexed) and a scope ordering by it.
    This is the manual order.
 1. **`Hierarchical`:** a tree.

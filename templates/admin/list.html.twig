@@ -82,6 +82,7 @@
                         {% if is_file %}<th scope="col"><span class="visually-hidden">{{ t('admin.media.preview') }}</span></th>{% endif %}
                         <th scope="col">{{ _self.sort_header(searchable ? 'admin.column.title' : 'admin.column.id', searchable ? 'title' : 'id', filters, path, sortable) }}</th>
                         {% if statuses %}<th scope="col">{{ t('field.status') }}</th>{% endif %}
+                        {% if has_weight %}<th scope="col" class="text-end">{{ _self.sort_header('field.weight', 'weight', filters, path, sortable) }}</th>{% endif %}
                         {% if is_file %}<th scope="col">{{ _self.sort_header('field.file_size', 'file_size', filters, path, sortable) }}</th>{% endif %}
                         {% if has_author %}<th scope="col">{{ t('relation.author') }}</th>{% endif %}
                         {% if 'published_at' in sortable %}<th scope="col">{{ _self.sort_header('field.published_at', 'published_at', filters, path, sortable) }}</th>{% endif %}
@@ -110,6 +111,7 @@
                                     <div><span class="badge bg-body-tertiary text-body-secondary border fw-normal">{{ t('admin.media.no_alt') }}</span></div>
                                 {% endif %}
                             </td>
+                            {% if has_weight %}<td class="text-end small text-body-secondary">{{ item.weight }}</td>{% endif %}
                             {% if is_file %}
                                 <td class="small text-nowrap">
                                     {{ type_names[item.mime_type] ?? item.mime_type }} · {{ item.file_size|file_size }}

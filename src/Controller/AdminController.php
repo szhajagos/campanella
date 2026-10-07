@@ -316,16 +316,22 @@ final class AdminController implements Controller
     {
         $titled = isset($blueprint->capabilities['titled']);
         $publishable = isset($blueprint->capabilities['publishable']);
+        $weighted = isset($blueprint->capabilities['weighted']);
 
         $sortable = array_values(array_filter([
+            $weighted ? 'weight' : null,
             $titled ? 'title' : null,
             'updated',
             'created',
             $publishable ? 'published_at' : null,
             self::isFile($blueprint) ? 'file_size' : null,
         ]));
-        $sort = in_array($request->queryString('sort'), $sortable, true) ? $request->queryString('sort') : 'updated';
-        $dir = strtolower($request->queryString('dir')) === 'asc' ? 'asc' : 'desc';
+        // A hand-ordered list (Weighted) is shown in its order by default.
+        $explicit = in_array($request->queryString('sort'), $sortable, true);
+        $sort = $explicit ? $request->queryString('sort') : ($weighted ? 'weight' : 'updated');
+        $dir = $explicit
+            ? (strtolower($request->queryString('dir')) === 'asc' ? 'asc' : 'desc')
+            : ($weighted ? 'asc' : 'desc');
         $search = $titled ? trim($request->queryString('q')) : '';
         $status = $publishable && in_array($request->queryString('status'), self::STATUSES, true)
             ? $request->queryString('status') : '';
@@ -339,7 +345,8 @@ final class AdminController implements Controller
             $query = $query->whereCondition(self::statusCondition($status));
         }
         $result = $this->queries->execute(
-            $query->orderBy($sort, $dir)->page($page, self::PER_PAGE),
+            // Equal values (e.g. weights) keep the order of creation.
+            $query->orderBy($sort, $dir)->orderBy('id', $dir)->page($page, self::PER_PAGE),
             $actor,
             withTotal: true,
         );
@@ -375,6 +382,7 @@ final class AdminController implements Controller
             'statuses' => $publishable ? self::STATUSES : [],
             'searchable' => $titled,
             'has_author' => isset($blueprint->capabilities['authorable']),
+            'has_weight' => $weighted,
             'path' => $this->access->path($blueprint->name),
         ]);
     }
