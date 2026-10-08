@@ -1,9 +1,9 @@
 # Roadmap
 
-Campanella evolves in small steps: every feature gets its own version
-(0.0.3, 0.0.4, …), with its own tests, documentation and CHANGELOG entry.
-Once the system is suitable for a real website managed from the browser (by
-the end of 0.0.7), the version becomes 0.1.0.
+Campanella evolves in small steps: every feature gets its own version, with
+its own tests, documentation and CHANGELOG entry. Since 0.1.0 (the first
+milestone, 2026-10-08) a real website can be run and managed from the
+browser; the next versions are 0.1.x (fixes) and 0.2.0, 0.3.0 … (features).
 
 The roadmap is a direction, not a promise: the order may change based on experience.
 Completed changes are listed in the [CHANGELOG](CHANGELOG.md).
@@ -19,71 +19,15 @@ Completed changes are listed in the [CHANGELOG](CHANGELOG.md).
 | 0.0.5 | HTML editing: System page, HTML allowlist filter on every save, Jodit editor (shipped locally), Content-Security-Policy for the admin, image upload (checked by content, re-encoded, `image` Blueprint, Images list) |
 | 0.0.6 | Migrations: reading and comparing the schema (`schema:check`), migrations with built-in backups (`migrate`, `db:backup`), upgrading from the browser (`/admin/upgrade`), the definitions' additive changes applied automatically, roles as a multi-valued field |
 | 0.0.7 | Trees and menus: `Weighted` and `Hierarchical` (materialized path, no circles, at most 10 levels), trees in the admin (indented, up/down), the category tree on the site (breadcrumbs, articles of subcategories), menus edited in the admin (`menu`, `menu_item`, `Link` with safe URLs, `Keyed`, separate trees per menu), `menu()` in templates |
+| 0.1.0 | First milestone: installing from the browser (`/install`, with a key), users in the browser (administrators manage them; everyone's profile and password; sessions end on a password change), ready for a public server (trusted proxies, Content-Security-Policy and other headers, System page checks, deployment guide), Blueprints and capabilities in the admin (read-only), a security review (template sandbox, login throttling, fail-closed `.htaccess`, `composer audit` in CI); upgrades from 0.0.6 on |
 | – | Continuous integration (GitHub Actions): PHPStan, documentation, tests on MariaDB 10.6/11.4 and MySQL 8.0/8.4; installation package with `vendor/` for every version tag |
 
 ## Next
 
-### 0.1.0 – First milestone
-
-0.0.3–0.0.7 together: login, admin, HTML editing, migrations, menu. From here
-on, the system is suitable for running a real website, and (Secure by
-default) no release is made with a known open security gap.
-
-Agreed in detail on 2026-10-08. Kept narrow on purpose: it is still 0.x. In
-seven parts (0–6), each its own commit:
-
-0. ✅ **Housekeeping:** remove the deprecated `FieldType::StringList` and the
-   upgrade page's reading of the old roles column. Upgrading to 0.1.0 is
-   possible from 0.0.6 or later only (from older versions: through 0.0.7
-   first); the installer stops with a clear message otherwise.
-   `config/local.php.dist` no longer turns debug mode on. On the dashboard,
-   the content types link to their lists.
-1. ✅ **Ready for a public server:**
-   - a `trusted_proxies` setting (IPs / CIDR ranges, empty by default):
-     `X-Forwarded-Proto` and `X-Forwarded-For` count only from these, for
-     HTTPS (the `Secure` cookie) and the visitor's IP (login throttling);
-   - security headers on the public site too: a strict Content-Security-Policy
-     (only our own scripts, no inline script), which a theme may relax only
-     by an explicit setting, documented with its risk; `Permissions-Policy`;
-     HSTS as an opt-in setting (off by default: a wrong setting locks
-     visitors out);
-   - System page checks: the document root is `public/`, debug mode is off,
-     HTTPS (also behind a proxy), writable folders;
-   - a deployment guide (`docs/deployment.md`): Apache, nginx, Docker, HTTPS
-     behind a proxy, file permissions, backups and upgrades, a checklist
-     before going live.
-2. ✅ **Installing from the browser,** for web hosts without a command line:
-   `/install` checks the requirements, creates the tables and the first
-   administrator. Only with an install key set in `config/local.php` (like
-   the upgrade key), so nobody else can install the site between uploading
-   and installing; once installed, the page answers 404.
-3. ✅ **Users in the browser:**
-   - for administrators: the users' list (roles, status), a new user,
-     changing roles, disabling and enabling, setting a new password;
-   - for everyone logged in: their own profile (name, changing the password
-     with the current one);
-   - the last active administrator cannot be disabled or lose the role;
-     changing a password ends the user's other sessions; editors still do
-     not manage users;
-   - a forgotten password by e-mail comes later (it needs e-mail sending).
-4. ✅ **Blueprints and capabilities in the admin** (read-only, for
-   administrators): a *Blueprints* page lists the Blueprints with their
-   capabilities, fields and relations, and links to their lists; a
-   *Capabilities* page lists the installed capabilities with a short
-   explanation, their fields, and the Blueprints that use them. A first step
-   towards Blueprints defined in the admin.
-5. ✅ **Security review:** an independent review of the whole code (login and
-   sessions, CSRF, XSS, SQL parameters, uploads, open redirects, error
-   messages, headers, throttling, permissions), `composer audit` and the
-   dependencies' licenses; the fixes in their own commit, anything left as a
-   documented decision.
-6. Release `v0.1.0`: the README rewritten for the milestone (what the system
-   can do, installing from the browser or the command line), the upgrade
-   path, CHANGELOG, ROADMAP.
-
-Left for later on purpose: `<meta name="description">`, canonical URLs,
-`sitemap.xml` and `robots.txt`; a forgotten password by e-mail; site settings
-edited in the admin.
+To be planned together, from the *Later* list below. Candidates: site basics
+(meta description, sitemap.xml, robots.txt), a forgotten password by e-mail
+(with e-mail sending and the Event / Action system), image variants and an
+image picker, site settings edited in the admin, the session list.
 
 ## Later
 

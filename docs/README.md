@@ -6,7 +6,7 @@ chapter in the same commit.
 
 | Part | Contents | Status |
 |---|---|---|
-| [PHP API](php-api/README.md) | Classes, contracts and extension points, with examples | Matches 0.0.7 |
+| [PHP API](php-api/README.md) | Classes, contracts and extension points, with examples | Matches 0.1.0 |
 | [HTTP API](http-api/README.md) | The web endpoints: the current HTML routes and the planned JSON API | HTML: done · JSON: draft |
 | [Security](security.md) | What protects a site, the security review of 0.1.0, the known and accepted risks, reporting a vulnerability | Since 0.1.0 |
 | [Deployment](deployment.md) | Running Campanella on a public server: web root, HTTPS and proxies, settings, security headers, permissions, backups, upgrades, a checklist | Since 0.1.0 |

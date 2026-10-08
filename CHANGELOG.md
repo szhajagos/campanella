@@ -10,6 +10,31 @@ backward-incompatible.
 
 ## [Unreleased]
 
+## [0.1.0] – 2026-10-08
+
+The first milestone: a real website can be run and managed from the browser.
+Installing from the browser, users managed in the admin, ready for a public
+server (trusted proxies, security headers, a deployment guide), a read-only
+overview of the Blueprints and capabilities, and a security review of the
+whole code ([docs/security.md](docs/security.md)).
+
+**Upgrading from 0.0.6 or 0.0.7** (an older installation is upgraded to 0.0.7
+first; 0.1.0 stops with an explanation otherwise):
+
+1. Upload the new files (the dependencies did not change), including the
+   project root's `.htaccess` and the new `var/.htaccess`.
+2. Run `php bin/campanella install`, or open `/admin/upgrade`. No migration;
+   nothing changes in the tables.
+3. In `config/local.php`: `'debug' => false` on a public server; behind a
+   proxy, its address in `trusted_proxies` (the System page's *Proxy* line
+   shows it). Then go through the checklist of
+   [docs/deployment.md](docs/deployment.md).
+4. Copy `.github/workflows/ci.yml` if you use the CI (it now runs
+   `composer audit`).
+
+Templates now run in a sandbox: a theme that called `get()`, `values()` or
+`as()` on an object reads the fields as properties instead (`item.title`).
+
 ### Added
 
 - The dashboard's content types link to their lists, and the recently

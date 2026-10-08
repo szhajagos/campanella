@@ -1,14 +1,38 @@
-# Campanella 0.0.7
+# Campanella 0.1.0
 
 [![CI](https://github.com/szhajagos/campanella/actions/workflows/ci.yml/badge.svg)](https://github.com/szhajagos/campanella/actions/workflows/ci.yml)
 
 A capability-driven CMS. There are no predefined content types: an object's
 behavior is determined by the capabilities attached to it.
 
+0.1.0 is the first milestone: a real website can be run and managed from the
+browser with it. It is still 0.x: the code and the PHP API may change between
+versions (the [CHANGELOG](CHANGELOG.md) always says how).
+
+## What it can do
+
+- **Content:** articles, pages, categories in a tree, images, menus. Drafts,
+  publishing now or later, a hand-set order, categories with breadcrumbs and
+  the articles of their subcategories.
+- **Editing in the browser:** an admin with lists, search and filters, forms
+  generated from the definitions, a formatted-text editor (Jodit) with image
+  upload, the main menu edited as a tree.
+- **Users:** administrators and editors, managed in the browser; a profile
+  with one's own password; login protection (throttling, a honeypot, the same
+  answer for every failure).
+- **Installing and upgrading from the browser**, for web hosts without a
+  command line (with a key), or from the command line; migrations with a
+  built-in backup.
+- **Secure by default:** HTML texts filtered on every save, uploaded images
+  re-encoded, a strict Content-Security-Policy, templates in a sandbox, no
+  default account. See [docs/security.md](docs/security.md).
+- **Bilingual interface** (Hungarian and English), Bootstrap 5.3 and the editor
+  shipped locally, replaceable themes.
+
 The developer documentation (PHP API, HTTP API) is in the [`docs/`](docs/README.md)
 folder; putting a site on a public server is described in the
-[deployment guide](docs/deployment.md), changes are listed in the [CHANGELOG](CHANGELOG.md), and plans in the
-[ROADMAP](ROADMAP.md).
+[deployment guide](docs/deployment.md), changes are listed in the
+[CHANGELOG](CHANGELOG.md), and plans in the [ROADMAP](ROADMAP.md).
 
 ## Requirements
 
@@ -22,7 +46,25 @@ shipped in `public/assets/vendor/`. PHPStan is needed for development only.
 
 ## Installation
 
-**Without Composer:** every version on the [GitHub releases](https://github.com/szhajagos/campanella/releases)
+**In the browser** (for web hosts without a command line, since 0.1.0):
+
+1. Upload the files: the `campanella-<version>.zip` of the
+   [GitHub releases](https://github.com/szhajagos/campanella/releases) page
+   includes the `vendor/` folder. Mind where the files go (see below).
+2. Copy `config/local.php.dist` to `config/local.php`, enter your database
+   details and an install key of at least 20 characters:
+
+   ```php
+   'install' => ['key' => '…a long random string…'],
+   'database' => [/* … */],
+   ```
+
+3. Open `/install` in the browser: it checks the requirements, creates the
+   tables and the first administrator (and, if you like, the sample content),
+   and logs you in. Then remove the key; the page closes as soon as there is
+   a user.
+
+**From the command line.** Without Composer: every version on the [GitHub releases](https://github.com/szhajagos/campanella/releases)
 page has a downloadable `campanella-<version>.zip` that includes the `vendor/`
 folder. After unpacking it, continue as below, just skip the `composer install`
 step.
@@ -40,18 +82,8 @@ The last line starts PHP's built-in development server on your own machine, at
 <http://localhost:8000>. Do not use it on a production host, and do not infer
 your web host's configuration from it (see below).
 
-**Without a command line** (since 0.1.0): upload the files, create
-`config/local.php` with your database details and an install key of at least
-20 characters, then open `/install` in the browser:
-
-```php
-'install' => ['key' => '…a long random string…'],
-'database' => [/* … */],
-```
-
-The page checks the requirements, creates the tables and the first
-administrator (and, if you like, the sample content), and logs you in. Remove
-the key afterwards; the page closes as soon as there is a user.
+Before going live, follow the [deployment guide](docs/deployment.md) and its
+checklist (web root, HTTPS, settings, permissions, backups).
 
 ### Where do the files go?
 
@@ -116,7 +148,7 @@ line, log in and open `/admin/upgrade`: it does the same, with a backup first
 ([docs/php-api/17-migrations.md](docs/php-api/17-migrations.md)).
 The [CHANGELOG](CHANGELOG.md) lists the changes version by version, and the
 extra steps of an upgrade at the top of the version's section. An installation
-older than 0.0.6 is upgraded to 0.0.7 first.
+older than 0.0.6 is upgraded to 0.0.7 first, then to 0.1.0.
 
 ## Commands
 
@@ -141,10 +173,10 @@ older than 0.0.6 is upgraded to 0.0.7 first.
 
 On every push, GitHub runs the checks above
 ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)): PHPStan, the
-documentation checks, and the tests on MariaDB 10.6 and 11.4, and MySQL 8.0
-and 8.4. The results are shown next to the commits and on the Actions tab.
+documentation checks, `composer audit` (known vulnerabilities of the
+dependencies), and the tests on MariaDB 10.6 and 11.4, and MySQL 8.0 and 8.4. The results are shown next to the commits and on the Actions tab.
 
-After a version tag (`git tag v0.0.7 && git push --tags`), GitHub builds the
+After a version tag (`git tag v0.1.0 && git push --tags`), GitHub builds the
 installation package and attaches it to the release. For an existing tag it
 can also be started manually: Actions → CI → Run workflow, entering the tag.
 
