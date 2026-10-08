@@ -31,7 +31,7 @@
                                 <tr>
                                     <th scope="row" class="fw-normal">{{ t(result.label) }}</th>
                                     <td>
-                                        <span class="font-monospace small">{{ t(result.value) }}</span>
+                                        <span class="font-monospace small text-break">{{ t(result.value) }}</span>
                                         {% if result.hint %}<div class="small text-body-secondary">{{ t(result.hint.key, result.hint.params) }}</div>{% endif %}
                                     </td>
                                     <td class="text-end"><span class="badge {{ badges[result.status.value] }}">{{ t('admin.system.status.' ~ result.status.value) }}</span></td>

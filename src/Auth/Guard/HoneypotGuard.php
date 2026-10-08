@@ -27,11 +27,11 @@ final class HoneypotGuard implements LoginGuard
     #[\Override]
     public function fields(): string
     {
-        // Also hidden from screen readers and keyboard navigation. It is hidden
-        // with an inline style so it does not depend on the theme's CSS (or on
-        // the browser keeping an older CSS in its cache).
+        // Also hidden from screen readers and keyboard navigation. It is hidden with
+        // the `hidden` attribute, so it depends neither on the theme's CSS nor on an
+        // inline style (which the Content-Security-Policy forbids since 0.1.0).
         return sprintf(
-            '<div class="hp" aria-hidden="true" style="position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden"><label for="hp-%1$s">Weboldal</label>'
+            '<div class="hp" hidden aria-hidden="true"><label for="hp-%1$s">Weboldal</label>'
             . '<input type="text" id="hp-%1$s" name="%1$s" value="" tabindex="-1" autocomplete="off"></div>',
             self::FIELD,
         );

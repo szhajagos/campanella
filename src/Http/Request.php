@@ -78,6 +78,15 @@ final readonly class Request
         );
     }
 
+    /**
+     * The same request with the visitor's address and HTTPS state set (e.g. from a
+     * trusted proxy's headers: TrustedProxies). Since 0.1.0.
+     */
+    public function withClient(string $ip, bool $secure): self
+    {
+        return new self($this->method, $this->path, $this->query, $this->post, $this->basePath, $this->headers, $this->cookies, $ip, $secure, $this->files);
+    }
+
     /** A posted file field, if any. */
     public function file(string $name): ?UploadedFile
     {

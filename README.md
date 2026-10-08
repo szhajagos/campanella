@@ -6,7 +6,8 @@ A capability-driven CMS. There are no predefined content types: an object's
 behavior is determined by the capabilities attached to it.
 
 The developer documentation (PHP API, HTTP API) is in the [`docs/`](docs/README.md)
-folder, changes are listed in the [CHANGELOG](CHANGELOG.md), and plans in the
+folder; putting a site on a public server is described in the
+[deployment guide](docs/deployment.md), changes are listed in the [CHANGELOG](CHANGELOG.md), and plans in the
 [ROADMAP](ROADMAP.md).
 
 ## Requirements

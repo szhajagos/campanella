@@ -21,6 +21,7 @@
 | `static fromGlobals(): self` | From the PHP superglobals |
 | `static normalizePath(string $path): string` | `'/hirek/'` → `'/hirek'`; `'/index.php'` → `'/'` |
 | `queryInt(string $name, int $default = 0): int` | An integer from the query string |
+| `withClient(string $ip, bool $secure): self` | The same request with the visitor's address and HTTPS state ([TrustedProxies](#trustedproxies); since 0.1.0) |
 
 `Campanella\Http\UploadedFile` · **Public** · `final readonly class`:
 `$name` (as the client gave it; only for display, never used as a path),
@@ -46,6 +47,49 @@ If the `.htaccess` in the root directs the request under `public/`,
 | `static redirect(string $url, int $status = 302): self` | |
 | `withHeader(string $name, string $value): self` | A new response with the header added |
 | `send(): void` | Sends the response; also adds the `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN` and `Referrer-Policy: same-origin` headers to every response |
+
+## TrustedProxies
+
+`Campanella\Http\TrustedProxies` · **Public** · container: `TrustedProxies::class` (since 0.1.0)
+
+Behind a reverse proxy, PHP sees the proxy's address and plain HTTP. The
+`X-Forwarded-For` and `X-Forwarded-Proto` headers are believed only from the
+proxies in the `trusted_proxies` setting (IP addresses or CIDR ranges, IPv4 or
+IPv6); the `Kernel` applies it to every request before anything else.
+
+| Method | Description |
+|---|---|
+| `__construct(array $ranges = [])` | `InvalidArgumentException` for an entry that is not an IP address or CIDR range |
+| `apply(Request $request): Request` | From a trusted proxy: the visitor's address (the last address in `X-Forwarded-For` that is not a trusted proxy, so addresses the visitor put in front are not believed) and `secure` from `X-Forwarded-Proto`; otherwise the request unchanged |
+| `isTrusted(string $ip): bool`, `ranges(): list<string>` | |
+| `static inRange(string $ip, string $range): bool` | E.g. `inRange('10.1.2.3', '10.0.0.0/8')` |
+
+`Request::withClient(string $ip, bool $secure): self` gives the same request
+with these two values. The deployment guide explains the setting:
+[docs/deployment.md](../deployment.md#behind-a-proxy).
+
+## SecurityHeaders
+
+`Campanella\Http\SecurityHeaders` · **Public** · container: `SecurityHeaders::class` (since 0.1.0)
+
+Adds the security headers to every response (the `Kernel`, after the
+controller):
+
+| Header | |
+|---|---|
+| `Content-Security-Policy` | `PUBLIC_CSP` on the public site: only the site's own scripts (no inline script), styles, images (`data:` too; `https:` if the HTML filter allows images of other sites) and fonts; no plugins, frames or foreign form targets. A response that already has one (the admin's) keeps it. The `security.content_security_policy` setting replaces it |
+| `Permissions-Policy` | `PERMISSIONS_POLICY`: no camera, microphone, location, payment or USB |
+| `Strict-Transport-Security` | Only if `security.hsts` (seconds) is set and the request came over HTTPS; `includeSubDomains` with `security.hsts_subdomains` |
+
+| Method | Description |
+|---|---|
+| `__construct(?string $contentSecurityPolicy = null, bool $externalImages = false, int $hsts = 0, bool $hstsSubdomains = false)` | A replacement policy must be a non-empty single line |
+| `apply(Response $response, Request $request): Response` | |
+| `contentSecurityPolicy(): string`, `isCustomPolicy(): bool`, `hsts(): int` | |
+
+The templates therefore use no inline script, style element or `style`
+attribute on the public site; a theme must not either, or replace the policy
+(with its risk: [docs/deployment.md](../deployment.md#security-headers)).
 
 ## HttpException
 

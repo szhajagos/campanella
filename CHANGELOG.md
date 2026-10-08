@@ -14,9 +14,31 @@ backward-incompatible.
 
 - The dashboard's content types link to their lists, and the recently
   modified objects to their forms (for those who may edit them).
+- **Behind a proxy:** the `trusted_proxies` setting (IP addresses or CIDR
+  ranges, empty by default). From a listed proxy, `X-Forwarded-Proto` marks
+  the request HTTPS (so the login cookie gets `Secure`) and `X-Forwarded-For`
+  gives the visitor's address (for login throttling); from anyone else the
+  headers are ignored. `TrustedProxies`, `Request::withClient()`.
+- **Security headers on the public site too:** a strict
+  `Content-Security-Policy` (only the site's own scripts, styles and images,
+  no inline script) and `Permissions-Policy`; HSTS as an opt-in setting
+  (`security.hsts`). A theme can replace the policy with the
+  `security.content_security_policy` setting, documented with its risk.
+  `SecurityHeaders`.
+- **System page:** a *Public server* group: the web root (`public/` or the
+  whole project), proxy headers from an untrusted address, a replaced
+  policy, HSTS.
+- **Deployment guide** (`docs/deployment.md`): the web root (Apache and nginx
+  examples), HTTPS and proxies, settings and security headers, file
+  permissions, PHP settings, backups, upgrades, and a checklist before going
+  live.
 
 ### Changed
 
+- The login form's honeypot field is hidden with the `hidden` attribute
+  instead of an inline style, which the new policy forbids.
+- The System page breaks long values (e.g. a folder path), so the status
+  stays in view.
 - **Upgrading is possible from 0.0.6 or later only.** An older installation
   is upgraded to 0.0.7 first: `install`, `migrate` and the upgrade page stop
   with an explanation before changing anything (`Version::MIN_UPGRADE_SCHEMA`,

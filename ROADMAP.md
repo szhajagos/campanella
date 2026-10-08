@@ -38,7 +38,7 @@ seven parts (0–6), each its own commit:
    first); the installer stops with a clear message otherwise.
    `config/local.php.dist` no longer turns debug mode on. On the dashboard,
    the content types link to their lists.
-1. **Ready for a public server:**
+1. ✅ **Ready for a public server:**
    - a `trusted_proxies` setting (IPs / CIDR ranges, empty by default):
      `X-Forwarded-Proto` and `X-Forwarded-For` count only from these, for
      HTTPS (the `Secure` cookie) and the visitor's IP (login throttling);

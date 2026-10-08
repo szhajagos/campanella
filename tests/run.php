@@ -696,7 +696,7 @@ test('Kernel: full login and logout through the form', function (): void {
     preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $form->body, $m);
     check(isset($m[1]) && str_contains($form->body, 'name="website"'), 'missing CSRF or honeypot field');
     check(($form->headers['Cache-Control'] ?? '') === 'private, no-store');
-    check(str_contains($form->body, 'class="hp" aria-hidden="true" style="position:absolute'), 'the honeypot is not hidden without CSS');
+    check(str_contains($form->body, 'class="hp" hidden aria-hidden="true"') && !str_contains($form->body, 'style="'), 'the honeypot is hidden without CSS and without an inline style');
     check(str_contains($form->body, 'campanella.css?v=' . Version::CAMPANELLA), 'asset() does not append the version');
     $storage->endRequest();
 
@@ -3528,6 +3528,89 @@ test('Kernel: the main menu in the layout (with the built-in links until it exis
         $repository->delete($object);
     }
     putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('TrustedProxies: proxy headers believed only from the listed proxies', function (): void {
+    $T = \Campanella\Http\TrustedProxies::class;
+    check($T::inRange('10.1.2.3', '10.0.0.0/8') && !$T::inRange('11.1.2.3', '10.0.0.0/8'));
+    check($T::inRange('192.168.1.130', '192.168.1.128/25') && !$T::inRange('192.168.1.127', '192.168.1.128/25'));
+    check($T::inRange('127.0.0.1', '127.0.0.1') && !$T::inRange('127.0.0.2', '127.0.0.1'));
+    check($T::inRange('fd00::5', 'fd00::/8') && !$T::inRange('fe80::1', 'fd00::/8') && !$T::inRange('10.0.0.1', 'fd00::/8'));
+    check(!$T::inRange('nem-ip', '10.0.0.0/8'));
+    foreach ([['10.0.0.0/33'], ['nem-ip'], [42], ['10.0.0.0/x']] as $bad) {
+        throws(\InvalidArgumentException::class, fn () => new $T($bad));
+    }
+
+    $request = static fn (string $remote, array $headers, bool $secure = false) => new Request('GET', '/', headers: $headers, ip: $remote, secure: $secure);
+    $none = new $T();
+    $spoofed = $none->apply($request('6.6.6.6', ['x-forwarded-for' => '1.1.1.1', 'x-forwarded-proto' => 'https']));
+    check($spoofed->ip === '6.6.6.6' && !$spoofed->secure, 'no trusted proxy: the headers are ignored');
+
+    $proxies = new $T(['10.0.0.0/8']);
+    $via = $proxies->apply($request('10.0.0.2', ['x-forwarded-for' => '203.0.113.7, 10.0.0.9', 'x-forwarded-proto' => 'https']));
+    check($via->ip === '203.0.113.7' && $via->secure, $via->ip);
+    $forged = $proxies->apply($request('10.0.0.2', ['x-forwarded-for' => '1.1.1.1, 203.0.113.7']));
+    check($forged->ip === '203.0.113.7', 'an address the visitor put in front is not believed: ' . $forged->ip);
+    $direct = $proxies->apply($request('203.0.113.9', ['x-forwarded-for' => '1.1.1.1', 'x-forwarded-proto' => 'https']));
+    check($direct->ip === '203.0.113.9' && !$direct->secure, 'not from the proxy: ignored');
+    $broken = $proxies->apply($request('10.0.0.2', ['x-forwarded-for' => 'szemét, 203.0.113.7', 'x-forwarded-proto' => 'http'], true));
+    check($broken->ip === '203.0.113.7' && !$broken->secure, 'the proxy says plain HTTP');
+});
+
+test('SecurityHeaders: a strict policy on the public site, the admin keeps its own, HSTS only on request', function (): void {
+    $S = \Campanella\Http\SecurityHeaders::class;
+    $plain = new Request('GET', '/');
+    $secure = new Request('GET', '/', secure: true);
+    $default = (new $S())->apply(new \Campanella\Http\Response('x'), $secure);
+    $csp = $default->headers['Content-Security-Policy'] ?? '';
+    check(str_contains($csp, "script-src 'self';") && str_contains($csp, "img-src 'self' data:;") && str_contains($csp, "object-src 'none'") && !str_contains($csp, 'unsafe'), $csp);
+    check(($default->headers['Permissions-Policy'] ?? '') === $S::PERMISSIONS_POLICY && !isset($default->headers['Strict-Transport-Security']));
+    check(str_contains((new $S(externalImages: true))->contentSecurityPolicy(), "img-src 'self' data: https:;"), 'external images allowed by the HTML filter');
+    $own = (new $S())->apply((new \Campanella\Http\Response('x'))->withHeader('Content-Security-Policy', "default-src 'none'"), $plain);
+    check($own->headers['Content-Security-Policy'] === "default-src 'none'", 'a page\'s own policy stays');
+    $custom = new $S("default-src 'self' https://fonts.example");
+    check($custom->isCustomPolicy() && $custom->contentSecurityPolicy() === "default-src 'self' https://fonts.example");
+    throws(\InvalidArgumentException::class, fn () => new $S("default-src 'self'\r\nX-Evil: 1"));
+    throws(\InvalidArgumentException::class, fn () => new $S('  '));
+    $hsts = new $S(hsts: 31536000, hstsSubdomains: true);
+    check(($hsts->apply(new \Campanella\Http\Response('x'), $secure)->headers['Strict-Transport-Security'] ?? '') === 'max-age=31536000; includeSubDomains');
+    check(!isset($hsts->apply(new \Campanella\Http\Response('x'), $plain)->headers['Strict-Transport-Security']), 'never over plain HTTP');
+});
+
+test('Kernel: the security headers of public and admin pages', function (): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $home = $kernel->handle(new Request('GET', '/'));
+    check(str_contains($home->headers['Content-Security-Policy'] ?? '', "script-src 'self';") && isset($home->headers['Permissions-Policy']), 'the public page');
+    $missing = $kernel->handle(new Request('GET', '/nincs-ilyen-oldal'));
+    check($missing->status === 404 && isset($missing->headers['Content-Security-Policy']), 'an error page too');
+    $login = $kernel->handle(new Request('GET', '/admin'));
+    check(isset($login->headers['Content-Security-Policy']), 'the admin redirect');
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('SecurityCheck: the web root, proxy headers, the policy and HSTS', function (): void {
+    $root = dirname(__DIR__);
+    $run = static function (?string $documentRoot, array $proxies = [], array $headers = [], string $remote = '203.0.113.5', ?string $csp = null, int $hsts = 0) use ($root): array {
+        $check = \Campanella\System\SecurityCheck::checks($root, new \Campanella\Http\TrustedProxies($proxies), new \Campanella\Http\SecurityHeaders($csp, false, $hsts), static fn (): array => ['document_root' => $documentRoot, 'remote_addr' => $remote]);
+        $lines = [];
+        foreach ($check(new Request('GET', '/', headers: $headers, ip: $remote)) as $line) {
+            $lines[$line->label] = $line->status->name . ':' . $line->value;
+        }
+
+        return $lines;
+    };
+    check($run($root . '/public')['admin.system.document_root'] === 'Ok:public/');
+    check($run($root)['admin.system.document_root'] === 'Warning:admin.system.document_root_project');
+    check($run(null)['admin.system.document_root'] === 'Info:–');
+    check(!isset($run($root . '/public')['admin.system.proxy']), 'no proxy, no line');
+    check($run($root . '/public', [], ['x-forwarded-proto' => 'https'])['admin.system.proxy'] === 'Warning:admin.system.proxy_untrusted');
+    check($run($root . '/public', ['10.0.0.0/8'], ['x-forwarded-proto' => 'https'], '10.0.0.3')['admin.system.proxy'] === 'Ok:admin.system.proxy_trusted');
+    $lines = $run($root . '/public', csp: "default-src *", hsts: 600);
+    check($lines['admin.system.csp'] === 'Warning:admin.system.csp_custom' && $lines['admin.system.hsts'] === 'Ok:600 s');
+    check($run($root . '/public')['admin.system.hsts'] === 'Info:admin.system.off');
+    $cli = \Campanella\System\SecurityCheck::checks($root, new \Campanella\Http\TrustedProxies(), new \Campanella\Http\SecurityHeaders(), static fn (): array => ['document_root' => null, 'remote_addr' => null]);
+    check(count($cli(null)) === 2, 'on the command line: only the settings');
 });
 
 echo "\nDocumentation examples\n";

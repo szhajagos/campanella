@@ -30,6 +30,8 @@ use Campanella\Database\Sync\SyncCheck;
 use Campanella\Http\HttpException;
 use Campanella\Http\NativeSessionStorage;
 use Campanella\Http\Request;
+use Campanella\Http\SecurityHeaders;
+use Campanella\Http\TrustedProxies;
 use Campanella\Http\Response;
 use Campanella\Http\Router;
 use Campanella\Http\Session;
@@ -53,6 +55,7 @@ use Campanella\Media\ImageProcessor;
 use Campanella\Media\MediaCheck;
 use Campanella\Media\MediaService;
 use Campanella\Media\MediaStorage;
+use Campanella\System\SecurityCheck;
 use Campanella\System\SystemCheck;
 use Campanella\System\TemplateCache;
 use Twig\Environment;
@@ -86,6 +89,23 @@ final class Kernel
     }
 
     public function handle(Request $request): Response
+    {
+        // Behind a trusted proxy: the visitor's own address and HTTPS state (since 0.1.0).
+        try {
+            $request = $this->container()->get(TrustedProxies::class)->apply($request);
+        } catch (\Throwable $e) {
+            return $this->failure($e);
+        }
+        $response = $this->dispatch($request);
+        try {
+            return $this->container()->get(SecurityHeaders::class)->apply($response, $request);
+        } catch (\Throwable) {
+            // A broken setting must not hide the page; the strict policy still applies.
+            return (new SecurityHeaders())->apply($response, $request);
+        }
+    }
+
+    private function dispatch(Request $request): Response
     {
         // The Twig extension reads the URL prefix from here per request, so the
         // container (and the services overridden in it) persists between requests.
@@ -165,6 +185,20 @@ final class Kernel
             require $root . '/config/blueprints.php',
         ));
 
+        $c->set(TrustedProxies::class, static fn (Container $c): TrustedProxies => new TrustedProxies(
+            array_values((array) $c->get(Config::class)->get('trusted_proxies', [])),
+        ));
+        $c->set(SecurityHeaders::class, static function (Container $c): SecurityHeaders {
+            $config = $c->get(Config::class);
+            $policy = $config->get('security.content_security_policy');
+
+            return new SecurityHeaders(
+                is_string($policy) ? $policy : null,
+                $c->get(HtmlSanitizer::class)->allowsExternalImages(),
+                max(0, (int) $config->get('security.hsts', 0)),
+                (bool) $config->get('security.hsts_subdomains', false),
+            );
+        });
         $c->set(HtmlSanitizer::class, static function () use ($root): HtmlSanitizer {
             $file = $root . '/config/html.php';
             /** @var array{elements?: array<string, list<string>>, link_schemes?: list<string>, external_images?: bool, max_length?: int} $config */
@@ -232,6 +266,15 @@ final class Kernel
             );
             $system->add(MediaCheck::checks($c->get(ImageProcessor::class), $c->get(MediaStorage::class)));
             $system->add(SyncCheck::checks($c->get(Installer::class), $c->get(SchemaSync::class)));
+            $system->add(SecurityCheck::checks(
+                $root,
+                $c->get(TrustedProxies::class),
+                $c->get(SecurityHeaders::class),
+                static fn (): array => [
+                    'document_root' => isset($_SERVER['DOCUMENT_ROOT']) && is_string($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] : null,
+                    'remote_addr' => isset($_SERVER['REMOTE_ADDR']) && is_string($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : null,
+                ],
+            ));
 
             return $system;
         });

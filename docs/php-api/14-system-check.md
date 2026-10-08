@@ -27,6 +27,7 @@ details (those are in the server's error log).
 | Writable folders | `var/cache`; `var/backups` (the backups before an upgrade; if it does not exist yet, `var/` must be writable; since 0.0.6) |
 | Settings | Debug mode (on: warning), language, time zone, theme, admin path; the upgrade key, if set (a warning: remove it after upgrading; also if it is too short to be used); on the web also whether the server sees HTTPS (if not: warning, the login cookie is not marked `Secure`) |
 | PHP limits (web only) | `upload_max_filesize`, `post_max_size` (smaller than the upload limit: warning), `memory_limit`, `max_execution_time` |
+| Public server (since 0.1.0) | On the web: the web server's document root (`public/`: OK; the project folder: warning, only the `.htaccess` files protect the rest), proxy headers (from a trusted proxy: OK; arriving from an address not in `trusted_proxies`: warning); the Content-Security-Policy (built-in: OK; replaced by a setting: warning, as a reminder); HSTS (off: info). `SecurityCheck::checks()`, added by the `Kernel` |
 | Caches | opcache (web only; if it does not check file times: warning, PHP must be restarted after an upgrade); the template cache (files and size; not writable: warning) |
 
 The web-only checks are left out on the command line, because the
@@ -104,3 +105,14 @@ by `auto_reload`.
 
 On the System page: the **Clear the template cache** button (POST with a CSRF
 token).
+
+## SecurityCheck
+
+`Campanella\System\SecurityCheck` · **Internal** · since 0.1.0
+
+`static checks(string $rootDir, TrustedProxies $proxies, SecurityHeaders $headers, Closure $server): Closure`:
+the *Public server* lines, for `SystemCheck::add()`. `$server` returns the web
+server's `document_root` and `remote_addr` for the current request (the
+`Kernel` reads them from `$_SERVER`); on the command line only the policy and
+HSTS lines are given. What to do about each line: [docs/deployment.md](../deployment.md).
+

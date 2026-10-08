@@ -42,7 +42,12 @@ shown according to the user's roles (e.g. an `editor` also sees drafts).
 | `500` | Internal error; with the message in debug mode |
 | `503` | The system is not installed yet, or an upgrade is needed (with `Retry-After: 300`; since 0.0.6 also when a migration is pending: every page except logging in and out and the upgrade page) |
 
-Every response gets an `X-Content-Type-Options: nosniff` header.
+Every response gets the `X-Content-Type-Options: nosniff`, `X-Frame-Options`,
+`Referrer-Policy` and (since 0.1.0) `Content-Security-Policy` and
+`Permissions-Policy` headers; `Strict-Transport-Security` if enabled. Behind a
+proxy listed in `trusted_proxies`, the visitor's address and HTTPS come from
+its `X-Forwarded-For` and `X-Forwarded-Proto` headers
+([deployment guide](../deployment.md#behind-a-proxy)).
 
 The navigation at the top of every page is the `main` menu (since 0.0.7),
 edited in the admin ([PHP API chapter 19](../php-api/19-menus.md)); until

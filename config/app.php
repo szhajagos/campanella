@@ -90,6 +90,25 @@ return [
         'store_unprocessed' => false,
     ],
 
+    // Behind a reverse proxy (load balancer, CDN, the web server of a Docker host): the
+    // proxies whose X-Forwarded-For and X-Forwarded-Proto headers are believed, as IP
+    // addresses or CIDR ranges, e.g. ['127.0.0.1', '10.0.0.0/8']. Empty: none, the
+    // headers are ignored (anyone could send them). See docs/deployment.md.
+    'trusted_proxies' => [],
+
+    // Security headers (see docs/deployment.md).
+    'security' => [
+        // null: the built-in Content-Security-Policy of the public site (only the site's own
+        // scripts, styles and images). A string replaces it, e.g. for a theme's font
+        // service; every source added is trusted with the visitors' pages.
+        'content_security_policy' => null,
+        // HSTS: browsers use only HTTPS for this many seconds (e.g. 31536000: a year).
+        // 0: off. Turn it on only once HTTPS works everywhere: it cannot be taken back
+        // for the visitors who already got it.
+        'hsts' => 0,
+        'hsts_subdomains' => false,
+    ],
+
     // Session (login). The session only starts at login; anonymous
     // visitors get no cookie.
     'session' => [

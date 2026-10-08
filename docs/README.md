@@ -8,6 +8,7 @@ chapter in the same commit.
 |---|---|---|
 | [PHP API](php-api/README.md) | Classes, contracts and extension points, with examples | Matches 0.0.7 |
 | [HTTP API](http-api/README.md) | The web endpoints: the current HTML routes and the planned JSON API | HTML: done · JSON: draft |
+| [Deployment](deployment.md) | Running Campanella on a public server: web root, HTTPS and proxies, settings, security headers, permissions, backups, upgrades, a checklist | Since 0.1.0 |
 | [Changelog](../CHANGELOG.md) | What was added, changed or removed in each version | Ongoing |
 
 Installation and startup are described in the [README](../README.md) in the
