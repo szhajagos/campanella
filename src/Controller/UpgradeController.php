@@ -10,7 +10,7 @@ use Campanella\Core\Version;
 use Campanella\Database\DatabaseBackup;
 use Campanella\Database\Installer;
 use Campanella\Database\Migration\MigrationException;
-use Campanella\Database\Migration\Core\RolesMultiValue;
+use Campanella\Database\UnsupportedUpgradeException;
 use Campanella\Database\Migration\Migrator;
 use Campanella\Database\Sync\SchemaSync;
 use Campanella\Database\Sync\SyncPlan;
@@ -72,7 +72,7 @@ final class UpgradeController implements Controller
         if (!$this->installer->isInstalled()) {
             throw new HttpException(503, 'error.not_installed');
         }
-        $admin = !$actor->isAnonymous() && ($this->access->allowsSystem($actor) || $this->allowedBeforeRolesMigration($actor));
+        $admin = !$actor->isAnonymous() && $this->access->allowsSystem($actor);
         $needed = $this->needed();
         $context = [
             'needed' => $needed,
@@ -88,6 +88,11 @@ final class UpgradeController implements Controller
             'result' => null,
         ];
 
+        // Older than 0.0.6: this version cannot upgrade it (through 0.0.7 first).
+        $old = $this->installer->tooOld();
+        if ($old !== null) {
+            return $this->page(['needed' => false, 'error' => (new UnsupportedUpgradeException($old))->reason] + $context + $this->details(false), 409);
+        }
         if ($request->isPost() && $needed) {
             return $this->run($request, $admin, $context);
         }
@@ -157,29 +162,6 @@ final class UpgradeController implements Controller
             'log' => $log,
             'backup_file' => $file === null ? null : basename($file),
         ] + $this->details(true) + $context);
-    }
-
-    /**
-     * Until the roles migration of 0.0.6 has run, a user's roles are still in the old
-     * column (the new code reads none): an administrator could not open this page
-     * after uploading 0.0.6. So the old column is read here too while it exists.
-     * Removed with StringList (before 0.1.0).
-     */
-    private function allowedBeforeRolesMigration(Actor $actor): bool
-    {
-        if ($actor->id === null) {
-            return false;
-        }
-        try {
-            $stored = $this->installer->legacyValue(RolesMultiValue::TABLE, RolesMultiValue::COLUMN, (int) $actor->id);
-        } catch (\Throwable) {
-            return false;
-        }
-        if ($stored === null) {
-            return false;
-        }
-
-        return $this->access->allowsSystem(new Actor($actor->kind, $actor->id, RolesMultiValue::decode($stored), $actor->name));
     }
 
     /** A schema or migration upgrade, or additive changes of the definitions. */

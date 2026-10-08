@@ -7,6 +7,7 @@ namespace Campanella\Cli;
 use Campanella\Core\Container;
 use Campanella\Database\DatabaseBackup;
 use Campanella\Database\Installer;
+use Campanella\Database\UnsupportedUpgradeException;
 use Campanella\Database\Migration\Migrator;
 use Campanella\Database\Sync\SchemaSync;
 use Campanella\I18n\Translator;
@@ -44,6 +45,13 @@ final class MigrateCommand implements Command
         $installer = $container->get(Installer::class);
         if (!$installer->isInstalled()) {
             $output->error($t->translate('admin.system.schema_missing'));
+
+            return 1;
+        }
+        try {
+            $installer->assertUpgradable();
+        } catch (UnsupportedUpgradeException $e) {
+            $output->error($e->reason->translate($t));
 
             return 1;
         }

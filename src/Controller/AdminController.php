@@ -305,9 +305,16 @@ final class AdminController implements Controller
                 'name' => $name,
                 'label' => $blueprint->label,
                 'count' => $this->queries->count(Query::objects()->blueprint($name), $actor),
+                // Each type links to its list (users have none here yet).
+                'path' => isset($blueprint->capabilities['authenticatable']) ? null : $this->access->path($name),
             ];
         }
         $recent = $this->queries->execute(Query::objects()->orderBy('updated', 'DESC')->limit(10), $actor);
+        $editable = [];
+        foreach ($recent as $item) {
+            $editable[(int) $item->id()] = $this->policy->allows($actor, Operation::Update, $item)
+                && !$item->has(\Campanella\Capability\Authenticatable::class);
+        }
 
         // A warning bar for those who can fix it, if a requirement is not met.
         $systemError = $this->access->allowsSystem($actor)
@@ -318,6 +325,7 @@ final class AdminController implements Controller
             'system_error' => $systemError,
             'counts' => $counts,
             'recent' => $recent,
+            'editable' => $editable,
         ]);
     }
 

@@ -150,7 +150,7 @@ new Field('notes', FieldType::Text, storage: FieldStorage::Data, cardinality: Fi
   queryable multi-valued field without stored values is `[]`.
 - **Indexing:** the values in `field_values` are always indexed; `indexed` has
   no extra effect.
-- **Not allowed:** `unique`; a multi-valued `StringList`; a queryable
+- **Not allowed:** `unique`; a queryable
   multi-valued `String` in a capability longer than 255 characters
   (`Field::MAX_MULTI_STRING_LENGTH`; `CapabilityException` on registration).
   A Blueprint's own fields are stored in data, so for them the limit does not apply.
@@ -181,7 +181,10 @@ In templates the value is a list as well:
 | `Integer` | `int` | `INT` |
 | `Boolean` | `bool` | `TINYINT(1)` |
 | `DateTime` | `DateTimeImmutable` (UTC) | `DATETIME` |
-| `StringList` | `list<string>` (without duplicates and empty items) | `MEDIUMTEXT`, as a JSON array (since 0.0.3). **Deprecated** since 0.0.6, removed before 0.1.0: use a multi-valued `String` field (`cardinality: Field::UNLIMITED`), which can be queried |
+
+A list of values is a multi-valued field (`cardinality`), e.g. a multi-valued
+`String`. The former `StringList` type (a JSON array in a column, deprecated
+in 0.0.6) was removed in 0.1.0.
 
 | Method | Description |
 |---|---|
@@ -189,7 +192,7 @@ In templates the value is a list as well:
 | `toStorage(mixed $value): string\|int\|null` | A form that can be written to the database or JSON; date: `Y-m-d H:i:s` UTC |
 | `fromStorage(mixed $value): mixed` | Back to a PHP value |
 | `columnType(): ColumnType` | The matching column type |
-| `valueColumn(): string` | The `field_values` column holding the values of a multi-valued field of this type: `value_string`, `value_text`, `value_int` (Integer, Boolean) or `value_datetime`; `LogicException` for `StringList` |
+| `valueColumn(): string` | The `field_values` column holding the values of a multi-valued field of this type: `value_string`, `value_text`, `value_int` (Integer, Boolean) or `value_datetime` |
 
 The `STORAGE_DATE_FORMAT` constant (`'Y-m-d H:i:s'`) is the format of stored
 dates.

@@ -165,7 +165,6 @@ return [
     'admin.form.none' => '– none –',
     'admin.form.no_targets' => 'There is nothing to choose from yet.',
     'admin.form.path_help' => 'The address of the page on the site. Leave it empty to create it from the title.',
-    'admin.form.list_help' => 'One value per line.',
     'validation.invalid_number' => 'must be a whole number',
     'validation.invalid_date' => 'invalid date',
     'admin.form.yes' => 'Yes',
@@ -460,4 +459,5 @@ return [
     'cli.seed.menu' => 'The main menu was created ({count} items).',
     'admin.form.url_help' => 'Instead of choosing where it leads: a path of the site (/news) or a full address (https://…).',
     'admin.form.machine_name_help' => 'Templates find it by this name, e.g. the main menu is main.',
+    'upgrade.too_old' => 'This database belongs to a Campanella older than {min} (schema version {version}). This version can only upgrade {min} or later: upload Campanella {via} first, run its upgrade, then upload this version again.',
 ];

@@ -34,3 +34,6 @@
 .admin-upload { border-style: dashed; }
 .admin-upload input[type="file"] { min-width: 0; flex-basis: 12rem; }
 .admin-upload.is-dragover { border-color: var(--bs-primary); background: var(--bs-primary-bg-subtle); }
+
+/* Dashboard: a content type card links to its list (the whole card is clickable). */
+.admin-stat:has(.stretched-link):hover { border-color: var(--bs-primary); }

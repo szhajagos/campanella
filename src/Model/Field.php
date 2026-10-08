@@ -59,11 +59,6 @@ final readonly class Field
             );
         }
         if ($cardinality !== 1) {
-            if ($type === FieldType::StringList) {
-                throw new \InvalidArgumentException(
-                    "Field {$name}: a StringList field is already a list; it cannot be multi-valued.",
-                );
-            }
             if ($unique) {
                 throw new \InvalidArgumentException("Field {$name}: a multi-valued field cannot be unique.");
             }

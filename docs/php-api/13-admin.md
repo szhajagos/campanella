@@ -48,7 +48,7 @@ The `subpath` route parameter selects the page. Everything goes through the
 
 | Path | Page |
 |---|---|
-| `/admin` | Dashboard: the number of objects per Blueprint, the ten most recently modified objects |
+| `/admin` | Dashboard: the number of objects per Blueprint, each linking to its list (since 0.1.0), and the ten most recently modified objects, linking to their forms for those who may edit them |
 | `/admin/<blueprint>` | The list of a Blueprint's objects (see below) |
 | `/admin/<blueprint>/new` | Creating an object (form; POST creates it) |
 | `/admin/<blueprint>/<id>` | Editing an object (form; POST saves it) |
@@ -163,7 +163,6 @@ and `inputId()`.
 | Integer | `integer`: number input (the `INT` range) |
 | Boolean | `boolean`: checkbox; in a multi-valued field a yes/no select per value |
 | DateTime | `datetime`: date and time in the site time zone (`timezone` setting), stored in UTC |
-| StringList | `list`: text area, one value per line |
 | `One` relation | `select`: drop-down with "none" |
 | `Many` relation | `checkboxes`: one checkbox per possible target |
 

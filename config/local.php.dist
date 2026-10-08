@@ -7,7 +7,9 @@ declare(strict_types=1);
  * local.php is not under version control.
  */
 return [
-    'debug' => true,
+    // Debug mode shows error details to every visitor: only on your own machine,
+    // never on a public server (the admin's System page warns while it is on).
+    'debug' => false,
 
     'database' => [
         'host' => 'localhost',

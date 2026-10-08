@@ -17,7 +17,9 @@
             <div class="col-6 col-lg-3">
                 <div class="card admin-stat h-100">
                     <div class="card-body">
-                        <div class="text-body-secondary small">{{ t(item.label) }}</div>
+                        <div class="text-body-secondary small">
+                            {%- if item.path %}<a class="stretched-link text-reset" href="{{ url(item.path) }}">{{ t(item.label) }}</a>{% else %}{{ t(item.label) }}{% endif -%}
+                        </div>
                         <div class="fs-3 fw-semibold">{{ item.count }}</div>
                     </div>
                 </div>
@@ -42,7 +44,8 @@
                 <tbody>
                     {% for item in recent %}
                         <tr>
-                            <td>{{ item.title is defined and item.title ? item.title : t('admin.untitled') }}</td>
+                            {% set label = item.title is defined and item.title ? item.title : t('admin.untitled') %}
+                            <td>{% if editable[item.id] ?? false %}<a href="{{ admin_url(item.blueprint ~ '/' ~ item.id) }}">{{ label }}</a>{% else %}{{ label }}{% endif %}</td>
                             <td>{{ t(blueprints[item.blueprint].label ?? item.blueprint) }}</td>
                             <td>{% include '@core/admin/_status.html.twig' with {object: item} only %}</td>
                             <td class="text-end text-body-secondary small"><time datetime="{{ item.updated|date('c') }}">{{ item.updated|date }}</time></td>

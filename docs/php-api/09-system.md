@@ -130,6 +130,8 @@ set, it is the project root (by default the parent directory of `public/`).
 `CAMPANELLA = '0.0.7'` (the system version) and `SCHEMA = '6'` (the version of
 the core tables; incremented for a new core table. Changes of existing tables
 are migrations: [chapter 17](17-migrations.md)).
+`MIN_UPGRADE_SCHEMA = '6'` (since 0.1.0): the oldest schema an upgrade can start
+from ([chapter 17](17-migrations.md#the-oldest-version-that-can-be-upgraded)).
 
 ## CLI
 

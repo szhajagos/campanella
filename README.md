@@ -104,7 +104,8 @@ upgrade has run, and the `status` command says what to run. Without a command
 line, log in and open `/admin/upgrade`: it does the same, with a backup first
 ([docs/php-api/17-migrations.md](docs/php-api/17-migrations.md)).
 The [CHANGELOG](CHANGELOG.md) lists the changes version by version, and the
-extra steps of an upgrade at the top of the version's section.
+extra steps of an upgrade at the top of the version's section. An installation
+older than 0.0.6 is upgraded to 0.0.7 first.
 
 ## Commands
 

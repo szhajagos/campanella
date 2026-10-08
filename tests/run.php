@@ -744,7 +744,6 @@ $contacts = (function () use ($db): array {
 
 test('Field definition: cardinality rules', function (): void {
     throws(InvalidArgumentException::class, fn () => new Field('x', FieldType::String, cardinality: 0));
-    throws(InvalidArgumentException::class, fn () => new Field('x', FieldType::StringList, cardinality: 3));
     throws(InvalidArgumentException::class, fn () => new Field('x', FieldType::String, unique: true, cardinality: 2));
     // Longer than the field_values column: rejected when the capability is registered,
     // but fine as a Blueprint's own field (those are stored in data).
@@ -1162,6 +1161,7 @@ test('Kernel: the admin is only for admin roles', function () use ($editorUser, 
     check(str_contains($dashboard->body, 'Irányítópult') && str_contains($dashboard->body, 'Cikk'), 'dashboard with the translated Blueprint labels');
     check(($dashboard->headers['X-Robots-Tag'] ?? '') === 'noindex, nofollow' && ($dashboard->headers['Cache-Control'] ?? '') === 'private, no-store');
     check(str_contains($dashboard->body, 'admin.css?v='), 'the admin has its own stylesheet');
+    check(str_contains($dashboard->body, 'href="/admin/article">Cikk</a>') && !str_contains($dashboard->body, 'href="/admin/user"'), 'the types link to their lists (users have none)');
     $storage->endRequest();
     check($kernel->handle(new Request('GET', '/admin/no-such-page'))->status === 404);
     $storage->endRequest();
@@ -2952,7 +2952,7 @@ test('RolesMultiValue: reading the stored lists', function (): void {
     check($d(null) === [] && $d('') === [] && $d('[]') === [] && $d('[" editor ", "", "editor"]') === ['editor']);
 });
 
-test('Upgrading a 0.0.5 database: the roles move to field_values, the old column goes', function () use ($dropSchema, $capabilities): void {
+test('An unfinished 0.0.6 upgrade: the roles move to field_values, the old column goes', function () use ($dropSchema, $capabilities): void {
     putenv('CAMPANELLA_DB_PREFIX=sch_');
     $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
     $container = $kernel->container();
@@ -2969,7 +2969,7 @@ test('Upgrading a 0.0.5 database: the roles move to field_values, the old column
     $storage = new ArraySessionStorage();
     $container->set(Session::class, static fn () => new Session($storage));
 
-    // The database as 0.0.5 left it: the tables (no migrations recorded), the roles as JSON in a column.
+    // 0.0.6 uploaded, its upgrade not run yet: the tables (no migrations recorded), the roles as JSON in a column.
     (new Installer($db, $container->get(CapabilityRegistry::class)))->install();
     $db->execute('ALTER TABLE ' . $db->table('cap_authenticatable') . ' ADD COLUMN `roles` MEDIUMTEXT NULL AFTER `account_status`');
     $repository = $container->get(ObjectRepository::class);
@@ -2986,7 +2986,8 @@ test('Upgrading a 0.0.5 database: the roles move to field_values, the old column
     $extra = array_map(static fn ($d): string => $d->kind->value . ':' . $d->table . '.' . $d->name, $installer->differences());
     check($extra === ['extra_column:cap_authenticatable.roles'], implode(', ', $extra));
 
-    // The new code reads no roles yet: the administrator still opens the upgrade page, without a key.
+    // The new code reads no roles yet: since 0.1.0 the old column is not read any more,
+    // so the upgrade page asks for the key; the command line (or the key) does the upgrade.
     $auth = $container->get(AuthService::class);
     $auth->login(new Request('GET', '/'), $users['admin@regi.hu']);
     $storage->endRequest();
@@ -2995,11 +2996,10 @@ test('Upgrading a 0.0.5 database: the roles move to field_values, the old column
     check($kernel->handle(new Request('GET', '/admin'))->status === 503, 'the admin waits');
     $storage->endRequest();
     $page = $kernel->handle(new Request('GET', '/admin/upgrade'));
-    check($page->status === 200 && str_contains($page->body, 'core:0006_roles_multi_value') && !str_contains($page->body, 'name="key"'), 'the administrator of the old roles column sees it');
-    preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $page->body, $m);
-    $storage->endRequest();
-    $done = $kernel->handle(new Request('POST', '/admin/upgrade', post: ['_csrf' => $m[1] ?? '']));
-    check($done->status === 200 && str_contains($done->body, 'A frissítés kész: 1 migráció') && str_contains($done->body, '4 users'), strip_tags($done->body));
+    check($page->status === 200 && str_contains($page->body, 'core:0006_roles_multi_value') === false, 'no details without the role');
+    $installer->install();
+    $results = $installer->migrator()?->run() ?? [];
+    check(count($results) === 1, 'the roles migration ran');
 
     check(!$installer->needsUpgrade() && $installer->differences() === [], 'matches a fresh installation');
     $roles = static fn (string $email) => $repository->find((int) $users[$email]->id())?->as(Authenticatable::class)->roles();
@@ -3017,6 +3017,39 @@ test('Upgrading a 0.0.5 database: the roles move to field_values, the old column
     // Repeatable: running it again changes nothing.
     (new \Campanella\Database\Migration\Core\RolesMultiValue())->up(new \Campanella\Database\Migration\MigrationContext($db));
     check($roles('mindketto@regi.hu') === ['editor', 'administrator']);
+
+    $dropSchema();
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('An installation older than 0.0.6 is not upgraded: through 0.0.7 first', function () use ($dropSchema): void {
+    putenv('CAMPANELLA_DB_PREFIX=sch_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $container = $kernel->container();
+    $db = $container->get(Connection::class);
+    if ($db->prefix() !== 'sch_') {
+        echo "      (skipped: config/local.php sets its own prefix)\n";
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $dropSchema();
+    $installer = $container->get(Installer::class);
+    $installer->install();
+    $db->execute("UPDATE {system} SET value = '5' WHERE name = 'schema_version'");
+    check($installer->tooOld() === '5' && $installer->needsUpgrade());
+    throws(\Campanella\Database\UnsupportedUpgradeException::class, fn () => $installer->install());
+    check($installer->systemValue('schema_version') === '5', 'nothing changed');
+
+    $stream = fopen('php://memory', 'w+');
+    $code = (new \Campanella\Cli\MigrateCommand())->run($container, ['--yes'], new \Campanella\Cli\Output($stream, $stream));
+    rewind($stream);
+    $out = (string) stream_get_contents($stream);
+    check($code === 1 && str_contains($out, '0.0.7'), $out);
+
+    $page = $kernel->handle(new Request('GET', '/admin/upgrade'));
+    check($page->status === 409 && str_contains($page->body, 'Campanella 0.0.7') && !str_contains($page->body, 'type="submit" class="btn btn-primary'), 'the upgrade page explains it');
+    check($kernel->handle(new Request('GET', '/'))->status === 503, 'the site waits');
 
     $dropSchema();
     putenv('CAMPANELLA_DB_PREFIX');

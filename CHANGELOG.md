@@ -10,6 +10,27 @@ backward-incompatible.
 
 ## [Unreleased]
 
+### Added
+
+- The dashboard's content types link to their lists, and the recently
+  modified objects to their forms (for those who may edit them).
+
+### Changed
+
+- **Upgrading is possible from 0.0.6 or later only.** An older installation
+  is upgraded to 0.0.7 first: `install`, `migrate` and the upgrade page stop
+  with an explanation before changing anything (`Version::MIN_UPGRADE_SCHEMA`,
+  `Installer::tooOld()`).
+- `config/local.php.dist` no longer turns debug mode on: a copied file is safe
+  on a public server.
+
+### Removed
+
+- The `FieldType::StringList` type (deprecated in 0.0.6): a list of values is
+  a multi-valued field. The admin's `list` widget went with it.
+- The upgrade page no longer reads the users' old roles column (needed only
+  while upgrading 0.0.5), nor does `Installer::legacyValue()` exist.
+
 ## [0.0.7] – 2026-10-07
 
 Trees and menus: objects arranged in a tree with a hand-set order, the

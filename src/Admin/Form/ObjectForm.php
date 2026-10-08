@@ -120,7 +120,6 @@ final class ObjectForm
                     $name === 'path' => 'admin.form.path_help',
                     $name === 'url' && $object->has(Link::class) => 'admin.form.url_help',
                     $name === 'machine_name' => 'admin.form.machine_name_help',
-                    $field->type === FieldType::StringList => 'admin.form.list_help',
                     default => null,
                 },
                 attributes: match (true) {
@@ -258,7 +257,6 @@ final class ObjectForm
             FieldType::Integer => 'integer',
             FieldType::Boolean => 'boolean',
             FieldType::DateTime => 'datetime',
-            FieldType::StringList => 'list',
         };
     }
 
@@ -278,7 +276,6 @@ final class ObjectForm
             $value === null => '',
             $value instanceof DateTimeInterface => DateTimeImmutable::createFromInterface($value)
                 ->setTimezone($this->timezone)->format(self::LOCAL_DATETIME),
-            is_array($value) => implode("\n", array_map(strval(...), $value)),   // StringList: one per line
             is_bool($value) => $value ? '1' : '',
             is_scalar($value) => (string) $value,
             default => '',
@@ -320,7 +317,6 @@ final class ObjectForm
                 default => throw new \UnexpectedValueException('validation.invalid_number'),
             },
             FieldType::DateTime => $this->parseDate(trim($text)),
-            FieldType::StringList => array_values(array_filter(array_map('trim', preg_split('/\R/', $text) ?: []), static fn (string $s): bool => $s !== '')),
         };
     }
 

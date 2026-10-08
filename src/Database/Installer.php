@@ -55,6 +55,7 @@ final class Installer
      */
     public function install(): array
     {
+        $this->assertUpgradable();
         $fresh = !$this->isInstalled();
         $builder = new SchemaBuilder($this->db);
         $names = [];
@@ -115,27 +116,35 @@ final class Installer
         return $version !== null && ($version !== Version::SCHEMA || $this->pendingMigrations() !== []);
     }
 
+    /**
+     * The installed schema version if it is too old to be upgraded by this version
+     * (older than Version::MIN_UPGRADE_SCHEMA); null otherwise (or not installed).
+     * Since 0.1.0.
+     */
+    public function tooOld(): ?string
+    {
+        try {
+            $version = $this->systemValue('schema_version');
+        } catch (\PDOException) {
+            return null;
+        }
+
+        return $version !== null && (int) $version < (int) Version::MIN_UPGRADE_SCHEMA ? $version : null;
+    }
+
+    /** @throws UnsupportedUpgradeException for an installation older than 0.0.6 */
+    public function assertUpgradable(): void
+    {
+        $old = $this->tooOld();
+        if ($old !== null) {
+            throw new UnsupportedUpgradeException($old);
+        }
+    }
+
     /** @return list<Migration> The migrations that have not run yet (none without a Migrator) */
     public function pendingMigrations(): array
     {
         return $this->migrator?->pending() ?? [];
-    }
-
-    /**
-     * A value of a column that the definitions no longer have (e.g. before a migration
-     * moved it), for an object; null if the column or the row is not there.
-     */
-    public function legacyValue(string $table, string $column, int $objectId): ?string
-    {
-        if (!(new SchemaReader($this->db))->columnExists($table, $column)) {
-            return null;
-        }
-        $value = $this->db->fetchValue(
-            sprintf('SELECT %s FROM %s WHERE object_id = :id', Connection::quoteIdentifier($column), $this->db->table($table)),
-            ['id' => $objectId],
-        );
-
-        return $value === null ? null : (string) $value;
     }
 
     public function migrator(): ?Migrator

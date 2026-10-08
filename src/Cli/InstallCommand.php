@@ -8,6 +8,7 @@ use Campanella\Core\Container;
 use Campanella\Database\Connection;
 use Campanella\Database\DatabaseBackup;
 use Campanella\Database\Installer;
+use Campanella\Database\UnsupportedUpgradeException;
 use Campanella\Database\Migration\Migrator;
 use Campanella\Database\Sync\SchemaSync;
 use Campanella\I18n\Translator;
@@ -51,6 +52,13 @@ final class InstallCommand implements Command
         $t = $container->get(Translator::class);
         $output->line($t->translate('cli.install.server', ['version' => $db->serverVersion()]));
         $existing = $installer->isInstalled();
+        try {
+            $installer->assertUpgradable();
+        } catch (UnsupportedUpgradeException $e) {
+            $output->error($e->reason->translate($t));
+
+            return 1;
+        }
         foreach ($installer->install() as $table) {
             $output->success($table);
         }

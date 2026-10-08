@@ -32,7 +32,7 @@ default) no release is made with a known open security gap.
 Agreed in detail on 2026-10-08. Kept narrow on purpose: it is still 0.x. In
 seven parts (0–6), each its own commit:
 
-0. **Housekeeping:** remove the deprecated `FieldType::StringList` and the
+0. ✅ **Housekeeping:** remove the deprecated `FieldType::StringList` and the
    upgrade page's reading of the old roles column. Upgrading to 0.1.0 is
    possible from 0.0.6 or later only (from older versions: through 0.0.7
    first); the installer stops with a clear message otherwise.

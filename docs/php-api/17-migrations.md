@@ -284,11 +284,19 @@ constants `TABLE`, `COLUMN`; `static decode(mixed $stored): list<string>` reads
 a stored list (JSON, or comma-separated), trimmed, without empty and repeated
 roles.
 
-**Before the roles migration has run**, the new code reads no roles (they are
-still in the old column), so a logged-in administrator would not be one. The
-upgrade page therefore also reads the old column while it exists: an
-administrator can run the upgrade from the browser without the upgrade key.
-(`Installer::legacyValue()`; removed with `StringList` before 0.1.0.)
+**Before the roles migration has run**, the code reads no roles (they are
+still in the old column), so a logged-in administrator is not one yet. Until
+0.0.7 the upgrade page read the old column too; since 0.1.0 it does not: such
+an installation is upgraded from the command line, or with the upgrade key.
+
+## The oldest version that can be upgraded
+
+Since 0.1.0, an installation older than 0.0.6 (schema version below
+`Version::MIN_UPGRADE_SCHEMA`) is not upgraded: `install`, `migrate` and the
+upgrade page stop with an explanation (`UnsupportedUpgradeException`,
+`upgrade.too_old`), before changing anything. Such a site is upgraded to
+0.0.7 first, then to the new version. This way the code that read the data of
+old versions can be removed.
 
 ## Backups: DatabaseBackup
 

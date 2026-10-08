@@ -163,7 +163,6 @@ return [
     'admin.form.none' => '– nincs –',
     'admin.form.no_targets' => 'Még nincs mit kiválasztani.',
     'admin.form.path_help' => 'Az oldal címe a honlapon. Ha üresen hagyod, a címből készül.',
-    'admin.form.list_help' => 'Soronként egy érték.',
     'validation.invalid_number' => 'egész számnak kell lennie',
     'validation.invalid_date' => 'érvénytelen dátum',
     'admin.form.yes' => 'Igen',
@@ -458,4 +457,5 @@ return [
     'cli.seed.menu' => 'A főmenü elkészült ({count} menüponttal).',
     'admin.form.url_help' => 'Ha nem a fenti listából választod, hová mutasson: az oldal egy útvonala (/hirek) vagy teljes cím (https://…).',
     'admin.form.machine_name_help' => 'A sablonok ezen a néven találják meg, pl. a főmenüé main.',
+    'upgrade.too_old' => 'Ez az adatbázis egy {min}-nál régebbi Campanelláé (sémaverzió: {version}). Ez a verzió csak {min}-ról vagy újabbról tud frissíteni: előbb töltsd fel a Campanella {via}-et, futtasd le a frissítését, majd töltsd fel újra ezt a verziót.',
 ];
