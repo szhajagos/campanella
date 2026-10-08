@@ -219,6 +219,12 @@ Only the SHA-256 hash of the key is stored.
 
 Other features (e.g. a future contact form) can use it too.
 
+`Campanella\Security\FileThrottle` · **Public** · since 0.1.0: the same
+methods (`tooManyAttempts()`, `hit()`, `availableIn()`, `clear()`), in a JSON
+file (`__construct(string $file)`), locked while it is written: for where the
+database cannot be used yet (the installer). Only hashes of the keys are
+stored; if the file cannot be written, attempts are not limited.
+
 ## Web interface
 
 `Campanella\Controller\AuthController` · handler: `auth`

@@ -134,7 +134,8 @@ host.
   details, file paths included, to every visitor. The System page warns while
   it is on.
 - The database user needs rights on Campanella's own database only.
-- `upgrade.key` only while you need it for an upgrade, then remove it.
+- `install.key` and `upgrade.key` only while you need them (installing from
+  the browser, an upgrade), then remove them.
 
 ### Security headers
 

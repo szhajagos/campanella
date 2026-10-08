@@ -52,8 +52,8 @@ seven parts (0–6), each its own commit:
    - a deployment guide (`docs/deployment.md`): Apache, nginx, Docker, HTTPS
      behind a proxy, file permissions, backups and upgrades, a checklist
      before going live.
-2. **Installing from the browser,** for web hosts without a command line:
-   `/telepites` checks the requirements, creates the tables and the first
+2. ✅ **Installing from the browser,** for web hosts without a command line:
+   `/install` checks the requirements, creates the tables and the first
    administrator. Only with an install key set in `config/local.php` (like
    the upgrade key), so nobody else can install the site between uploading
    and installing; once installed, the page answers 404.

@@ -308,6 +308,11 @@ final class SystemCheck
                 ? new CheckResult($g, 'admin.system.upgrade_key', CheckStatus::Warning, 'admin.system.on', new Message('admin.system.upgrade_key_short', ['min' => UpgradeController::MIN_KEY_LENGTH]))
                 : new CheckResult($g, 'admin.system.upgrade_key', CheckStatus::Warning, 'admin.system.on', new Message('admin.system.upgrade_key_set'));
         }
+        // The install key is needed only until the first administrator exists.
+        $installKey = $this->config->get('install.key');
+        if (is_string($installKey) && $installKey !== '') {
+            $results[] = new CheckResult($g, 'admin.system.install_key', CheckStatus::Warning, 'admin.system.on', new Message('admin.system.install_key_set'));
+        }
         if ($request !== null) {
             $results[] = $request->secure
                 ? new CheckResult($g, 'admin.system.https', CheckStatus::Ok, 'HTTPS')

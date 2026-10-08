@@ -4,6 +4,14 @@ declare(strict_types=1);
 
 namespace Campanella\Core;
 
+use Campanella\Cli\Output;
+
+use Campanella\Cli\SeedCommand;
+
+use Campanella\Security\FileThrottle;
+
+use Campanella\Controller\InstallController;
+
 use Campanella\Controller\UpgradeController;
 use Campanella\Access\AccessPolicy;
 use Campanella\Access\Actor;
@@ -132,7 +140,7 @@ final class Kernel
                 $actor = $container->get(AuthService::class)->currentActor($request);
             } catch (\Throwable $e) {
                 // The upgrade page must open even if the users cannot be read before the upgrade.
-                if ($route->handler !== 'upgrade') {
+                if ($route->handler !== 'upgrade' && $route->handler !== 'install') {
                     throw $e;
                 }
                 $actor = Actor::anonymous();
@@ -153,7 +161,7 @@ final class Kernel
     }
 
     /** The handlers that work while an upgrade is needed. */
-    private const array DURING_UPGRADE = ['upgrade', 'auth'];
+    private const array DURING_UPGRADE = ['upgrade', 'auth', 'install'];
 
     /** Installed, and an upgrade is needed (a database error: false, handled elsewhere). */
     private function upgradeNeeded(): bool
@@ -436,6 +444,7 @@ final class Kernel
             $router = new Router(require $root . '/config/routes.php');
             $router->prefix($c->get(AdminAccess::class)->path(), 'admin');
             $router->add($c->get(AdminAccess::class)->path('upgrade'), 'upgrade');
+            $router->add(InstallController::PATH, 'install');
 
             return $router;
         });
@@ -482,6 +491,28 @@ final class Kernel
             $c->get(Throttle::class),
             $c->get(Presentation::class),
             UpgradeController::usableKey($c->get(Config::class)->get('upgrade.key')),
+        ));
+
+        $c->set('controller.install', static fn (Container $c): Controller => new InstallController(
+            $c->get(Installer::class),
+            $c->get(Connection::class),
+            $c->get(ObjectRepository::class),
+            $c->get(AuthService::class),
+            $c->get(Csrf::class),
+            $c->get(Flash::class),
+            new FileThrottle($root . '/var/cache/install-throttle.json'),
+            $c->get(Presentation::class),
+            $c->get(AdminAccess::class),
+            InstallController::usableKey($c->get(Config::class)->get('install.key')),
+            [
+                'var/cache' => $root . '/var/cache',
+                'var/backups' => $root . '/var/backups',
+                (string) $c->get(Config::class)->get('media.directory', 'public/media') => $c->get(MediaStorage::class)->directory(),
+            ],
+            static function () use ($c): void {
+                $stream = fopen('php://memory', 'w+');
+                (new SeedCommand())->run($c, [], new Output($stream ?: STDOUT, $stream ?: STDERR));
+            },
         ));
 
         $c->set('controller.auth', static fn (Container $c): Controller => new AuthController(

@@ -115,6 +115,7 @@ New controller: a `controller.<name>` entry in the container, and a route in
 | `database.prefix` | `'cc_'` | `CAMPANELLA_DB_PREFIX` |
 | `capabilities` | the built-in ones (`Titled`, `Textual`, `Routable`, `Publishable`, `Identifiable`, `Authenticatable`, `Authorable`, `MediaFile`, `Weighted`, `Hierarchical`, `Keyed`, `Link`) | |
 | `upgrade.key` | not set | Opens the upgrade page without logging in, for when logging in does not work until the upgrade has run; at least 20 characters, only in `config/local.php`, removed afterwards ([chapter 17](17-migrations.md#from-the-browser)) |
+| `install.key` | not set | Opens installing from the browser (`/install`) while there is no user; at least 20 characters, only in `config/local.php`, removed afterwards (since 0.1.0; [chapter 17](17-migrations.md#installing-from-the-browser)) |
 | `trusted_proxies` | `[]` | The proxies whose `X-Forwarded-For` and `X-Forwarded-Proto` headers are believed (IPs or CIDR ranges; since 0.1.0; [chapter 7](07-http-and-view.md#trustedproxies)) |
 | `security.content_security_policy` | `null` (the built-in policy) | Replaces the public site's Content-Security-Policy; every source added is trusted with the visitors' pages (since 0.1.0; [chapter 7](07-http-and-view.md#securityheaders)) |
 | `security.hsts`, `security.hsts_subdomains` | `0` (off), `false` | `Strict-Transport-Security` max-age in seconds, over HTTPS only (since 0.1.0) |

@@ -147,6 +147,12 @@ final class Installer
         return $this->migrator?->pending() ?? [];
     }
 
+    /** The number of users (objects with Authenticatable); the installer is open only while there is none. Since 0.1.0. */
+    public function userCount(): int
+    {
+        return (int) $this->db->fetchValue("SELECT COUNT(*) FROM {object_capabilities} WHERE capability = 'authenticatable'");
+    }
+
     public function migrator(): ?Migrator
     {
         return $this->migrator;

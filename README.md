@@ -40,8 +40,18 @@ The last line starts PHP's built-in development server on your own machine, at
 <http://localhost:8000>. Do not use it on a production host, and do not infer
 your web host's configuration from it (see below).
 
-If your web host has no command line, you can run the output of
-`php bin/campanella install --sql` in phpMyAdmin instead.
+**Without a command line** (since 0.1.0): upload the files, create
+`config/local.php` with your database details and an install key of at least
+20 characters, then open `/install` in the browser:
+
+```php
+'install' => ['key' => '…a long random string…'],
+'database' => [/* … */],
+```
+
+The page checks the requirements, creates the tables and the first
+administrator (and, if you like, the sample content), and logs you in. Remove
+the key afterwards; the page closes as soon as there is a user.
 
 ### Where do the files go?
 

@@ -37,3 +37,6 @@
 
 /* Dashboard: a content type card links to its list (the whole card is clickable). */
 .admin-stat:has(.stretched-link):hover { border-color: var(--bs-primary); }
+
+/* The stand-alone pages (installing, upgrading): a narrow column. */
+.admin-narrow { max-width: 46rem; }

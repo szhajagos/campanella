@@ -201,6 +201,7 @@ never queries into it, so the difference does not matter.
 | `isInstalled(): bool` | |
 | `needsUpgrade(): bool` | Installed, but the `schema_version` is older than the code (`install` needs to be run), or a migration is pending (`migrate`) |
 | `pendingMigrations(): list<Migration>` | None without a Migrator |
+| `userCount(): int` | The users (objects with `Authenticatable`); the installer is open only while there is none (since 0.1.0) |
 | `migrator(): ?Migrator` | |
 | `tooOld(): ?string` | The installed schema version if it is older than `Version::MIN_UPGRADE_SCHEMA` (0.0.6), which this version cannot upgrade; null otherwise (since 0.1.0) |
 | `assertUpgradable(): void` | Throws `UnsupportedUpgradeException` (its translated `reason`) for such an installation; `install()` calls it first |

@@ -1,0 +1,89 @@
+{# Installing from the browser. Stand-alone (not the admin layout): before installing,
+   nothing else of the system may be relied on. #}
+<!doctype html>
+<html lang="{{ locale() }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <title>{{ t('install.title') }} – Campanella</title>
+    <script src="{{ asset('theme.js') }}"></script>
+    <link rel="stylesheet" href="{{ asset('vendor/bootstrap/css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ asset('admin.css') }}">
+</head>
+<body class="admin">
+    <main class="container py-5 admin-narrow">
+        <h1 class="h3 mb-1">{{ t('install.title') }}</h1>
+        <p class="text-body-secondary mb-4">Campanella {{ version }}</p>
+
+        {% if error %}
+            <div class="alert alert-danger" role="alert">{{ t(error.key, error.params) }}</div>
+        {% endif %}
+
+        <h2 class="h6 text-uppercase text-body-secondary">{{ t('install.requirements') }}</h2>
+        <table class="table table-sm align-middle mb-4">
+            <tbody>
+                {% for check in checks %}
+                    <tr>
+                        <th scope="row" class="fw-normal">{{ t(check.label) }}</th>
+                        <td>
+                            <span class="font-monospace small text-break">{{ check.value }}</span>
+                            {% if check.hint %}<div class="small text-body-secondary">{{ t(check.hint.key, check.hint.params) }}</div>{% endif %}
+                        </td>
+                        <td class="text-end">
+                            <span class="badge {{ check.ok ? 'text-bg-success' : 'text-bg-danger' }}">{{ t(check.ok ? 'admin.system.status.ok' : 'admin.system.status.error') }}</span>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        {% if not key_enabled %}
+            <div class="alert alert-warning" role="alert">
+                <p>{{ t('install.no_key', {min: min_key}) }}</p>
+                <pre class="mb-2 small"><code>'install' => ['key' => '{{ key_suggestion }}'],</code></pre>
+                <p class="mb-0 small">{{ t('install.no_key_after') }}</p>
+            </div>
+        {% elseif not ready %}
+            <div class="alert alert-warning" role="alert">{{ t('install.not_ready') }}</div>
+        {% else %}
+            {% if installed %}<div class="alert alert-info" role="alert">{{ t('install.tables_exist') }}</div>{% endif %}
+            <form method="post" action="{{ url(action) }}" class="admin-form" novalidate>
+                {{ csrf_field() }}
+
+                <div class="mb-4">
+                    <label for="install-key" class="form-label fw-semibold">{{ t('install.key') }} <span class="text-danger" aria-hidden="true">*</span></label>
+                    <input type="password" class="form-control" id="install-key" name="key" required autocomplete="off" aria-describedby="install-key-help">
+                    <div class="form-text" id="install-key-help">{{ t('install.key_help') }}</div>
+                </div>
+
+                <h2 class="h5 mt-4 mb-3">{{ t('install.admin') }}</h2>
+                {% set fields = [
+                    {name: 'name', error: 'title', label: 'install.name', type: 'text', value: input.name, autocomplete: 'name'},
+                    {name: 'email', error: 'email', label: 'field.email', type: 'email', value: input.email, autocomplete: 'username'},
+                    {name: 'password', error: 'password', label: 'install.password', type: 'password', value: '', autocomplete: 'new-password', help: t('install.password_help', {min: min_password})},
+                    {name: 'password_again', error: 'password_again', label: 'install.password_again', type: 'password', value: '', autocomplete: 'new-password'},
+                ] %}
+                {% for field in fields %}
+                    {% set message = errors[field.error] ?? null %}
+                    <div class="mb-3">
+                        <label for="install-{{ field.name }}" class="form-label fw-semibold">{{ t(field.label) }} <span class="text-danger" aria-hidden="true">*</span></label>
+                        <input type="{{ field.type }}" class="form-control{{ message ? ' is-invalid' }}" id="install-{{ field.name }}" name="{{ field.name }}"
+                               value="{{ field.value }}" required autocomplete="{{ field.autocomplete }}"
+                               {%- if message or field.help is defined %} aria-describedby="{{ message ? 'install-' ~ field.name ~ '-error' : 'install-' ~ field.name ~ '-help' }}"{% endif %}>
+                        {% if field.help is defined %}<div class="form-text" id="install-{{ field.name }}-help">{{ field.help }}</div>{% endif %}
+                        {% if message %}<div class="invalid-feedback" id="install-{{ field.name }}-error">{{ t(message.key, message.params) }}</div>{% endif %}
+                    </div>
+                {% endfor %}
+
+                <div class="form-check mt-4">
+                    <input class="form-check-input" type="checkbox" id="install-seed" name="seed" value="1"{{ input.seed ? ' checked' }}>
+                    <label class="form-check-label" for="install-seed">{{ t('install.seed') }}</label>
+                </div>
+
+                <button type="submit" class="btn btn-primary mt-4">{{ t('install.submit') }}</button>
+            </form>
+        {% endif %}
+    </main>
+</body>
+</html>

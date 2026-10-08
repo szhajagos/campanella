@@ -11,6 +11,11 @@ return [
     // never on a public server (the admin's System page warns while it is on).
     'debug' => false,
 
+    // Installing from the browser (/install) needs a key of at least 20 characters,
+    // e.g. the output of: php -r "echo bin2hex(random_bytes(20));". Remove it once
+    // installed.
+    // 'install' => ['key' => ''],
+
     'database' => [
         'host' => 'localhost',
         'name' => 'campanella',

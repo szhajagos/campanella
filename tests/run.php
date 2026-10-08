@@ -3621,6 +3621,122 @@ test('SecurityCheck: the web root, proxy headers, the policy and HSTS', function
     check(count($cli(null)) === 2, 'on the command line: only the settings');
 });
 
+test('FileThrottle: attempts per key in a file, the window expires', function (): void {
+    $file = sys_get_temp_dir() . '/campanella-throttle-' . bin2hex(random_bytes(4)) . '/t.json';
+    $t = new \Campanella\Security\FileThrottle($file);
+    check(!$t->tooManyAttempts('a', 2) && $t->hit('a', 60) === 1 && $t->hit('a', 60) === 2 && $t->tooManyAttempts('a', 2));
+    check(!$t->tooManyAttempts('b', 2) && $t->availableIn('a') > 0 && $t->availableIn('b') === 0);
+    check(!str_contains((string) file_get_contents($file), '"a"'), 'only hashes are stored');
+    $t->clear('a');
+    check(!$t->tooManyAttempts('a', 1));
+    $t->hit('c', -1);
+    check(!$t->tooManyAttempts('c', 1), 'an expired window is forgotten');
+    @unlink($file);
+    @rmdir(dirname($file));
+});
+
+test('Installing from the browser: only with the key, only while there is no user, then 404', function () use ($dropSchema): void {
+    putenv('CAMPANELLA_DB_PREFIX=sch_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $container = $kernel->container();
+    $db = $container->get(Connection::class);
+    if ($db->prefix() !== 'sch_') {
+        echo "      (skipped: config/local.php sets its own prefix)\n";
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $dropSchema();
+    $root = dirname(__DIR__);
+    @unlink($root . '/var/cache/install-throttle.json');
+    $storage = new ArraySessionStorage();
+    $container->set(Session::class, static fn () => new Session($storage));
+    $send = function (string $method, string $path, array $post = [], string $ip = '10.2.2.2') use ($kernel, $storage) {
+        $storage->endRequest();
+
+        return $kernel->handle(new Request($method, $path, post: $post, ip: $ip));
+    };
+    $csrfOf = static fn ($response): string => preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $response->body, $m) === 1 ? $m[1] : '';
+
+    $home = $send('GET', '/');
+    check($home->status === 503 && str_contains($home->body, '/install'), 'not installed: the site points to the installer');
+
+    // No key configured: how to set one, no form.
+    $page = $send('GET', '/install');
+    check($page->status === 200 && str_contains($page->body, "'install' => ['key' => '") && !str_contains($page->body, 'name="key"'), 'no key: the instructions');
+    check(str_contains($page->body, 'Követelmények') && str_contains((string) ($page->headers['Content-Security-Policy'] ?? ''), "script-src 'self'") && ($page->headers['X-Robots-Tag'] ?? '') === 'noindex, nofollow');
+
+    // With a key (a fresh kernel reads the setting).
+    $key = str_repeat('t', 24);
+    $kernel = new \Campanella\Core\Kernel($root);
+    $container = $kernel->container();
+    $config = $container->get(\Campanella\Core\Config::class);
+    $container->set(\Campanella\Core\Config::class, static fn () => new \Campanella\Core\Config(['install' => ['key' => $key]] + $config->all()));
+    $container->set(Session::class, static fn () => new Session($storage));
+    $send = function (string $method, string $path, array $post = [], string $ip = '10.2.2.2') use ($kernel, $storage) {
+        $storage->endRequest();
+
+        return $kernel->handle(new Request($method, $path, post: $post, ip: $ip));
+    };
+    check(\Campanella\Controller\InstallController::usableKey('rövid') === null);
+    $page = $send('GET', '/install');
+    check(str_contains($page->body, 'name="key"') && str_contains($page->body, 'name="password_again"'), 'the form');
+    $form = ['name' => 'Első Admin', 'email' => 'elso@example.hu', 'password' => 'telepito-jelszo-1', 'password_again' => 'telepito-jelszo-1', 'seed' => '1'];
+
+    check($send('POST', '/install', ['key' => $key] + $form)->status === 400, 'without the CSRF token');
+    $wrong = $send('POST', '/install', ['_csrf' => $csrfOf($page), 'key' => 'rossz-kulcs-rossz-kulcs'] + $form);
+    check($wrong->status === 403 && str_contains($wrong->body, 'Hibás telepítési kulcs') && !(new Installer($db, $container->get(CapabilityRegistry::class)))->isInstalled(), 'a wrong key installs nothing');
+    for ($i = 0; $i < 5; $i++) {
+        $send('POST', '/install', ['_csrf' => $csrfOf($page), 'key' => 'rossz-kulcs-rossz-kulcs'] + $form, '10.7.7.7');
+    }
+    check($send('POST', '/install', ['_csrf' => $csrfOf($page), 'key' => $key] + $form, '10.7.7.7')->status === 403, 'too many wrong keys: even the right one waits');
+    $mismatch = $send('POST', '/install', ['_csrf' => $csrfOf($page), 'key' => $key, 'password_again' => 'masik-jelszo-123'] + $form);
+    check($mismatch->status === 422 && str_contains($mismatch->body, 'A két jelszó eltér') && str_contains($mismatch->body, 'value="elso@example.hu"') && !str_contains($mismatch->body, 'telepito-jelszo-1'), 'checked before installing; the password is not shown again');
+    check(!(new Installer($db, $container->get(CapabilityRegistry::class)))->isInstalled());
+
+    $done = $send('POST', '/install', ['_csrf' => $csrfOf($page), 'key' => $key] + $form);
+    check($done->status === 303 && ($done->headers['Location'] ?? '') === '/admin', (string) $done->status . ' ' . strip_tags(substr($done->body, 0, 400)));
+    $admin = $send('GET', '/admin');
+    check($admin->status === 200 && str_contains($admin->body, 'Első Admin') && str_contains($admin->body, 'install.key'), 'logged in as the administrator, reminded of the key');
+    $user = $container->get(AuthService::class)->findUserByEmail('elso@example.hu');
+    check($user !== null && $user->as(Authenticatable::class)->roles() === ['administrator'] && $user->as(Authenticatable::class)->verifyPassword('telepito-jelszo-1'));
+    check($send('GET', '/')->status === 200 && str_contains($send('GET', '/')->body, 'Kezdőlap'), 'the sample content and the main menu');
+    check($send('GET', '/install')->status === 404 && $send('POST', '/install', ['_csrf' => $csrfOf($page), 'key' => $key] + $form)->status === 404, 'closed once there is a user');
+
+    @unlink($root . '/var/cache/install-throttle.json');
+    $dropSchema();
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('Installing from the browser: tables made in phpMyAdmin, but no user yet', function () use ($dropSchema): void {
+    putenv('CAMPANELLA_DB_PREFIX=sch_');
+    $root = dirname(__DIR__);
+    $kernel = new \Campanella\Core\Kernel($root);
+    $container = $kernel->container();
+    $db = $container->get(Connection::class);
+    if ($db->prefix() !== 'sch_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $dropSchema();
+    $container->get(Installer::class)->install();
+    $key = str_repeat('u', 30);
+    $config = $container->get(\Campanella\Core\Config::class);
+    $container->set(\Campanella\Core\Config::class, static fn () => new \Campanella\Core\Config(['install' => ['key' => $key]] + $config->all()));
+    $storage = new ArraySessionStorage();
+    $container->set(Session::class, static fn () => new Session($storage));
+    $page = $kernel->handle(new Request('GET', '/install'));
+    check($page->status === 200 && str_contains($page->body, 'A táblák már léteznek'), 'open while there is no user');
+    preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $page->body, $m);
+    $storage->endRequest();
+    $done = $kernel->handle(new Request('POST', '/install', post: ['_csrf' => $m[1] ?? '', 'key' => $key, 'name' => 'Admin', 'email' => 'admin@example.hu', 'password' => 'masodik-jelszo-1', 'password_again' => 'masodik-jelszo-1']));
+    check($done->status === 303 && $container->get(Installer::class)->userCount() === 1, 'no sample content without the box');
+    check($container->get(\Campanella\Query\QueryEngine::class)->count(Query::objects()->blueprint('article'), Actor::system()) === 0);
+    $dropSchema();
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
 echo "\nDocumentation examples\n";
 
 test('New capability as in the docs example (Featured)', function () use ($db, $admin): void {

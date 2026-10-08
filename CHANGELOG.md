@@ -29,6 +29,14 @@ backward-incompatible.
   whole project); a proxy in front of the site, with the connecting address
   and the names of the proxy headers that arrived, so the right
   `trusted_proxies` entry can be read off; a replaced policy; HSTS.
+- **Installing from the browser** (`/install`), for web hosts without a
+  command line: the requirements, the tables, the first administrator, and
+  optionally the sample content. Only with an install key set in
+  `config/local.php` (`install.key`, at least 20 characters), so nobody else
+  can install a freshly uploaded site; wrong keys are limited
+  (`FileThrottle`). Open only while there is no user (also after
+  `install --sql` in phpMyAdmin), then 404; the System page warns while the
+  key is set. `InstallController`, `Installer::userCount()`.
 - **Deployment guide** (`docs/deployment.md`): the web root (Apache and nginx
   examples), HTTPS and proxies, settings and security headers, file
   permissions, PHP settings, backups, upgrades, and a checklist before going
@@ -36,6 +44,8 @@ backward-incompatible.
 
 ### Changed
 
+- A site that is not installed yet points to `/install` besides the
+  `install` command.
 - The login form's honeypot field is hidden with the `hidden` attribute
   instead of an inline style, which the new policy forbids.
 - The System page breaks long values (e.g. a folder path), so the status

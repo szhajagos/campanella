@@ -150,6 +150,40 @@ even if the browser is closed.
 `MIN_KEY_LENGTH` (20), `MAX_KEY_ATTEMPTS` (5), `KEY_DECAY_SECONDS` (900),
 `CONTENT_SECURITY_POLICY`.
 
+## Installing from the browser
+
+`Campanella\Controller\InstallController` · handler: `install` · route: `/install` (`InstallController::PATH`; since 0.1.0)
+
+For web hosts without a command line, the first installation is done in the
+browser too: the page checks the requirements (PHP, the required extensions,
+the database connection, the writable folders `var/cache`, `var/backups` and
+the media folder), then creates the tables (`Installer::install()`) and the
+first administrator (name, e-mail address, password twice), optionally with
+the sample content (`seed`), and logs them in.
+
+- **Only with the install key.** Anyone who finds a freshly uploaded site
+  could otherwise install it as their own (and become its administrator). The
+  key is set in `config/local.php`, at least 20 characters
+  (`InstallController::MIN_KEY_LENGTH`; the page suggests a random one):
+
+  ```php
+  'install' => ['key' => '…a long random string…'],
+  ```
+
+  Wrong keys are limited: 5 per address and 50 in total in 15 minutes
+  (`FileThrottle`, in `var/cache/install-throttle.json`: the database cannot
+  be used yet).
+- **Only while there is no user.** The page is open while the site is not
+  installed, or installed without a user (e.g. the tables were made in
+  phpMyAdmin from `install --sql`); after that it answers 404, and the System
+  page warns until the key is removed.
+- The administrator's data is checked before anything is installed; two
+  submissions at once are kept apart by a database lock. A database that
+  cannot be reached is shown by its error code only (the message could name
+  the database user or host).
+- Stand-alone page (`admin/install.html.twig`), with the admin's
+  Content-Security-Policy, `noindex` and `no-store`.
+
 ## Writing a migration
 
 ```php
