@@ -3603,8 +3603,16 @@ test('SecurityCheck: the web root, proxy headers, the policy and HSTS', function
     check($run($root . '/public')['admin.system.document_root'] === 'Ok:public/');
     check($run($root)['admin.system.document_root'] === 'Warning:admin.system.document_root_project');
     check($run(null)['admin.system.document_root'] === 'Info:–');
-    check(!isset($run($root . '/public')['admin.system.proxy']), 'no proxy, no line');
+    check($run($root . '/public')['admin.system.proxy'] === 'Info:admin.system.proxy_none', 'plain HTTP without proxy headers: the connecting address is shown');
     check($run($root . '/public', [], ['x-forwarded-proto' => 'https'])['admin.system.proxy'] === 'Warning:admin.system.proxy_untrusted');
+    $hint = null;
+    $check = \Campanella\System\SecurityCheck::checks($root, new \Campanella\Http\TrustedProxies(), new \Campanella\Http\SecurityHeaders(), static fn (): array => ['document_root' => null, 'remote_addr' => '172.18.0.4']);
+    foreach ($check(new Request('GET', '/', headers: ['x-forwarded-for' => '1.2.3.4', 'x-forwarded-proto' => 'https', 'x-real-ip' => '1.2.3.4'], ip: '172.18.0.4')) as $line) {
+        $hint = $line->label === 'admin.system.proxy' ? $line->hint : $hint;
+    }
+    check($hint !== null && $hint->params === ['address' => '172.18.0.4', 'headers' => 'x-forwarded-for, x-forwarded-proto, x-real-ip'], 'the proxy\'s address and the header names (not their values)');
+    $secureCheck = \Campanella\System\SecurityCheck::checks($root, new \Campanella\Http\TrustedProxies(), new \Campanella\Http\SecurityHeaders(), static fn (): array => ['document_root' => null, 'remote_addr' => '1.2.3.4']);
+    check(array_filter($secureCheck(new Request('GET', '/', secure: true)), static fn ($l): bool => $l->label === 'admin.system.proxy') === [], 'HTTPS without a proxy: nothing to say');
     check($run($root . '/public', ['10.0.0.0/8'], ['x-forwarded-proto' => 'https'], '10.0.0.3')['admin.system.proxy'] === 'Ok:admin.system.proxy_trusted');
     $lines = $run($root . '/public', csp: "default-src *", hsts: 600);
     check($lines['admin.system.csp'] === 'Warning:admin.system.csp_custom' && $lines['admin.system.hsts'] === 'Ok:600 s');

@@ -63,15 +63,29 @@ final class SecurityCheck
         return new CheckResult($g, 'admin.system.document_root', CheckStatus::Info, 'admin.system.document_root_other');
     }
 
-    /** Proxy headers arrive: are they believed? */
+    /** Headers by which proxies describe the original request (only their names are shown). */
+    public const array PROXY_HEADERS = [
+        'forwarded', 'x-forwarded-for', 'x-forwarded-proto', 'x-forwarded-host', 'x-forwarded-port',
+        'x-forwarded-ssl', 'x-forwarded-scheme', 'x-real-ip', 'front-end-https', 'cf-visitor', 'cf-connecting-ip',
+    ];
+
+    /**
+     * Is there a proxy in front of the site, and is it believed? Shown on the web whenever it
+     * helps: with the connecting address (the proxy's, if there is one: what trusted_proxies
+     * needs) and the names of the proxy headers that arrived.
+     */
     private static function proxy(string $g, Request $request, TrustedProxies $proxies, ?string $remote): ?CheckResult
     {
-        $forwarded = isset($request->headers['x-forwarded-for']) || isset($request->headers['x-forwarded-proto']);
+        $arrived = array_values(array_filter(self::PROXY_HEADERS, static fn (string $h): bool => isset($request->headers[$h])));
+        $params = ['address' => $remote ?? '?', 'headers' => $arrived === [] ? '–' : implode(', ', $arrived)];
         if ($proxies->ranges() !== [] && $remote !== null && $proxies->isTrusted($remote)) {
-            return new CheckResult($g, 'admin.system.proxy', CheckStatus::Ok, 'admin.system.proxy_trusted');
+            return new CheckResult($g, 'admin.system.proxy', CheckStatus::Ok, 'admin.system.proxy_trusted', new Message('admin.system.proxy_trusted_hint', $params));
         }
-        if ($forwarded) {
-            return new CheckResult($g, 'admin.system.proxy', CheckStatus::Warning, 'admin.system.proxy_untrusted', new Message('admin.system.proxy_hint'));
+        if ($arrived !== []) {
+            return new CheckResult($g, 'admin.system.proxy', CheckStatus::Warning, 'admin.system.proxy_untrusted', new Message('admin.system.proxy_hint', $params));
+        }
+        if (!$request->secure) {
+            return new CheckResult($g, 'admin.system.proxy', CheckStatus::Info, 'admin.system.proxy_none', new Message('admin.system.proxy_none_hint', $params));
         }
 
         return null;

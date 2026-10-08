@@ -26,8 +26,9 @@ backward-incompatible.
   `security.content_security_policy` setting, documented with its risk.
   `SecurityHeaders`.
 - **System page:** a *Public server* group: the web root (`public/` or the
-  whole project), proxy headers from an untrusted address, a replaced
-  policy, HSTS.
+  whole project); a proxy in front of the site, with the connecting address
+  and the names of the proxy headers that arrived, so the right
+  `trusted_proxies` entry can be read off; a replaced policy; HSTS.
 - **Deployment guide** (`docs/deployment.md`): the web root (Apache and nginx
   examples), HTTPS and proxies, settings and security headers, file
   permissions, PHP settings, backups, upgrades, and a checklist before going

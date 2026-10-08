@@ -118,8 +118,13 @@ From a listed proxy, `X-Forwarded-Proto: https` makes the request secure
 throttling then counts the visitor, not the proxy. List only addresses you
 control; never `0.0.0.0/0`.
 
-The System page shows a warning if proxy headers arrive from an address that
-is not listed, and *Connection: HTTPS* once it works.
+**Which address?** Open the System page over `https://`. Its *Proxy* line
+shows the address the request came from (the proxy's, if there is one) and
+which proxy headers arrived. If they arrive from an address that is not
+listed, it warns and gives the line to add; once it is listed, the line is
+green and *Connection* shows HTTPS. If no proxy header arrives at all while
+you use `https://`, the proxy passes on HTTPS in some other way: ask your
+host.
 
 ## 3. Settings
 
