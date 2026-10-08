@@ -26,7 +26,64 @@ Completed changes are listed in the [CHANGELOG](CHANGELOG.md).
 ### 0.1.0 – First milestone
 
 0.0.3–0.0.7 together: login, admin, HTML editing, migrations, menu. From here
-on, the system is suitable for running a real website.
+on, the system is suitable for running a real website, and (Secure by
+default) no release is made with a known open security gap.
+
+Agreed in detail on 2026-10-08. Kept narrow on purpose: it is still 0.x. In
+seven parts (0–6), each its own commit:
+
+0. **Housekeeping:** remove the deprecated `FieldType::StringList` and the
+   upgrade page's reading of the old roles column. Upgrading to 0.1.0 is
+   possible from 0.0.6 or later only (from older versions: through 0.0.7
+   first); the installer stops with a clear message otherwise.
+   `config/local.php.dist` no longer turns debug mode on. On the dashboard,
+   the content types link to their lists.
+1. **Ready for a public server:**
+   - a `trusted_proxies` setting (IPs / CIDR ranges, empty by default):
+     `X-Forwarded-Proto` and `X-Forwarded-For` count only from these, for
+     HTTPS (the `Secure` cookie) and the visitor's IP (login throttling);
+   - security headers on the public site too: a strict Content-Security-Policy
+     (only our own scripts, no inline script), which a theme may relax only
+     by an explicit setting, documented with its risk; `Permissions-Policy`;
+     HSTS as an opt-in setting (off by default: a wrong setting locks
+     visitors out);
+   - System page checks: the document root is `public/`, debug mode is off,
+     HTTPS (also behind a proxy), writable folders;
+   - a deployment guide (`docs/deployment.md`): Apache, nginx, Docker, HTTPS
+     behind a proxy, file permissions, backups and upgrades, a checklist
+     before going live.
+2. **Installing from the browser,** for web hosts without a command line:
+   `/telepites` checks the requirements, creates the tables and the first
+   administrator. Only with an install key set in `config/local.php` (like
+   the upgrade key), so nobody else can install the site between uploading
+   and installing; once installed, the page answers 404.
+3. **Users in the browser:**
+   - for administrators: the users' list (roles, status), a new user,
+     changing roles, disabling and enabling, setting a new password;
+   - for everyone logged in: their own profile (name, changing the password
+     with the current one);
+   - the last active administrator cannot be disabled or lose the role;
+     changing a password ends the user's other sessions; editors still do
+     not manage users;
+   - a forgotten password by e-mail comes later (it needs e-mail sending).
+4. **Blueprints and capabilities in the admin** (read-only, for
+   administrators): a *Blueprints* page lists the Blueprints with their
+   capabilities, fields and relations, and links to their lists; a
+   *Capabilities* page lists the installed capabilities with a short
+   explanation, their fields, and the Blueprints that use them. A first step
+   towards Blueprints defined in the admin.
+5. **Security review:** an independent review of the whole code (login and
+   sessions, CSRF, XSS, SQL parameters, uploads, open redirects, error
+   messages, headers, throttling, permissions), `composer audit` and the
+   dependencies' licenses; the fixes in their own commit, anything left as a
+   documented decision.
+6. Release `v0.1.0`: the README rewritten for the milestone (what the system
+   can do, installing from the browser or the command line), the upgrade
+   path, CHANGELOG, ROADMAP.
+
+Left for later on purpose: `<meta name="description">`, canonical URLs,
+`sitemap.xml` and `robots.txt`; a forgotten password by e-mail; site settings
+edited in the admin.
 
 ## Later
 
@@ -49,18 +106,11 @@ on, the system is suitable for running a real website.
   and tracking where an image is used (e.g. a relation filled from the texts
   on save), so the delete page can list those texts, and an image picker in
   the editor (choosing an uploaded image).
-- **Before going live (by 0.1.0):** a deployment guide and checks for a
-  public server (2026-10-04):
-  - the web server's document root is `public/` (as in Campanella's Docker
-    image), not the project root: the root `.htaccess` that routes requests
-    under `public/` protects the rest only while Apache honours `.htaccess`;
-  - HTTPS behind a proxy: a `trusted_proxies` setting, so `X-Forwarded-Proto`
-    from a trusted proxy marks the request secure (and the login cookie
-    `Secure`);
-  - debug mode off; the system page could check these too.
-- **Before 0.1.0:** remove the deprecated `FieldType::StringList` (deprecated
-  in 0.0.6; multi-valued fields replace it).
-- **User management in the browser** (until then: the `user:*` commands).
+- **Site basics** (moved out of 0.1.0, 2026-10-08): `<meta name="description">`
+  from the lead, canonical URLs, `sitemap.xml` of the public content,
+  `robots.txt`.
+- **Forgotten password by e-mail** (after e-mail sending; user management
+  itself comes in 0.1.0).
 - **Blueprints defined in the admin** (until then: `config/blueprints.php`).
   Every object stays in `objects`; the question is only where a custom field
   of such a Blueprint is stored. A per-field (or per-Blueprint) setting
@@ -113,7 +163,7 @@ on, the system is suitable for running a real website.
   for one server. The defaults must be safe for someone who changes nothing
   (e.g. strict image handling, HTML filtering, no default accounts); a weaker
   option needs an explicit setting, documented with its risk. Until 0.1.0 a
-  documented gap is acceptable (the "Before going live" checklist); from 0.1.0
+  documented gap is acceptable (parts 1 and 5 of 0.1.0 close them); from 0.1.0
   on, a release is not made with a known open security gap.
 - **Migrations (2026-10-05):** forward only, no rollback: a backup before
   migrating instead (`db:backup`, built in). Additive changes from the
