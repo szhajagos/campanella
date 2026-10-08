@@ -15,9 +15,9 @@ final class BlueprintRegistry
 {
     /**
      * Names a Blueprint cannot have, because the admin uses them as its own paths
-     * (/admin/system, and /admin/media for uploads). Since 0.0.5.
+     * (/admin/system, /admin/media for uploads, /admin/profile since 0.1.0). Since 0.0.5.
      */
-    public const array RESERVED_NAMES = ['system', 'media', 'upgrade'];
+    public const array RESERVED_NAMES = ['system', 'media', 'upgrade', 'profile'];
 
     /** @var array<string, Blueprint> */
     private array $blueprints = [];

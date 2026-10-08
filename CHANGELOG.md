@@ -37,6 +37,15 @@ backward-incompatible.
   (`FileThrottle`). Open only while there is no user (also after
   `install --sql` in phpMyAdmin), then 404; the System page warns while the
   key is set. `InstallController`, `Installer::userCount()`.
+- **Users in the browser:** administrators list, create and edit users
+  (name, e-mail address, roles, status) and set new passwords; everyone
+  logged in has a profile page (own name, own password with the current one).
+  The last active administrator cannot be blocked or lose the role, nobody
+  can block themselves, and users are blocked rather than deleted. Editors
+  see only their profile. `UserService`, `/admin/user`, `/admin/profile`.
+- **A changed password ends the user's other sessions:** the session holds a
+  stamp of the password hash, checked on every request
+  (`AuthService::refresh()` keeps the current one after changing one's own).
 - **Deployment guide** (`docs/deployment.md`): the web root (Apache and nginx
   examples), HTTPS and proxies, settings and security headers, file
   permissions, PHP settings, backups, upgrades, and a checklist before going
@@ -44,6 +53,7 @@ backward-incompatible.
 
 ### Changed
 
+- `profile` is a reserved Blueprint name (`/admin/profile`).
 - A site that is not installed yet points to `/install` besides the
   `install` command.
 - The login form's honeypot field is hidden with the `hidden` attribute

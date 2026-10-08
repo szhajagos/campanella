@@ -91,6 +91,7 @@ Constants: `Actor::ADMINISTRATOR`, `DefaultPolicy::EDITOR`.
 |---|---|
 | `attempt(Request $request, string $email, string $password): LoginResult` | Login attempt: guards, throttling, password, account status; on success it also logs the user in |
 | `login(Request $request, CampanellaObject $user): void` | Logs in without checks (e.g. after a second factor). New session ID, new CSRF token |
+| `refresh(Request $request, CampanellaObject $user): void` | After the user changed their own password: this session goes on with a new ID and stamp (since 0.1.0) |
 | `logout(): void` | Destroys the session |
 | `currentUser(Request $request): ?CampanellaObject` | The logged-in user. Does not start a session for anonymous visitors. Logs out a blocked or deleted account |
 | `currentActor(Request $request): Actor` | The same as an `Actor`; the `Kernel` passes this to controllers |
@@ -110,6 +111,10 @@ Constants: `Actor::ADMINISTRATOR`, `DefaultPolicy::EDITOR`.
 - A blocked account cannot log in even with the correct password
   (key `auth.account_blocked`, "The account is blocked."), and its existing
   session ends on the next request.
+- **A changed password ends the user's other sessions** (since 0.1.0): the
+  session holds a stamp of the password hash (`SESSION_STAMP`, a hash of the
+  hash, not the hash itself), checked on every request. A session from before
+  0.1.0 gets its stamp on its next request.
 
 `LoginResult` (`final readonly class`): `$success`, `$user`, `$error` (a
 message key, or a ready-made text), `$errorParams`;
@@ -241,6 +246,43 @@ path within the site (`/…`, but not `//…`). Anything else is replaced with
 
 In templates: `{{ current_user() }}` is the logged-in user (or `null`),
 `{{ csrf_field() }}` is the hidden token field.
+
+## In the admin
+
+*Since 0.1.0.* Users are managed in the browser too
+([chapter 13](13-admin.md#users-and-the-profile)): administrators list, create
+and edit users (name, e-mail address, roles, status) and set new passwords;
+everyone logged in has a profile page with their own name and password.
+A forgotten password by e-mail comes later (it needs e-mail sending).
+
+### UserService
+
+`Campanella\Service\UserService` · **Public** · container: `UserService::class`
+
+The rules of managing users; the admin pages only read the forms.
+
+| Method | Description |
+|---|---|
+| `canManage(Actor $actor): bool` | Whether the AccessPolicy lets the actor create and update users (by default: administrators) |
+| `assignableRoles(?CampanellaObject $user = null): list<string>` | The roles offered: `administrator`, the `admin.roles` and `admin.system_roles` settings, and the user's own roles (so an unknown one is not lost) |
+| `all(Actor $actor): list<CampanellaObject>`, `find(Actor $actor, int $id): ?CampanellaObject` | |
+| `create(Actor $actor, string $name, string $email, string $password, array $roles): CampanellaObject` | |
+| `update(Actor $actor, CampanellaObject $user, string $name, string $email, array $roles, bool $active): void` | |
+| `setPassword(Actor $actor, CampanellaObject $user, string $password): void` | An administrator sets someone's password; their sessions end |
+| `updateProfile(CampanellaObject $user, string $name): void` | One's own name |
+| `changeOwnPassword(CampanellaObject $user, string $current, string $new): void` | With the current password; wrong ones are limited (5 in 15 minutes, `Throttle`) |
+| `activeAdministrators(int $except = 0): int` | |
+| `static nameOf(CampanellaObject $user): string` | The name, or the e-mail address |
+
+Rules (`ValidationException`, `AccessDeniedException`):
+
+- **The last active administrator** can neither be blocked nor lose the role
+  (`users.last_admin`): the site always has someone who can manage it.
+- **Nobody can block themselves** (`users.self_block`).
+- Only the offered roles can be given (`validation.invalid_role`); the e-mail
+  address is unique (`validation.taken`); the password rules are
+  `Authenticatable`'s.
+- Users are not deleted, only blocked: their content keeps its author.
 
 ## Command line
 

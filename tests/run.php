@@ -225,7 +225,8 @@ function test(string $name, callable $body): void
 function check(bool $condition, string $message = 'condition not met'): void
 {
     if (!$condition) {
-        throw new RuntimeException($message);
+        // Where it failed, so an unnamed check can be found.
+        throw new RuntimeException($message . ' (line ' . (debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1)[0]['line'] ?? '?') . ')');
     }
 }
 
@@ -1219,7 +1220,7 @@ test('Kernel: admin content list with search, status filter and sorting', functi
     check($a !== false && $b !== false && $a < $b, 'sorted by title');
     check($get('/admin/article', ['sort' => 'password_hash; DROP'])->status === 200, 'an unknown sort field falls back');
 
-    check($get('/admin/user')->status === 404, 'no user list (users are managed from the command line)');
+    check($get('/admin/user')->status === 403, 'an editor does not manage users (since 0.1.0)');
     check($get('/admin/no-such-blueprint')->status === 404);
     putenv('CAMPANELLA_DB_PREFIX');
 });
@@ -3734,6 +3735,156 @@ test('Installing from the browser: tables made in phpMyAdmin, but no user yet', 
     check($done->status === 303 && $container->get(Installer::class)->userCount() === 1, 'no sample content without the box');
     check($container->get(\Campanella\Query\QueryEngine::class)->count(Query::objects()->blueprint('article'), Actor::system()) === 0);
     $dropSchema();
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('UserService: users managed by administrators, the last active administrator kept', function () use ($repository, $engine, $policy, $db, $newUser): void {
+    $users = new \Campanella\Service\UserService($repository, $engine, $policy, new \Campanella\Security\Throttle($db), ['administrator', 'editor']);
+    $db->execute("DELETE FROM {objects} WHERE blueprint = 'user'");
+    $boss = $newUser('fonok@example.hu', 'fonok-jelszo-1', ['administrator']);
+    $bossActor = AuthService::actorFor($boss);
+    $editor = AuthService::actorFor($newUser('szerk2@example.hu', 'szerk-jelszo-1', ['editor']));
+    check($users->canManage($bossActor) && !$users->canManage($editor) && !$users->canManage(Actor::anonymous()));
+    throws(\Campanella\Access\AccessDeniedException::class, fn () => $users->create($editor, 'X', 'x@example.hu', 'jelszo-jelszo-1', []));
+
+    try {
+        $users->create($bossActor, 'Rossz', 'nem-email', 'rovid', ['tulajdonos']);
+        check(false, 'accepted');
+    } catch (\Campanella\Model\ValidationException $e) {
+        check(isset($e->errors['roles'], $e->errors['password']), implode(',', array_keys($e->errors)));
+    }
+    $anna = $users->create($bossActor, ' Kovács Anna ', 'Anna@Example.hu', 'anna-jelszo-123', ['editor']);
+    check($anna->get('title') === 'Kovács Anna' && $anna->get('email') === 'anna@example.hu' && $anna->as(Authenticatable::class)->roles() === ['editor']);
+    try {
+        $users->create($bossActor, 'Másik Anna', 'anna@example.hu', 'anna-jelszo-123', []);
+        check(false, 'a duplicate e-mail address');
+    } catch (\Campanella\Model\ValidationException $e) {
+        check(isset($e->errors['email']));
+    }
+
+    // The only administrator can neither lose the role nor be blocked, nor block themselves.
+    $error = static function (callable $f): ?string {
+        try {
+            $f();
+        } catch (\Campanella\Model\ValidationException $e) {
+            return implode(',', array_map(static fn ($m) => $m->key, $e->errors));
+        }
+
+        return null;
+    };
+    check($error(fn () => $users->update($bossActor, $boss, 'Főnök', 'fonok@example.hu', ['editor'], true)) === 'users.last_admin');
+    check($error(fn () => $users->update($bossActor, $boss, 'Főnök', 'fonok@example.hu', ['administrator'], false)) === 'users.self_block');
+    $users->update($bossActor, $anna, 'Kovács Anna', 'anna@example.hu', ['administrator', 'editor'], true);
+    check($users->activeAdministrators() === 2);
+    check($error(fn () => $users->update($bossActor, $boss, 'Főnök', 'fonok@example.hu', ['editor'], true)) === null, 'with another administrator, the role can go');
+    $annaActor = AuthService::actorFor($repository->find((int) $anna->id()));
+    check($error(fn () => $users->update($annaActor, $anna, 'Kovács Anna', 'anna@example.hu', ['editor'], true)) === 'users.last_admin', 'now Anna is the last one');
+    check($error(fn () => $users->update($annaActor, $boss, 'Főnök', 'fonok@example.hu', ['editor'], false)) === null, 'a non-administrator can be blocked');
+    check(!$repository->find((int) $boss->id())?->as(Authenticatable::class)->isActive());
+
+    // Passwords.
+    $users->setPassword($annaActor, $boss, 'uj-fonok-jelszo-1');
+    check($repository->find((int) $boss->id())?->as(Authenticatable::class)->verifyPassword('uj-fonok-jelszo-1'));
+    $fresh = $repository->find((int) $anna->id());
+    check($error(fn () => $users->changeOwnPassword($fresh, 'rossz-jelszo-1', 'anna-uj-jelszo-1')) === 'users.wrong_password');
+    $users->changeOwnPassword($fresh, 'anna-jelszo-123', 'anna-uj-jelszo-1');
+    check($repository->find((int) $anna->id())?->as(Authenticatable::class)->verifyPassword('anna-uj-jelszo-1'));
+    for ($i = 0; $i < 5; $i++) {
+        $error(fn () => $users->changeOwnPassword($fresh, 'rossz-jelszo-' . $i, 'mindegy-jelszo-1'));
+    }
+    check($error(fn () => $users->changeOwnPassword($fresh, 'anna-uj-jelszo-1', 'mindegy-jelszo-1')) === 'users.too_many', 'limited');
+    $db->execute("DELETE FROM {throttle}");
+    $db->execute("DELETE FROM {objects} WHERE blueprint = 'user'");
+});
+
+test('Kernel: users in the admin, the profile, and a changed password ends the other sessions', function () use ($newUser): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $container = $kernel->container();
+    if ($container->get(Connection::class)->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $db = $container->get(Connection::class);
+    $db->execute("DELETE FROM {objects} WHERE blueprint = 'user'");
+    $boss = $newUser('kezelo@example.hu', 'kezelo-jelszo-1', ['administrator']);
+    $storage = new ArraySessionStorage();
+    $container->set(Session::class, static fn () => new Session($storage));
+    $auth = $container->get(AuthService::class);
+    $auth->login(new Request('GET', '/'), $boss);
+    $send = function (string $method, string $path, array $post = []) use ($kernel, $storage) {
+        $storage->endRequest();
+
+        return $kernel->handle(new Request($method, $path, post: $post));
+    };
+    $csrfOf = static fn ($response): string => preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $response->body, $m) === 1 ? $m[1] : '';
+
+    $dashboard = $send('GET', '/admin');
+    check(str_contains($dashboard->body, 'href="/admin/user">Felhasználó</a>') && str_contains($dashboard->body, 'href="/admin/user">Felhasználók</a>') && str_contains($dashboard->body, 'href="/admin/profile"'), 'links for an administrator');
+    $list = $send('GET', '/admin/user');
+    check($list->status === 200 && str_contains($list->body, 'kezelo@example.hu') && str_contains($list->body, 'Adminisztrátor') && str_contains($list->body, '>te<'), 'the list');
+
+    $new = $send('GET', '/admin/user/new');
+    check(str_contains($new->body, 'name="roles[]" value="editor"') && str_contains($new->body, 'name="password_again"') && !str_contains($new->body, 'set-password'), 'the new user form');
+    $bad = $send('POST', '/admin/user/new', ['_csrf' => $csrfOf($new), 'name' => 'Béla', 'email' => 'bela@example.hu', 'roles' => ['editor'], 'password' => 'bela-jelszo-12', 'password_again' => 'masik-jelszo-12']);
+    check($bad->status === 422 && str_contains($bad->body, 'A két jelszó eltér') && !str_contains($bad->body, 'bela-jelszo-12') && str_contains($bad->body, 'value="bela@example.hu"'), 'the passwords must match');
+    $made = $send('POST', '/admin/user/new', ['_csrf' => $csrfOf($new), 'name' => 'Béla', 'email' => 'bela@example.hu', 'roles' => ['editor'], 'password' => 'bela-jelszo-12', 'password_again' => 'bela-jelszo-12']);
+    check($made->status === 303);
+    $bela = $auth->findUserByEmail('bela@example.hu');
+    check($bela !== null && $bela->as(Authenticatable::class)->roles() === ['editor']);
+
+    // Béla logs in elsewhere; then the administrator sets a new password for him: that session ends.
+    $belaStorage = new ArraySessionStorage();
+    $belaKernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $belaKernel->container()->set(Session::class, static fn () => new Session($belaStorage));
+    $belaKernel->container()->get(AuthService::class)->login(new Request('GET', '/'), $bela);
+    $belaStorage->endRequest();
+    check($belaKernel->handle(new Request('GET', '/admin'))->status === 200, 'Béla is in');
+    $edit = $send('GET', '/admin/user/' . $bela->id());
+    check($edit->status === 200 && str_contains($edit->body, 'value="bela@example.hu"') && str_contains($edit->body, '/admin/user/' . $bela->id() . '/password'));
+    $set = $send('POST', '/admin/user/' . $bela->id() . '/password', ['_csrf' => $csrfOf($edit), 'password' => 'bela-uj-jelszo-1', 'password_again' => 'bela-uj-jelszo-1']);
+    check($set->status === 303);
+    $belaStorage->endRequest();
+    $belaKernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $belaKernel->container()->set(Session::class, static fn () => new Session($belaStorage));
+    check($belaKernel->handle(new Request('GET', '/admin'))->status === 302, 'his old session ended');
+
+    // The last administrator cannot demote themselves through the form.
+    $self = $send('GET', '/admin/user/' . $boss->id());
+    check(str_contains($self->body, 'id="user-status-blocked" name="status" value="blocked" disabled'), 'cannot block oneself');
+    $demote = $send('POST', '/admin/user/' . $boss->id(), ['_csrf' => $csrfOf($self), 'name' => 'Kezelő', 'email' => 'kezelo@example.hu', 'roles' => ['editor'], 'status' => 'active']);
+    check($demote->status === 422 && str_contains($demote->body, 'aktív adminisztrátor nélkül'));
+    check($send('GET', '/admin/user/999999')->status === 404 && $send('GET', '/admin/user/' . $bela->id() . '/password')->status === 405);
+
+    // The profile: one's own name and password; this session stays.
+    $profile = $send('GET', '/admin/profile');
+    check($profile->status === 200 && str_contains($profile->body, 'name="current_password"'));
+    $wrong = $send('POST', '/admin/profile/password', ['_csrf' => $csrfOf($profile), 'current_password' => 'nem-ez-a-jelszo', 'password' => 'kezelo-uj-jelszo-1', 'password_again' => 'kezelo-uj-jelszo-1']);
+    check($wrong->status === 422 && str_contains($wrong->body, 'Hibás a jelenlegi jelszó'));
+    $changed = $send('POST', '/admin/profile/password', ['_csrf' => $csrfOf($profile), 'current_password' => 'kezelo-jelszo-1', 'password' => 'kezelo-uj-jelszo-1', 'password_again' => 'kezelo-uj-jelszo-1']);
+    check($changed->status === 303);
+    $after = $send('GET', '/admin/profile');
+    check($after->status === 200 && str_contains($after->body, 'A jelszavad megváltozott'), 'still logged in');
+    $named = $send('POST', '/admin/profile', ['_csrf' => $csrfOf($after), 'name' => 'Új Név']);
+    check($named->status === 303 && $auth->findUserByEmail('kezelo@example.hu')?->get('title') === 'Új Név');
+
+    // An editor: only the profile.
+    $storage->endRequest();
+    $editorStorage = new ArraySessionStorage();
+    $editorKernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $editorKernel->container()->set(Session::class, static fn () => new Session($editorStorage));
+    $editorKernel->container()->get(AuthService::class)->login(new Request('GET', '/'), $auth->findUserByEmail('bela@example.hu'));
+    $editorStorage->endRequest();
+    $editorDash = $editorKernel->handle(new Request('GET', '/admin'));
+    check(!str_contains($editorDash->body, 'href="/admin/user"') && str_contains($editorDash->body, 'href="/admin/profile"'), 'an editor sees no user links');
+    $editorStorage->endRequest();
+    check($editorKernel->handle(new Request('GET', '/admin/user'))->status === 403);
+    $editorStorage->endRequest();
+    check($editorKernel->handle(new Request('GET', '/admin/profile'))->status === 200);
+
+    $db->execute("DELETE FROM {throttle}");
+    $db->execute("DELETE FROM {objects} WHERE blueprint = 'user'");
     putenv('CAMPANELLA_DB_PREFIX');
 });
 

@@ -297,6 +297,31 @@ theme cannot lock anyone out. The look is Bootstrap 5.3 with a small
 | `admin/form/<widget>.html.twig` | One input per widget (see above); `html` is the editor's textarea, `text` shows the convert button for a saved plain body |
 | `admin/_status.html.twig` | Publication status badge (draft, published, scheduled) |
 
+## Users and the profile
+
+*Since 0.1.0.* `Campanella\Admin\UserPages` · **Internal** · called by the
+`AdminController` through `users(Request, Actor, array $segments, Closure $render)`
+(under `/admin/user`) and `profile(…)` (under `/admin/profile`). The rules
+are the `UserService`'s ([chapter 11](11-users.md#userservice)).
+
+| Page | Who | |
+|---|---|---|
+| `/admin/user` | Those who may manage users (administrators) | Name, e-mail address, roles, status; "you" marks one's own row |
+| `/admin/user/new` | 〃 | Name, e-mail address, roles, the password twice |
+| `/admin/user/<id>` | 〃 | Name, e-mail address, roles, status (one's own "Blocked" is disabled); beside it, setting a new password (`POST …/password`) |
+| `/admin/profile` | Everyone logged in | One's own name; changing one's own password with the current one (`POST /admin/profile/password`): this session stays, the others end |
+
+Editors see only their profile (`/admin/user` answers 403). The sidebar shows
+*Users* to those who may manage them and *My profile* to everyone; the name
+in the top bar links to the profile; the dashboard's user card links to the
+list. Passwords are never filled in again in a returned form. `profile` is a
+reserved name: no Blueprint can be called so.
+
+Templates: `admin/users.html.twig`, `admin/user.html.twig`,
+`admin/profile.html.twig`, with `admin/_password_fields.html.twig` and
+`admin/_role.html.twig` (a role's label: `role.<name>` if the language file
+has it, else the name).
+
 ## One-time messages: Flash
 
 `Campanella\Http\Flash` · **Public** · `final class` · container: `Flash::class`

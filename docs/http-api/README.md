@@ -25,7 +25,7 @@ shown according to the user's roles (e.g. an `editor` also sees drafts).
 | `POST /kilepes` | `AuthController` | Logout with a CSRF token |
 | `GET /install`, `POST /install` | `InstallController` | Installing from the browser (0.1.0): only with the install key, only while there is no user, otherwise 404; [PHP API chapter 17](../php-api/17-migrations.md#installing-from-the-browser) |
 | `GET /admin/upgrade`, `POST /admin/upgrade` | `UpgradeController` | Running the upgrade from the browser (0.0.6): for administrators, or with the upgrade key; [PHP API chapter 17](../php-api/17-migrations.md#from-the-browser) |
-| `GET /admin…`, `POST /admin…` | `AdminController` | The admin UI (0.0.4): dashboard, lists, forms, publishing, deleting; details: [PHP API chapter 13](../php-api/13-admin.md#admincontroller) |
+| `GET /admin…`, `POST /admin…` | `AdminController` | The admin UI (0.0.4): dashboard, lists, forms, publishing, deleting; users and the profile (0.1.0); details: [PHP API chapter 13](../php-api/13-admin.md#admincontroller) |
 | `GET /<path>` | Routable object | The object's own page, e.g. `/neumann-janos`. Its relations as links, and the Blueprint's `lists` below it (e.g. `/tudomany`: the articles of the category and, since 0.0.7, of its subcategories; a tree node also gets breadcrumbs and its children) |
 | `GET /assets/<file>` | `public/assets/` | Static files |
 

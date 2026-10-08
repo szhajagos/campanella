@@ -1,0 +1,4 @@
+{# A role's label: translated if the language file knows it (role.<name>), else the name. #}
+{%- set key = 'role.' ~ role -%}
+{%- set label = t(key) -%}
+{{- label != key ? label : role -}}

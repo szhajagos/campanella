@@ -224,7 +224,8 @@ there is no default account or password. Details: [docs/php-api/11-users.md](doc
 roles: lists with search and filters, forms generated from the field and
 relation definitions, publishing (also scheduled), deleting. The interface is
 translated (`lang/en.php`, `lang/hu.php`; the `locale` setting) and built on
-Bootstrap 5.3, shipped locally. Users are still managed from the command line.
+Bootstrap 5.3, shipped locally. Since 0.1.0 users are managed here too, and
+everyone has a profile page for their own name and password.
 Details: [docs/php-api/13-admin.md](docs/php-api/13-admin.md).
 
 **HTML editing and images (0.0.5).** Articles and pages have formatted (HTML)
@@ -278,7 +279,7 @@ on its own.
 
 ## Not included yet
 
-User management in the browser, Component / Region / Layout, Webform,
+A forgotten password by e-mail, Component / Region / Layout, Webform,
 Event / Action, cache, multilingual content, image variants and an image
 picker.
 

@@ -1,0 +1,76 @@
+{% extends '@core/admin/base.html.twig' %}
+
+{% macro error(errors, name, id) %}{% if errors[name] ?? null %}<div class="invalid-feedback d-block" id="{{ id }}-error">{{ t(errors[name].key, errors[name].params) }}</div>{% endif %}{% endmacro %}
+
+{% block content %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb small mb-2">
+            <li class="breadcrumb-item"><a href="{{ admin_url('user') }}">{{ t('users.title') }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ account ? '#' ~ account.id : t('admin.form.new_short') }}</li>
+        </ol>
+    </nav>
+    <h1 class="h3 mb-4">{{ account ? (title_text ?? '') : t('users.new') }}</h1>
+
+    {% if alert ?? null %}<div class="alert alert-danger" role="alert">{{ t(alert) }}</div>{% endif %}
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <form method="post" action="{{ url(action) }}" class="admin-form" novalidate>
+                {{ csrf_field() }}
+                {% for field in [{name: 'name', error: 'title', label: 'users.name', type: 'text', autocomplete: 'off'}, {name: 'email', error: 'email', label: 'field.email', type: 'email', autocomplete: 'off'}] %}
+                    {% set invalid = errors[field.error] ?? null %}
+                    <div class="mb-3">
+                        <label for="user-{{ field.name }}" class="form-label fw-semibold">{{ t(field.label) }} <span class="text-danger" aria-hidden="true">*</span></label>
+                        <input type="{{ field.type }}" class="form-control{{ invalid ? ' is-invalid' }}" id="user-{{ field.name }}" name="{{ field.name }}" value="{{ form[field.name] }}" required autocomplete="{{ field.autocomplete }}"{% if invalid %} aria-describedby="user-{{ field.name }}-error"{% endif %}>
+                        {{ _self.error(errors, field.error, 'user-' ~ field.name) }}
+                    </div>
+                {% endfor %}
+
+                <fieldset class="mb-3">
+                    <legend class="form-label fw-semibold fs-6">{{ t('field.roles') }}</legend>
+                    {% for role in roles %}
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="user-role-{{ role }}" name="roles[]" value="{{ role }}"{{ role in form.roles ? ' checked' }}>
+                            <label class="form-check-label" for="user-role-{{ role }}">{% include '@core/admin/_role.html.twig' with {role: role} only %}</label>
+                        </div>
+                    {% endfor %}
+                    <div class="form-text">{{ t('users.roles_help') }}</div>
+                    {{ _self.error(errors, 'roles', 'user-roles') }}
+                </fieldset>
+
+                {% if account %}
+                    <fieldset class="mb-3">
+                        <legend class="form-label fw-semibold fs-6">{{ t('field.account_status') }}</legend>
+                        {% for status in ['active', 'blocked'] %}
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" id="user-status-{{ status }}" name="status" value="{{ status }}"{{ (form.active ? 'active' : 'blocked') == status ? ' checked' }}{% if self and status == 'blocked' %} disabled{% endif %}>
+                                <label class="form-check-label" for="user-status-{{ status }}">{{ t('users.status.' ~ status) }}</label>
+                            </div>
+                        {% endfor %}
+                        <div class="form-text">{{ t(self ? 'users.status_self' : 'users.status_help') }}</div>
+                        {{ _self.error(errors, 'account_status', 'user-status') }}
+                    </fieldset>
+                {% else %}
+                    {% include '@core/admin/_password_fields.html.twig' with {errors: errors, prefix: 'user', min_password: min_password} only %}
+                {% endif %}
+
+                <div class="d-flex gap-2 mt-4 pt-3 border-top">
+                    <button type="submit" class="btn btn-primary">{{ t(account ? 'admin.form.save' : 'admin.form.create') }}</button>
+                    <a class="btn btn-outline-secondary" href="{{ admin_url('user') }}">{{ t('admin.form.cancel') }}</a>
+                </div>
+            </form>
+        </div>
+
+        {% if account %}
+            <aside class="col-lg-4">
+                <form method="post" action="{{ url(action ~ '/password') }}" class="card card-body admin-form" novalidate>
+                    <h2 class="h6 mb-3">{{ t('users.set_password') }}</h2>
+                    {{ csrf_field() }}
+                    {% include '@core/admin/_password_fields.html.twig' with {errors: password_errors ?? [], prefix: 'set', min_password: min_password} only %}
+                    <p class="small text-body-secondary">{{ t('users.set_password_help') }}</p>
+                    <button type="submit" class="btn btn-outline-primary">{{ t('users.set_password_submit') }}</button>
+                </form>
+            </aside>
+        {% endif %}
+    </div>
+{% endblock %}

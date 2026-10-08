@@ -27,7 +27,9 @@ use Campanella\Security\Throttle;
  *    non-existent account);
  *  - login throttling by e-mail address + IP address, and by IP address;
  *  - a new session ID and a new CSRF token on login;
- *  - a blocked account cannot log in, and its existing session ends.
+ *  - a blocked account cannot log in, and its existing session ends;
+ *  - a changed password ends the user's other sessions (since 0.1.0): the
+ *    session holds a stamp of the password hash, checked on every request.
  *
  * Extensibility: LoginGuards run before the password check (honeypot,
  * CAPTCHA …). Checking the password (attempt) and actually logging in
@@ -37,6 +39,9 @@ use Campanella\Security\Throttle;
 final class AuthService
 {
     public const string SESSION_USER = 'auth_user_id';
+
+    /** A hash of the user's password hash at login (since 0.1.0). */
+    public const string SESSION_STAMP = 'auth_stamp';
     /** Message key of the generic login error (the same for a wrong e-mail address and a wrong password). */
     public const string GENERIC_ERROR = 'auth.invalid_credentials';
 
@@ -122,6 +127,20 @@ final class AuthService
         $this->session->regenerate();
         $this->csrf->rotate();
         $this->session->set(self::SESSION_USER, $user->id());
+        $this->session->set(self::SESSION_STAMP, self::stamp($user));
+        $this->resolvedFor = $request;
+        $this->current = $user;
+    }
+
+    /**
+     * After the user changed their own password: this session goes on (with a new
+     * ID and stamp), the user's other sessions end on their next request.
+     */
+    public function refresh(Request $request, CampanellaObject $user): void
+    {
+        $this->session->start($request);
+        $this->session->regenerate();
+        $this->session->set(self::SESSION_STAMP, self::stamp($user));
         $this->resolvedFor = $request;
         $this->current = $user;
     }
@@ -154,6 +173,15 @@ final class AuthService
 
             return null;
         }
+        $stamp = $this->session->get(self::SESSION_STAMP);
+        if (!is_string($stamp)) {
+            $this->session->set(self::SESSION_STAMP, self::stamp($user)); // a session from before 0.1.0
+        } elseif (!hash_equals($stamp, self::stamp($user))) {
+            $this->session->remove(self::SESSION_USER);   // the password changed since: log it out
+            $this->session->remove(self::SESSION_STAMP);
+
+            return null;
+        }
 
         return $this->current = $user;
     }
@@ -173,6 +201,12 @@ final class AuthService
             $user->as(Authenticatable::class)->roles(),
             $user->has(Titled::class) ? $user->as(Titled::class)->title() : $user->as(Identifiable::class)->email(),
         );
+    }
+
+    /** The session's stamp of the user's password (not the hash itself). */
+    private static function stamp(CampanellaObject $user): string
+    {
+        return hash('sha256', 'campanella-session|' . (string) $user->get('password_hash'));
     }
 
     public function findUserByEmail(string $email): ?CampanellaObject

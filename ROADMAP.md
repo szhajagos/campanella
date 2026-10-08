@@ -57,7 +57,7 @@ seven parts (0–6), each its own commit:
    administrator. Only with an install key set in `config/local.php` (like
    the upgrade key), so nobody else can install the site between uploading
    and installing; once installed, the page answers 404.
-3. **Users in the browser:**
+3. ✅ **Users in the browser:**
    - for administrators: the users' list (roles, status), a new user,
      changing roles, disabling and enabling, setting a new password;
    - for everyone logged in: their own profile (name, changing the password

@@ -1,0 +1,47 @@
+{% extends '@core/admin/base.html.twig' %}
+
+{% block content %}
+    <h1 class="h3 mb-4">{{ t('users.profile') }}</h1>
+
+    {% if alert ?? null %}<div class="alert alert-danger" role="alert">{{ t(alert) }}</div>{% endif %}
+
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <form method="post" action="{{ admin_url('profile') }}" class="card card-body admin-form" novalidate>
+                <h2 class="h6 mb-3">{{ t('users.profile_data') }}</h2>
+                {{ csrf_field() }}
+                {% set invalid = errors.title ?? null %}
+                <div class="mb-3">
+                    <label for="profile-name" class="form-label fw-semibold">{{ t('users.name') }} <span class="text-danger" aria-hidden="true">*</span></label>
+                    <input type="text" class="form-control{{ invalid ? ' is-invalid' }}" id="profile-name" name="name" value="{{ name }}" required autocomplete="name"{% if invalid %} aria-describedby="profile-name-error"{% endif %}>
+                    {% if invalid %}<div class="invalid-feedback" id="profile-name-error">{{ t(invalid.key, invalid.params) }}</div>{% endif %}
+                </div>
+                <div class="mb-3">
+                    <span class="form-label fw-semibold d-block">{{ t('field.email') }}</span>
+                    <span>{{ me.email }}</span>
+                    <div class="form-text">{{ t('users.email_by_admin') }}</div>
+                </div>
+                <div class="mb-3">
+                    <span class="form-label fw-semibold d-block">{{ t('field.roles') }}</span>
+                    <span>{%- for role in me.roles -%}{{ loop.first ? '' : ', ' }}{% include '@core/admin/_role.html.twig' with {role: role} only %}{%- else -%}–{%- endfor -%}</span>
+                </div>
+                <div><button type="submit" class="btn btn-primary">{{ t('admin.form.save') }}</button></div>
+            </form>
+        </div>
+        <div class="col-lg-6">
+            <form method="post" action="{{ admin_url('profile/password') }}" class="card card-body admin-form" novalidate>
+                <h2 class="h6 mb-3">{{ t('users.change_password') }}</h2>
+                {{ csrf_field() }}
+                {% set invalid = password_errors.current_password ?? null %}
+                <div class="mb-3">
+                    <label for="profile-current" class="form-label fw-semibold">{{ t('users.current_password') }} <span class="text-danger" aria-hidden="true">*</span></label>
+                    <input type="password" class="form-control{{ invalid ? ' is-invalid' }}" id="profile-current" name="current_password" required autocomplete="current-password"{% if invalid %} aria-describedby="profile-current-error"{% endif %}>
+                    {% if invalid %}<div class="invalid-feedback" id="profile-current-error">{{ t(invalid.key, invalid.params) }}</div>{% endif %}
+                </div>
+                {% include '@core/admin/_password_fields.html.twig' with {errors: password_errors, prefix: 'profile', min_password: min_password} only %}
+                <p class="small text-body-secondary">{{ t('users.change_password_help') }}</p>
+                <div><button type="submit" class="btn btn-primary">{{ t('users.change_password') }}</button></div>
+            </form>
+        </div>
+    </div>
+{% endblock %}

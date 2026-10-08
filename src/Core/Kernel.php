@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Campanella\Core;
 
 use Campanella\Cli\Output;
+use Campanella\Service\UserService;
+use Campanella\Admin\UserPages;
 
 use Campanella\Cli\SeedCommand;
 
@@ -304,6 +306,18 @@ final class Kernel
             self::guards((array) $c->get(Config::class)->get('auth.guards', [])),
         ));
 
+        $c->set(UserService::class, static function (Container $c): UserService {
+            $config = $c->get(Config::class);
+            // The roles offered in the admin: the admin's and the System page's roles.
+            $roles = array_values(array_unique(array_map(strval(...), array_merge(
+                [Actor::ADMINISTRATOR],
+                (array) $config->get('admin.roles', []),
+                (array) $config->get('admin.system_roles', []),
+            ))));
+
+            return new UserService($c->get(ObjectRepository::class), $c->get(QueryEngine::class), $c->get(AccessPolicy::class), $c->get(Throttle::class), $roles);
+        });
+
         $c->set(ObjectService::class, static function (Container $c): ObjectService {
             $service = new ObjectService($c->get(ObjectRepository::class), $c->get(AccessPolicy::class));
             // A deleted image takes its file with it.
@@ -479,6 +493,8 @@ final class Kernel
             $c->get(TemplateCache::class),
             $c->get(MediaService::class),
             new SiblingOrder($c->get(Connection::class), $c->get(BlueprintRegistry::class)),
+            new UserPages($c->get(UserService::class), $c->get(AuthService::class), $c->get(Csrf::class), $c->get(Flash::class), $c->get(AdminAccess::class)),
+            $c->get(UserService::class),
         ));
 
         $c->set('controller.upgrade', static fn (Container $c): Controller => new UpgradeController(

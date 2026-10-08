@@ -10,6 +10,8 @@ use Campanella\Access\Actor;
 use Campanella\Access\Operation;
 use Campanella\Admin\AdminAccess;
 use Campanella\Admin\Form\ObjectForm;
+use Campanella\Admin\UserPages;
+use Campanella\Service\UserService;
 use Campanella\Http\Flash;
 use Campanella\I18n\Message;
 use Campanella\I18n\Translator;
@@ -106,6 +108,8 @@ final class AdminController implements Controller
         private readonly TemplateCache $templateCache,
         private readonly MediaService $media,
         private readonly SiblingOrder $order,
+        private readonly UserPages $userPages,
+        private readonly UserService $users,
     ) {
     }
 
@@ -155,6 +159,15 @@ final class AdminController implements Controller
      */
     private function content(Request $request, Actor $actor, array $segments): Response
     {
+        // Users (since 0.1.0): their own pages, not the generic object forms.
+        $render = fn (string $template, string $active, array $context): Response => $this->render($template, $active, $context);
+        if (($segments[0] ?? null) === UserService::BLUEPRINT) {
+            return $this->userPages->users($request, $actor, array_slice($segments, 1), $render);
+        }
+        if (($segments[0] ?? null) === 'profile') {
+            return $this->userPages->profile($request, $actor, array_slice($segments, 1), $render);
+        }
+
         return match (count($segments)) {
             0 => $this->dashboard($request, $actor),
             1 => $this->listing($request, $actor, $this->contentBlueprint($segments[0])),
@@ -305,15 +318,16 @@ final class AdminController implements Controller
                 'name' => $name,
                 'label' => $blueprint->label,
                 'count' => $this->queries->count(Query::objects()->blueprint($name), $actor),
-                // Each type links to its list (users have none here yet).
-                'path' => isset($blueprint->capabilities['authenticatable']) ? null : $this->access->path($name),
+                // Each type links to its list (users: for those who may manage them).
+                'path' => !isset($blueprint->capabilities['authenticatable']) || $this->users->canManage($actor) ? $this->access->path($name) : null,
             ];
         }
         $recent = $this->queries->execute(Query::objects()->orderBy('updated', 'DESC')->limit(10), $actor);
         $editable = [];
         foreach ($recent as $item) {
-            $editable[(int) $item->id()] = $this->policy->allows($actor, Operation::Update, $item)
-                && !$item->has(\Campanella\Capability\Authenticatable::class);
+            $editable[(int) $item->id()] = $item->has(\Campanella\Capability\Authenticatable::class)
+                ? $this->users->canManage($actor)
+                : $this->policy->allows($actor, Operation::Update, $item);
         }
 
         // A warning bar for those who can fix it, if a requirement is not met.
@@ -1165,6 +1179,8 @@ final class AdminController implements Controller
             'active' => $active,
             'menu' => $menu,
             'can_system' => $this->actor !== null && $this->access->allowsSystem($this->actor),
+            'can_users' => $this->actor !== null && $this->users->canManage($this->actor),
+            'min_password' => \Campanella\Capability\Authenticatable::MIN_PASSWORD_LENGTH,
             'blueprints' => $this->blueprints->all(),
         ]));
     }
