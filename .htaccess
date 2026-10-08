@@ -7,3 +7,14 @@ Options -Indexes
     RewriteEngine On
     RewriteRule ^(.*)$ public/$1 [L]
 </IfModule>
+
+# Without mod_rewrite nothing would be routed: then nothing is served at all,
+# rather than the project's files (fail closed).
+<IfModule !mod_rewrite.c>
+    Require all denied
+</IfModule>
+
+# Hidden files (.git, .env …) are never served.
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>

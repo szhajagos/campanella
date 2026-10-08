@@ -175,8 +175,10 @@ final class InstallController implements Controller
 
             return ['connected' => true, 'error' => null, 'version' => $version, 'installed' => $installed, 'open' => $open];
         } catch (\PDOException $e) {
-            // Only the error code: the message could name the database user or host.
-            return ['connected' => false, 'error' => (string) ($e->errorInfo[1] ?? $e->getCode()), 'version' => null, 'installed' => false, 'open' => true];
+            // Only the error code: the message could name the database user or host. Open only
+            // with an install key set: an installed site whose database is briefly unreachable
+            // (its key removed) shows nothing here.
+            return ['connected' => false, 'error' => (string) ($e->errorInfo[1] ?? $e->getCode()), 'version' => null, 'installed' => false, 'open' => $this->key !== null];
         }
     }
 
@@ -223,7 +225,7 @@ final class InstallController implements Controller
     private function checkKey(Request $request): ?Message
     {
         $key = (string) $this->key;
-        $perAddress = 'install-key|' . $request->ip;
+        $perAddress = 'install-key|' . AuthService::clientKey($request->ip);
         if ($this->throttle->tooManyAttempts($perAddress, self::MAX_KEY_ATTEMPTS)
             || $this->throttle->tooManyAttempts('install-key', self::MAX_KEY_ATTEMPTS_TOTAL)) {
             $wait = max($this->throttle->availableIn($perAddress), $this->throttle->availableIn('install-key'));

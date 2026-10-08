@@ -86,8 +86,9 @@ The included `Dockerfile` already sets the web root to `public/`.
 **If the web root cannot be changed** (some shared hosts), the whole project
 goes into the web root, and the `.htaccess` in the project root routes every
 request under `public/`. This protects the other folders only while Apache
-honours `.htaccess` files (`mod_rewrite`, `AllowOverride All`): a server
-change that turns them off would expose them. The System page warns about
+honours `.htaccess` files (`AllowOverride All`): if `mod_rewrite` is missing,
+it denies everything rather than serving the files, and `var/` has its own
+deny. The System page warns about
 this setup (*Web root: the project folder*). Check after installing that
 `https://example.hu/composer.json` and `…/config/app.php` show the "page not
 found" page, not the file.

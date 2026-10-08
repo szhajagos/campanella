@@ -28,6 +28,9 @@ use Campanella\View\Presentation;
  */
 final class ObjectController implements Controller
 {
+    /** The most children listed on a tree node's page (since 0.1.0). */
+    public const int MAX_CHILDREN = 500;
+
     public function __construct(
         private readonly QueryEngine $queries,
         private readonly Presentation $presentation,
@@ -61,7 +64,7 @@ final class ObjectController implements Controller
             $breadcrumbs = $this->queries->execute(Hierarchical::ancestorsOf(Query::objects(), $object)->orderBy('depth'), $actor)->items;
             $childQuery = Hierarchical::childrenOf(Query::objects(), $object);
             $children = $this->queries->execute(
-                $object->has(Weighted::class) ? $childQuery->scope('by_weight') : $childQuery->orderBy('title'),
+                ($object->has(Weighted::class) ? $childQuery->scope('by_weight') : $childQuery->orderBy('title'))->limit(self::MAX_CHILDREN),
                 $actor,
             )->items;
         }

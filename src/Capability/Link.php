@@ -61,7 +61,10 @@ final class Link extends Capability
     public function href(?CampanellaObject $target = null): ?string
     {
         if ($this->targetId() !== null) {
-            return $target !== null && $target->has(Routable::class) ? $target->as(Routable::class)->route() : null;
+            // A path saved before 0.1.0 could still hold a backslash: such a target is left out.
+            $path = $target !== null && $target->has(Routable::class) ? $target->as(Routable::class)->route() : null;
+
+            return $path !== null && Routable::isSafePath($path) ? $path : null;
         }
         $url = $this->url();
 
@@ -112,6 +115,6 @@ final class Link extends Capability
     /** Whether the URL is a path of this site (or a fragment), so it gets the base path. */
     public static function isLocal(string $url): bool
     {
-        return $url !== '' && ($url[0] === '#' || ($url[0] === '/' && !str_starts_with($url, '//')));
+        return $url !== '' && !str_contains($url, '\\') && ($url[0] === '#' || ($url[0] === '/' && !str_starts_with($url, '//')));
     }
 }

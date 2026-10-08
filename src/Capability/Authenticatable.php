@@ -39,9 +39,11 @@ final class Authenticatable extends Capability
                 indexed: true,
                 length: 16,
                 label: 'field.account_status',
+                // Not readable from templates: who is an administrator is nobody's business (since 0.1.0).
+                hidden: true,
             ),
             // Multi-valued (since 0.0.6; before: a StringList), so users can be queried by role.
-            new Field('roles', FieldType::String, length: 32, cardinality: Field::UNLIMITED, label: 'field.roles'),
+            new Field('roles', FieldType::String, length: 32, cardinality: Field::UNLIMITED, label: 'field.roles', hidden: true),
         ];
     }
 

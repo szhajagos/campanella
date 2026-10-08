@@ -51,6 +51,7 @@ final class TrustedProxies
         $ip = $request->ip;
         $forwarded = array_reverse(array_map('trim', explode(',', $request->headers['x-forwarded-for'] ?? '')));
         foreach ($forwarded as $address) {
+            $address = Request::normalizeIp($address);
             if (filter_var($address, FILTER_VALIDATE_IP) === false) {
                 break; // a broken chain: the last good address stays
             }
@@ -87,8 +88,8 @@ final class TrustedProxies
         $parts = explode('/', $range, 2);
         $network = $parts[0];
         $bits = $parts[1] ?? null;
-        $address = @inet_pton($ip);
-        $base = @inet_pton($network);
+        $address = @inet_pton(Request::normalizeIp($ip));
+        $base = @inet_pton(Request::normalizeIp($network));
         if ($address === false || $base === false || strlen($address) !== strlen($base)) {
             return false;
         }

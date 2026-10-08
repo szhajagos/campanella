@@ -49,7 +49,7 @@ final class AuthService
     private ?CampanellaObject $current = null;
 
     /**
-     * @param array{max_attempts?: int, max_attempts_per_ip?: int, decay_seconds?: int} $config
+     * @param array{max_attempts?: int, max_attempts_per_ip?: int, max_attempts_per_account?: int, decay_seconds?: int} $config
      * @param list<LoginGuard> $guards Additional protections that run before the password check.
      */
     public function __construct(
@@ -79,31 +79,46 @@ final class AuthService
         }
 
         $email = Identifiable::normalize($email);
-        $pairKey = 'login|' . $email . '|' . $request->ip;
-        $ipKey = 'login-ip|' . $request->ip;
+        $user = $email === '' ? null : $this->findUserByEmail($email);
+        // The account's own address (the database may match accented variants of it), so
+        // variants share one counter; an IPv6 address counts by its /64 network.
+        $address = self::clientKey($request->ip);
+        $pairKey = 'login|' . ($user !== null ? (string) $user->get('email') : $email) . '|' . $address;
+        $ipKey = 'login-ip|' . $address;
+        // Unknown addresses are counted too, so a locked account cannot be told from a
+        // non-existent one (since 0.1.0).
+        $accountKey = 'login-account|' . ($user !== null ? 'id:' . $user->id() : 'email:' . $email);
         $decay = $this->config['decay_seconds'] ?? 900;
+        $maxPair = $this->config['max_attempts'] ?? 5;
+        $maxAccount = $this->config['max_attempts_per_account'] ?? 30;
 
-        if ($this->throttle->tooManyAttempts($pairKey, $this->config['max_attempts'] ?? 5)
-            || $this->throttle->tooManyAttempts($ipKey, $this->config['max_attempts_per_ip'] ?? 20)) {
-            $minutes = (int) ceil(max($this->throttle->availableIn($pairKey), $this->throttle->availableIn($ipKey)) / 60);
-
-            return LoginResult::failure('auth.too_many_attempts', ['minutes' => max(1, $minutes)]);
+        $refused = fn (): LoginResult => LoginResult::failure('auth.too_many_attempts', ['minutes' => max(1, (int) ceil(max(
+            $this->throttle->availableIn($pairKey),
+            $this->throttle->availableIn($ipKey),
+            $this->throttle->availableIn($accountKey),
+        ) / 60))]);
+        if ($this->throttle->tooManyAttempts($pairKey, $maxPair)
+            || $this->throttle->tooManyAttempts($ipKey, $this->config['max_attempts_per_ip'] ?? 20)
+            || $this->throttle->tooManyAttempts($accountKey, $maxAccount)) {
+            return $refused();
+        }
+        // Counted before the password is checked (atomically), so parallel requests
+        // cannot all slip through the check above; a successful login clears them.
+        $overPair = $this->throttle->hit($pairKey, $decay) > $maxPair;
+        $overAccount = $this->throttle->hit($accountKey, $decay) > $maxAccount;
+        $overIp = $this->throttle->hit($ipKey, $decay) > ($this->config['max_attempts_per_ip'] ?? 20);
+        if ($overPair || $overAccount || $overIp) {
+            return $refused();
         }
 
-        $user = $email === '' ? null : $this->findUserByEmail($email);
         if ($user === null) {
             password_hash($password, PASSWORD_DEFAULT); // same running time when there is no such account
-            $this->throttle->hit($pairKey, $decay);
-            $this->throttle->hit($ipKey, $decay);
 
             return LoginResult::failure(self::GENERIC_ERROR);
         }
 
         $auth = $user->as(Authenticatable::class);
         if (!$auth->verifyPassword($password)) {
-            $this->throttle->hit($pairKey, $decay);
-            $this->throttle->hit($ipKey, $decay);
-
             return LoginResult::failure(self::GENERIC_ERROR);
         }
         if (!$auth->isActive()) {
@@ -114,7 +129,10 @@ final class AuthService
             $auth->rehash($password);
             $this->repository->save($user);
         }
+        // The address's counter is not cleared: logging in to one's own account must not
+        // reset it between guesses at other accounts.
         $this->throttle->clear($pairKey);
+        $this->throttle->clear($accountKey);
         $this->login($request, $user);
 
         return LoginResult::success($user);
@@ -201,6 +219,21 @@ final class AuthService
             $user->as(Authenticatable::class)->roles(),
             $user->has(Titled::class) ? $user->as(Titled::class)->title() : $user->as(Identifiable::class)->email(),
         );
+    }
+
+    /**
+     * The address a throttle counts by: an IPv4 address as it is, an IPv6 address by
+     * its /64 network (one connection usually gets a whole /64).
+     */
+    public static function clientKey(string $ip): string
+    {
+        $ip = Request::normalizeIp($ip);
+        $packed = @inet_pton($ip);
+        if ($packed === false || strlen($packed) !== 16) {
+            return $ip;
+        }
+
+        return (string) inet_ntop(substr($packed, 0, 8) . str_repeat("\0", 8)) . '/64';
     }
 
     /** The session's stamp of the user's password (not the hash itself). */

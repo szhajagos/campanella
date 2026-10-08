@@ -149,9 +149,13 @@ final class Query
     }
 
     /** Pagination: page 1 is the first. */
+    /** A page of $perPage items; an absurdly large page number is an empty page, not an overflow. */
     public function page(int $page, int $perPage): self
     {
-        return $this->limit($perPage)->offset((max(1, $page) - 1) * $perPage);
+        $perPage = max(1, $perPage);
+        $page = min(max(1, $page), intdiv(PHP_INT_MAX, $perPage));
+
+        return $this->limit($perPage)->offset(($page - 1) * $perPage);
     }
 
     public function conditions(): Group

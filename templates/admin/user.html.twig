@@ -61,7 +61,11 @@
             </form>
         </div>
 
-        {% if account %}
+        {% if account and self %}
+            <aside class="col-lg-4">
+                <div class="card card-body small">{{ t('users.own_password_profile') }} <a href="{{ admin_url('profile') }}">{{ t('users.profile') }}</a></div>
+            </aside>
+        {% elseif account %}
             <aside class="col-lg-4">
                 <form method="post" action="{{ url(action ~ '/password') }}" class="card card-body admin-form" novalidate>
                     <h2 class="h6 mb-3">{{ t('users.set_password') }}</h2>

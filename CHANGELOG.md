@@ -72,6 +72,39 @@ backward-incompatible.
 - `config/local.php.dist` no longer turns debug mode on: a copied file is safe
   on a public server.
 
+### Security
+
+The security review of 0.1.0 ([docs/security.md](docs/security.md)): no
+critical or high issue; fixed:
+
+- **IPv4-mapped addresses** (`::ffff:1.2.3.4`, on some dual-stack servers)
+  are read as plain IPv4: before, all such visitors shared one login-throttle
+  bucket, and a proxy listed as `127.0.0.1` was not trusted.
+  `Request::normalizeIp()`.
+- **Templates run in a sandbox** (`TemplatePolicy`): they cannot read hidden
+  fields through `get()`, `values()` or `as()`. A user's `roles` and
+  `account_status` are hidden fields.
+- **Login throttling:** every attempt is counted atomically before the
+  password check, also per account (30 in 15 minutes from any address,
+  `max_attempts_per_account`) and per address; unknown addresses have their
+  own account counter, so a locked account cannot be told from a
+  non-existent one; IPv6 addresses count by /64. The throttle's count is one
+  atomic statement.
+- **Install and upgrade keys:** wrong keys are limited from all addresses
+  together too (50 in 15 minutes); the upgrade page shows its details only to
+  an allowed request.
+- **Paths and links:** a site path may not contain backslashes, whitespace,
+  control characters, `?` or `#` (`Routable::isSafePath()`); `url()` encodes
+  backslashes and control characters; a menu item whose target path is
+  unsafe is left out.
+- One's own password only on the profile, with the current one.
+- A huge `page` number gives an empty page (404), not an error.
+- The root `.htaccess` denies everything without `mod_rewrite` and never
+  serves dot files; `var/` has its own deny.
+- An early error page gets the security headers too; a category page lists at
+  most 500 children.
+- `composer audit` runs in CI.
+
 ### Removed
 
 - The `FieldType::StringList` type (deprecated in 0.0.6): a list of values is

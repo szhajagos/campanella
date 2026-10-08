@@ -142,6 +142,10 @@ then rendered as stored; [chapter 15](15-html.md)).
 Saving a path that is already taken raises a `ValidationException`
 (`path: ez az érték már foglalt`, "this value is already taken").
 
+Since 0.1.0 a path may not contain backslashes, whitespace, control
+characters, `?` or `#` (`static isSafePath(string $path): bool`;
+`validation.invalid_path`): a browser would read `/\evil.com` as another site.
+
 ### Publishable
 
 `Campanella\Capability\Publishable` · name: `publishable` · table: `cap_publishable`

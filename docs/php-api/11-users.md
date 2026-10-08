@@ -37,8 +37,8 @@ user = Titled + Identifiable + Authenticatable
 | Field | Type | Storage | |
 |---|---|---|---|
 | `password_hash` | String | Table | required, hidden |
-| `account_status` | String | Table | indexed, default: `active` |
-| `roles` | String, multi-valued (`Field::UNLIMITED`, 32 characters) | Table (`field_values`) | e.g. `administrator`, `editor`; queryable: `->where('roles', '=', 'editor')`. Since 0.0.6; before, a StringList in a column (the migration `core:0006_roles_multi_value` moves them) |
+| `account_status` | String | Table | indexed, default: `active`; hidden (since 0.1.0) |
+| `roles` | String, multi-valued (`Field::UNLIMITED`, 32 characters) | Table (`field_values`) | e.g. `administrator`, `editor`; queryable: `->where('roles', '=', 'editor')`; hidden from templates (since 0.1.0). Since 0.0.6; before, a StringList in a column (the migration `core:0006_roles_multi_value` moves them) |
 
 | Method / constant | Description |
 |---|---|
@@ -105,9 +105,15 @@ Constants: `Actor::ADMINISTRATOR`, `DefaultPolicy::EDITOR`.
 - A wrong e-mail address and a wrong password produce the same message, and
   nearly the same response time (a password hash runs even for a non-existent
   account). So from the outside it cannot be told whether an account exists.
-- After a failed attempt the `Throttle` counts: by default 5 attempts per
-  e-mail address and IP address pair, and 20 attempts per IP address, within
-  15 minutes. On success the counter of the e-mail and IP pair is reset.
+- Every attempt is counted by the `Throttle` before the password is checked
+  (atomically, so parallel requests cannot slip through): by default 5 per
+  e-mail address and IP address pair, 20 per IP address, and 30 per account
+  from any address (`max_attempts_per_account`, since 0.1.0; an unknown
+  address has its own counter, so a locked account cannot be told from a
+  non-existent one), within 15 minutes. An IPv6 address counts by its /64
+  network, an IPv4-mapped one as plain IPv4 (`static clientKey(string $ip)`).
+  On success the pair's and the account's counters are cleared, the address's
+  is not (see [the accepted risks](../security.md#known-and-accepted-decided-2026-10-08)).
 - A blocked account cannot log in even with the correct password
   (key `auth.account_blocked`, "The account is blocked."), and its existing
   session ends on the next request.
@@ -268,7 +274,7 @@ The rules of managing users; the admin pages only read the forms.
 | `all(Actor $actor): list<CampanellaObject>`, `find(Actor $actor, int $id): ?CampanellaObject` | |
 | `create(Actor $actor, string $name, string $email, string $password, array $roles): CampanellaObject` | |
 | `update(Actor $actor, CampanellaObject $user, string $name, string $email, array $roles, bool $active): void` | |
-| `setPassword(Actor $actor, CampanellaObject $user, string $password): void` | An administrator sets someone's password; their sessions end |
+| `setPassword(Actor $actor, CampanellaObject $user, string $password): void` | An administrator sets someone else's password; their sessions end. One's own: only `changeOwnPassword()` (`users.own_password_profile`) |
 | `updateProfile(CampanellaObject $user, string $name): void` | One's own name |
 | `changeOwnPassword(CampanellaObject $user, string $current, string $new): void` | With the current password; wrong ones are limited (5 in 15 minutes, `Throttle`) |
 | `activeAdministrators(int $except = 0): int` | |

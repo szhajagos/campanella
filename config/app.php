@@ -120,7 +120,8 @@ return [
     // Login throttling.
     'auth' => [
         'max_attempts' => 5,           // this many failed attempts per e-mail address + IP address pair
-        'max_attempts_per_ip' => 20,   // and this many per IP address
+        'max_attempts_per_ip' => 20,   // and this many per IP address (IPv6: per /64 network)
+        'max_attempts_per_account' => 30, // and this many per account, from any address (since 0.1.0)
         'decay_seconds' => 900,        // within this time window (15 minutes)
         // Additional protections run before the password check (Campanella\Auth\LoginGuard).
         'guards' => [

@@ -12,6 +12,7 @@ use Campanella\Capability\AccountStatus;
 use Campanella\Capability\Authenticatable;
 use Campanella\Capability\Identifiable;
 use Campanella\Capability\Titled;
+use Campanella\Database\Connection;
 use Campanella\I18n\Message;
 use Campanella\Model\CampanellaObject;
 use Campanella\Model\ObjectRepository;
@@ -40,6 +41,9 @@ final class UserService
 
     public const string ADMINISTRATOR = Actor::ADMINISTRATOR;
 
+    /** The database lock held while a user's roles or status change. */
+    private const string LOCK = 'cmp_users';
+
     /** Wrong current passwords when changing one's own, per user. */
     public const int MAX_PASSWORD_ATTEMPTS = 5;
 
@@ -52,6 +56,7 @@ final class UserService
         private readonly AccessPolicy $policy,
         private readonly Throttle $throttle,
         private readonly array $roles = [Actor::ADMINISTRATOR, 'editor'],
+        private readonly ?Connection $db = null,
     ) {
     }
 
@@ -128,6 +133,21 @@ final class UserService
     public function update(Actor $actor, CampanellaObject $user, string $name, string $email, array $roles, bool $active): void
     {
         $this->authorize($actor, Operation::Update);
+        // Counting the administrators and saving under one lock: two parallel demotions
+        // cannot both see "one more administrator left" (since 0.1.0).
+        $locked = $this->db !== null && (int) $this->db->fetchValue('SELECT GET_LOCK(:name, 10)', ['name' => self::LOCK]) === 1;
+        try {
+            $this->applyUpdate($actor, $user, $name, $email, $roles, $active);
+        } finally {
+            if ($locked) {
+                $this->db->fetchValue('SELECT RELEASE_LOCK(:name)', ['name' => self::LOCK]);
+            }
+        }
+    }
+
+    /** @param list<string> $roles */
+    private function applyUpdate(Actor $actor, CampanellaObject $user, string $name, string $email, array $roles, bool $active): void
+    {
         $errors = $this->checkRoles($roles, $user);
         if (!$active && $actor->id !== null && $actor->id === $user->id()) {
             $errors['account_status'] = new Message('users.self_block');
@@ -157,6 +177,10 @@ final class UserService
     public function setPassword(Actor $actor, CampanellaObject $user, #[\SensitiveParameter] string $password): void
     {
         $this->authorize($actor, Operation::Update);
+        // One's own password needs the current one: changeOwnPassword() (since 0.1.0).
+        if ($actor->id !== null && $actor->id === $user->id()) {
+            throw new ValidationException(['password' => new Message('users.own_password_profile')]);
+        }
         $user->as(Authenticatable::class)->setPassword($password);
         $this->repository->save($user);
     }
@@ -180,13 +204,13 @@ final class UserService
     public function changeOwnPassword(CampanellaObject $user, #[\SensitiveParameter] string $current, #[\SensitiveParameter] string $new): void
     {
         $key = 'password-change|' . $user->id();
-        if ($this->throttle->tooManyAttempts($key, self::MAX_PASSWORD_ATTEMPTS)) {
+        // Counted before checking (atomically), so parallel requests cannot slip through.
+        if ($this->throttle->tooManyAttempts($key, self::MAX_PASSWORD_ATTEMPTS)
+            || $this->throttle->hit($key, self::PASSWORD_DECAY_SECONDS) > self::MAX_PASSWORD_ATTEMPTS) {
             throw new ValidationException(['current_password' => new Message('users.too_many', ['minutes' => max(1, (int) ceil($this->throttle->availableIn($key) / 60))])]);
         }
         $auth = $user->as(Authenticatable::class);
         if (!$auth->verifyPassword($current)) {
-            $this->throttle->hit($key, self::PASSWORD_DECAY_SECONDS);
-
             throw new ValidationException(['current_password' => new Message('users.wrong_password')]);
         }
         $auth->setPassword($new);

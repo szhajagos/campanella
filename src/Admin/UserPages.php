@@ -216,10 +216,6 @@ final class UserPages
         if ($errors !== []) {
             return $this->status($render('user', 'user', $context + ['password_errors' => $errors, 'alert' => 'admin.form.invalid']), 422);
         }
-        // Changing one's own password here keeps this session too.
-        if ($actor->id === $user->id()) {
-            $this->auth->refresh($request, $user);
-        }
         $this->flash->add(Flash::SUCCESS, new Message('users.password_set', ['name' => UserService::nameOf($user)]));
 
         return Response::redirect($request->basePath . $this->access->path('user/' . $user->id()), 303);

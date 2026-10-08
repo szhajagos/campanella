@@ -72,7 +72,7 @@ seven parts (0–6), each its own commit:
    *Capabilities* page lists the installed capabilities with a short
    explanation, their fields, and the Blueprints that use them. A first step
    towards Blueprints defined in the admin.
-5. **Security review:** an independent review of the whole code (login and
+5. ✅ **Security review:** an independent review of the whole code (login and
    sessions, CSRF, XSS, SQL parameters, uploads, open redirects, error
    messages, headers, throttling, permissions), `composer audit` and the
    dependencies' licenses; the fixes in their own commit, anything left as a

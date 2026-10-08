@@ -29,27 +29,28 @@ final class Throttle
         return $row !== null && $row['hits'] >= $maxAttempts;
     }
 
-    /** Records a failed attempt; returns the number of attempts. */
+    /**
+     * Records an attempt; returns the number of attempts in the current window.
+     *
+     * One atomic statement (since 0.1.0), so parallel requests cannot lose a count:
+     * a new key starts at 1, an expired window starts again at 1.
+     */
     public function hit(string $key, int $decaySeconds): int
     {
         $hash = self::hash($key);
         $now = self::now();
+        $reset = $now->modify("+{$decaySeconds} seconds")->format(FieldType::STORAGE_DATE_FORMAT);
+        $nowText = $now->format(FieldType::STORAGE_DATE_FORMAT);
 
-        return $this->db->transactional(function (Connection $db) use ($key, $hash, $now, $decaySeconds): int {
-            $row = $this->row($key);
-            if ($row === null) {
-                $db->delete(CoreSchema::THROTTLE, ['key_hash' => $hash]);   // expired row
-                $db->insert(CoreSchema::THROTTLE, [
-                    'key_hash' => $hash,
-                    'hits' => 1,
-                    'reset_at' => $now->modify("+{$decaySeconds} seconds")->format(FieldType::STORAGE_DATE_FORMAT),
-                ]);
+        return $this->db->transactional(function (Connection $db) use ($hash, $reset, $nowText): int {
+            // The assignments run left to right: `hits` still sees the old `reset_at`.
+            $db->execute(
+                'INSERT INTO {throttle} (key_hash, hits, reset_at) VALUES (:k, 1, :reset)
+                 ON DUPLICATE KEY UPDATE hits = IF(reset_at <= :now1, 1, hits + 1), reset_at = IF(reset_at <= :now2, :reset2, reset_at)',
+                ['k' => $hash, 'reset' => $reset, 'now1' => $nowText, 'now2' => $nowText, 'reset2' => $reset],
+            );
 
-                return 1;
-            }
-            $db->update(CoreSchema::THROTTLE, ['hits' => $row['hits'] + 1], ['key_hash' => $hash]);
-
-            return $row['hits'] + 1;
+            return (int) $db->fetchValue('SELECT hits FROM {throttle} WHERE key_hash = :k', ['k' => $hash]);
         });
     }
 

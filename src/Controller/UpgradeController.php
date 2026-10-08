@@ -6,6 +6,7 @@ namespace Campanella\Controller;
 
 use Campanella\Access\Actor;
 use Campanella\Admin\AdminAccess;
+use Campanella\Auth\AuthService;
 use Campanella\Core\Version;
 use Campanella\Database\DatabaseBackup;
 use Campanella\Database\Installer;
@@ -42,6 +43,9 @@ final class UpgradeController implements Controller
     public const int MIN_KEY_LENGTH = 20;
 
     public const int MAX_KEY_ATTEMPTS = 5;
+
+    /** Wrong keys from all addresses together (since 0.1.0). */
+    public const int MAX_KEY_ATTEMPTS_TOTAL = 50;
 
     public const int KEY_DECAY_SECONDS = 900;
 
@@ -105,16 +109,17 @@ final class UpgradeController implements Controller
      */
     private function run(Request $request, bool $admin, array $context): Response
     {
-        $context += $this->details(true);
+        // The details only once the request is allowed (since 0.1.0: not to a refused one).
         if (!$this->csrf->isValid($request)) {
-            return $this->page(['error' => new Message('auth.form_expired'), 'details' => $admin] + $context, 400);
+            return $this->page(['error' => new Message('auth.form_expired')] + $context + $this->details($admin), 400);
         }
         if (!$admin) {
             $refused = $this->checkKey($request);
             if ($refused !== null) {
-                return $this->page(['error' => $refused, 'details' => false] + $context, 403);
+                return $this->page(['error' => $refused] + $context + $this->details(false), 403);
             }
         }
+        $context += $this->details(true);
 
         // An upgrade must not stop halfway because the visitor closed the page.
         @ignore_user_abort(true);
@@ -189,12 +194,17 @@ final class UpgradeController implements Controller
         if ($key === null) {
             return new Message('upgrade.not_allowed');
         }
-        $throttleKey = 'upgrade-key|' . $request->ip;
-        if ($this->throttle->tooManyAttempts($throttleKey, self::MAX_KEY_ATTEMPTS)) {
-            return new Message('upgrade.too_many', ['minutes' => (int) ceil($this->throttle->availableIn($throttleKey) / 60)]);
+        // Per address (an IPv6 /64 as one), and from all addresses together (since 0.1.0).
+        $throttleKey = 'upgrade-key|' . AuthService::clientKey($request->ip);
+        if ($this->throttle->tooManyAttempts($throttleKey, self::MAX_KEY_ATTEMPTS)
+            || $this->throttle->tooManyAttempts('upgrade-key', self::MAX_KEY_ATTEMPTS_TOTAL)) {
+            $wait = max($this->throttle->availableIn($throttleKey), $this->throttle->availableIn('upgrade-key'));
+
+            return new Message('upgrade.too_many', ['minutes' => max(1, (int) ceil($wait / 60))]);
         }
         if (!hash_equals($key, $request->postString('key'))) {
             $this->throttle->hit($throttleKey, self::KEY_DECAY_SECONDS);
+            $this->throttle->hit('upgrade-key', self::KEY_DECAY_SECONDS);
 
             return new Message('upgrade.wrong_key');
         }

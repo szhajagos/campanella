@@ -108,8 +108,15 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
         return $this->globals;
     }
 
+    /**
+     * A site path with the installation's prefix. Backslashes and control characters
+     * are never passed on as they are (a browser would read `/\host` as another site):
+     * they are percent-encoded, and leading slashes are collapsed into one.
+     */
     public function url(string $path): string
     {
+        $path = (string) preg_replace_callback('/[\\\\\x00-\x20\x7f]/', static fn (array $m): string => rawurlencode($m[0]), $path);
+
         return ($this->basePath)() . '/' . ltrim($path, '/');
     }
 

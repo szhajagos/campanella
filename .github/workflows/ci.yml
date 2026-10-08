@@ -45,6 +45,10 @@ jobs:
       - run: composer validate --no-check-publish
       - run: composer install --no-interaction --no-progress
 
+      - name: Known vulnerabilities in the dependencies
+        # Fails if a package in composer.lock has a published security advisory (since 0.1.0).
+        run: composer audit --locked --no-interaction
+
       - name: PHPStan (level 8)
         run: vendor/bin/phpstan analyse --no-progress --memory-limit=1G
 

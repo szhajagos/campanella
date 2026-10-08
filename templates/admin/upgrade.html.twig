@@ -34,9 +34,11 @@
             <pre class="small bg-body-tertiary border rounded p-3">{% for line in log %}{% if line.message is defined %}✔ {{ t(line.message.key, line.message.params) }}{% else %}{{ line.text }}{% endif %}{{ "\n" }}{% endfor %}</pre>
         {% endif %}
 
-        {% for message in blocked ?? [] %}
-            <div class="alert alert-warning small" role="alert">{{ t(message.key, message.params) }}</div>
-        {% endfor %}
+        {% if details ?? false %}
+            {% for message in blocked ?? [] %}
+                <div class="alert alert-warning small" role="alert">{{ t(message.key, message.params) }}</div>
+            {% endfor %}
+        {% endif %}
 
         {% if not needed %}
             {% if result is null %}<p>{{ t('upgrade.up_to_date') }}</p>{% endif %}

@@ -71,6 +71,8 @@ use Campanella\System\SystemCheck;
 use Campanella\System\TemplateCache;
 use Twig\Environment;
 use Twig\Extension\CoreExtension;
+use Twig\Extension\SandboxExtension;
+use Campanella\View\TemplatePolicy;
 use Twig\Loader\FilesystemLoader;
 
 /**
@@ -105,7 +107,7 @@ final class Kernel
         try {
             $request = $this->container()->get(TrustedProxies::class)->apply($request);
         } catch (\Throwable $e) {
-            return $this->failure($e);
+            return (new SecurityHeaders())->apply($this->failure($e), $request);
         }
         $response = $this->dispatch($request);
         try {
@@ -316,7 +318,7 @@ final class Kernel
                 (array) $config->get('admin.system_roles', []),
             ))));
 
-            return new UserService($c->get(ObjectRepository::class), $c->get(QueryEngine::class), $c->get(AccessPolicy::class), $c->get(Throttle::class), $roles);
+            return new UserService($c->get(ObjectRepository::class), $c->get(QueryEngine::class), $c->get(AccessPolicy::class), $c->get(Throttle::class), $roles, $c->get(Connection::class));
         });
 
         $c->set(ObjectService::class, static function (Container $c): ObjectService {
@@ -419,6 +421,8 @@ final class Kernel
                 'strict_variables' => $debug,
                 'autoescape' => 'html',
             ]);
+            // Every template is sandboxed: on objects only the safe reads (TemplatePolicy).
+            $twig->addExtension(new SandboxExtension(new TemplatePolicy(), true));
             $core = $twig->getExtension(CoreExtension::class);
             $core->setTimezone((string) $config->get('timezone', 'UTC'));
             $core->setDateFormat('Y. m. d. H:i');

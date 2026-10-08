@@ -586,4 +586,6 @@ return [
     'capability.hierarchical.description' => 'Hely egy fában: azonos fajtájú szülő, legfeljebb 10 szint; amelyik alatt elemek vannak, nem törölhető.',
     'capability.keyed.description' => 'Egyedi gépi név, amellyel a sablonok megtalálják az objektumot (pl. a main menüt).',
     'capability.link.description' => 'Valahová mutat: az oldal egy objektumára vagy egy biztonságos URL-re.',
+    'validation.invalid_path' => 'nem tartalmazhat fordított perjelet, szóközt, vezérlőkaraktert, ? vagy # jelet',
+    'users.own_password_profile' => 'A saját jelszavadat a profilodon cseréled, a jelenlegi jelszavaddal:',
 ];

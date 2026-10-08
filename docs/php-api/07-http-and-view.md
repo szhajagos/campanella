@@ -21,6 +21,7 @@
 | `static fromGlobals(): self` | From the PHP superglobals |
 | `static normalizePath(string $path): string` | `'/hirek/'` → `'/hirek'`; `'/index.php'` → `'/'` |
 | `queryInt(string $name, int $default = 0): int` | An integer from the query string |
+| `static normalizeIp(string $ip): string` | An IPv4-mapped IPv6 address (`::ffff:1.2.3.4`) as plain IPv4; `fromGlobals()` and `withClient()` use it (since 0.1.0) |
 | `withClient(string $ip, bool $secure): self` | The same request with the visitor's address and HTTPS state ([TrustedProxies](#trustedproxies); since 0.1.0) |
 
 `Campanella\Http\UploadedFile` · **Public** · `final readonly class`:
@@ -86,6 +87,22 @@ controller):
 | `__construct(?string $contentSecurityPolicy = null, bool $externalImages = false, int $hsts = 0, bool $hstsSubdomains = false)` | A replacement policy must be a non-empty single line |
 | `apply(Response $response, Request $request): Response` | |
 | `contentSecurityPolicy(): string`, `isCustomPolicy(): bool`, `hsts(): int` | |
+
+### TemplatePolicy (the Twig sandbox)
+
+`Campanella\View\TemplatePolicy` · **Public** · since 0.1.0
+
+Every template runs in Twig's sandbox with this policy. On a `CampanellaObject`
+a template may only read fields as properties (`item.title`; hidden fields
+read as empty) and call the harmless methods in `OBJECT_METHODS` (`id`,
+`uuid`, `blueprint`, `created`, `updated`, `isNew`, `has`, `relations`,
+`relatedObjects` …); `get()`, `values()`, `as()` and every changing method
+raise a `SecurityError`, and so does any method of a capability adapter. So a
+theme cannot print a password hash or an e-mail address, not even by mistake.
+Tags, filters, functions and other classes are not restricted
+(`checkSecurity()` and `checkPropertyAllowed()` allow everything;
+`checkMethodAllowed()` applies the rule above). A controller
+that needs more passes plain values to its template (as the user pages do).
 
 The templates therefore use no inline script, style element or `style`
 attribute on the public site; a theme must not either, or replace the policy

@@ -45,6 +45,23 @@ final class Routable extends Capability
         $this->object->set('path', self::normalize($path));
     }
 
+    /**
+     * A path may not contain backslashes, whitespace, control characters, `?` or `#`:
+     * a browser would read `/\evil.com` (or `/<tab>/evil.com`) as another site. Since 0.1.0.
+     */
+    #[\Override]
+    public function validate(): array
+    {
+        return self::isSafePath($this->route())
+            ? []
+            : ['path' => new \Campanella\I18n\Message('validation.invalid_path')];
+    }
+
+    public static function isSafePath(string $path): bool
+    {
+        return preg_match('/[\\\\\s\x00-\x1f\x7f?#]/u', $path) !== 1;
+    }
+
     /** Canonical form: starts with a slash, does not end with a slash, lowercase. */
     public static function normalize(string $path): string
     {

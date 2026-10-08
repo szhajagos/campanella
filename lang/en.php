@@ -588,4 +588,6 @@ return [
     'capability.hierarchical.description' => 'A place in a tree: a parent of the same kind, at most 10 levels; a node with children cannot be deleted.',
     'capability.keyed.description' => 'A unique machine name by which templates find the object (e.g. the menu main).',
     'capability.link.description' => 'Leads somewhere: to an object of the site, or to a safe URL.',
+    'validation.invalid_path' => 'may not contain backslashes, spaces, control characters, ? or #',
+    'users.own_password_profile' => 'You change your own password on your profile, with your current password:',
 ];

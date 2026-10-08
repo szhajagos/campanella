@@ -3935,6 +3935,100 @@ test('StructurePages: the Blueprints and the capabilities, read-only, for admini
     putenv('CAMPANELLA_DB_PREFIX');
 });
 
+test('Security review fixes: IPv4-mapped addresses, login counters, own password, hidden fields in templates, page overflow', function () use ($repository, $engine, $db, $newUser, $req, $policy): void {
+    // IPv4-mapped IPv6 addresses are plain IPv4 (one shared /64 bucket for every visitor otherwise).
+    check(Request::normalizeIp('::ffff:1.2.3.4') === '1.2.3.4' && Request::normalizeIp('::FFFF:10.0.0.1') === '10.0.0.1' && Request::normalizeIp('2001:db8::1') === '2001:db8::1' && Request::normalizeIp('nem-ip') === 'nem-ip');
+    check(AuthService::clientKey('::ffff:1.2.3.4') === '1.2.3.4' && AuthService::clientKey('::ffff:9.9.9.9') === '9.9.9.9');
+    check(\Campanella\Http\TrustedProxies::inRange('::ffff:127.0.0.1', '127.0.0.1') && (new Request('GET', '/'))->withClient('::ffff:5.6.7.8', false)->ip === '5.6.7.8');
+    $via = (new \Campanella\Http\TrustedProxies(['127.0.0.1']))->apply(new Request('GET', '/', headers: ['x-forwarded-for' => '::ffff:203.0.113.9'], ip: '::ffff:127.0.0.1'));
+    check($via->ip === '203.0.113.9', 'a mapped proxy address is trusted, a mapped client address read plainly');
+
+    // A locked account and an unknown address answer alike; the address counter counts before the password.
+    $db->execute('DELETE FROM {throttle}');
+    $storage = new ArraySessionStorage();
+    $session = new Session($storage, 7200);
+    $auth = new AuthService($repository, $engine, $session, new Throttle($db), new Csrf($session), ['max_attempts' => 5, 'max_attempts_per_ip' => 100, 'max_attempts_per_account' => 3, 'decay_seconds' => 900]);
+    $newUser('zarolt@example.hu', 'zarolt-jelszo-1');
+    foreach (['zarolt@example.hu', 'nincs-ilyen@example.hu'] as $i => $email) {
+        for ($n = 0; $n < 3; $n++) {
+            $auth->attempt($req([], '10.50.' . $i . '.' . $n), $email, 'rossz-jelszo-1');
+        }
+    }
+    $known = $auth->attempt($req([], '10.60.0.1'), 'zarolt@example.hu', 'rossz-jelszo-1');
+    $unknown = $auth->attempt($req([], '10.60.0.1'), 'nincs-ilyen@example.hu', 'rossz-jelszo-1');
+    check(!$known->success && $known->error === $unknown->error && $known->error === 'auth.too_many_attempts', $known->error . ' / ' . $unknown->error);
+    $db->execute('DELETE FROM {throttle}');
+    $ipLimited = new AuthService($repository, $engine, $session, new Throttle($db), new Csrf($session), ['max_attempts' => 5, 'max_attempts_per_ip' => 3, 'decay_seconds' => 900]);
+    for ($n = 0; $n < 3; $n++) {
+        $ipLimited->attempt($req([], '10.70.0.1'), 'valaki' . $n . '@example.hu', 'rossz-jelszo-1');
+    }
+    check($ipLimited->attempt($req([], '10.70.0.1'), 'zarolt@example.hu', 'zarolt-jelszo-1')->error === 'auth.too_many_attempts', 'the address limit holds before the password is checked');
+    $db->execute('DELETE FROM {throttle}');
+
+    // An administrator's own password: only on the profile, with the current one.
+    $users = new \Campanella\Service\UserService($repository, $engine, $policy, new Throttle($db));
+    $boss = $newUser('sajat@example.hu', 'sajat-jelszo-12', ['administrator']);
+    throws(ValidationException::class, fn () => $users->setPassword(AuthService::actorFor($boss), $boss, 'uj-sajat-jelszo-1'));
+
+    // Templates cannot read hidden fields through get(), values() or as().
+    $twig = new \Twig\Environment(new \Twig\Loader\ArrayLoader([
+        'ok' => '[{{ u.title }}|{{ u.password_hash }}|{{ u.email }}|{{ u.roles|join(",") }}|{{ u.id > 0 ? "id" }}]',
+        'get' => '{{ u.get("password_hash") }}',
+        'values' => '{{ u.values|json_encode }}',
+        'as' => '{{ u.as("Campanella\\\\Capability\\\\Identifiable").email }}',
+    ]), ['autoescape' => 'html']);
+    $twig->addExtension(new \Twig\Extension\SandboxExtension(new \Campanella\View\TemplatePolicy(), true));
+    $loaded = $repository->find((int) $boss->id());
+    check($twig->render('ok', ['u' => $loaded]) === '[Teszt sajat@example.hu||||id]', $twig->render('ok', ['u' => $loaded]));
+    foreach (['get', 'values', 'as'] as $template) {
+        throws(\Twig\Sandbox\SecurityError::class, fn () => $twig->render($template, ['u' => $loaded]));
+    }
+
+    // An absurd page number is an empty page, not an error.
+    $q = Query::objects()->page(PHP_INT_MAX, 10);
+    check($q->getLimit() === 10 && $q->getOffset() > 0);
+    check($engine->execute(Query::objects()->page(PHP_INT_MAX, 7), Actor::system())->isEmpty());
+
+    $db->execute("DELETE FROM {objects} WHERE blueprint = 'user' AND id <> 0 AND id IN (SELECT object_id FROM {cap_identifiable} WHERE email IN ('zarolt@example.hu', 'sajat@example.hu'))");
+});
+
+test('Kernel: an absurd page number answers 404, not 500', function (): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    check($kernel->handle(new Request('GET', '/hirek', query: ['page' => '9223372036854775807']))->status === 404);
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('Paths and URLs: no backslash or control character can turn a site path into another site', function () use ($service, $admin, $repository): void {
+    $R = \Campanella\Capability\Routable::class;
+    foreach (['/hirek', '/a/b-c', '/kategóriák'] as $good) {
+        check($R::isSafePath($good), $good);
+    }
+    foreach (['/\\evil.com', "/\tevil", '/a b', '/a?b', '/a#b', "/a\x7f"] as $bad) {
+        check(!$R::isSafePath($bad), json_encode($bad));
+    }
+    try {
+        $service->create($admin, 'page', ['title' => 'Rossz út', 'path' => '/\\evil.com']);
+        check(false, 'a backslash path was accepted');
+    } catch (ValidationException $e) {
+        check(($e->errors['path'] ?? null)?->key === 'validation.invalid_path');
+    }
+    $ext = new \Campanella\View\CampanellaTwigExtension(static fn () => throw new \LogicException(), static fn (): string => '/alap');
+    check($ext->url('/\\evil.com') === '/alap/%5Cevil.com' && $ext->url("/a\tb") === '/alap/a%09b' && $ext->url('//x') === '/alap/x' && $ext->url('/hirek') === '/alap/hirek');
+    check(!\Campanella\Capability\Link::isLocal('/\\evil') && \Campanella\Capability\Link::isLocal('/ok'));
+});
+
+test('Throttle: one atomic count per attempt; an expired window starts again', function () use ($db): void {
+    $t = new Throttle($db);
+    $t->clear('atom');
+    check($t->hit('atom', 60) === 1 && $t->hit('atom', 60) === 2 && $t->tooManyAttempts('atom', 2));
+    $t->clear('lejart');
+    $t->hit('lejart', -5);
+    check($t->hit('lejart', 60) === 1, 'an expired window starts at 1');
+    $t->clear('atom');
+    $t->clear('lejart');
+});
+
 echo "\nDocumentation examples\n";
 
 test('New capability as in the docs example (Featured)', function () use ($db, $admin): void {

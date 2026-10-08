@@ -33,6 +33,21 @@ final readonly class Request
     ) {
     }
 
+    /**
+     * An IP address in its plain form: an IPv4-mapped IPv6 address (`::ffff:1.2.3.4`,
+     * as PHP reports IPv4 visitors on some dual-stack servers) becomes `1.2.3.4`.
+     * Anything else is returned as it is. Since 0.1.0.
+     */
+    public static function normalizeIp(string $ip): string
+    {
+        $packed = @inet_pton($ip);
+        if ($packed !== false && strlen($packed) === 16 && str_starts_with($packed, str_repeat("\0", 10) . "\xff\xff")) {
+            return (string) inet_ntop(substr($packed, 12));
+        }
+
+        return $ip;
+    }
+
     public static function fromGlobals(): self
     {
         $uri = (string) ($_SERVER['REQUEST_URI'] ?? '/');
@@ -72,7 +87,7 @@ final readonly class Request
             $basePath,
             $headers,
             $cookies,
-            (string) ($_SERVER['REMOTE_ADDR'] ?? ''),
+            self::normalizeIp((string) ($_SERVER['REMOTE_ADDR'] ?? '')),
             ($https !== '' && strtolower($https) !== 'off') || (int) ($_SERVER['SERVER_PORT'] ?? 0) === 443,
             self::uploadedFiles($_FILES),
         );
@@ -84,7 +99,7 @@ final readonly class Request
      */
     public function withClient(string $ip, bool $secure): self
     {
-        return new self($this->method, $this->path, $this->query, $this->post, $this->basePath, $this->headers, $this->cookies, $ip, $secure, $this->files);
+        return new self($this->method, $this->path, $this->query, $this->post, $this->basePath, $this->headers, $this->cookies, self::normalizeIp($ip), $secure, $this->files);
     }
 
     /** A posted file field, if any. */
