@@ -1,0 +1,40 @@
+{% extends '@core/admin/base.html.twig' %}
+
+{% block content %}
+    <h1 class="h3 mb-2">{{ t('structure.blueprints') }}</h1>
+    <p class="text-body-secondary mb-4">{{ t('structure.blueprints_intro') }}</p>
+
+    <nav class="mb-4 small" aria-label="{{ t('structure.blueprints') }}">
+        {% for blueprint in blueprints %}<a class="me-3" href="#bp-{{ blueprint.name }}">{{ t(blueprint.label) }}</a>{% endfor %}
+    </nav>
+
+    {% for blueprint in blueprints %}
+        <section class="card mb-4" id="bp-{{ blueprint.name }}" aria-labelledby="bp-{{ blueprint.name }}-title">
+            <div class="card-header d-flex flex-wrap align-items-baseline gap-2">
+                <h2 class="h5 mb-0 me-2" id="bp-{{ blueprint.name }}-title">{{ t(blueprint.label) }}</h2>
+                <code class="small">{{ blueprint.name }}</code>
+                <a class="small ms-auto" href="{{ url(blueprint.list_path) }}">{{ t('structure.objects', {count: blueprint.count}) }}</a>
+            </div>
+            <div class="card-body">
+                <h3 class="h6">{{ t('structure.capabilities') }}</h3>
+                <p class="mb-3">
+                    {% for capability in blueprint.capabilities %}<a class="badge text-bg-light border text-decoration-none me-1" href="{{ admin_url('system/capabilities') }}#cap-{{ capability }}">{{ capability }}</a>{% endfor %}
+                </p>
+                {% if blueprint.fields %}
+                    <h3 class="h6">{{ t('structure.own_fields') }}</h3>
+                    <div class="table-responsive mb-3">{% include '@core/admin/_structure_fields.html.twig' with {fields: blueprint.fields} only %}</div>
+                {% endif %}
+                {% if blueprint.relations %}
+                    <h3 class="h6">{{ t('structure.relations') }}</h3>
+                    <div class="table-responsive mb-3">{% include '@core/admin/_structure_relations.html.twig' with {relations: blueprint.relations, show_owner: true} only %}</div>
+                {% endif %}
+                {% if blueprint.tree_scope or blueprint.lists %}
+                    <dl class="row small mb-0">
+                        {% if blueprint.tree_scope %}<dt class="col-sm-3">{{ t('structure.tree_scope') }}</dt><dd class="col-sm-9"><code>{{ blueprint.tree_scope }}</code></dd>{% endif %}
+                        {% if blueprint.lists %}<dt class="col-sm-3">{{ t('structure.lists') }}</dt><dd class="col-sm-9">{% for list in blueprint.lists %}<code class="me-2">{{ list }}</code>{% endfor %}</dd>{% endif %}
+                    </dl>
+                {% endif %}
+            </div>
+        </section>
+    {% endfor %}
+{% endblock %}

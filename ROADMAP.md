@@ -66,7 +66,7 @@ seven parts (0–6), each its own commit:
      changing a password ends the user's other sessions; editors still do
      not manage users;
    - a forgotten password by e-mail comes later (it needs e-mail sending).
-4. **Blueprints and capabilities in the admin** (read-only, for
+4. ✅ **Blueprints and capabilities in the admin** (read-only, for
    administrators): a *Blueprints* page lists the Blueprints with their
    capabilities, fields and relations, and links to their lists; a
    *Capabilities* page lists the installed capabilities with a short

@@ -3888,6 +3888,53 @@ test('Kernel: users in the admin, the profile, and a changed password ends the o
     putenv('CAMPANELLA_DB_PREFIX');
 });
 
+test('StructurePages: the Blueprints and the capabilities, read-only, for administrators', function () use ($newUser): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $container = $kernel->container();
+    if ($container->get(Connection::class)->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $structure = new \Campanella\Admin\StructurePages($container->get(BlueprintRegistry::class), $container->get(CapabilityRegistry::class), $container->get(\Campanella\Query\QueryEngine::class), $container->get(\Campanella\Admin\AdminAccess::class));
+    $blueprints = array_column($structure->blueprints(), null, 'name');
+    check(in_array('routable', $blueprints['article']['capabilities'], true) && in_array('titled', $blueprints['page']['capabilities'], true), 'the capabilities, with the dependencies');
+    check(array_column($blueprints['article']['fields'], 'storage', 'name') === ['lead' => 'data'], 'the own fields');
+    $relations = array_column($blueprints['menu_item']['relations'], null, 'name');
+    check($relations['menu']['owner'] === null && $relations['menu']['required'] && $relations['parent']['owner'] === 'hierarchical' && $relations['target']['target_capabilities'] === ['routable']);
+    check($blueprints['menu_item']['tree_scope'] === 'menu' && $blueprints['category']['lists'] === ['articles'] && $blueprints['user']['list_path'] === '/admin/user');
+    $capabilities = array_column($structure->capabilities(), null, 'name');
+    check($capabilities['routable']['requires'] === ['titled'] && in_array('article', array_column($capabilities['routable']['used_by'], 'name'), true));
+    check($capabilities['link']['table'] === null && $capabilities['weighted']['scopes'] === ['by_weight'] && $capabilities['weighted']['table'] === 'cap_weighted');
+    $roles = array_column($capabilities['authenticatable']['fields'], null, 'name')['roles'];
+    check($roles['storage'] === 'values' && in_array('multiple', $roles['flags'], true));
+    check(in_array('hidden', array_column($capabilities['authenticatable']['fields'], null, 'name')['password_hash']['flags'], true));
+
+    $storage = new ArraySessionStorage();
+    $container->set(Session::class, static fn () => new Session($storage));
+    $boss = $newUser('szerkezet@example.hu', 'szerkezet-jelszo-1', ['administrator']);
+    $container->get(AuthService::class)->login(new Request('GET', '/'), $boss);
+    $storage->endRequest();
+    $page = $kernel->handle(new Request('GET', '/admin/system/blueprints'));
+    check($page->status === 200 && str_contains($page->body, 'id="bp-menu_item"') && str_contains($page->body, 'href="/admin/system/capabilities#cap-hierarchical"') && str_contains($page->body, 'Külön fák eszerint'), 'the Blueprints page');
+    $storage->endRequest();
+    $caps = $kernel->handle(new Request('GET', '/admin/system/capabilities'));
+    check($caps->status === 200 && str_contains($caps->body, 'id="cap-link"') && str_contains($caps->body, 'Valahová mutat') && str_contains($caps->body, 'href="/admin/system/blueprints#bp-article"') && substr_count($caps->body, '<form') === 1, 'the capabilities page: no form but the logout');
+    $storage->endRequest();
+    check(str_contains($kernel->handle(new Request('GET', '/admin'))->body, 'href="/admin/system/capabilities"'), 'in the sidebar');
+
+    $editorStorage = new ArraySessionStorage();
+    $editorKernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $editorKernel->container()->set(Session::class, static fn () => new Session($editorStorage));
+    $editorKernel->container()->get(AuthService::class)->login(new Request('GET', '/'), $newUser('szerkezet-szerk@example.hu', 'szerkezet-jelszo-1', ['editor']));
+    $editorStorage->endRequest();
+    check($editorKernel->handle(new Request('GET', '/admin/system/blueprints'))->status === 403, 'not for editors');
+
+    $container->get(Connection::class)->execute("DELETE FROM {objects} WHERE blueprint = 'user'");
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
 echo "\nDocumentation examples\n";
 
 test('New capability as in the docs example (Featured)', function () use ($db, $admin): void {

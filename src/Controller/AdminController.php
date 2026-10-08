@@ -10,6 +10,7 @@ use Campanella\Access\Actor;
 use Campanella\Access\Operation;
 use Campanella\Admin\AdminAccess;
 use Campanella\Admin\Form\ObjectForm;
+use Campanella\Admin\StructurePages;
 use Campanella\Admin\UserPages;
 use Campanella\Service\UserService;
 use Campanella\Http\Flash;
@@ -110,6 +111,7 @@ final class AdminController implements Controller
         private readonly SiblingOrder $order,
         private readonly UserPages $userPages,
         private readonly UserService $users,
+        private readonly StructurePages $structure,
     ) {
     }
 
@@ -201,6 +203,13 @@ final class AdminController implements Controller
             }
 
             return Response::redirect($request->basePath . $this->access->path('system'), 303);
+        }
+        // The site's structure, read-only (since 0.1.0).
+        if ($segments === ['blueprints']) {
+            return $this->render('blueprints', 'blueprints', ['title' => 'structure.blueprints', 'blueprints' => $this->structure->blueprints()]);
+        }
+        if ($segments === ['capabilities']) {
+            return $this->render('capabilities', 'capabilities', ['title' => 'structure.capabilities', 'capabilities' => $this->structure->capabilities()]);
         }
         if ($segments !== []) {
             throw HttpException::notFound();

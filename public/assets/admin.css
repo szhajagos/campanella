@@ -40,3 +40,6 @@
 
 /* The stand-alone pages (installing, upgrading): a narrow column. */
 .admin-narrow { max-width: 46rem; }
+
+/* A page under another in the sidebar (e.g. Blueprints under System). */
+.admin-subnav { padding-left: 1.75rem; font-size: .925rem; }

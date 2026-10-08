@@ -1,0 +1,26 @@
+{# The fields of a Blueprint or a capability, as a table (read-only). #}
+<table class="table table-sm align-middle mb-0">
+    <thead>
+        <tr>
+            <th scope="col">{{ t('structure.field') }}</th>
+            <th scope="col">{{ t('structure.type') }}</th>
+            <th scope="col">{{ t('structure.storage') }}</th>
+            <th scope="col">{{ t('structure.flags') }}</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for field in fields %}
+            <tr>
+                <th scope="row" class="fw-normal">{{ t(field.label) }} <code class="small ms-1">{{ field.name }}</code></th>
+                <td class="small">{{ t('structure.type.' ~ field.type) }}</td>
+                <td class="small">{{ t('structure.storage.' ~ field.storage) }}</td>
+                <td class="small">
+                    {%- for flag in field.flags -%}
+                        {%- set parts = flag|split(':') -%}
+                        <span class="badge bg-body-tertiary text-body-secondary border fw-normal me-1">{{ t('structure.flag.' ~ parts[0], {max: parts[1] ?? ''}) }}</span>
+                    {%- else -%}–{%- endfor -%}
+                </td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>

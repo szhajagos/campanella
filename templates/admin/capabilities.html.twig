@@ -1,0 +1,47 @@
+{% extends '@core/admin/base.html.twig' %}
+
+{% block content %}
+    <h1 class="h3 mb-2">{{ t('structure.capabilities') }}</h1>
+    <p class="text-body-secondary mb-4">{{ t('structure.capabilities_intro') }}</p>
+
+    <nav class="mb-4 small" aria-label="{{ t('structure.capabilities') }}">
+        {% for capability in capabilities %}<a class="me-3" href="#cap-{{ capability.name }}">{{ capability.name }}</a>{% endfor %}
+    </nav>
+
+    {% for capability in capabilities %}
+        {% set description = t(capability.description) %}
+        <section class="card mb-4" id="cap-{{ capability.name }}" aria-labelledby="cap-{{ capability.name }}-title">
+            <div class="card-header d-flex flex-wrap align-items-baseline gap-2">
+                <h2 class="h5 mb-0 me-2" id="cap-{{ capability.name }}-title">{{ t(capability.label) }}</h2>
+                <code class="small">{{ capability.name }}</code>
+            </div>
+            <div class="card-body">
+                {% if description != capability.description %}<p>{{ description }}</p>{% endif %}
+                <dl class="row small">
+                    <dt class="col-sm-3">{{ t('structure.class') }}</dt><dd class="col-sm-9"><code class="text-break">{{ capability.class }}</code></dd>
+                    <dt class="col-sm-3">{{ t('structure.table') }}</dt><dd class="col-sm-9">{% if capability.table %}<code>{{ capability.table }}</code>{% else %}{{ t('structure.no_table') }}{% endif %}</dd>
+                    {% if capability.requires %}
+                        <dt class="col-sm-3">{{ t('structure.requires') }}</dt>
+                        <dd class="col-sm-9">{% for name in capability.requires %}<a class="me-2" href="#cap-{{ name }}">{{ name }}</a>{% endfor %}</dd>
+                    {% endif %}
+                    {% if capability.scopes %}
+                        <dt class="col-sm-3">{{ t('structure.scopes') }}</dt>
+                        <dd class="col-sm-9">{% for scope in capability.scopes %}<code class="me-2">{{ scope }}</code>{% endfor %}</dd>
+                    {% endif %}
+                    <dt class="col-sm-3">{{ t('structure.used_by') }}</dt>
+                    <dd class="col-sm-9">
+                        {%- for blueprint in capability.used_by -%}{{ loop.first ? '' : ', ' }}<a href="{{ admin_url('system/blueprints') }}#bp-{{ blueprint.name }}">{{ t(blueprint.label) }}</a>{%- else -%}{{ t('structure.unused') }}{%- endfor -%}
+                    </dd>
+                </dl>
+                {% if capability.fields %}
+                    <h3 class="h6">{{ t('structure.fields') }}</h3>
+                    <div class="table-responsive mb-3">{% include '@core/admin/_structure_fields.html.twig' with {fields: capability.fields} only %}</div>
+                {% endif %}
+                {% if capability.relations %}
+                    <h3 class="h6">{{ t('structure.relations') }}</h3>
+                    <div class="table-responsive">{% include '@core/admin/_structure_relations.html.twig' with {relations: capability.relations, show_owner: false} only %}</div>
+                {% endif %}
+            </div>
+        </section>
+    {% endfor %}
+{% endblock %}

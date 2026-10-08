@@ -309,3 +309,6 @@ $pages = $queries->execute(
 - A capability must not contain database access or external services.
   Anything that needs them belongs in the Service layer.
 - `prepareForSave()` may only work from the object's own values.
+- Labels and a short explanation in the language files: `capability.<name>`,
+  `capability.<name>.description` (shown on the admin's Capabilities page,
+  since 0.1.0), and `field.<name>` for its fields.

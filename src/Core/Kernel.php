@@ -6,6 +6,7 @@ namespace Campanella\Core;
 
 use Campanella\Cli\Output;
 use Campanella\Service\UserService;
+use Campanella\Admin\StructurePages;
 use Campanella\Admin\UserPages;
 
 use Campanella\Cli\SeedCommand;
@@ -495,6 +496,7 @@ final class Kernel
             new SiblingOrder($c->get(Connection::class), $c->get(BlueprintRegistry::class)),
             new UserPages($c->get(UserService::class), $c->get(AuthService::class), $c->get(Csrf::class), $c->get(Flash::class), $c->get(AdminAccess::class)),
             $c->get(UserService::class),
+            new StructurePages($c->get(BlueprintRegistry::class), $c->get(CapabilityRegistry::class), $c->get(QueryEngine::class), $c->get(AdminAccess::class)),
         ));
 
         $c->set('controller.upgrade', static fn (Container $c): Controller => new UpgradeController(

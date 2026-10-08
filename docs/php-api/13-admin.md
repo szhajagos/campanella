@@ -322,6 +322,23 @@ Templates: `admin/users.html.twig`, `admin/user.html.twig`,
 `admin/_role.html.twig` (a role's label: `role.<name>` if the language file
 has it, else the name).
 
+## Blueprints and capabilities (read-only)
+
+*Since 0.1.0.* `Campanella\Admin\StructurePages` · **Internal**: for those who
+may open the System page (`admin.system_roles`), listed under it in the sidebar.
+Nothing can be changed here: Blueprints are defined in `config/blueprints.php`,
+capabilities in code.
+
+| Page | Contents |
+|---|---|
+| `/admin/system/blueprints` | Each Blueprint: its capabilities (with the dependencies), its own fields (type, storage, properties), its relations (what they can point to, one or many, required, and which capability brings them), `tree_scope`, the lists on its page, the number of objects with a link to its list |
+| `/admin/system/capabilities` | Each capability: a short explanation (`capability.<name>.description` in the language files; a custom capability may add its own), class, table, what it builds on, its query scopes, its fields and relations, and the Blueprints that use it |
+
+`blueprints(): list<array>` and `capabilities(): list<array>` give the plain
+arrays the templates (`admin/blueprints.html.twig`,
+`admin/capabilities.html.twig`) show. A first step towards Blueprints defined
+in the admin (see the ROADMAP).
+
 ## One-time messages: Flash
 
 `Campanella\Http\Flash` · **Public** · `final class` · container: `Flash::class`

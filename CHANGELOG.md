@@ -46,6 +46,11 @@ backward-incompatible.
 - **A changed password ends the user's other sessions:** the session holds a
   stamp of the password hash, checked on every request
   (`AuthService::refresh()` keeps the current one after changing one's own).
+- **Blueprints and capabilities in the admin** (read-only, under System):
+  each Blueprint with its capabilities, own fields, relations, tree scope,
+  lists and number of objects; each capability with a short explanation, its
+  table, dependencies, scopes, fields, relations and the Blueprints that use
+  it. `StructurePages`; `capability.<name>.description` in the language files.
 - **Deployment guide** (`docs/deployment.md`): the web root (Apache and nginx
   examples), HTTPS and proxies, settings and security headers, file
   permissions, PHP settings, backups, upgrades, and a checklist before going

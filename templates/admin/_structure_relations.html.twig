@@ -1,0 +1,31 @@
+{# The relations of a Blueprint or a capability, as a table (read-only). #}
+<table class="table table-sm align-middle mb-0">
+    <thead>
+        <tr>
+            <th scope="col">{{ t('structure.relation') }}</th>
+            <th scope="col">{{ t('structure.targets') }}</th>
+            <th scope="col">{{ t('structure.flags') }}</th>
+            {% if show_owner %}<th scope="col">{{ t('structure.from') }}</th>{% endif %}
+        </tr>
+    </thead>
+    <tbody>
+        {% for relation in relations %}
+            <tr>
+                <th scope="row" class="fw-normal">{{ t(relation.label) }} <code class="small ms-1">{{ relation.name }}</code></th>
+                <td class="small">
+                    {%- for target in relation.targets -%}{{ loop.first ? '' : ', ' }}<a href="#bp-{{ target }}">{{ target }}</a>{%- endfor -%}
+                    {%- if relation.targets and relation.target_capabilities %}; {% endif -%}
+                    {%- for capability in relation.target_capabilities -%}{{ loop.first ? '' : ', ' }}<a href="{{ admin_url('system/capabilities') }}#cap-{{ capability }}">{{ capability }}</a>{%- endfor -%}
+                    {%- if not relation.targets and not relation.target_capabilities -%}{{ t('structure.any') }}{%- endif -%}
+                </td>
+                <td class="small">
+                    <span class="badge bg-body-tertiary text-body-secondary border fw-normal me-1">{{ t(relation.many ? 'structure.many' : 'structure.one') }}</span>
+                    {%- if relation.required %}<span class="badge bg-body-tertiary text-body-secondary border fw-normal">{{ t('structure.flag.required') }}</span>{% endif -%}
+                </td>
+                {% if show_owner %}
+                    <td class="small">{% if relation.owner %}<a href="{{ admin_url('system/capabilities') }}#cap-{{ relation.owner }}">{{ relation.owner }}</a>{% else %}{{ t('structure.own') }}{% endif %}</td>
+                {% endif %}
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
