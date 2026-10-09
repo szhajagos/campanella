@@ -10,6 +10,48 @@ backward-incompatible.
 
 ## [Unreleased]
 
+## [0.1.2] – 2026-10-09
+
+Images: every uploaded image gets smaller copies, and the texts show the copy
+that fits the screen (`srcset`); an image's delete page lists the texts that
+show it.
+
+**Upgrading from 0.1.1:**
+
+1. Upload the new files (the dependencies did not change).
+2. Run `php bin/campanella install`, or open `/admin/upgrade` (schema version
+   8): it adds the images' `variants` column and the `media_usage` table, and
+   the migration `core:0008_media_usage` records which of the existing texts
+   show which image. Until then the site answers 503.
+3. Make the smaller copies of the images uploaded so far: on the System page
+   (*Images → Smaller copies*, the *Make the copies* button; press it again
+   while some are left), or `php bin/campanella media:variants`. Until then
+   those images are shown in full size, as before.
+
+The copies take extra space in `public/media/` (being smaller, less than the
+originals themselves); they are backed up with the folder, and can be made
+again at any time with `media:variants --all`.
+
+### Added
+
+- **Smaller copies of images** (`media.variants`: 320, 640, 1024 and 1600
+  pixels wide; only those at most 90% of the image's width), made on upload
+  from the re-encoded pixels, stored beside the image (`…-640.jpg`) and
+  deleted with it (`ImageProcessor`, `ImageVariant`, `MediaStorage`).
+- **Responsive images in texts:** when a page is rendered, the images of this
+  site in HTML texts get `srcset`, `sizes` (`media.sizes`), their width and
+  height, `loading="lazy"` and `decoding="async"` (`ResponsiveImages`); the
+  stored texts do not change. `image_url(image, width)` and
+  `image_srcset(image)` for templates.
+- **Where an image is used:** the `media_usage` table, kept up to date on
+  every save of a text (`MediaUsage`); the delete page of an image lists the
+  texts that show it or link to it, and says if it is the site's share image.
+- Making the missing copies: the System page's *Smaller copies* line with a
+  button (`POST /admin/system/media-variants`), and the `media:variants`
+  command (`--all`: every image again).
+- System check lines can offer a button (`CheckResult::$action`).
+- The admin's image thumbnails use the smallest copy.
+
 ### Fixed
 
 - The Site settings field of the site's address is called *Web address (URL)*
@@ -18,6 +60,11 @@ backward-incompatible.
 - The empty field no longer shows the address the page was opened at as its
   placeholder (it looked like a saved value): it says *Not set yet*, and the
   suggested address is in the help text.
+
+### Removed
+
+- The delete page's general warning that image usage is not tracked (it is
+  now).
 
 ## [0.1.1] – 2026-10-09
 

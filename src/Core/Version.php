@@ -6,13 +6,14 @@ namespace Campanella\Core;
 
 final class Version
 {
-    public const string CAMPANELLA = '0.1.1';
+    public const string CAMPANELLA = '0.1.2';
 
     /**
      * The database schema version; incremented with migrations and new core tables
-     * (7: the settings table, 0.1.1).
+     * (7: the settings table, 0.1.1; 8: the media_usage table and the images'
+     * `variants` column, 0.1.2).
      */
-    public const string SCHEMA = '7';
+    public const string SCHEMA = '8';
 
     /**
      * The oldest schema an upgrade can start from (0.0.6). An older installation is

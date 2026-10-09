@@ -314,6 +314,7 @@ first, then the `migrations` setting.
 | ID | Version | What it does |
 |---|---|---|
 | `core:0006_roles_multi_value` | 0.0.6 | The users' `roles` become a multi-valued field: the JSON lists of the `roles` column of `cap_authenticatable` are copied into `field_values` (one row per role), then the column is dropped. Users can then be queried by role (`user:list --role=editor`) |
+| `core:0008_media_usage` | 0.1.2 | Fills `media_usage` (which text shows which image) from the HTML texts saved before; repeatable. `Campanella\Database\Migration\Core\MediaUsageIndex` ([chapter 16](16-media.md#where-an-image-is-used)) |
 
 `Campanella\Database\Migration\Core\RolesMultiValue` · **Internal** · `Migration`:
 constants `TABLE`, `COLUMN`; `static decode(mixed $stored): list<string>` reads

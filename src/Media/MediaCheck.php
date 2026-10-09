@@ -20,9 +20,9 @@ final class MediaCheck
     private const int SMALLEST_USEFUL = 2_000_000;
 
     /** @return Closure(?Request): list<CheckResult> For SystemCheck::add() */
-    public static function checks(ImageProcessor $processor, MediaStorage $storage): Closure
+    public static function checks(ImageProcessor $processor, MediaStorage $storage, ?MediaService $media = null): Closure
     {
-        return static function (?Request $request) use ($processor, $storage): array {
+        return static function (?Request $request) use ($processor, $storage, $media): array {
             $group = 'admin.system.group.media';
             $results = [$storage->isWritable()
                 ? new CheckResult($group, 'admin.system.media_folder', CheckStatus::Ok, $storage->directory())
@@ -39,11 +39,33 @@ final class MediaCheck
                 default => new CheckResult($group, 'admin.system.media_reencode', CheckStatus::Warning, $names($reencoded), new Message('admin.system.media_refused', ['types' => $names($missing)])),
             };
 
+            if ($media !== null) {
+                $results[] = self::variants($group, $processor, $media);
+            }
             $results[] = self::fileLimit($group, $processor->maxBytes());
             $results[] = self::imageLimit($group, $processor);
 
             return $results;
         };
+    }
+
+    /** The smaller copies: their widths, and whether some images have none yet (since 0.1.2). */
+    private static function variants(string $group, ImageProcessor $processor, MediaService $media): CheckResult
+    {
+        $widths = $processor->variantWidths();
+        $value = $widths === [] ? 'admin.system.off' : implode(', ', $widths) . ' px';
+        try {
+            $missing = $media->countWithoutVariants();
+        } catch (\PDOException) {
+            $missing = 0; // before the upgrade that adds the column
+        }
+        if ($missing > 0 && $widths !== [] && $processor->reencodes()) {
+            return new CheckResult($group, 'admin.system.media_variants', CheckStatus::Warning, $value,
+                new Message('admin.system.media_variants_missing', ['count' => $missing]),
+                'system/media-variants', 'admin.system.media_variants_make');
+        }
+
+        return new CheckResult($group, 'admin.system.media_variants', $widths === [] ? CheckStatus::Info : CheckStatus::Ok, $value);
     }
 
     /** Whether upload_max_filesize and post_max_size allow media.max_bytes. */

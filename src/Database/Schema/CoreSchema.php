@@ -18,6 +18,7 @@ final class CoreSchema
     public const string FIELD_VALUES = 'field_values';
     public const string MIGRATIONS = 'migrations';
     public const string SETTINGS = 'settings';
+    public const string MEDIA_USAGE = 'media_usage';
 
     /** @return list<Table> */
     public static function tables(): array
@@ -127,6 +128,22 @@ final class CoreSchema
                     new Column('updated_at', ColumnType::DateTime),
                 ],
                 primaryKey: ['name'],
+            ),
+            // Which text shows which uploaded file (since 0.1.2, schema version 8): filled
+            // from the texts on save (Campanella\Media\MediaUsage), so an image's delete page
+            // can list them. Deleting either side deletes the row.
+            new Table(
+                name: self::MEDIA_USAGE,
+                columns: [
+                    new Column('object_id', ColumnType::Id),
+                    new Column('media_id', ColumnType::Id),
+                ],
+                primaryKey: ['object_id', 'media_id'],
+                indexes: ['idx_media' => ['media_id', 'object_id']],
+                foreignKeys: [
+                    new ForeignKey('object_id', self::OBJECTS),
+                    new ForeignKey('media_id', self::OBJECTS),
+                ],
             ),
             // Throttling of attempts (e.g. login). The SHA-256 hash of the key.
             new Table(

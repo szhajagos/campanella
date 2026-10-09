@@ -13,6 +13,10 @@ use Campanella\I18n\Message;
  * `$group`, `$label` and `$value` are shown through the translator: a key
  * (`admin.system.php`, `admin.system.on`) is translated, a plain text (an
  * extension name, a version, a size) passes through unchanged.
+ *
+ * `$action` (since 0.1.2): an admin page's path (e.g. `system/media-variants`) that
+ * fixes the problem; the System page shows a button that posts to it, labelled
+ * `$actionLabel` (a message key).
  */
 final readonly class CheckResult
 {
@@ -22,6 +26,8 @@ final readonly class CheckResult
         public CheckStatus $status,
         public string $value = '',
         public ?Message $hint = null,
+        public ?string $action = null,
+        public string $actionLabel = '',
     ) {
     }
 }

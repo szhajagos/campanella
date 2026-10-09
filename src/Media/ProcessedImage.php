@@ -11,6 +11,7 @@ final readonly class ProcessedImage
      * @param string $bytes The file content to store
      * @param string $extension Given by the recognised type (jpg, png, webp, gif), never by the upload's name
      * @param bool $reencoded Whether GD encoded it again (false: the checked original, metadata included)
+     * @param list<ImageVariant> $variants Its smaller copies, smallest first (since 0.1.2; none if not re-encoded)
      */
     public function __construct(
         public string $bytes,
@@ -19,6 +20,7 @@ final readonly class ProcessedImage
         public int $width,
         public int $height,
         public bool $reencoded,
+        public array $variants = [],
     ) {
     }
 }

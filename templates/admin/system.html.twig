@@ -33,6 +33,12 @@
                                     <td>
                                         <span class="font-monospace small text-break">{{ t(result.value) }}</span>
                                         {% if result.hint %}<div class="small text-body-secondary">{{ t(result.hint.key, result.hint.params) }}</div>{% endif %}
+                                        {% if result.action %}
+                                            <form method="post" action="{{ admin_url(result.action) }}" class="mt-1">
+                                                {{ csrf_field() }}
+                                                <button type="submit" class="btn btn-outline-primary btn-sm">{{ t(result.actionLabel) }}</button>
+                                            </form>
+                                        {% endif %}
                                     </td>
                                     <td class="text-end"><span class="badge {{ badges[result.status.value] }}">{{ t('admin.system.status.' ~ result.status.value) }}</span></td>
                                 </tr>

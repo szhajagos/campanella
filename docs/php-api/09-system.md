@@ -131,7 +131,7 @@ set, it is the project root (by default the parent directory of `public/`).
 
 `Campanella\Core\Version` · **Public**
 
-`CAMPANELLA = '0.1.1'` (the system version) and `SCHEMA = '7'` (the version of
+`CAMPANELLA = '0.1.2'` (the system version) and `SCHEMA = '8'` (the version of
 the core tables; incremented for a new core table. Changes of existing tables
 are migrations: [chapter 17](17-migrations.md)).
 `MIN_UPGRADE_SCHEMA = '6'` (since 0.1.0): the oldest schema an upgrade can start
@@ -146,6 +146,7 @@ from ([chapter 17](17-migrations.md#the-oldest-version-that-can-be-upgraded)).
 | `install` | Creates the tables; on an existing installation also does what `migrate` does (`--yes`, `--no-backup`, `--prune`); `--sql`: only prints the SQL |
 | `migrate` | Applies the definitions' additive changes and runs the pending migrations after a backup; `--dry-run`: only lists them; `--yes`: without asking; `--no-backup`; `--prune`: deletes the data of capabilities removed from Blueprints ([chapter 17](17-migrations.md#running-them)) |
 | `db:backup` | Saves the tables into `var/backups/` as SQL (`.sql.gz`; `--plain`: `.sql`) ([chapter 17](17-migrations.md#backups-databasebackup)) |
+| `media:variants` | Makes the smaller copies of the images that have none yet; `--all`: of every image again (since 0.1.2; [chapter 16](16-media.md#smaller-copies-variants)) |
 | `seed` | Sample content. Can be run repeatedly: whatever already exists by path is not created again |
 | `status` | Version, the system check ([chapter 14](14-system-check.md)), capabilities, Blueprints, object count; reports if the database needs an upgrade. Exits with `1` if a check reports an error |
 | `schema:check` | Compares the table definitions with the database and lists the differences (exits with `1` if there is one; a table no definition has is only reported); `--sql`: prints the statements of the additive ones, and those that would lose data as comments. Changes nothing ([chapter 8](08-database.md#comparing-schemacomparator)) |

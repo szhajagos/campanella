@@ -15,6 +15,7 @@ final class CoreMigrations
     {
         return [
             Core\RolesMultiValue::class,
+            Core\MediaUsageIndex::class,
         ];
     }
 }

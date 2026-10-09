@@ -170,7 +170,7 @@ fills it).
 `Campanella\Database\Schema\CoreSchema` · **Public**
 
 `static tables(): list<Table>`, plus constants for the table names: `OBJECTS`,
-`OBJECT_CAPABILITIES`, `SYSTEM`, `RELATIONSHIPS`, `THROTTLE`, `FIELD_VALUES`, `MIGRATIONS`, `SETTINGS`.
+`OBJECT_CAPABILITIES`, `SYSTEM`, `RELATIONSHIPS`, `THROTTLE`, `FIELD_VALUES`, `MIGRATIONS`, `SETTINGS`, `MEDIA_USAGE`.
 
 | Table | Columns | Purpose |
 |---|---|---|
@@ -182,6 +182,7 @@ fills it).
 | `cc_field_values` | `id`, `object_id`, `field`, `delta` (order), `value_string`, `value_text`, `value_int`, `value_datetime`; unique key on (`object_id`, `field`, `delta`); covering indexes (`field`, value, `object_id`) for `value_string`, `value_int` and `value_datetime` (`value_text` is not indexed) | The values of the multi-valued queryable fields, one row per value; only the column matching the field's type is filled; cascade on deletion of the object (since 0.0.4, schema version 4) |
 | `cc_migrations` | `id` (PK), `description`, `applied_at`, `duration_ms` | The migrations that have run ([chapter 17](17-migrations.md); since 0.0.6, schema version 6) |
 | `cc_settings` | `name` (PK), `value`, `updated_at` | The settings edited in the admin, e.g. `site.name` ([chapter 20](20-site.md); since 0.1.1, schema version 7) |
+| `cc_media_usage` | `object_id`, `media_id` (together the PK); index (`media_id`, `object_id`) | Which text shows which uploaded file; cascade on deletion of either ([chapter 16](16-media.md#where-an-image-is-used); since 0.1.2, schema version 8) |
 | `cc_cap_<name>` | `object_id` (PK) + the capability's single-valued `Table` fields | One table per capability (a capability with only multi-valued or `Data` fields has none) |
 
 On MariaDB the `JSON` type is an alias of `LONGTEXT` with a built-in

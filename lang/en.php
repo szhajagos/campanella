@@ -270,6 +270,7 @@ return [
     'field.width' => 'Width',
     'field.height' => 'Height',
     'field.file_hash' => 'Checksum',
+    'field.variants' => 'Smaller copies',
     'field.alt' => 'Alternative text',
     'blueprint.image' => 'Image',
     'media.empty' => 'The file is empty, or it was not uploaded.',
@@ -309,7 +310,7 @@ return [
     'admin.media.dimensions_label' => 'Dimensions',
     'admin.media.address' => 'Address',
     'admin.media.open' => 'Open the file',
-    'admin.delete.image_warning' => 'Texts that show this image will have a missing image in its place. Remove it from them first: where images are used is not tracked yet.',
+    'admin.delete.image_warning' => 'The image is in use: where it is shown, a missing image will take its place. Remove it from there first.',
     'admin.system.media_max_file' => 'Largest image file',
     'admin.system.media_max_file_limited' => 'media.max_bytes is {max}, but PHP allows less ({settings}). Raise them a little over it, e.g. upload_max_filesize = 16M, post_max_size = 20M.',
     'admin.system.media_max_image' => 'Largest image',
@@ -628,4 +629,16 @@ return [
     'admin.system.indexing_off_hint' => 'Turn it on under Site settings once the site is ready.',
     'admin.system.robots_file' => 'a file in public/',
     'admin.system.robots_file_hint' => 'The web server serves this file instead of the generated robots.txt. Delete it to use the generated one.',
+
+    // Images (since 0.1.2): smaller copies, where an image is used
+    'admin.delete.usage' => 'These texts show the image (or link to it):',
+    'admin.delete.unused' => 'No text shows this image.',
+    'admin.delete.share_image' => 'It is the site\'s share image; another one can be chosen here:',
+    'admin.system.media_variants' => 'Smaller copies',
+    'admin.system.media_variants_missing' => '{count} images (uploaded before 0.1.2) have no smaller copies yet: they are shown in full size. Make them here, or with php bin/campanella media:variants.',
+    'admin.system.media_variants_make' => 'Make the copies',
+    'admin.system.media_variants_done' => 'The smaller copies are ready ({made} images).',
+    'admin.system.media_variants_partly' => 'Copies made for {made} images; {left} are left: press the button again.',
+    'cli.media_variants.description' => 'Makes the smaller copies of the images that have none yet (--all: of every image again)',
+    'cli.media_variants.done' => '{count} images processed.',
 ];

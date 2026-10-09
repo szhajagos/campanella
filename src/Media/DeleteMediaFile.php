@@ -8,7 +8,7 @@ use Campanella\Capability\MediaFile;
 use Campanella\Model\CampanellaObject;
 use Campanella\Service\ObjectListener;
 
-/** Deletes the stored file of a deleted MediaFile object (e.g. an image). */
+/** Deletes the stored file of a deleted MediaFile object (e.g. an image), and its smaller copies. */
 final class DeleteMediaFile implements ObjectListener
 {
     public function __construct(private readonly MediaStorage $storage)
@@ -22,6 +22,7 @@ final class DeleteMediaFile implements ObjectListener
             return;
         }
         $path = $object->as(MediaFile::class)->path();
+        $this->storage->deleteVariants($path);
         if (!$this->storage->delete($path)) {
             error_log("Campanella: the file of the deleted object #{$object->id()} ({$path}) could not be deleted.");
         }

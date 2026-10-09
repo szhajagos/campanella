@@ -95,6 +95,12 @@ return [
         // A type the server cannot re-encode (e.g. GD built without WebP) is refused, so no
         // image is stored with its metadata (e.g. GPS position). true: stored as uploaded.
         'store_unprocessed' => false,
+        // Smaller copies of every uploaded image (since 0.1.2), for srcset: their widths in
+        // pixels. A copy is made only for a width at most 90% of the image's. []: none.
+        'variants' => [320, 640, 1024, 1600],
+        // The srcset images' sizes attribute: how wide the text column is (the default theme's
+        // is at most 800 pixels). An image with a width of its own uses that instead.
+        'sizes' => '(max-width: 800px) 100vw, 800px',
     ],
 
     // Behind a reverse proxy (load balancer, CDN, the web server of a Docker host): the

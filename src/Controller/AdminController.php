@@ -34,6 +34,7 @@ use Campanella\Capability\Textual;
 use Campanella\Html\PlainText;
 use Campanella\Media\ImageProcessor;
 use Campanella\Media\MediaService;
+use Campanella\Media\MediaUsage;
 use Campanella\Capability\PublishStatus;
 use Campanella\Support\Slugger;
 use Campanella\System\CheckStatus;
@@ -89,6 +90,9 @@ final class AdminController implements Controller
     /** The most scope targets (e.g. menus) offered in a list's filter. Since 0.0.7. */
     public const int MAX_SCOPES = 100;
 
+    /** How long one request makes images' missing copies, in seconds (since 0.1.2). */
+    public const float VARIANT_SECONDS = 20.0;
+
     /** The most referring items listed on the delete confirmation page. */
     public const int MAX_REFERRERS = 20;
 
@@ -114,6 +118,7 @@ final class AdminController implements Controller
         private readonly UserService $users,
         private readonly StructurePages $structure,
         private readonly SettingsPage $settings,
+        private readonly ?MediaUsage $usage = null,
     ) {
     }
 
@@ -213,6 +218,21 @@ final class AdminController implements Controller
         }
         if ($segments === ['capabilities']) {
             return $this->render('capabilities', 'capabilities', ['title' => 'structure.capabilities', 'capabilities' => $this->structure->capabilities()]);
+        }
+        // The missing smaller copies of images, as many as fit into the time (since 0.1.2).
+        if ($segments === ['media-variants']) {
+            if (!$request->isPost()) {
+                throw new HttpException(405, 'error.method_not_allowed');
+            }
+            if (!$this->csrf->isValid($request)) {
+                $this->flash->add(Flash::DANGER, 'auth.form_expired');
+            } else {
+                @set_time_limit(60);
+                [$made, $left] = $this->media->makeMissingVariants(self::VARIANT_SECONDS);
+                $this->flash->add($left > 0 ? Flash::WARNING : Flash::SUCCESS, new Message($left > 0 ? 'admin.system.media_variants_partly' : 'admin.system.media_variants_done', ['made' => $made, 'left' => $left]));
+            }
+
+            return Response::redirect($request->basePath . $this->access->path('system'), 303);
         }
         // The site's settings (since 0.1.1).
         if ($segments === ['settings']) {
@@ -436,7 +456,7 @@ final class AdminController implements Controller
         $media = [];
         if (self::isFile($blueprint)) {
             foreach ($result as $item) {
-                $media[(int) $item->id()] = $this->media->url($item);
+                $media[(int) $item->id()] = $this->media->thumbnailUrl($item);
             }
         }
 
@@ -958,13 +978,18 @@ final class AdminController implements Controller
         $children = $object->has(Hierarchical::class)
             ? $this->queries->execute(Hierarchical::childrenOf(Query::objects(), $object)->orderBy('title')->limit(self::MAX_REFERRERS), Actor::system())->items
             : [];
+        // A file: the texts that show it (since 0.1.2), and whether it is the site's share image.
+        $usage = self::isFile($blueprint) && $this->usage !== null ? $this->usage->usedBy($object, $actor, self::MAX_REFERRERS) : null;
         $response = $this->render('delete', $blueprint->name, [
             'children' => $children,
+            'usage' => $usage['items'] ?? [],
+            'more_usage' => $usage === null ? 0 : $usage['total'] - count($usage['items']),
+            'share_image' => self::isFile($blueprint) && $this->usage !== null && $this->usage->sharedBySite($object),
             'title' => 'admin.delete.title',
             'title_params' => ['title' => self::titleOf($object)],
             'blueprint' => $blueprint,
             'object' => $object,
-            'media_url' => self::isFile($blueprint) ? $this->media->url($object) : null,
+            'media_url' => self::isFile($blueprint) ? $this->media->thumbnailUrl($object) : null,
             'referrers' => $referrers,
             'more_referrers' => $total - count($referrers),
             'alert' => $alert,

@@ -72,6 +72,8 @@ use Campanella\Media\ImageProcessor;
 use Campanella\Media\MediaCheck;
 use Campanella\Media\MediaService;
 use Campanella\Media\MediaStorage;
+use Campanella\Media\MediaUsage;
+use Campanella\Media\ResponsiveImages;
 use Campanella\System\SecurityCheck;
 use Campanella\System\SiteCheck;
 use Campanella\System\SystemCheck;
@@ -326,7 +328,7 @@ final class Kernel
                 $c->get(TemplateCache::class),
                 $root,
             );
-            $system->add(MediaCheck::checks($c->get(ImageProcessor::class), $c->get(MediaStorage::class)));
+            $system->add(MediaCheck::checks($c->get(ImageProcessor::class), $c->get(MediaStorage::class), $c->get(MediaService::class)));
             $system->add(SyncCheck::checks($c->get(Installer::class), $c->get(SchemaSync::class)));
             $system->add(SiteCheck::checks($c->get(SiteSettings::class), $root . '/public'));
             $system->add(SecurityCheck::checks(
@@ -399,6 +401,7 @@ final class Kernel
                 null,
                 (string) $config->get('media.memory_limit', '320M'),
                 (bool) $config->get('media.store_unprocessed', false),
+                array_values((array) $config->get('media.variants', ImageProcessor::VARIANT_WIDTHS)),
             );
         });
         $c->set(MediaService::class, static fn (Container $c): MediaService => new MediaService(
@@ -407,6 +410,14 @@ final class Kernel
             $c->get(AccessPolicy::class),
             $c->get(ImageProcessor::class),
             $c->get(MediaStorage::class),
+            'image',
+            $c->get(QueryEngine::class),
+            $c->get(Connection::class),
+        ));
+        $c->set(ResponsiveImages::class, static fn (Container $c): ResponsiveImages => new ResponsiveImages(
+            $c->get(QueryEngine::class),
+            $c->get(MediaStorage::class),
+            (string) $c->get(Config::class)->get('media.sizes', ResponsiveImages::DEFAULT_SIZES),
         ));
 
         $c->set(MigrationRegistry::class, static fn (Container $c): MigrationRegistry => MigrationRegistry::fromClasses([
@@ -495,6 +506,7 @@ final class Kernel
                     $levels,
                     $basePath(),
                 ),
+                static fn (): ResponsiveImages => $c->get(ResponsiveImages::class),
             ));
 
             return $twig;
@@ -556,6 +568,7 @@ final class Kernel
             $c->get(UserService::class),
             new StructurePages($c->get(BlueprintRegistry::class), $c->get(CapabilityRegistry::class), $c->get(QueryEngine::class), $c->get(AdminAccess::class)),
             new SettingsPage($c->get(SiteSettings::class), $c->get(QueryEngine::class), $c->get(MediaStorage::class), $c->get(Csrf::class), $c->get(Flash::class), $c->get(AdminAccess::class)),
+            new MediaUsage($c->get(Connection::class), $c->get(QueryEngine::class), $c->get(SiteSettings::class)),
         ));
 
         $c->set('controller.upgrade', static fn (Container $c): Controller => new UpgradeController(

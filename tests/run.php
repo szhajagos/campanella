@@ -2206,10 +2206,10 @@ test('Kernel: images in the admin are listed, edited, but not created from a for
     $saved = $container->get(ObjectRepository::class)->find((int) $image->id());
     check($saved?->get('alt') === 'A Campanella logója' && $saved->get('file_path') === $image->get('file_path'), 'a posted file path is ignored');
 
-    // Deleting (administrators): a warning that texts showing the image lose it.
+    // Deleting (administrators): which texts show it (none here; since 0.1.2).
     $container->get(AuthService::class)->login(new Request('GET', '/'), $newUser('kep-torlo@example.hu', 'kep-torlo-jelszo', ['administrator']));
     $delete = $send('GET', '/admin/image/' . $image->id() . '/delete');
-    check($delete->status === 200 && str_contains($delete->body, 'hiányzó kép lesz') && str_contains($delete->body, 'src="' . $url . '"'), 'the delete page warns about texts: ' . $delete->status);
+    check($delete->status === 200 && str_contains($delete->body, 'Egyetlen szöveg sem mutatja ezt a képet.') && !str_contains($delete->body, 'hiányzó kép lesz') && str_contains($delete->body, 'src="' . $url . '"'), 'the delete page: not used: ' . $delete->status);
     check(!str_contains($send('GET', '/admin/article')->body, 'hiányzó kép'), 'no image warning elsewhere');
     putenv('CAMPANELLA_DB_PREFIX');
 });
@@ -2983,7 +2983,7 @@ test('An unfinished 0.0.6 upgrade: the roles move to field_values, the old colum
         $users[$email] = $user;
     }
     $installer = $container->get(Installer::class);
-    check(array_map(static fn ($m): string => $m->id(), $installer->pendingMigrations()) === ['core:0006_roles_multi_value'] && $installer->needsUpgrade(), 'the roles migration is pending');
+    check(array_map(static fn ($m): string => $m->id(), $installer->pendingMigrations()) === ['core:0006_roles_multi_value', 'core:0008_media_usage'] && $installer->needsUpgrade(), 'the roles migration is pending');
     $extra = array_map(static fn ($d): string => $d->kind->value . ':' . $d->table . '.' . $d->name, $installer->differences());
     check($extra === ['extra_column:cap_authenticatable.roles'], implode(', ', $extra));
 
@@ -3000,7 +3000,7 @@ test('An unfinished 0.0.6 upgrade: the roles move to field_values, the old colum
     check($page->status === 200 && str_contains($page->body, 'core:0006_roles_multi_value') === false, 'no details without the role');
     $installer->install();
     $results = $installer->migrator()?->run() ?? [];
-    check(count($results) === 1, 'the roles migration ran');
+    check(count($results) === 2, 'the roles migration ran (and the media usage one of 0.1.2)');
 
     check(!$installer->needsUpgrade() && $installer->differences() === [], 'matches a fresh installation');
     $roles = static fn (string $email) => $repository->find((int) $users[$email]->id())?->as(Authenticatable::class)->roles();
@@ -4351,6 +4351,271 @@ test('SiteCheck: the site\'s address and indexing', function () use ($db): void 
     unlink($publicDir . '/robots.txt');
     rmdir($publicDir);
     $settings->set(['site.url' => null, 'site.indexing' => null]);
+});
+
+echo "\nImages: copies and usage (0.1.2)\n";
+
+test('ImageProcessor: smaller copies at the configured widths, in the image\'s own type', function (): void {
+    if (!extension_loaded('gd')) {
+        echo "      (skipped: no gd extension)\n";
+
+        return;
+    }
+    $P = \Campanella\Media\ImageProcessor::class;
+    $processor = new $P();
+    check($processor->variantWidths() === [320, 640, 1024, 1600] && $processor->widthsFor(2000) === [320, 640, 1024, 1600] && $processor->widthsFor(720) === [320, 640] && $processor->widthsFor(700) === [320] && $processor->widthsFor(340) === []);
+    $big = $processor->process(testImage('jpeg', 2000, 1000));
+    check(array_map(static fn ($v): string => $v->width . 'x' . $v->height, $big->variants) === ['320x160', '640x320', '1024x512', '1600x800'], json_encode(array_map(static fn ($v) => $v->width, $big->variants)));
+    foreach ($big->variants as $variant) {
+        $info = getimagesizefromstring($variant->bytes);
+        check($info !== false && $info[0] === $variant->width && $info[2] === IMAGETYPE_JPEG, 'a real JPEG of its width');
+    }
+    $png = $processor->process(testImage('png', 800, 400, true));
+    check(count($png->variants) === 2, 'an 800 pixel image: 320 and 640');
+    $copy = imagecreatefromstring($png->variants[0]->bytes);
+    check($copy !== false && (imagecolorat($copy, 5, 5) >> 24 & 0x7F) === 127, 'transparency kept');
+    check($processor->process(testImage('gif', 300, 200))->variants === [], 'a small image needs none');
+
+    $custom = new $P(variantWidths: [500, 100]);
+    check($custom->variantWidths() === [100, 500] && count($custom->process(testImage('webp', 1000, 500))->variants) === 2);
+    check((new $P(variantWidths: []))->process(testImage('jpeg', 2000, 1000))->variants === []);
+    foreach ([[8], [20000], ['640'], range(100, 1000, 100)] as $bad) {
+        throws(\InvalidArgumentException::class, fn () => new $P(variantWidths: $bad));
+    }
+    // A drawing with few colours (a palette PNG): its copies keep a palette, and one that would
+    // not be smaller than the image is left out.
+    $drawing = imagecreate(1200, 800);
+    imagecolorallocate($drawing, 255, 255, 255);
+    $ink = imagecolorallocate($drawing, 0, 0, 0);
+    for ($x = 0; $x < 1200; $x += 7) {
+        imageline($drawing, $x, 0, 1200 - $x, 800, $ink);
+    }
+    $drawingFile = tempnam(sys_get_temp_dir(), 'cimg');
+    imagepng($drawing, $drawingFile);
+    $processed = $processor->process($drawingFile);
+    foreach ($processed->variants as $variant) {
+        check(strlen($variant->bytes) < strlen($processed->bytes), "a copy smaller than the image ({$variant->width}: " . strlen($variant->bytes) . ' / ' . strlen($processed->bytes) . ')');
+    }
+    check(count($processor->variantsOf(testImage('jpeg', 1200, 900))) === 3, 'of a stored file');
+    check(mediaError(fn () => $processor->variantsOf(__FILE__)) === 'media.not_image');
+    check((new $P(useGd: false))->variantsOf(testImage('jpeg', 1200, 900)) === [], 'without GD: none');
+});
+
+test('MediaStorage and MediaFile: copies beside their image, deleted with it', function (): void {
+    $F = \Campanella\Capability\MediaFile::class;
+    check($F::variantPath('2026/10/' . str_repeat('a', 24) . '.jpg', 640) === '2026/10/' . str_repeat('a', 24) . '-640.jpg');
+    check($F::formatWidths([640, 320, 640, 0]) === '320,640' && $F::parseWidths('640,x,320,320') === [320, 640] && $F::parseWidths(null) === [] && $F::parseWidths('') === []);
+
+    $dir = sys_get_temp_dir() . '/campanella-variants-' . bin2hex(random_bytes(4));
+    $storage = new \Campanella\Media\MediaStorage($dir);
+    $path = $storage->store('eredeti', 'jpg');
+    $other = $storage->store('masik', 'jpg');
+    $variant = $storage->storeVariant($path, 640, 'kicsi');
+    check($variant === $F::variantPath($path, 640) && file_get_contents($storage->path($variant)) === 'kicsi' && $storage->url($variant) === '/media/' . $variant);
+    $storage->storeVariant($path, 320, 'kisebb');
+    $storage->storeVariant($other, 320, 'masik kicsi');
+    throws(\InvalidArgumentException::class, fn () => $storage->storeVariant($variant, 320, 'x'));
+    throws(\InvalidArgumentException::class, fn () => $storage->path('2026/10/' . str_repeat('a', 24) . '-0.jpg'));
+    check($storage->deleteVariants($path) === 2 && is_file($storage->path($path)) && is_file($storage->path($F::variantPath($other, 320))), 'only its own copies');
+    $storage->deleteVariants($other);
+    $storage->delete($path);
+    $storage->delete($other);
+});
+
+test('MediaService: copies on upload, made later for older images, deleted with the image', function () use ($repository, $policy, $admin, $engine): void {
+    if (!extension_loaded('gd')) {
+        echo "      (skipped: no gd extension)\n";
+
+        return;
+    }
+    $dir = sys_get_temp_dir() . '/campanella-media-' . bin2hex(random_bytes(4));
+    $storage = new \Campanella\Media\MediaStorage($dir);
+    $objects = new ObjectService($repository, $policy);
+    $objects->addListener(new \Campanella\Media\DeleteMediaFile($storage));
+    $media = new \Campanella\Media\MediaService($objects, $repository, $policy, new \Campanella\Media\ImageProcessor(), $storage, 'image', $engine);
+    $files = static fn (): array => glob($dir . '/*/*/*') ?: [];
+
+    $image = $media->uploadImage($admin, testImage('jpeg', 1200, 800), 'nagy.jpg');
+    $file = $image->as(\Campanella\Capability\MediaFile::class);
+    check($file->variantWidths() === [320, 640, 1024] && $file->hasVariants() && count($files()) === 4, json_encode($files()));
+    check($media->thumbnailUrl($image) === '/media/' . \Campanella\Capability\MediaFile::variantPath($file->path(), 320));
+    $small = $media->uploadImage($admin, testImage('png', 200, 100), 'kicsi.png');
+    check($small->get('variants') === '' && $small->as(\Campanella\Capability\MediaFile::class)->hasVariants() && $media->thumbnailUrl($small) === $media->url($small), 'none needed: recorded as empty');
+
+    // An image uploaded before 0.1.2: no copies recorded.
+    $storage->deleteVariants($file->path());
+    $image->set('variants', null);
+    $repository->save($image);
+    check($media->countWithoutVariants() >= 1 && in_array($image->id(), array_map(static fn ($i) => $i->id(), $media->withoutVariants(1000)), true));
+    [$made, $left] = $media->makeMissingVariants();
+    check($made >= 1 && $left === 0 && $repository->find((int) $image->id())?->get('variants') === '320,640,1024' && count($files()) === 5, "{$made} {$left}");
+    check(in_array($image->id(), array_map(static fn ($i) => $i->id(), $media->images(0, 1000)), true));
+
+    // A missing file: recorded as having none, not tried again.
+    $broken = $repository->find((int) $image->id());
+    $storage->delete($broken->as(\Campanella\Capability\MediaFile::class)->path());
+    $broken->set('variants', null);
+    $repository->save($broken);
+    $log = ini_set('error_log', '/dev/null');
+    check($media->makeVariants($broken) === [] && $repository->find((int) $broken->id())?->get('variants') === '');
+    ini_set('error_log', (string) $log);
+
+    $objects->delete($admin, $small);
+    $log = ini_set('error_log', '/dev/null');
+    $objects->delete($admin, $broken);
+    ini_set('error_log', (string) $log);
+    check($files() === [], 'every copy deleted with its image: ' . json_encode($files()));
+});
+
+test('ResponsiveImages: srcset, sizes, size and lazy loading for the images of this site', function () use ($repository, $engine, $service, $admin): void {
+    $storage = new \Campanella\Media\MediaStorage(sys_get_temp_dir() . '/campanella-ri');
+    $images = new \Campanella\Media\ResponsiveImages($engine, $storage);
+    $name = bin2hex(random_bytes(12));
+    $image = $repository->create('image', ['title' => 'Kép', 'file_path' => "2026/10/{$name}.jpg", 'mime_type' => 'image/jpeg', 'file_size' => 1, 'width' => 2000, 'height' => 1000, 'file_hash' => str_repeat('0', 64), 'variants' => '320,640']);
+    $repository->save($image);
+    $plainName = bin2hex(random_bytes(12));
+    $plain = $repository->create('image', ['title' => 'Régi', 'file_path' => "2026/10/{$plainName}.png", 'mime_type' => 'image/png', 'file_size' => 1, 'width' => 300, 'height' => 200, 'file_hash' => str_repeat('1', 64)]);
+    $repository->save($plain);
+
+    check($images->url($image) === "/media/2026/10/{$name}.jpg" && $images->url($image, 500) === "/media/2026/10/{$name}-640.jpg" && $images->url($image, 3000) === "/media/2026/10/{$name}.jpg");
+    check($images->srcset($image, '/cms') === "/cms/media/2026/10/{$name}-320.jpg 320w, /cms/media/2026/10/{$name}-640.jpg 640w, /cms/media/2026/10/{$name}.jpg 2000w" && $images->srcset($plain) === '');
+
+    $html = '<p><img src="/cms/media/2026/10/' . $name . '.jpg" alt="a"></p>'
+        . '<p><img src="/cms/media/2026/10/' . $name . '.jpg" alt="b" width="400" /></p>'
+        . '<p><img src="/media/2026/10/' . $plainName . '.png" alt="c"></p>'
+        . '<p><img src="https://mas.hu/x.jpg" alt="d"><img src="/media/2026/10/' . str_repeat('f', 24) . '.jpg" alt="e" loading="eager"></p>';
+    $out = $images->enrich($html, '/cms');
+    check(str_contains($out, '<img src="/cms/media/2026/10/' . $name . '.jpg" alt="a" srcset="/cms/media/2026/10/' . $name . '-320.jpg 320w, /cms/media/2026/10/' . $name . '-640.jpg 640w, /cms/media/2026/10/' . $name . '.jpg 2000w" sizes="(max-width: 800px) 100vw, 800px" width="2000" height="1000" loading="lazy" decoding="async">'), $out);
+    check(str_contains($out, 'alt="b" width="400" srcset="') && str_contains($out, 'sizes="(max-width: 400px) 100vw, 400px" loading="lazy" decoding="async" />'), 'a width of its own: sizes from it, no height added');
+    check(str_contains($out, 'alt="c" width="300" height="200" loading="lazy" decoding="async">') && !str_contains(substr($out, (int) strpos($out, 'alt="c"'), 80), 'srcset'), 'no copies: no srcset');
+    check(str_contains($out, '<img src="https://mas.hu/x.jpg" alt="d">') && str_contains($out, 'alt="e" loading="eager">'), 'not an image of this site: unchanged');
+    $tricky = $images->enrich('<img alt=\' src=/media/2026/10/' . $name . '.jpg \' src=\'/media/2026/10/' . $plainName . '.png\'>');
+    check(!str_contains($tricky, 'srcset') && str_contains($tricky, 'width="300"'), 'an attribute inside another\'s value is not read: ' . $tricky);
+    check($images->enrich('<p>Nincs kép</p>') === '<p>Nincs kép</p>');
+
+    $repository->delete($image);
+    $repository->delete($plain);
+});
+
+test('MediaUsage: the texts that show an image, kept on every save', function () use ($repository, $engine, $service, $admin, $db): void {
+    $U = \Campanella\Media\MediaUsage::class;
+    $a = bin2hex(random_bytes(12));
+    $b = bin2hex(random_bytes(12));
+    check($U::pathsIn('<img src="/media/2026/10/' . $a . '-640.jpg"><a href="/cms/media/2026/10/' . $b . '.png">x</a><img src=\'/media/2026/10/' . $a . '.jpg\'><img data-src="/media/2026/10/' . str_repeat('c', 24) . '.jpg">') === ["2026/10/{$a}.jpg", "2026/10/{$b}.png"]);
+
+    $make = static function (string $name, string $ext) use ($repository) {
+        $image = $repository->create('image', ['title' => $name, 'file_path' => "2026/10/{$name}.{$ext}", 'mime_type' => 'image/jpeg', 'file_size' => 1, 'file_hash' => str_repeat('0', 64), 'variants' => '']);
+        $repository->save($image);
+
+        return $image;
+    };
+    $first = $make($a, 'jpg');
+    $second = $make($b, 'png');
+    $usage = new $U($db, $engine);
+    $article = $service->create($admin, 'article', ['title' => 'Képes cikk', 'format' => 'html', 'body' => '<p><img src="/media/2026/10/' . $a . '.jpg" alt=""></p>']);
+    $page = $service->create($admin, 'page', ['title' => 'Képes oldal', 'format' => 'html', 'body' => '<p><a href="/media/2026/10/' . $a . '-320.jpg">kép</a></p>', 'path' => '/kepes-oldal-' . $a]);
+    $plain = $service->create($admin, 'page', ['title' => 'Sima', 'body' => '/media/2026/10/' . $a . '.jpg', 'path' => '/sima-' . $a]);
+    $titles = static fn (array $found): array => array_map(static fn ($o) => $o->get('title'), $found['items']);
+    $found = $usage->usedBy($first, $admin);
+    check($found['total'] === 2 && in_array('Képes cikk', $titles($found), true) && in_array('Képes oldal', $titles($found), true), json_encode($titles($found)));
+    check($usage->usedBy($second, $admin)['total'] === 0, 'a plain text does not count');
+
+    $service->update($admin, $article, ['body' => '<p><img src="/media/2026/10/' . $b . '.png" alt=""></p>']);
+    check($usage->usedBy($first, $admin)['total'] === 1 && $titles($usage->usedBy($second, $admin)) === ['Képes cikk'], 'kept up to date on save');
+    check($usage->usedBy($first, $admin, 1)['items'] !== [] && count($usage->usedBy($first, $admin, 1)['items']) === 1);
+
+    $service->delete($admin, $page);
+    check($usage->usedBy($first, $admin)['total'] === 0, 'a deleted text');
+    $repository->delete($second);
+    check((int) $db->fetchValue('SELECT COUNT(*) FROM {media_usage} WHERE object_id = :id', ['id' => $article->id()]) === 0, 'a deleted image');
+
+    // The migration fills it from the texts saved before 0.1.2.
+    $service->update($admin, $article, ['body' => '<p><img src="/media/2026/10/' . $a . '.jpg" alt=""></p>']);
+    $db->execute('DELETE FROM {media_usage}');
+    $migration = new \Campanella\Database\Migration\Core\MediaUsageIndex();
+    $migration->up(new \Campanella\Database\Migration\MigrationContext($db));
+    check($usage->usedBy($first, $admin)['total'] === 1);
+    $migration->up(new \Campanella\Database\Migration\MigrationContext($db));
+    check($usage->usedBy($first, $admin)['total'] === 1, 'repeatable');
+
+    $settings = new \Campanella\Settings\Settings($db);
+    $settings->set(['site.share_image' => (string) $first->id()]);
+    check((new $U($db, $engine, new \Campanella\Site\SiteSettings($settings)))->sharedBySite($first) && !$usage->sharedBySite($first));
+    $settings->set(['site.share_image' => null]);
+
+    $service->delete($admin, $article);
+    $service->delete($admin, $plain);
+    $repository->delete($first);
+});
+
+test('Kernel: srcset in texts, the delete page of a used image, making the missing copies', function () use ($newUser): void {
+    if (!extension_loaded('gd')) {
+        echo "      (skipped: no gd extension)\n";
+
+        return;
+    }
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $root = dirname(__DIR__);
+    $kernel = new \Campanella\Core\Kernel($root);
+    $container = $kernel->container();
+    if ($container->get(Connection::class)->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $dir = sys_get_temp_dir() . '/campanella-kernel-media-' . bin2hex(random_bytes(4));
+    $container->set(\Campanella\Media\MediaStorage::class, static fn () => new \Campanella\Media\MediaStorage($dir));
+    $storage = new ArraySessionStorage();
+    $container->set(Session::class, static fn () => new Session($storage));
+    $send = function (string $method, string $path, array $post = []) use ($kernel, $storage) {
+        $storage->endRequest();
+
+        return $kernel->handle(new Request($method, $path, post: $post));
+    };
+    $csrfOf = static fn ($response): string => preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $response->body, $m) === 1 ? $m[1] : '';
+    $media = $container->get(\Campanella\Media\MediaService::class);
+    $system = Actor::system();
+    $image = $media->uploadImage($system, testImage('jpeg', 1000, 500), 'Napfény.jpg');
+    $path = $image->as(\Campanella\Capability\MediaFile::class)->path();
+    $article = $container->get(ObjectService::class)->create($system, 'article', ['title' => 'Napos cikk', 'format' => 'html', 'body' => '<p><img src="/media/' . $path . '" alt="Napfény"></p>', 'path' => '/napos-cikk'], publish: true);
+
+    $page = $send('GET', '/napos-cikk');
+    check($page->status === 200 && str_contains($page->body, 'srcset="/media/' . \Campanella\Capability\MediaFile::variantPath($path, 320) . ' 320w, /media/' . \Campanella\Capability\MediaFile::variantPath($path, 640) . ' 640w, /media/' . $path . ' 1000w"'), 'the copies in the text');
+
+    $container->get(AuthService::class)->login(new Request('GET', '/'), $newUser('kepek-012@example.hu', 'kepek-jelszo-012', ['administrator']));
+    $delete = $send('GET', '/admin/image/' . $image->id() . '/delete');
+    check(str_contains($delete->body, 'Ezek a szövegek mutatják a képet') && str_contains($delete->body, '>Napos cikk</a>') && str_contains($delete->body, 'hiányzó kép lesz'), 'the delete page lists the text');
+
+    // An image from before 0.1.2: the System page offers to make its copies.
+    $repo = $container->get(ObjectRepository::class);
+    $old = $repo->find((int) $image->id());
+    $old->set('variants', null);
+    $repo->save($old);
+    $container->get(\Campanella\Media\MediaStorage::class)->deleteVariants($path);
+    $before = $repo->find((int) $image->id())?->updated()->format('c');
+    sleep(1);
+    $systemPage = $send('GET', '/admin/system');
+    check(str_contains($systemPage->body, 'action="/admin/system/media-variants"') && str_contains($systemPage->body, 'Változatok elkészítése'), 'the button');
+    check($send('GET', '/admin/system/media-variants')->status === 405);
+    $log = ini_set('error_log', '/dev/null'); // other tests' images have no files here
+    $made = $send('POST', '/admin/system/media-variants', ['_csrf' => $csrfOf($systemPage)]);
+    ini_set('error_log', (string) $log);
+    check($made->status === 303 && $repo->find((int) $image->id())?->get('variants') === '320,640' && str_contains($send('GET', '/admin/system')->body, 'Elkészültek a kisebb változatok'), 'made');
+    check($repo->find((int) $image->id())?->updated()->format('c') === $before, 'the image\'s modification time stays');
+
+    $old = $repo->find((int) $image->id());
+    $old->set('variants', null);
+    $repo->save($old);
+    $stream = fopen('php://memory', 'w+');
+    (new \Campanella\Cli\MediaVariantsCommand())->run($container, [], new \Campanella\Cli\Output($stream, $stream));
+    rewind($stream);
+    $out = (string) stream_get_contents($stream);
+    check(str_contains($out, '320, 640') && $repo->find((int) $image->id())?->get('variants') === '320,640', $out);
+
+    $container->get(ObjectService::class)->delete($system, $article);
+    $container->get(ObjectService::class)->delete($system, $repo->find((int) $image->id()));
+    check((glob($dir . '/*/*/*') ?: []) === [], 'the files are gone');
+    putenv('CAMPANELLA_DB_PREFIX');
 });
 
 echo "\nDocumentation examples\n";

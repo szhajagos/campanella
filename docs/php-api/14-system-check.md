@@ -76,6 +76,7 @@ $kernel->container()->get(SystemCheck::class)->add(static fn (?Request $request)
 | `CheckStatus $status` | The verdict |
 | `string $value` | The value found: a message key (`admin.system.on`) or a plain value (a version, a size) |
 | `?Message $hint` | An explanation or what to do (e.g. "Run: php bin/campanella install") |
+| `?string $action`, `string $actionLabel` | An admin page's path that fixes the problem (e.g. `system/media-variants`), shown as a button that posts to it with the CSRF token; the button's text is a message key (since 0.1.2) |
 
 Groups, labels and values go through the translator, so a plain text passes
 through unchanged ([chapter 12](12-translation.md#translator)).

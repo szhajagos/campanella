@@ -9,6 +9,10 @@ Images are uploaded from the admin's editor (the image button, pasting,
 dropping) or on the Images list ([below](#uploading-from-the-admin)); every
 upload goes through the server side described here.
 
+Since 0.1.2 every image gets **smaller copies** for `srcset`
+([below](#smaller-copies-variants)), and Campanella **knows which texts show
+an image** ([below](#where-an-image-is-used)), so its delete page lists them.
+
 ## What happens to an uploaded file
 
 1. **Who:** the `AccessPolicy` must allow creating an `image` (checked before
@@ -38,11 +42,14 @@ upload goes through the server side described here.
 6. **Storing:** under a new, random name with the extension of the recognised
    type: `public/media/YYYY/MM/<24 hex characters>.<jpg|png|webp|gif>`. A
    `.htaccess` in `public/media/` forbids running anything there as code.
-7. **The object** is created through the `ObjectService`. If that fails, the
-   file is deleted: there is no file without its object.
+7. **Smaller copies** (since 0.1.2): one for each width of `media.variants`
+   that is at most 90% of the image's, encoded the same way, stored beside it
+   as `<name>-<width>.<extension>`.
+8. **The object** is created through the `ObjectService`. If that fails, the
+   files are deleted: there is no file without its object.
 
-Deleting the object deletes its file (`DeleteMediaFile`, an `ObjectListener`
-of the `ObjectService`).
+Deleting the object deletes its file and its copies (`DeleteMediaFile`, an
+`ObjectListener` of the `ObjectService`).
 
 Problems are reported as a `ValidationException` on the `file` field, with the
 keys `media.empty`, `media.too_large`, `media.not_image`,
@@ -60,6 +67,8 @@ keys `media.empty`, `media.too_large`, `media.not_image`,
 | `media.max_dimension` | 2560 | Larger images are scaled down to this width or height |
 | `media.quality` | 85 | JPEG and WebP quality when re-encoding (1–100) |
 | `media.store_unprocessed` | `false` | `true`: a type the server cannot re-encode is stored as uploaded (metadata included) instead of being refused |
+| `media.variants` | `[320, 640, 1024, 1600]` | The widths of the smaller copies, in pixels (16–10 000, at most 8 widths: `ImageProcessor::MAX_VARIANTS`); `[]`: none (since 0.1.2). After changing it, `php bin/campanella media:variants --all` makes every image's copies again |
+| `media.sizes` | `'(max-width: 800px) 100vw, 800px'` | The `sizes` attribute of the texts' images: how wide the text column is. An image with a `width` of its own uses that (since 0.1.2) |
 | `media.memory_limit` | `'320M'` | PHP's `memory_limit` is raised to this while processing an image (for that request only), if the server allows it. Decoding a 12-megapixel photo needs about 100 MB, a 25-megapixel one (`max_pixels`) about 300 MB with the scaled copy; with the common 128 MB limit only a few megapixels would fit |
 
 ## The `image` Blueprint and the MediaFile capability
@@ -81,9 +90,14 @@ keys `media.empty`, `media.too_large`, `media.not_image`,
 | `file_size` | Integer | required; bytes |
 | `width`, `height` | Integer | pixels |
 | `file_hash` | String(64) | required, indexed; SHA-256 of the stored file (finds the same file uploaded twice) |
+| `variants` | String(64) | The widths of the smaller copies, e.g. `320,640` (since 0.1.2); `''`: none (a small image, or a type that is not re-encoded); null: not made yet (uploaded before 0.1.2) |
 
 Methods: `path(): string`, `mimeType(): string`, `size(): int`,
-`width(): ?int`, `height(): ?int`, `hash(): string`.
+`width(): ?int`, `height(): ?int`, `hash(): string`; since 0.1.2
+`variantWidths(): list<int>` (smallest first), `hasVariants(): bool` (false
+while not made yet), and the static helpers `variantPath(string $path, int $width): string`
+(`2026/10/3f…a1.jpg` → `2026/10/3f…a1-640.jpg`), `formatWidths(array $widths): string`
+and `parseWidths(mixed $stored): list<int>`.
 
 The fields are set by the upload, never by a form: they are in
 `ObjectForm::MANAGED_FIELDS`, and the admin offers no empty "new" form for a
@@ -95,9 +109,14 @@ Blueprint with this capability (its objects are created by uploading).
 
 | Member | Description |
 |---|---|
-| `__construct(ObjectService $objects, ObjectRepository $repository, AccessPolicy $policy, ImageProcessor $processor, MediaStorage $storage, string $blueprint = 'image')` | |
-| `uploadImage(Actor $actor, string $file, string $originalName, string $alt = ''): CampanellaObject` | Checks, stores and creates the image object (see above). `AccessDeniedException` if the actor may not create images; `ValidationException` (on `file`) for an unaccepted file |
+| `__construct(ObjectService $objects, ObjectRepository $repository, AccessPolicy $policy, ImageProcessor $processor, MediaStorage $storage, string $blueprint = 'image', ?QueryEngine $queries = null, ?Connection $db = null)` | The last two since 0.1.2, for making the copies of older images |
+| `uploadImage(Actor $actor, string $file, string $originalName, string $alt = ''): CampanellaObject` | Checks, stores (with its copies) and creates the image object (see above). `AccessDeniedException` if the actor may not create images; `ValidationException` (on `file`) for an unaccepted file |
 | `url(CampanellaObject $object): string` | The file's address, e.g. `/media/2026/10/….jpg` |
+| `thumbnailUrl(CampanellaObject $object): string` | The smallest copy's address (the admin's thumbnails), or the image's own |
+| `makeVariants(CampanellaObject $image): list<int>` | Makes (again) the copies of a stored image and records their widths (only the `variants` field, so the image's modification time stays). The copies are made in memory first, the old ones replaced only then; the widths recorded are those written (a disk error is logged). A missing or broken file: recorded as none, not tried again; an image too large for the memory now: left as it is |
+| `withoutVariants(int $limit = 50, int $afterId = 0): list<CampanellaObject>`, `countWithoutVariants(): int` | The images whose copies are not made yet, by ID |
+| `makeMissingVariants(float $seconds = 20.0, int $limit = 1000): array{int, int}` | Makes them, oldest first, until the time is up; returns [made, left] |
+| `images(int $afterId = 0, int $limit = 100): list<CampanellaObject>` | Every image after an ID, by ID |
 | `maxUploadBytes(): int` | The largest file that can be uploaded: `media.max_bytes`, or less if PHP's `upload_max_filesize` or `post_max_size` (minus `FORM_MARGIN`) is lower |
 | `FORM_MARGIN` | 64 KB: what `post_max_size` must allow beyond the file (the other fields, the multipart framing) |
 | `static titleFrom(string $originalName): string` | The original name without folders, extension and control characters (`C:\Képek\Nyaralás.JPG` → `Nyaralás`); `image` if nothing remains |
@@ -124,9 +143,16 @@ $image = $container->get(MediaService::class)->uploadImage($actor, $_FILES['file
 | `MAX_JPEG_SCANS` | 100 |
 | `static iniBytes(string $size): int` | A php.ini size (`128M`) in bytes; `-1` for no limit |
 | `TYPES` | `IMAGETYPE_*` → [MIME type, extension] of the accepted types |
+| `variantWidths(): list<int>` | The `media.variants` setting, smallest first (since 0.1.2; constructor argument `array $variantWidths = VARIANT_WIDTHS` after `$storeUnprocessed`) |
+| `widthsFor(int $width): list<int>` | The copies an image of this width gets: the widths at most `VARIANT_RATIO` (90%) of it |
+| `variantsOf(string $file): list<ImageVariant>` | The copies of a file already stored (an image uploaded before 0.1.2), with the checks of an upload (size, pixels, JPEG scans; a JPEG stored unprocessed is turned upright first); empty without GD for its type or when it is too small; `ValidationException` for a file that is not an image or is too large to decode |
 
 `Campanella\Media\ProcessedImage` · **Public** · `final readonly class`:
-`$bytes`, `$mimeType`, `$extension`, `$width`, `$height`, `$reencoded`.
+`$bytes`, `$mimeType`, `$extension`, `$width`, `$height`, `$reencoded`, and
+since 0.1.2 `$variants` (`list<ImageVariant>`, smallest first).
+
+`Campanella\Media\ImageVariant` · **Public** · `final readonly class` (since
+0.1.2): `$width`, `$height`, `$bytes` of a smaller copy.
 
 ## MediaStorage
 
@@ -137,19 +163,102 @@ $image = $container->get(MediaService::class)->uploadImage($actor, $_FILES['file
 | `__construct(string $directory, string $urlPrefix = '/media')` | |
 | `store(string $bytes, string $extension, ?DateTimeImmutable $now = null): string` | Stores under a new random name; returns the relative path. Writes a temporary file and renames it, so a half-written file is never served. `RuntimeException` if it cannot write |
 | `delete(string $relativePath): bool` | |
-| `path(string $relativePath): string` | The absolute path; `InvalidArgumentException` for anything that is not a stored file's path (`PATH_PATTERN`), so e.g. `../config/local.php` cannot be reached |
+| `storeVariant(string $relativePath, int $width, string $bytes): string` | Stores a copy beside an original (`…-640.jpg`, replacing one); returns its path (since 0.1.2) |
+| `deleteVariants(string $relativePath): int` | Deletes every copy of an original (whatever its width); returns how many (since 0.1.2) |
+| `path(string $relativePath): string` | The absolute path; `InvalidArgumentException` for anything that is not a stored file's path or a copy's (`PATH_PATTERN`), so e.g. `../config/local.php` cannot be reached |
 | `url(string $relativePath): string` | The address on the site |
 | `directory(): string`, `isWritable(): bool` | |
 | `HTACCESS` | The `.htaccess` written into the folder if missing (a copy ships in `public/media/`) |
 
-`Campanella\Media\MediaCheck` · **Internal**: `static checks(ImageProcessor $processor, MediaStorage $storage): Closure`,
+`Campanella\Media\MediaCheck` · **Internal**: `static checks(ImageProcessor $processor, MediaStorage $storage, ?MediaService $media = null): Closure`,
 the system check's *Images* lines ([chapter 14](14-system-check.md)): the
-folder, the re-encoded types, the largest file and the largest image that
-PHP's settings allow.
+folder, the re-encoded types, the smaller copies (since 0.1.2: a warning with a
+button while some images have none), the largest file and the largest image
+that PHP's settings allow.
 
 `Campanella\Media\DeleteMediaFile` · **Internal** · `ObjectListener`:
 `afterDelete(CampanellaObject $object): void` deletes the file of a deleted
-`MediaFile` object (and logs if it cannot).
+`MediaFile` object and its copies (and logs if it cannot).
+
+## Smaller copies (variants)
+
+Since 0.1.2 a photo of 2560 pixels is not sent to a phone that shows it 400
+pixels wide. On upload, `ImageProcessor` makes a copy for each width of
+`media.variants` (320, 640, 1024, 1600) that is at most 90% of the image's
+own, from the same decoded pixels, encoded in the same type (a JPEG
+progressive, a PNG with its transparency, a palette PNG with a palette). A copy
+that would not be smaller than the image's file (a drawing with few colours
+can grow when smoothed) is left out. They are stored beside the image:
+
+```
+public/media/2026/10/3f…a1.jpg        the image (at most 2560 pixels)
+public/media/2026/10/3f…a1-320.jpg    its copies
+public/media/2026/10/3f…a1-640.jpg
+public/media/2026/10/3f…a1-1024.jpg
+```
+
+The texts are stored as they were written; when a page is rendered, the
+`|body` filter gives their images of this site `srcset`, `sizes`, `width` and
+`height` (if missing, so the page does not jump while loading), `loading="lazy"`
+and `decoding="async"` (`ResponsiveImages`). The browser then downloads the
+smallest copy that is sharp enough for the screen.
+
+`Campanella\Media\ResponsiveImages` · **Public** · container: `ResponsiveImages::class`
+
+| Member | Description |
+|---|---|
+| `__construct(QueryEngine $queries, MediaStorage $storage, string $sizes = DEFAULT_SIZES)` | `$sizes`: the `media.sizes` setting |
+| `url(CampanellaObject $image, ?int $width = null): string` | The image's address, or its smallest copy at least `$width` wide |
+| `srcset(CampanellaObject $image, string $basePath = ''): string` | The copies and the original with their widths; `''` without copies |
+| `enrich(string $html, string $basePath = ''): string` | The attributes above on the images of an HTML text (one query for the text's images; an attribute already there is kept; other images are left as they are) |
+
+In templates (since 0.1.2), e.g. for a theme that shows an image object:
+
+```twig
+<img src="{{ image_url(image, 640) }}" srcset="{{ image_srcset(image) }}"
+     sizes="(max-width: 640px) 100vw, 640px" alt="{{ image.alt }}">
+```
+
+`image_url(image, width = null)` (`CampanellaTwigExtension::imageUrl()`) gives
+the address with the installation's folder, `image_srcset(image)`
+(`CampanellaTwigExtension::imageSrcset()`) the `srcset` (`''` without copies).
+
+**Images uploaded before 0.1.2** have no copies (`variants` is null): they are
+shown in full size until the copies are made. The System page's *Smaller
+copies* line counts them and offers a button (`POST /admin/system/media-variants`,
+as many as fit into 20 seconds; press it again for the rest), or on the
+command line:
+
+```bash
+php bin/campanella media:variants          # the images that have none
+php bin/campanella media:variants --all    # every image again (after changing media.variants)
+```
+
+(`Campanella\Cli\MediaVariantsCommand`.)
+
+## Where an image is used
+
+Since 0.1.2 the delete page of an image lists the texts that show it (or link
+to it), and says if it is the site's share image. The `media_usage` table
+(`object_id`, `media_id`, both cascading) is filled when a text is saved: the
+`ObjectRepository` calls `MediaUsage::record()` for every `Textual` object in
+the save's transaction, with the files found in its HTML (`src` and `href`
+attributes of this site's media; a copy stands for its image). A plain text
+records nothing. A row disappears with either object.
+
+`Campanella\Media\MediaUsage` · **Public**
+
+| Member | Description |
+|---|---|
+| `__construct(Connection $db, QueryEngine $queries, ?SiteSettings $site = null)` | |
+| `static pathsIn(string $html): list<string>` | The stored files an HTML text refers to: their originals' paths, each once |
+| `static record(Connection $db, int $objectId, string $html, string $table = 'cap_media_file'): void` | Replaces what was recorded for the object |
+| `usedBy(CampanellaObject $media, Actor $actor, int $limit = 20): array{items: list<CampanellaObject>, total: int}` | The objects that use the file (those the actor may see), newest change first |
+| `sharedBySite(CampanellaObject $media): bool` | Whether it is the site's share image ([chapter 20](20-site.md)) |
+
+The texts saved before 0.1.2 are read once by the migration
+`core:0008_media_usage` (`Campanella\Database\Migration\Core\MediaUsageIndex`),
+when upgrading.
 
 ## Uploading from the admin
 
@@ -260,3 +369,7 @@ code. The system page's *Images* group shows whether they are enough.
 The `cap_media_file` table is new (schema version 5): run
 `php bin/campanella install` after upgrading. Until then the site shows the
 "needs upgrade" page.
+
+0.1.2 (schema version 8) adds the `variants` column and the `media_usage`
+table, and the migration that fills it; the images' copies are made
+afterwards ([above](#smaller-copies-variants)).

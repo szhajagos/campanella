@@ -13,6 +13,7 @@ use Campanella\Capability\TextFormat;
 use Campanella\Capability\Hierarchical;
 use Campanella\Capability\Textual;
 use Campanella\Html\HtmlSanitizer;
+use Campanella\Media\MediaUsage;
 use Campanella\Tree\TreeKeeper;
 use Campanella\Support\Uuid;
 use DateTimeImmutable;
@@ -28,6 +29,7 @@ use PDOException;
  *   cap_<name>           – the capabilities' queryable single-valued fields
  *   field_values         – the values of the queryable multi-valued fields
  *   relationships        – relationships to other objects
+ *   media_usage          – the uploaded files a text shows (since 0.1.2)
  *
  * When loading lists, a single query runs per table (no N+1).
  * The object cache will also be built in here later.
@@ -261,6 +263,16 @@ final class ObjectRepository
             }
             if ($moveSubtree !== null) {
                 $moveSubtree();
+            }
+            // Which uploaded files the text shows (since 0.1.2), for their delete pages.
+            if ($object->has(Textual::class) && $this->capabilities->has('media_file')) {
+                $textual = $object->as(Textual::class);
+                MediaUsage::record(
+                    $db,
+                    $id,
+                    $textual->format() === TextFormat::Html ? $textual->body() : '',
+                    $this->capabilities->get('media_file')->tableName(),
+                );
             }
             // A node moved to another scope (e.g. menu) takes its subtree with it.
             $scopeTarget = $scope === null ? null : ($object->relatedIds($scope)[0] ?? null);

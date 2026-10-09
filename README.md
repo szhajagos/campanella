@@ -1,4 +1,4 @@
-# Campanella 0.1.1
+# Campanella 0.1.2
 
 [![CI](https://github.com/szhajagos/campanella/actions/workflows/ci.yml/badge.svg)](https://github.com/szhajagos/campanella/actions/workflows/ci.yml)
 
@@ -18,6 +18,8 @@ versions (the [CHANGELOG](CHANGELOG.md) always says how).
 - **Editing in the browser:** an admin with lists, search and filters, forms
   generated from the definitions, a formatted-text editor (Jodit) with image
   upload, the main menu edited as a tree.
+- **Images:** checked and re-encoded on upload, with smaller copies for every
+  screen (`srcset`); an image's delete page lists the texts that show it.
 - **Users:** administrators and editors, managed in the browser; a profile
   with one's own password; login protection (throttling, a honeypot, the same
   answer for every failure).
@@ -166,6 +168,7 @@ older than 0.0.6 is upgraded to 0.0.7 first, then to the current version.
 | `php bin/campanella user:create <e-mail>` | Creates a user (`--name=`, `--role=administrator,editor`); also `user:password`, `user:list` (`--role=editor`) |
 | `php bin/campanella migrate` | Applies the changes of the definitions (new tables, columns, capabilities of Blueprints) and runs the pending migrations after a backup (`--dry-run`, `--yes`, `--no-backup`, `--prune`); `install` does it too |
 | `php bin/campanella db:backup` | Saves the database tables into `var/backups/` (`.sql.gz`) |
+| `php bin/campanella media:variants` | Makes the smaller copies of images uploaded before 0.1.2 (`--all`: of every image again) |
 | `php bin/campanella schema:check` | Compares the table definitions with the database (`--sql`: the statements of the additive changes); changes nothing |
 | `php bin/campanella html:sanitize` | Filters the stored HTML texts with the allowlist (`--dry-run`: only lists them) |
 | `composer test` | Tests (on a real database, with a separate `test_` table prefix) |
@@ -181,7 +184,7 @@ On every push, GitHub runs the checks above
 documentation checks, `composer audit` (known vulnerabilities of the
 dependencies), and the tests on MariaDB 10.6 and 11.4, and MySQL 8.0 and 8.4. The results are shown next to the commits and on the Actions tab.
 
-After a version tag (`git tag v0.1.1 && git push --tags`), GitHub builds the
+After a version tag (`git tag v0.1.2 && git push --tags`), GitHub builds the
 installation package and attaches it to the release. For an existing tag it
 can also be started manually: Actions → CI → Run workflow, entering the tag.
 
@@ -317,7 +320,7 @@ on its own.
 ## Not included yet
 
 A forgotten password by e-mail, e-mail sending, Event / Action, a contact
-form, image variants (all planned for 0.2.0), search and redirects, an image
+form (all planned for 0.2.0), search and redirects, an image
 picker (0.3.0), Component / Region / Layout, cache, multilingual content.
 
 ## Made with AI assistance

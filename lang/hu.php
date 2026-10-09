@@ -268,6 +268,7 @@ return [
     'field.width' => 'Szélesség',
     'field.height' => 'Magasság',
     'field.file_hash' => 'Ellenőrzőösszeg',
+    'field.variants' => 'Kisebb változatok',
     'field.alt' => 'Alternatív szöveg',
     'blueprint.image' => 'Kép',
     'media.empty' => 'A fájl üres, vagy nem érkezett meg.',
@@ -307,7 +308,7 @@ return [
     'admin.media.dimensions_label' => 'Méret',
     'admin.media.address' => 'Cím',
     'admin.media.open' => 'A fájl megnyitása',
-    'admin.delete.image_warning' => 'Azokban a szövegekben, amelyek ezt a képet mutatják, a helyén hiányzó kép lesz. Előbb távolítsd el belőlük: azt, hogy egy kép hol szerepel, még nem tartja nyilván a rendszer.',
+    'admin.delete.image_warning' => 'A kép használatban van: ahol megjelenik, a helyén hiányzó kép lesz. Előbb távolítsd el onnan.',
     'admin.system.media_max_file' => 'Legnagyobb képfájl',
     'admin.system.media_max_file_limited' => 'A media.max_bytes értéke {max}, de a PHP ennél kevesebbet enged ({settings}). Állítsd ezeket valamivel nagyobbra, például upload_max_filesize = 16M, post_max_size = 20M.',
     'admin.system.media_max_image' => 'Legnagyobb kép',
@@ -626,4 +627,16 @@ return [
     'admin.system.indexing_off_hint' => 'Kapcsold be a Webhely-beállításokban, ha a webhely elkészült.',
     'admin.system.robots_file' => 'fájl a public/ mappában',
     'admin.system.robots_file_hint' => 'A webszerver ezt a fájlt szolgálja ki a generált robots.txt helyett. Töröld, ha a generáltat szeretnéd.',
+
+    // Images (since 0.1.2): smaller copies, where an image is used
+    'admin.delete.usage' => 'Ezek a szövegek mutatják a képet (vagy hivatkoznak rá):',
+    'admin.delete.unused' => 'Egyetlen szöveg sem mutatja ezt a képet.',
+    'admin.delete.share_image' => 'Ez a webhely megosztási képe; másikat itt választhatsz:',
+    'admin.system.media_variants' => 'Kisebb változatok',
+    'admin.system.media_variants_missing' => '{count} képnek (0.1.2 előtt feltöltve) még nincsenek kisebb változatai: teljes méretben jelennek meg. Itt elkészítheted őket, vagy ezzel: php bin/campanella media:variants.',
+    'admin.system.media_variants_make' => 'Változatok elkészítése',
+    'admin.system.media_variants_done' => 'Elkészültek a kisebb változatok ({made} kép).',
+    'admin.system.media_variants_partly' => '{made} kép változatai elkészültek; még {left} van hátra: nyomd meg újra a gombot.',
+    'cli.media_variants.description' => 'Elkészíti azoknak a képeknek a kisebb változatait, amelyeknek még nincsenek (--all: minden képét újra)',
+    'cli.media_variants.done' => '{count} kép feldolgozva.',
 ];

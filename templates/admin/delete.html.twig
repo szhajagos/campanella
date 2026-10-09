@@ -20,8 +20,28 @@
 
     <div class="alert alert-warning" role="alert">
         {{ t('admin.delete.warning') }}
-        {% if media_url %}<div class="mt-2">{{ t('admin.delete.image_warning') }}</div>{% endif %}
+        {% if media_url and (usage or share_image) %}<div class="mt-2">{{ t('admin.delete.image_warning') }}</div>{% endif %}
     </div>
+
+    {% if media_url %}
+        {% if usage %}
+            <p>{{ t('admin.delete.usage') }}</p>
+            <ul class="admin-referrers">
+                {% for item in usage %}
+                    <li>
+                        <a href="{{ admin_url(item.blueprint ~ '/' ~ item.id) }}">{{ item.title is defined and item.title ? item.title : '#' ~ item.id }}</a>
+                        {% if blueprints[item.blueprint] is defined %}<span class="text-body-secondary small">({{ t(blueprints[item.blueprint].label) }})</span>{% endif %}
+                    </li>
+                {% endfor %}
+                {% if more_usage %}<li class="text-body-secondary">{{ t('admin.delete.more', {count: more_usage}) }}</li>{% endif %}
+            </ul>
+        {% elseif not share_image %}
+            <p class="text-body-secondary">{{ t('admin.delete.unused') }}</p>
+        {% endif %}
+        {% if share_image %}
+            <p>{{ t('admin.delete.share_image') }} <a href="{{ admin_url('system/settings') }}">{{ t('settings.title') }}</a></p>
+        {% endif %}
+    {% endif %}
 
     {% if referrers %}
         <p>{{ t('admin.delete.referrers') }}</p>

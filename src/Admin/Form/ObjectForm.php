@@ -41,7 +41,7 @@ final class ObjectForm
      */
     public const array MANAGED_FIELDS = [
         'status', 'published_at', 'format',
-        'file_path', 'mime_type', 'file_size', 'width', 'height', 'file_hash',
+        'file_path', 'mime_type', 'file_size', 'width', 'height', 'file_hash', 'variants',
     ];
 
     /** The most targets offered for a relation. */

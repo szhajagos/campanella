@@ -28,6 +28,7 @@ final class Console
             new SchemaCheckCommand(),
             new MigrateCommand(),
             new DbBackupCommand(),
+            new MediaVariantsCommand(),
         ];
         foreach ($commands as $command) {
             $this->commands[$command->name()] = $command;

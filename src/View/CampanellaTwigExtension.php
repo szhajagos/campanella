@@ -7,7 +7,9 @@ namespace Campanella\View;
 use Campanella\Access\Actor;
 use Campanella\Admin\AdminAccess;
 use Campanella\Http\Flash;
+use Campanella\Capability\MediaFile;
 use Campanella\Capability\Textual;
+use Campanella\Media\ResponsiveImages;
 use Campanella\Capability\TextFormat;
 use Campanella\Core\Version;
 use Campanella\I18n\Translator;
@@ -38,7 +40,9 @@ use Twig\TwigFunction;
  *   {{ flash_messages() }}              the one-time messages (and removes them)
  *   {{ tree(result) }}                  Hierarchical objects as a tree (TreeNode roots; hidden parents hide their branch)
  *   {% set main = menu('main') %}       a menu's items for the visitor (MenuEntry tree), or null if there is no such menu
- *   {{ object|body }}                   the safe HTML of the Textual body
+ *   {{ object|body }}                   the safe HTML of the Textual body (its images with srcset, since 0.1.2)
+ *   {{ image_url(image, 640) }}         an image's address, or of its smallest copy at least 640 wide
+ *   {{ image_srcset(image) }}           an image's srcset ('' without copies)
  *   {{ 1572864|file_size }}             a size in bytes, readable: 1.5 MB (in the current language)
  */
 final class CampanellaTwigExtension extends AbstractExtension implements GlobalsInterface
@@ -56,6 +60,7 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
      * @param (Closure(): Flash)|null $flash One-time messages (lazy).
      * @param (Closure(string, int): ?list<MenuEntry>)|null $menus Builds a menu for the current
      *        visitor and page: key, levels (MenuBuilder; since 0.0.7).
+     * @param (Closure(): ResponsiveImages)|null $images The images' copies (lazy; since 0.1.2).
      */
     public function __construct(
         private readonly Closure $presentation,
@@ -69,6 +74,7 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
         private readonly ?Closure $currentActor = null,
         private readonly ?Closure $flash = null,
         private readonly ?Closure $menus = null,
+        private readonly ?Closure $images = null,
     ) {
     }
 
@@ -90,6 +96,8 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
             new TwigFunction('locale', $this->locale(...)),
             new TwigFunction('tree', $this->tree(...)),
             new TwigFunction('menu', $this->menu(...)),
+            new TwigFunction('image_url', $this->imageUrl(...)),
+            new TwigFunction('image_srcset', $this->imageSrcset(...)),
         ];
     }
 
@@ -234,6 +242,32 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
         }
     }
 
+    /**
+     * The address of an image object (with the installation's folder), or of its smallest
+     * copy at least $width pixels wide (since 0.1.2). '' for an object that is not a file.
+     */
+    public function imageUrl(CampanellaObject $image, ?int $width = null): string
+    {
+        if (!$image->has(MediaFile::class)) {
+            return '';
+        }
+        $path = $this->images !== null
+            ? ($this->images)()->url($image, $width)
+            : '/media/' . $image->as(MediaFile::class)->path();
+
+        return $this->url($path);
+    }
+
+    /** An image object's `srcset` (its copies and the original); '' without copies. Since 0.1.2. */
+    public function imageSrcset(CampanellaObject $image): string
+    {
+        if ($this->images === null || !$image->has(MediaFile::class)) {
+            return '';
+        }
+
+        return ($this->images)()->srcset($image, ($this->basePath)());
+    }
+
     /** The current language code (e.g. for <html lang="...">). */
     public function locale(): string
     {
@@ -291,7 +325,17 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
         $textual = $object->as(Textual::class);
 
         if ($textual->format() === TextFormat::Html) {
-            return $textual->body();
+            if ($this->images === null) {
+                return $textual->body();
+            }
+            try {
+                return ($this->images)()->enrich($textual->body(), ($this->basePath)());
+            } catch (\Exception $e) {
+                // The text is shown even if its images' copies cannot be looked up.
+                error_log('Campanella: the images of a text could not be looked up: ' . $e->getMessage());
+
+                return $textual->body();
+            }
         }
 
         $paragraphs = preg_split('/\R{2,}/', trim($textual->body())) ?: [];

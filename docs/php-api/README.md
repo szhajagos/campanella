@@ -1,6 +1,6 @@
 # PHP API
 
-Reference for the Campanella 0.1.1 PHP API. Every class is in the `Campanella\`
+Reference for the Campanella 0.1.2 PHP API. Every class is in the `Campanella\`
 namespace, in the `src/` folder (PSR-4).
 
 ## Chapters
@@ -20,7 +20,7 @@ namespace, in the `src/` folder (PSR-4).
 13. [Admin UI](13-admin.md): access, `AdminAccess`, `Flash`, admin templates
 14. [System check](14-system-check.md): `SystemCheck`, `CheckResult`, `TemplateCache`, the System page
 15. [HTML texts](15-html.md): the allowlist, `HtmlSanitizer`, `html:sanitize`
-16. [Images](16-media.md): the `image` Blueprint, `MediaFile`, `MediaService`, `ImageProcessor`, `MediaStorage`
+16. [Images](16-media.md): the `image` Blueprint, `MediaFile`, `MediaService`, `ImageProcessor`, `MediaStorage`, smaller copies (`ResponsiveImages`), where an image is used (`MediaUsage`)
 17. [Migrations and backups](17-migrations.md): `Migration`, `MigrationContext`, `Migrator`, `migrate`, `DatabaseBackup`, `db:backup`
 18. [Trees](18-trees.md): `Hierarchical`, the rules of a tree, `TreeBuilder`, separate trees (`tree_scope`)
 19. [Menus](19-menus.md): the `menu` and `menu_item` Blueprints, `Link`, `Keyed`, `MenuBuilder`, `menu()` in templates
