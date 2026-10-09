@@ -4305,7 +4305,7 @@ test('Kernel: the site settings page, for administrators', function () use ($new
     $auth->login(new Request('GET', '/'), $newUser('beallito@example.hu', 'beallito-jelszo-1', ['administrator']));
 
     $page = $send('GET', '/admin/system/settings');
-    check($page->status === 200 && str_contains($page->body, 'value="Campanella"') && str_contains($page->body, 'placeholder="http://pelda.hu"') && str_contains($page->body, 'href="/admin/system/settings">Webhely-beállítások</a>'), 'the form, with the address it was opened at');
+    check($page->status === 200 && str_contains($page->body, 'value="Campanella"') && str_contains($page->body, 'placeholder="https://example.hu"') && str_contains($page->body, 'Még nincs megadva.') && str_contains($page->body, 'a(z) http://pelda.hu címen') && str_contains($page->body, 'href="/admin/system/settings">Webhely-beállítások</a>'), 'the form, with the address it was opened at');
     $form = ['_csrf' => $csrfOf($page), 'name' => '', 'slogan' => 'Új szlogen', 'description' => 'Leírás', 'url' => 'pelda.hu', 'share_image' => '', 'indexing' => '1'];
     check($send('POST', '/admin/system/settings', ['_csrf' => 'x'] + $form)->status === 400);
     $bad = $send('POST', '/admin/system/settings', $form);

@@ -603,6 +603,7 @@ return [
     'settings.slogan_help' => 'A short line under the name on the front page.',
     'settings.url' => 'Web address (URL)',
     'settings.url_help' => 'The address visitors use, with https:// (and the folder, if the site is in one). Canonical URLs, sharing and sitemap.xml need it.',
+    'settings.url_missing' => 'Not set yet.',
     'settings.url_origin' => 'This page was opened at {origin}.',
     'settings.description' => 'Default description',
     'settings.description_help' => 'Search engines may show it under the page title, for pages without a description of their own (an article\'s lead or the beginning of its text). Ideally 50–160 characters.',

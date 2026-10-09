@@ -601,6 +601,7 @@ return [
     'settings.slogan_help' => 'Rövid sor a név alatt a címlapon.',
     'settings.url' => 'Webcím (URL)',
     'settings.url_help' => 'Az internetes cím, amelyen a látogatók elérik a webhelyet, https://-sel (és a mappával, ha a webhely mappában van). A kanonikus URL-ekhez, a megosztáshoz és a sitemap.xml-hez kell.',
+    'settings.url_missing' => 'Még nincs megadva.',
     'settings.url_origin' => 'Ezt az oldalt a(z) {origin} címen nyitották meg.',
     'settings.description' => 'Alapértelmezett leírás',
     'settings.description_help' => 'A keresők az oldal címe alatt mutathatják, azoknál az oldalaknál, amelyeknek nincs saját leírásuk (egy cikk bevezetője vagy szövegének eleje). Ideálisan 50–160 karakter.',

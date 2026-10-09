@@ -15,6 +15,9 @@ backward-incompatible.
 - The Site settings field of the site's address is called *Web address (URL)*
   (Hungarian: *Webcím (URL)*): "A webhely címe" could be read as the site's
   title, and the System page's warning now names the field to fill in.
+- The empty field no longer shows the address the page was opened at as its
+  placeholder (it looked like a saved value): it says *Not set yet*, and the
+  suggested address is in the help text.
 
 ## [0.1.1] – 2026-10-09
 

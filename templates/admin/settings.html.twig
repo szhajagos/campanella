@@ -30,8 +30,9 @@
                     </div>
                     <div class="mb-0">
                         <label for="settings-url" class="form-label fw-semibold">{{ t('settings.url') }}</label>
-                        <input type="url" class="form-control{{ _self.invalid(errors, 'url') }}" id="settings-url" name="url" value="{{ form.url }}" maxlength="{{ max.url }}" placeholder="{{ origin ?? 'https://example.hu' }}" inputmode="url" autocomplete="off"{{ _self.described(errors, 'url') }}>
+                        <input type="url" class="form-control{{ _self.invalid(errors, 'url') }}" id="settings-url" name="url" value="{{ form.url }}" maxlength="{{ max.url }}" placeholder="https://example.hu" inputmode="url" autocomplete="off"{{ _self.described(errors, 'url') }}>
                         <div class="form-text" id="settings-url-help">
+                            {% if form.url == '' and not (errors.url ?? null) %}<span class="d-block text-warning-emphasis fw-semibold">{{ t('settings.url_missing') }}</span>{% endif %}
                             {{ t('settings.url_help') }}
                             {% if origin and origin != form.url %}{{ t('settings.url_origin', {origin: origin}) }}{% endif %}
                         </div>
