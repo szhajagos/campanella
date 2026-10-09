@@ -77,8 +77,8 @@ reach its database from the review's environment: it runs in CI instead.
   the counter between guesses at others. Behind one shared address (an
   office) the setting `max_attempts_per_ip` can be raised.
 - **No absolute session lifetime:** a session ends after 2 hours without
-  activity (`session.idle_timeout`), but not while it is used. Planned with
-  the session list ("Login extensions" in the ROADMAP).
+  activity (`session.idle_timeout`), but not while it is used. Planned for
+  0.1.4, with the session list (see the ROADMAP).
 - **The installer shows the requirements** (PHP and database versions,
   missing extensions) to anyone before the site is installed: it helps the
   person installing, and there is nothing yet to protect. Once a user exists,

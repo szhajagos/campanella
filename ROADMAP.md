@@ -3,7 +3,8 @@
 Campanella evolves in small steps: every feature gets its own version, with
 its own tests, documentation and CHANGELOG entry. Since 0.1.0 (the first
 milestone, 2026-10-08) a real website can be run and managed from the
-browser; the next versions are 0.1.x (fixes) and 0.2.0, 0.3.0 … (features).
+browser. Each milestone (0.2.0, 0.3.0 …) is reached in small steps
+(0.1.1, 0.1.2 …), each a release of its own.
 
 The roadmap is a direction, not a promise: the order may change based on experience.
 Completed changes are listed in the [CHANGELOG](CHANGELOG.md).
@@ -24,18 +25,38 @@ Completed changes are listed in the [CHANGELOG](CHANGELOG.md).
 
 ## Next
 
-To be planned together, from the *Later* list below. Candidates: site basics
-(meta description, sitemap.xml, robots.txt), a forgotten password by e-mail
-(with e-mail sending and the Event / Action system), image variants and an
-image picker, site settings edited in the admin, the session list.
+### 0.2.0 – "The site communicates" (agreed in detail on 2026-10-09)
+
+The site presents itself properly to search engines and social sites, sends
+e-mail, lets users recover their password, and takes messages from visitors.
+Each step below is a release of its own, with tests, documentation and a
+CHANGELOG entry; small additions may join a step along the way.
+
+| Version | Contents |
+|---|---|
+| 0.1.1 | **Site basics.** Site settings edited in the admin (name, slogan, default meta description, image for social sharing), stored in the database, with the configuration file as fallback. `<meta name="description">` (from the lead, or the site's default), canonical URLs, Open Graph tags; `sitemap.xml` of the public content; `robots.txt` (the admin excluded). |
+| 0.1.2 | **Images.** Image variants (a thumbnail and sizes for `srcset`), made on upload and re-encoded like the original; tracking where an image is used, so its delete page lists the texts that use it. |
+| 0.1.3 | **Events and e-mail.** The Event / Action foundation (`ObjectPublished`, `UserCreated` …; workflows and a state machine later). Sending e-mail with symfony/mailer: SMTP or PHP's `mail()`, translatable templates, a log, a test e-mail from the System page. |
+| 0.1.4 | **Forgotten password and sessions.** A password reset by e-mail (a single-use, short-lived link; the same answer whether the address exists or not); the list of one's sessions on the profile, with "log out everywhere"; an absolute session lifetime. Closes the related accepted risks in [docs/security.md](docs/security.md). |
+| 0.1.5 | **Webform.** A contact form (honeypot, throttling, CSRF); the submissions are objects, listed in the admin; an e-mail notification about each. |
+| 0.2.0 | **Release:** upgrade guide, and a short security review of the new forms and of e-mail sending. |
+
+### 0.3.0 – planned so far
+
+- **Search** with the database's FULLTEXT index (MariaDB / MySQL): simple and
+  fast; a more sophisticated search engine may come later.
+- **Redirects:** an automatic 301 redirect when a path changes, and a list of
+  redirects in the admin.
+- **Image picker** in the editor (choosing an uploaded image).
 
 ## Later
 
-- **Event / Action / Workflow:** events (`ObjectPublished` …), operations
-  bound to them (e-mail, webhook), a state machine for publishing.
+- **Workflow** (on the Event / Action foundation of 0.1.3): more operations
+  bound to events (e.g. webhooks), a state machine for publishing.
 - **Component / Region / Layout / Page:** assembling pages from components,
   instead of Drupal-style blocks.
-- **Webform:** forms as a user interface for object operations.
+- **Webform, extended** (after the contact form of 0.1.5): forms as a user
+  interface for object operations.
 - **Comments** (2026-10-07), after the Webform and the Event system (they need
   moderation and protection against spam): a `comment` Blueprint (`Textual`,
   `Authorable`, `Publishable` for moderation) with a required `subject`
@@ -46,15 +67,7 @@ image picker, site settings edited in the admin, the session list.
   closed, the count).
 - **Cache:** object, query and render cache with cache tags and contexts.
 - **JSON API** according to the [HTTP API draft](docs/http-api/README.md).
-- **Media:** file storage, image variants (thumbnails, sizes for `srcset`),
-  and tracking where an image is used (e.g. a relation filled from the texts
-  on save), so the delete page can list those texts, and an image picker in
-  the editor (choosing an uploaded image).
-- **Site basics** (moved out of 0.1.0, 2026-10-08): `<meta name="description">`
-  from the lead, canonical URLs, `sitemap.xml` of the public content,
-  `robots.txt`.
-- **Forgotten password by e-mail** (after e-mail sending; user management
-  itself comes in 0.1.0).
+- **Media:** storing other files (documents) besides images.
 - **Blueprints defined in the admin** (until then: `config/blueprints.php`).
   Every object stays in `objects`; the question is only where a custom field
   of such a Blueprint is stored. A per-field (or per-Blueprint) setting
@@ -76,11 +89,10 @@ image picker, site settings edited in the admin, the session list.
   - New kinds of capabilities stay code (they carry behaviour): they come from
     modules, not from the admin.
 - **Multilingual content.**
-- **Search**, URL aliases and redirects, trash, audit log.
+- **Trash, audit log.**
 - **Login extensions:** two-factor authentication (e.g. TOTP) as its own
   capability, inserted between password verification and logging in;
-  additional `LoginGuard`s (CAPTCHA); password reset by e-mail (after
-  Event/Action and mail sending); listing sessions and logging them out.
+  additional `LoginGuard`s (CAPTCHA).
 
 ## Accepted decisions
 
@@ -118,6 +130,10 @@ image picker, site settings edited in the admin, the session list.
   with children cannot be deleted; the depth is at most 10. A relation to an
   object of another kind (e.g. a comment and its article) is a relation, not
   a parent.
+- **E-mail: symfony/mailer** (2026-10-09), MIT licensed; SMTP or PHP's
+  `mail()`.
+- **Search: the database's FULLTEXT index** (2026-10-09), in 0.3.0; a more
+  sophisticated search engine only later, if needed.
 - **Language:** code, documentation, comments, commit messages and
   developer-facing messages are English; the UI is multilingual via the
   translation layer, with Hungarian as a first-class translation (2026-09-30).
