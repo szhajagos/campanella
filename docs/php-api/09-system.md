@@ -106,7 +106,7 @@ New controller: a `controller.<name>` entry in the container, and a route in
 | `admin.path`, `admin.roles` | `'/admin'`, `['administrator', 'editor']` | ([chapter 13](13-admin.md#access)) |
 | `media.*` | see [chapter 16](16-media.md#settings-configappphp-media) | Uploaded images |
 | `admin.system_roles` | `['administrator']` | Who may open the System page ([chapter 14](14-system-check.md)) |
-| `site.name`, `site.slogan` | `'Campanella'`, … | |
+| `site.name`, `site.slogan`, `site.description`, `site.url`, `site.share_image`, `site.indexing` | `'Campanella'`, … | `site.url`: `CAMPANELLA_SITE_URL`. Until saved on the admin's Site settings page ([chapter 20](20-site.md#the-sites-settings-sitesettings)) |
 | `database.host` | `'localhost'` | `CAMPANELLA_DB_HOST` |
 | `database.port` | `3306` | `CAMPANELLA_DB_PORT` |
 | `database.name` | `'campanella'` | `CAMPANELLA_DB_NAME` |
@@ -131,7 +131,7 @@ set, it is the project root (by default the parent directory of `public/`).
 
 `Campanella\Core\Version` · **Public**
 
-`CAMPANELLA = '0.1.0'` (the system version) and `SCHEMA = '6'` (the version of
+`CAMPANELLA = '0.1.1'` (the system version) and `SCHEMA = '7'` (the version of
 the core tables; incremented for a new core table. Changes of existing tables
 are migrations: [chapter 17](17-migrations.md)).
 `MIN_UPGRADE_SCHEMA = '6'` (since 0.1.0): the oldest schema an upgrade can start

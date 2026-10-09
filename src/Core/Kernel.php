@@ -5,7 +5,12 @@ declare(strict_types=1);
 namespace Campanella\Core;
 
 use Campanella\Cli\Output;
+use Campanella\Settings\Settings;
+use Campanella\Site\MetaBuilder;
+use Campanella\Site\SiteSettings;
+use Campanella\Site\SiteValues;
 use Campanella\Service\UserService;
+use Campanella\Admin\SettingsPage;
 use Campanella\Admin\StructurePages;
 use Campanella\Admin\UserPages;
 
@@ -30,6 +35,7 @@ use Campanella\Controller\AuthController;
 use Campanella\Controller\Controller;
 use Campanella\Controller\ObjectController;
 use Campanella\Controller\QueryController;
+use Campanella\Controller\SiteController;
 use Campanella\Database\Connection;
 use Campanella\Database\DatabaseBackup;
 use Campanella\Database\Installer;
@@ -67,6 +73,7 @@ use Campanella\Media\MediaCheck;
 use Campanella\Media\MediaService;
 use Campanella\Media\MediaStorage;
 use Campanella\System\SecurityCheck;
+use Campanella\System\SiteCheck;
 use Campanella\System\SystemCheck;
 use Campanella\System\TemplateCache;
 use Twig\Environment;
@@ -109,7 +116,7 @@ final class Kernel
         } catch (\Throwable $e) {
             return (new SecurityHeaders())->apply($this->failure($e), $request);
         }
-        $response = $this->dispatch($request);
+        $response = $this->noindex($this->dispatch($request));
         try {
             return $this->container()->get(SecurityHeaders::class)->apply($response, $request);
         } catch (\Throwable) {
@@ -118,12 +125,36 @@ final class Kernel
         }
     }
 
+    /**
+     * While search engines are asked not to index the site (Site settings), every
+     * response without its own X-Robots-Tag says noindex (since 0.1.1).
+     */
+    private function noindex(Response $response): Response
+    {
+        try {
+            if (!isset($response->headers['X-Robots-Tag']) && !$this->container()->get(SiteSettings::class)->indexing()) {
+                return $response->withHeader('X-Robots-Tag', 'noindex');
+            }
+        } catch (\Throwable) {
+            // The settings cannot be read: the response as it is.
+        }
+
+        return $response;
+    }
+
     private function dispatch(Request $request): Response
     {
         // The Twig extension reads the URL prefix from here per request, so the
         // container (and the services overridden in it) persists between requests.
         $this->basePath = $request->basePath;
         $this->request = $request;
+        // The settings are read again for every request (one may have saved them since).
+        try {
+            $this->container()->get(SiteSettings::class)->reset();
+            $this->container()->get(SiteValues::class)->reset();
+        } catch (\Throwable) {
+            // A broken configuration is reported below, by the route's handling.
+        }
 
         try {
             $container = $this->container();
@@ -196,6 +227,24 @@ final class Kernel
         $c->set(BlueprintRegistry::class, static fn (Container $c): BlueprintRegistry => new BlueprintRegistry(
             $c->get(CapabilityRegistry::class),
             require $root . '/config/blueprints.php',
+        ));
+
+        // The settings edited in the admin (since 0.1.1), over the configuration file's.
+        $c->set(Settings::class, static fn (Container $c): Settings => new Settings($c->get(Connection::class)));
+        $c->set(SiteSettings::class, static fn (Container $c): SiteSettings => new SiteSettings(
+            $c->get(Settings::class),
+            (array) $c->get(Config::class)->get('site', []),
+            $c->get(ObjectRepository::class),
+        ));
+        $c->set(SiteValues::class, static fn (Container $c): SiteValues => new SiteValues(
+            static fn (): array => $c->get(SiteSettings::class)->values(),
+        ));
+
+        $c->set(MetaBuilder::class, static fn (Container $c): MetaBuilder => new MetaBuilder(
+            $c->get(SiteSettings::class),
+            $c->get(QueryEngine::class),
+            $c->get(MediaStorage::class),
+            (string) $c->get(Config::class)->get('media.url', '/media'),
         ));
 
         $c->set(TrustedProxies::class, static fn (Container $c): TrustedProxies => new TrustedProxies(
@@ -279,6 +328,7 @@ final class Kernel
             );
             $system->add(MediaCheck::checks($c->get(ImageProcessor::class), $c->get(MediaStorage::class)));
             $system->add(SyncCheck::checks($c->get(Installer::class), $c->get(SchemaSync::class)));
+            $system->add(SiteCheck::checks($c->get(SiteSettings::class), $root . '/public'));
             $system->add(SecurityCheck::checks(
                 $root,
                 $c->get(TrustedProxies::class),
@@ -430,7 +480,7 @@ final class Kernel
             $twig->addExtension(new CampanellaTwigExtension(
                 static fn (): Presentation => $c->get(Presentation::class),
                 $basePath,
-                ['site' => $config->get('site', []), 'campanella_version' => Version::CAMPANELLA],
+                ['site' => $c->get(SiteValues::class), 'campanella_version' => Version::CAMPANELLA],
                 static fn () => $c->get(AuthService::class)->currentUser($currentRequest()),
                 static fn (): string => $c->get(Csrf::class)->token($currentRequest()),
                 static fn (): Translator => $c->get(Translator::class),
@@ -464,6 +514,9 @@ final class Kernel
             $router->prefix($c->get(AdminAccess::class)->path(), 'admin');
             $router->add($c->get(AdminAccess::class)->path('upgrade'), 'upgrade');
             $router->add(InstallController::PATH, 'install');
+            // For search engines (since 0.1.1).
+            $router->add('/robots.txt', 'site', ['action' => 'robots']);
+            $router->add('/sitemap.xml', 'site', ['action' => 'sitemap']);
 
             return $router;
         });
@@ -473,6 +526,7 @@ final class Kernel
             $c->get(Presentation::class),
             $c->get(BlueprintRegistry::class),
             $c->get(RelationLoader::class),
+            $c->get(MetaBuilder::class),
         ));
 
         $c->set('controller.admin', static fn (Container $c): Controller => new AdminController(
@@ -501,6 +555,7 @@ final class Kernel
             new UserPages($c->get(UserService::class), $c->get(AuthService::class), $c->get(Csrf::class), $c->get(Flash::class), $c->get(AdminAccess::class)),
             $c->get(UserService::class),
             new StructurePages($c->get(BlueprintRegistry::class), $c->get(CapabilityRegistry::class), $c->get(QueryEngine::class), $c->get(AdminAccess::class)),
+            new SettingsPage($c->get(SiteSettings::class), $c->get(QueryEngine::class), $c->get(MediaStorage::class), $c->get(Csrf::class), $c->get(Flash::class), $c->get(AdminAccess::class)),
         ));
 
         $c->set('controller.upgrade', static fn (Container $c): Controller => new UpgradeController(
@@ -535,7 +590,22 @@ final class Kernel
                 $stream = fopen('php://memory', 'w+');
                 (new SeedCommand())->run($c, [], new Output($stream ?: STDOUT, $stream ?: STDERR));
             },
+            $c->get(SiteSettings::class),
         ));
+
+        $c->set('controller.site', static function (Container $c): Controller {
+            $router = $c->get(Router::class);
+            $admin = $c->get(AdminAccess::class);
+
+            return new SiteController(
+                $c->get(SiteSettings::class),
+                $c->get(QueryEngine::class),
+                $router->paths('query'),
+                // The admin only at its default path: a path of its own is not revealed here
+                // (the admin pages send noindex themselves).
+                [...($admin->path() === '/admin' ? ['/admin/'] : []), ...$router->paths('auth'), InstallController::PATH],
+            );
+        });
 
         $c->set('controller.auth', static fn (Container $c): Controller => new AuthController(
             $c->get(AuthService::class),
@@ -549,6 +619,7 @@ final class Kernel
             $c->get(Presentation::class),
             require $root . '/config/queries.php',
             $c->get(RelationLoader::class),
+            $c->get(MetaBuilder::class),
         ));
 
         return $c;
@@ -621,6 +692,7 @@ final class Kernel
             );
         }
 
-        return Response::html($html, $status);
+        // An error page is never indexed (since 0.1.1).
+        return Response::html($html, $status)->withHeader('X-Robots-Tag', 'noindex');
     }
 }

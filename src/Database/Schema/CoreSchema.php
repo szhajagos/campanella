@@ -17,6 +17,7 @@ final class CoreSchema
     public const string THROTTLE = 'throttle';
     public const string FIELD_VALUES = 'field_values';
     public const string MIGRATIONS = 'migrations';
+    public const string SETTINGS = 'settings';
 
     /** @return list<Table> */
     public static function tables(): array
@@ -115,6 +116,17 @@ final class CoreSchema
                     new Column('duration_ms', ColumnType::Integer, default: 0),
                 ],
                 primaryKey: ['id'],
+            ),
+            // Settings edited in the admin (since 0.1.1, schema version 7), e.g. the site's
+            // name: name => value as text. Read through Campanella\Settings\Settings.
+            new Table(
+                name: self::SETTINGS,
+                columns: [
+                    new Column('name', ColumnType::String, length: 128),
+                    new Column('value', ColumnType::Text, nullable: true),
+                    new Column('updated_at', ColumnType::DateTime),
+                ],
+                primaryKey: ['name'],
             ),
             // Throttling of attempts (e.g. login). The SHA-256 hash of the key.
             new Table(

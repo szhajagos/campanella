@@ -12,12 +12,14 @@ use Campanella\Http\RouteMatch;
 use Campanella\Query\Query;
 use Campanella\Query\QueryEngine;
 use Campanella\Relation\RelationLoader;
+use Campanella\Site\MetaBuilder;
 use Campanella\View\Presentation;
 use Closure;
 
 /**
  * The result of a named Query as a list (instead of Drupal Views).
- * Query definitions live in config/queries.php.
+ * Query definitions live in config/queries.php. With a MetaBuilder, the page gets
+ * its meta description, canonical URL and Open Graph data (`meta`).
  */
 final class QueryController implements Controller
 {
@@ -27,6 +29,7 @@ final class QueryController implements Controller
         private readonly Presentation $presentation,
         private readonly array $definitions,
         private readonly ?RelationLoader $relations = null,
+        private readonly ?MetaBuilder $meta = null,
     ) {
     }
 
@@ -50,9 +53,13 @@ final class QueryController implements Controller
             'path' => $request->path,
         ]);
 
+        $title = (string) ($route->params['title'] ?? '');
+
         return Response::html($this->presentation->render('page/query.html.twig', [
-            'title' => (string) ($route->params['title'] ?? ''),
+            'title' => $title,
             'content' => $list,
+            // The page's description, canonical URL and Open Graph data (since 0.1.1).
+            'meta' => $this->meta?->forPath($request->path, $title, $page),
         ]));
     }
 }

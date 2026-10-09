@@ -78,7 +78,7 @@ final class AuthController implements Controller
             'error' => $error,
             'target' => $target,
             'guard_fields' => implode('', array_map(static fn ($g): string => $g->fields(), $this->auth->guards())),
-        ]), $status);
+        ]), $status)->withHeader('X-Robots-Tag', 'noindex'); // the login page is not content (since 0.1.1)
     }
 
     /** Only a path within this site is accepted (against open redirects). */

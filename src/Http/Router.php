@@ -65,6 +65,17 @@ final class Router
         return false;
     }
 
+    /**
+     * The fixed paths handled by a handler (e.g. the lists: `query`), in the order they
+     * were added. Prefix routes are not included. Since 0.1.1.
+     *
+     * @return list<string>
+     */
+    public function paths(string $handler): array
+    {
+        return array_keys(array_filter($this->routes, static fn (RouteMatch $route): bool => $route->handler === $handler));
+    }
+
     public function match(Request $request): RouteMatch
     {
         if (isset($this->routes[$request->path])) {

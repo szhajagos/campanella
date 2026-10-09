@@ -10,6 +10,75 @@ backward-incompatible.
 
 ## [Unreleased]
 
+## [0.1.1] – 2026-10-09
+
+The first step towards 0.2.0 ("the site communicates"): site basics. The
+site's name, slogan, default description, address and share image are edited
+in the admin; every public page has a meta description, a canonical URL and
+Open Graph tags; `sitemap.xml` and `robots.txt` are made from the content.
+
+**Upgrading from 0.1.0:**
+
+1. Upload the new files (the dependencies did not change).
+2. Run `php bin/campanella install`, or open `/admin/upgrade`: it creates the
+   new `settings` table (schema version 7; no migration). Until then the site
+   answers 503.
+3. Open **System → Site settings** (`/admin/system/settings`): set the site's
+   address (e.g. `https://example.hu`), check the name and the slogan (until
+   saved, they come from `config/app.php` as before), and save. Without the
+   address the pages have no canonical URL or share link, and there is no
+   `sitemap.xml`; the System page warns about it.
+
+For themes: `site` in templates is now a read-only object that reads the
+settings on first use. `{{ site.name }}`, `site.x is defined` and
+`{% for key, value in site %}` work as before; filters that need an array
+(e.g. `site|merge(…)`) need `site.toArray()` instead.
+
+### Added
+
+- **Site settings** in the admin (`/admin/system/settings`, for
+  administrators): the site's name, slogan, default meta description, address,
+  share image, and whether search engines may index the site. Stored in the new
+  `settings` table (`Campanella\Settings\Settings`); a setting never saved comes
+  from the `site` section of the configuration file (`SiteSettings`).
+- **Meta tags** on the object pages and lists (`MetaBuilder`, `PageMeta`,
+  `templates/page/_meta.html.twig`): the meta description (an article's lead,
+  else the beginning of its text, else the site's default), the canonical URL,
+  Open Graph (`og:title`, `og:type` with an article's times, `og:url`,
+  `og:description`, `og:image` with its size: the first uploaded image of the
+  text, else the site's share image) and `twitter:card`.
+- **`/sitemap.xml`**: the lists and every page the anonymous visitor can see
+  (drafts and scheduled content never), with their last modification; an index
+  of several files above 2,000 addresses.
+- **`/robots.txt`**: keeps search engines out of the admin (at its default
+  path), the login and the installer, and points to the sitemap.
+- While indexing is turned off, every response says `noindex` (the pages'
+  head and the `X-Robots-Tag` header), and there is no sitemap.
+- The browser installer saves the address it was opened at as the site's
+  address.
+- The System page's new *Site* group: the site's address (not set, or
+  different from the address the page was opened at), indexing, a
+  `robots.txt` file in `public/`.
+- `Router::paths()`: the fixed paths of a handler.
+- Documentation: [chapter 20, The site](docs/php-api/20-site.md); the site's
+  address and search engines in the [deployment guide](docs/deployment.md).
+
+### Changed
+
+- `site` in templates: the saved settings over the configuration file's (see
+  above). `config/app.php` has the new keys `site.description`, `site.url`
+  (or `CAMPANELLA_SITE_URL`), `site.share_image`, `site.indexing`.
+- `ObjectController` and `QueryController` take an optional `MetaBuilder` and
+  pass `meta` to their templates; the base layout has a `meta` block.
+
+### Security
+
+- Absolute URLs are made only from the configured site address, never from
+  the request's `Host` header, so a forged `Host` cannot put another site's
+  address into a page or the sitemap. The browser installer saves the address
+  it was opened at only if the configuration file sets none.
+- The login page and every error page send `X-Robots-Tag: noindex`.
+
 ## [0.1.0] – 2026-10-08
 
 The first milestone: a real website can be run and managed from the browser.

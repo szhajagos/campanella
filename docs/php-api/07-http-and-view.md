@@ -128,6 +128,7 @@ renders an error page with the given status.
 | `isRouted(string $path): bool` | Whether a fixed route or a prefix route handles the path (an object cannot live there) |
 | `prefix(string $prefix, string $handler, array $params = []): void` | A route for a path and everything below it (e.g. the admin); the rest of the path is passed as the `subpath` parameter (since 0.0.4) |
 | `match(Request $request): RouteMatch` | A static route if one exists; else the longest matching prefix; otherwise `RouteMatch('object', ['path' => …])` |
+| `paths(string $handler): list<string>` | The fixed paths of a handler, in the order they were added (e.g. the lists for the sitemap; since 0.1.1) |
 
 `Campanella\Http\RouteMatch` · `final readonly class`: `$handler` (the
 controller name) and `$params`.
@@ -166,8 +167,10 @@ and renders it with the `page/object.html.twig` template in `full` mode. If
 there is no such object, or the `Actor` may not see it: 404.
 
 Constructor: `__construct(QueryEngine $queries, Presentation $presentation,
-BlueprintRegistry $blueprints, RelationLoader $relations)`. Template variables:
-`object`, `title`, `lists` (`array<string, array{label: string, result: ResultSet}>`).
+BlueprintRegistry $blueprints, RelationLoader $relations, ?MetaBuilder $meta = null)`.
+Template variables: `object`, `title`, `lists` (`array<string, array{label: string,
+result: ResultSet}>`), `breadcrumbs`, `children`, and with a `MetaBuilder`, `meta`
+(since 0.1.1; [chapter 20](20-site.md#metabuilder)).
 
 ### QueryController
 
@@ -184,8 +187,16 @@ The result of a named Query as a paginated list. Query definitions live in
 | `item_mode` | The rendering mode of the items, `teaser` by default |
 
 Constructor: `__construct(QueryEngine $queries, Presentation $presentation,
-array $definitions, ?RelationLoader $relations = null)`; if given one, it also
-loads the relations of the list items.
+array $definitions, ?RelationLoader $relations = null, ?MetaBuilder $meta = null)`;
+with a RelationLoader it also loads the relations of the list items, with a
+MetaBuilder it passes `meta` (since 0.1.1).
+
+### SiteController
+
+`Campanella\Controller\SiteController` · handler: `site` (since 0.1.1)
+
+`/robots.txt` and `/sitemap.xml`, made from the site's settings and content:
+[chapter 20](20-site.md#robotstxt-and-sitemapxml-sitecontroller).
 
 The page number comes from the `?page=` parameter. For a non-existent page
 (from page 2 onward, if empty): 404.
@@ -221,7 +232,8 @@ Template variables:
 |---|---|
 | object | `object`, `mode` + the `$context` |
 | list | `result` (ResultSet), `name`, `item_mode`, `path` + the `$context` |
-| every template | `site` (the `site` key of `config/app.php`), `campanella_version` |
+| every template | `site` (the site's settings: saved in the admin, else the `site` key of `config/app.php`; [chapter 20](20-site.md)), `campanella_version` |
+| object page, list | `meta` (a `PageMeta`: description, canonical URL, Open Graph; since 0.1.1) |
 
 Each lookup first checks the active theme's folder, then the core templates
 (see below), so a theme can override any single template.

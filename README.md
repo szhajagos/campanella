@@ -1,12 +1,13 @@
-# Campanella 0.1.0
+# Campanella 0.1.1
 
 [![CI](https://github.com/szhajagos/campanella/actions/workflows/ci.yml/badge.svg)](https://github.com/szhajagos/campanella/actions/workflows/ci.yml)
 
 A capability-driven CMS. There are no predefined content types: an object's
 behavior is determined by the capabilities attached to it.
 
-0.1.0 is the first milestone: a real website can be run and managed from the
-browser with it. It is still 0.x: the code and the PHP API may change between
+0.1.0 was the first milestone: a real website can be run and managed from the
+browser with it; 0.1.1 … lead to 0.2.0, where the site communicates (see the
+[ROADMAP](ROADMAP.md)). It is still 0.x: the code and the PHP API may change between
 versions (the [CHANGELOG](CHANGELOG.md) always says how).
 
 ## What it can do
@@ -20,6 +21,10 @@ versions (the [CHANGELOG](CHANGELOG.md) always says how).
 - **Users:** administrators and editors, managed in the browser; a profile
   with one's own password; login protection (throttling, a honeypot, the same
   answer for every failure).
+- **For search engines and sharing** (since 0.1.1): the site's name,
+  description and address edited in the admin; meta description, canonical
+  URL and Open Graph tags on every page; `sitemap.xml` and `robots.txt` made
+  from the content.
 - **Installing and upgrading from the browser**, for web hosts without a
   command line (with a key), or from the command line; migrations with a
   built-in backup.
@@ -148,7 +153,7 @@ line, log in and open `/admin/upgrade`: it does the same, with a backup first
 ([docs/php-api/17-migrations.md](docs/php-api/17-migrations.md)).
 The [CHANGELOG](CHANGELOG.md) lists the changes version by version, and the
 extra steps of an upgrade at the top of the version's section. An installation
-older than 0.0.6 is upgraded to 0.0.7 first, then to 0.1.0.
+older than 0.0.6 is upgraded to 0.0.7 first, then to the current version.
 
 ## Commands
 
@@ -176,7 +181,7 @@ On every push, GitHub runs the checks above
 documentation checks, `composer audit` (known vulnerabilities of the
 dependencies), and the tests on MariaDB 10.6 and 11.4, and MySQL 8.0 and 8.4. The results are shown next to the commits and on the Actions tab.
 
-After a version tag (`git tag v0.1.0 && git push --tags`), GitHub builds the
+After a version tag (`git tag v0.1.1 && git push --tags`), GitHub builds the
 installation package and attaches it to the release. For an existing tag it
 can also be started manually: Actions → CI → Run workflow, entering the tag.
 
@@ -311,9 +316,9 @@ on its own.
 
 ## Not included yet
 
-A forgotten password by e-mail, Component / Region / Layout, Webform,
-Event / Action, cache, multilingual content, image variants and an image
-picker.
+A forgotten password by e-mail, e-mail sending, Event / Action, a contact
+form, image variants (all planned for 0.2.0), search and redirects, an image
+picker (0.3.0), Component / Region / Layout, cache, multilingual content.
 
 ## Made with AI assistance
 

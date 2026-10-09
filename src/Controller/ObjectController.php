@@ -18,13 +18,15 @@ use Campanella\Query\Query;
 use Campanella\Query\QueryEngine;
 use Campanella\Query\ResultSet;
 use Campanella\Relation\RelationLoader;
+use Campanella\Site\MetaBuilder;
 use Campanella\View\Presentation;
 
 /**
  * The own page of a Routable object (Full rendering).
  *
  * Before rendering it loads the related objects and runs the Blueprint's
- * 'lists' (e.g. the articles on a category's page).
+ * 'lists' (e.g. the articles on a category's page). With a MetaBuilder, the page
+ * gets its meta description, canonical URL and Open Graph data (`meta`).
  */
 final class ObjectController implements Controller
 {
@@ -36,6 +38,7 @@ final class ObjectController implements Controller
         private readonly Presentation $presentation,
         private readonly BlueprintRegistry $blueprints,
         private readonly RelationLoader $relations,
+        private readonly ?MetaBuilder $meta = null,
     ) {
     }
 
@@ -75,6 +78,8 @@ final class ObjectController implements Controller
             'lists' => $lists,
             'breadcrumbs' => $breadcrumbs,
             'children' => $children,
+            // The page's description, canonical URL and Open Graph data (since 0.1.1).
+            'meta' => $this->meta?->forObject($object),
         ]));
     }
 }

@@ -159,7 +159,9 @@ browser too: the page checks the requirements (PHP, the required extensions,
 the database connection, the writable folders `var/cache`, `var/backups` and
 the media folder), then creates the tables (`Installer::install()`) and the
 first administrator (name, e-mail address, password twice), optionally with
-the sample content (`seed`), and logs them in.
+the sample content (`seed`), and logs them in. The address the page was opened
+at becomes the site's address (since 0.1.1; changeable under Site settings,
+[chapter 20](20-site.md)).
 
 - **Only with the install key.** Anyone who finds a freshly uploaded site
   could otherwise install it as their own (and become its administrator). The

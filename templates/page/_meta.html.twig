@@ -1,0 +1,37 @@
+{# What the page tells search engines and social sites (since 0.1.1): `meta` is a
+   Campanella\Site\PageMeta. An element whose value is missing is left out. -#}
+{% if meta.robots %}
+    <meta name="robots" content="{{ meta.robots }}">
+{% endif %}
+{% if meta.description %}
+    <meta name="description" content="{{ meta.description }}">
+{% endif %}
+{% if meta.canonical %}
+    <link rel="canonical" href="{{ meta.canonical }}">
+{% endif %}
+    <meta property="og:site_name" content="{{ meta.siteName }}">
+    <meta property="og:title" content="{{ meta.title }}">
+    <meta property="og:type" content="{{ meta.type }}">
+{% if meta.canonical %}
+    <meta property="og:url" content="{{ meta.canonical }}">
+{% endif %}
+{% if meta.description %}
+    <meta property="og:description" content="{{ meta.description }}">
+{% endif %}
+{% if meta.imageUrl %}
+    <meta property="og:image" content="{{ meta.imageUrl }}">
+{% if meta.imageWidth and meta.imageHeight %}
+    <meta property="og:image:width" content="{{ meta.imageWidth }}">
+    <meta property="og:image:height" content="{{ meta.imageHeight }}">
+{% endif %}
+{% if meta.imageAlt %}
+    <meta property="og:image:alt" content="{{ meta.imageAlt }}">
+{% endif %}
+{% endif %}
+{% if meta.publishedTime %}
+    <meta property="article:published_time" content="{{ meta.publishedTime }}">
+{% endif %}
+{% if meta.modifiedTime %}
+    <meta property="article:modified_time" content="{{ meta.modifiedTime }}">
+{% endif %}
+    <meta name="twitter:card" content="{{ meta.imageUrl ? 'summary_large_image' : 'summary' }}">

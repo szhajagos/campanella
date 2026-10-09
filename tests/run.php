@@ -3731,8 +3731,9 @@ test('Installing from the browser: tables made in phpMyAdmin, but no user yet', 
     check($page->status === 200 && str_contains($page->body, 'A táblák már léteznek'), 'open while there is no user');
     preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $page->body, $m);
     $storage->endRequest();
-    $done = $kernel->handle(new Request('POST', '/install', post: ['_csrf' => $m[1] ?? '', 'key' => $key, 'name' => 'Admin', 'email' => 'admin@example.hu', 'password' => 'masodik-jelszo-1', 'password_again' => 'masodik-jelszo-1']));
+    $done = $kernel->handle(new Request('POST', '/install', post: ['_csrf' => $m[1] ?? '', 'key' => $key, 'name' => 'Admin', 'email' => 'admin@example.hu', 'password' => 'masodik-jelszo-1', 'password_again' => 'masodik-jelszo-1'], headers: ['host' => 'uj-webhely.example:8080']));
     check($done->status === 303 && $container->get(Installer::class)->userCount() === 1, 'no sample content without the box');
+    check($container->get(\Campanella\Settings\Settings::class)->get('site.url') === 'http://uj-webhely.example:8080', 'the site\'s address: where it was installed from');
     check($container->get(\Campanella\Query\QueryEngine::class)->count(Query::objects()->blueprint('article'), Actor::system()) === 0);
     $dropSchema();
     putenv('CAMPANELLA_DB_PREFIX');
@@ -4027,6 +4028,329 @@ test('Throttle: one atomic count per attempt; an expired window starts again', f
     check($t->hit('lejart', 60) === 1, 'an expired window starts at 1');
     $t->clear('atom');
     $t->clear('lejart');
+});
+
+echo "\nSite basics (0.1.1)\n";
+
+/** An image object without a file (enough for meta tags and settings). */
+$fakeImage = static function (string $title, int $width = 1200, int $height = 630) use ($repository) {
+    $image = $repository->create('image', [
+        'title' => $title,
+        'alt' => $title . ' leírása',
+        'file_path' => '2026/10/' . bin2hex(random_bytes(12)) . '.jpg',
+        'mime_type' => 'image/jpeg',
+        'file_size' => 1000,
+        'width' => $width,
+        'height' => $height,
+        'file_hash' => hash('sha256', random_bytes(8)),
+    ]);
+    $repository->save($image);
+
+    return $image;
+};
+
+test('Settings: saved values by name, removed with null; no table is no error', function () use ($db, $config): void {
+    $S = \Campanella\Settings\Settings::class;
+    $settings = new $S($db);
+    $settings->set(['site.name' => 'Próba', 'site.slogan' => '', 'other.key' => 'x']);
+    check($settings->isAvailable() && $settings->get('site.name') === 'Próba' && $settings->get('site.slogan') === '' && $settings->get('site.url') === null);
+    check($settings->all('site.') === ['site.name' => 'Próba', 'site.slogan' => ''], json_encode($settings->all('site.')));
+    $other = new $S($db);
+    $other->set(['site.name' => null]);
+    check($settings->get('site.name') === 'Próba', 'read once per instance');
+    $settings->reset();
+    check($settings->get('site.name') === null, 'removed: falls back again');
+    foreach (['Site.name', 'site', 'site..x', 'site.név', "site.a\n"] as $bad) {
+        throws(\InvalidArgumentException::class, fn () => $settings->set([$bad => 'x']));
+    }
+    $settings->set(['site.slogan' => null, 'other.key' => null]);
+    $missing = new $S(Connection::fromConfig(['prefix' => 'nincs_'] + $config->get('database')));
+    check($missing->get('site.name') === null && !$missing->isAvailable(), 'before the upgrade: the configuration file decides');
+});
+
+test('SiteSettings: the configuration file until saved, validation, addresses', function () use ($db, $repository, $fakeImage, $service, $admin): void {
+    $T = \Campanella\Site\SiteSettings::class;
+    $settings = new \Campanella\Settings\Settings($db);
+    $settings->set(array_fill_keys(array_map(static fn (string $k): string => 'site.' . $k, $T::KEYS), null));
+    $site = new $T($settings, ['name' => 'Konfig', 'slogan' => 'Szlogen', 'theme_color' => 'kék'], $repository);
+    $values = $site->values();
+    check($values['name'] === 'Konfig' && $values['slogan'] === 'Szlogen' && $values['description'] === '' && $values['url'] === ''
+        && $values['share_image'] === null && $values['indexing'] === true && $values['theme_color'] === 'kék', json_encode($values));
+    check($site->absolute('/hirek') === null, 'no address: no absolute URL');
+
+    foreach ([
+        'https://Example.HU/' => 'https://example.hu',
+        'http://example.hu:8080/campanella/' => 'http://example.hu:8080/campanella',
+        'https://[::1]:8443' => 'https://[::1]:8443',
+        'https://example.hu:443/' => 'https://example.hu',
+        'http://example.hu:80' => 'http://example.hu',
+        'http://127.0.0.1:8096' => 'http://127.0.0.1:8096',
+        'https://example.hu/a%20b' => 'https://example.hu/a%20b',
+        '  ' => '',
+    ] as $input => $expected) {
+        check($T::normalizeUrl($input) === $expected, $input . ' → ' . var_export($T::normalizeUrl($input), true));
+    }
+    foreach (['example.hu', 'ftp://example.hu', 'https://user:pw@example.hu', 'https://example.hu/?a=1', 'https://example.hu/#x', 'https://exa mple.hu', 'javascript:alert(1)', 'https://-x.hu', 'https://example.hu/a\\b', 'https://example.hu/a b', 'https://example.hu:0', 'https://example.hu/a%', 'https://example.hu/a%zz', 'http://999.999.999.999', 'http://0x7f.1', 'http://123'] as $bad) {
+        check($T::normalizeUrl($bad) === null, $bad);
+    }
+    check($T::originOf(new Request('GET', '/', basePath: '/cms', headers: ['host' => 'Pelda.HU:8080'])) === 'http://pelda.hu:8080/cms');
+    check($T::originOf(new Request('GET', '/', headers: ['host' => 'pelda.hu'], secure: true)) === 'https://pelda.hu');
+    foreach (['evil.hu/x', 'a b', '', 'pelda.hu:99999x', '<x>'] as $host) {
+        check($T::originOf(new Request('GET', '/', headers: ['host' => $host])) === null, 'Host: ' . $host);
+    }
+
+    $article = $service->create($admin, 'article', ['title' => 'Nem kép']);
+    try {
+        $site->save(['name' => '  ', 'slogan' => str_repeat('x', 201), 'description' => '', 'url' => 'example.hu', 'share_image' => (string) $article->id(), 'indexing' => '1']);
+        check(false, 'invalid settings were saved');
+    } catch (ValidationException $e) {
+        check(array_keys($e->errors) === ['slogan', 'name', 'url', 'share_image'], implode(',', array_keys($e->errors)));
+        check($e->errors['slogan']->params === ['max' => 200]);
+    }
+    check($settings->get('site.name') === null, 'nothing saved');
+
+    $image = $fakeImage('Megosztás');
+    $site->save(['name' => " Új\n  név ", 'slogan' => '', 'description' => 'Leírás', 'url' => 'https://pelda.hu/', 'share_image' => (string) $image->id(), 'indexing' => '0']);
+    $values = $site->values();
+    check($values['name'] === 'Új név' && $values['slogan'] === '' && $values['url'] === 'https://pelda.hu' && $values['share_image'] === $image->id() && $values['indexing'] === false, json_encode($values));
+    check($site->absolute('/kategóriák/a b') === 'https://pelda.hu/kateg%C3%B3ri%C3%A1k/a%20b' && $site->absolute('/100%') === 'https://pelda.hu/100%25', (string) $site->absolute('/kategóriák/a b'));
+    $site->rememberUrl('https://masik.hu');
+    check($site->url() === 'https://pelda.hu', 'a saved address is kept by the installer');
+
+    $settings->set(array_fill_keys(array_map(static fn (string $k): string => 'site.' . $k, $T::KEYS), null));
+    $configured = new $T($settings, ['name' => 'Konfig', 'url' => 'https://valodi.hu']);
+    $configured->rememberUrl('http://belso-nev:8080');
+    check($settings->get('site.url') === null && $configured->url() === 'https://valodi.hu', 'an address in the configuration file is not overridden by the request\'s');
+    try {
+        $site->save(['name' => "X\xff", 'slogan' => "ok\xff", 'description' => '', 'url' => '', 'share_image' => '', 'indexing' => '1']);
+        check(false, 'invalid UTF-8 was saved');
+    } catch (ValidationException $e) {
+        check(($e->errors['name'] ?? null)?->key === 'validation.invalid_encoding' && ($e->errors['slogan'] ?? null)?->key === 'validation.invalid_encoding');
+    }
+    $site->reset();
+    $site->rememberUrl('nem cím');
+    check($site->url() === '');
+    $site->rememberUrl('http://localhost:8096');
+    check($site->url() === 'http://localhost:8096');
+    $settings->set(['site.url' => null]);
+    $service->delete($admin, $article);
+    $repository->delete($image);
+});
+
+test('SiteValues: read on first use, read-only in templates', function (): void {
+    $reads = 0;
+    $values = new \Campanella\Site\SiteValues(static function () use (&$reads): array {
+        $reads++;
+
+        return ['name' => 'Webhely', 'share_image' => null];
+    });
+    check($reads === 0);
+    check($values['name'] === 'Webhely' && $values['share_image'] === null && $values->offsetExists('share_image') && !$values->offsetExists('x') && $reads === 1);
+    $values->reset();
+    check(iterator_to_array($values) === ['name' => 'Webhely', 'share_image' => null] && $reads === 2);
+    throws(\LogicException::class, function () use ($values): void {
+        $values['name'] = 'x';
+    });
+    $broken = new \Campanella\Site\SiteValues(static fn (): array => throw new \RuntimeException('nincs adatbázis'));
+    $log = ini_set('error_log', '/dev/null');
+    check($broken['name'] === 'Campanella', 'the page still renders');
+    ini_set('error_log', (string) $log);
+
+    $twig = new \Twig\Environment(new \Twig\Loader\ArrayLoader(['t' => '{{ site.name }}|{{ site.slogan ?? "–" }}|{{ site.share_image is defined ? "d" : "u" }}']), ['strict_variables' => true]);
+    $twig->addExtension(new \Twig\Extension\SandboxExtension(new \Campanella\View\TemplatePolicy(), true));
+    $twig->addGlobal('site', \Campanella\Site\SiteValues::of(['name' => 'N', 'share_image' => null]));
+    check($twig->render('t') === 'N|–|d', $twig->render('t'));
+});
+
+test('MetaBuilder: description, image, type and canonical URL of a page', function () use ($db, $repository, $engine, $service, $admin, $fakeImage): void {
+    $M = \Campanella\Site\MetaBuilder::class;
+    check($M::excerpt("  egy\n\nkettő  ") === 'egy kettő');
+    $long = str_repeat('szó ', 60);
+    $cut = $M::excerpt($long);
+    check(mb_strlen($cut) <= 161 && str_ends_with($cut, 'szó…'), $cut);
+    foreach (['компьютер ', 'voilà '] as $word) {
+        check(mb_check_encoding($M::excerpt(str_repeat($word, 40)), 'UTF-8'), 'a cut never breaks a character: ' . $word);
+    }
+    check($M::textOf('<p>Első&nbsp;bekezdés</p><p>Második<br>sor</p><script>x()</script>') === "Első\u{a0}bekezdés Második sor  ", json_encode($M::textOf('<p>Első&nbsp;bekezdés</p><p>Második<br>sor</p><script>x()</script>')));
+
+    $settings = new \Campanella\Settings\Settings($db);
+    $site = new \Campanella\Site\SiteSettings($settings, ['name' => 'Webhely', 'description' => 'Az alapértelmezett leírás.'], $repository);
+    $share = $fakeImage('Megosztási kép');
+    $inText = $fakeImage('Szövegbeli kép', 800, 600);
+    $settings->set(['site.url' => 'https://pelda.hu/cms', 'site.share_image' => (string) $share->id(), 'site.indexing' => '1']);
+    $meta = new $M($site, $engine, new \Campanella\Media\MediaStorage(sys_get_temp_dir() . '/campanella-meta'), '/media');
+
+    $withLead = $service->create($admin, 'article', [
+        'title' => 'Cikk bevezetővel',
+        'lead' => 'A cikk bevezetője.',
+        'format' => 'html',
+        'body' => '<p>Szöveg</p><p><img src="/cms/media/' . $inText->get('file_path') . '" alt="x"></p>',
+        'path' => '/cikk-bevezetovel',
+    ], publish: true);
+    $page = $meta->forObject($withLead);
+    check($page->title === 'Cikk bevezetővel' && $page->siteName === 'Webhely' && $page->description === 'A cikk bevezetője.' && $page->type === 'article', json_encode($page));
+    check($page->canonical === 'https://pelda.hu/cms/cikk-bevezetovel' && $page->robots === null);
+    check($page->imageUrl === 'https://pelda.hu/cms/media/' . $inText->get('file_path') && $page->imageWidth === 800 && $page->imageHeight === 600 && $page->imageAlt === 'Szövegbeli kép leírása', (string) $page->imageUrl);
+    check($page->publishedTime !== null && str_contains($page->publishedTime, 'T'), 'an article\'s publication time');
+
+    $plain = $service->create($admin, 'page', ['title' => 'Oldal', 'body' => "Első bekezdés.\n\nMásodik bekezdés.", 'path' => '/egy-oldal']);
+    $pageMeta = $meta->forObject($plain);
+    check($pageMeta->description === 'Első bekezdés. Második bekezdés.' && $pageMeta->imageUrl === 'https://pelda.hu/cms/media/' . $share->get('file_path') && $pageMeta->imageWidth === 1200, json_encode($pageMeta));
+    $foreign = $meta->imageInHtml('<img src="https://mas.hu/media/2026/10/' . str_repeat('a', 24) . '.jpg"><img src="/media/2026/10/' . str_repeat('b', 24) . '.jpg">');
+    check($foreign === null, 'only an image object of this site');
+
+    $list = $meta->forPath('/hirek', 'Hírek', 3);
+    check($list->title === 'Hírek' && $list->canonical === 'https://pelda.hu/cms/hirek?page=3' && $list->description === 'Az alapértelmezett leírás.' && $list->type === 'website');
+    check($meta->forPath('/')->title === 'Webhely' && $meta->forPath('/')->canonical === 'https://pelda.hu/cms/');
+
+    $settings->set(['site.url' => null, 'site.indexing' => '0']);
+    $site->reset();
+    $hidden = $meta->forObject($withLead);
+    check($hidden->canonical === null && $hidden->imageUrl === null && $hidden->robots === 'noindex', 'no address: no absolute URLs');
+
+    $settings->set(['site.share_image' => null, 'site.indexing' => null]);
+    $service->delete($admin, $withLead);
+    $service->delete($admin, $plain);
+    $repository->delete($share);
+    $repository->delete($inText);
+});
+
+test('Kernel: meta tags, robots.txt and sitemap.xml', function () use ($fakeImage, $repository): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $container = $kernel->container();
+    if ($container->get(Connection::class)->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $container->set(Session::class, static fn () => new Session(new ArraySessionStorage()));
+    $settings = $container->get(\Campanella\Settings\Settings::class);
+    $settings->set(['site.url' => null, 'site.indexing' => null, 'site.share_image' => null, 'site.description' => null]);
+    $service = $container->get(ObjectService::class);
+    $system = Actor::system();
+    $public = $service->create($system, 'article', ['title' => 'Térképes cikk', 'lead' => 'Bevezető <b>szöveg</b> & más', 'path' => '/terkepes-cikk'], publish: true);
+    $draft = $service->create($system, 'article', ['title' => 'Vázlat cikk', 'path' => '/vazlat-cikk']);
+
+    // Without the site's address: a description, but no canonical URL and no sitemap.
+    $page = $kernel->handle(new Request('GET', '/terkepes-cikk'));
+    check($page->status === 200 && str_contains($page->body, '<meta name="description" content="Bevezető &lt;b&gt;szöveg&lt;/b&gt; &amp; más">') && !str_contains($page->body, 'rel="canonical"'), 'escaped description');
+    check(str_contains($page->body, '<meta property="og:type" content="article">') && str_contains($page->body, '<meta property="og:title" content="Térképes cikk">'));
+    check($kernel->handle(new Request('GET', '/sitemap.xml'))->status === 404, 'no sitemap without the address');
+    $robots = $kernel->handle(new Request('GET', '/robots.txt'));
+    check($robots->status === 200 && str_starts_with($robots->headers['Content-Type'] ?? '', 'text/plain') && str_contains($robots->body, "User-agent: *\nDisallow: /admin/\nDisallow: /belepes\nDisallow: /kilepes\nDisallow: /install\n") && !str_contains($robots->body, 'Sitemap:'), $robots->body);
+
+    $settings->set(['site.url' => 'https://pelda.hu']);
+    $page = $kernel->handle(new Request('GET', '/terkepes-cikk'));
+    check(str_contains($page->body, '<link rel="canonical" href="https://pelda.hu/terkepes-cikk">') && str_contains($page->body, '<meta property="og:url" content="https://pelda.hu/terkepes-cikk">'), 'the canonical URL');
+    $news = $kernel->handle(new Request('GET', '/hirek'));
+    check(str_contains($news->body, '<link rel="canonical" href="https://pelda.hu/hirek">') && str_contains($news->body, '<meta property="og:title" content="Hírek">'), 'a list\'s canonical URL');
+    $sitemap = $kernel->handle(new Request('GET', '/sitemap.xml'));
+    check($sitemap->status === 200 && str_starts_with($sitemap->headers['Content-Type'] ?? '', 'application/xml') && str_contains($sitemap->body, '<loc>https://pelda.hu/terkepes-cikk</loc><lastmod>'), 'the published article');
+    check(str_contains($sitemap->body, '<loc>https://pelda.hu/</loc>') && str_contains($sitemap->body, '<loc>https://pelda.hu/hirek</loc>') && !str_contains($sitemap->body, 'vazlat-cikk'), 'the lists, but no draft');
+    check(simplexml_load_string($sitemap->body) !== false, 'well-formed XML');
+    check($kernel->handle(new Request('GET', '/sitemap.xml', query: ['page' => '99']))->status === 404 && $kernel->handle(new Request('GET', '/sitemap.xml', query: ['page' => 'x']))->status === 404);
+    check(str_contains($kernel->handle(new Request('GET', '/robots.txt'))->body, "\nSitemap: https://pelda.hu/sitemap.xml\n"));
+
+    // The share image of the site, on a page without an image of its own.
+    $image = $fakeImage('Közös kép');
+    $settings->set(['site.share_image' => (string) $image->id(), 'site.description' => 'A webhely leírása']);
+    $home = $kernel->handle(new Request('GET', '/'));
+    check(str_contains($home->body, '<meta property="og:image" content="https://pelda.hu/media/' . $image->get('file_path') . '">') && str_contains($home->body, '<meta name="description" content="A webhely leírása">') && str_contains($home->body, 'summary_large_image'), 'the front page');
+
+    check(($kernel->handle(new Request('GET', '/nincs-ilyen'))->headers['X-Robots-Tag'] ?? '') === 'noindex' && ($kernel->handle(new Request('GET', '/belepes'))->headers['X-Robots-Tag'] ?? '') === 'noindex', 'error and login pages are never indexed');
+    check(!isset($kernel->handle(new Request('GET', '/terkepes-cikk'))->headers['X-Robots-Tag']), 'content pages are');
+
+    // Indexing turned off: every page asks not to be indexed, but crawling stays allowed (or the noindex could not be read).
+    $settings->set(['site.indexing' => '0']);
+    $off = $kernel->handle(new Request('GET', '/terkepes-cikk'));
+    check(str_contains($off->body, '<meta name="robots" content="noindex">') && ($off->headers['X-Robots-Tag'] ?? '') === 'noindex');
+    $robots = $kernel->handle(new Request('GET', '/robots.txt'))->body;
+    check(!str_contains($robots, "Disallow: /\n") && str_contains($robots, "Disallow: /admin/\n") && !str_contains($robots, 'Sitemap:') && $kernel->handle(new Request('GET', '/sitemap.xml'))->status === 404, $robots);
+
+    $router = $container->get(\Campanella\Http\Router::class);
+    check($router->isRouted('/sitemap.xml') && $router->isRouted('/robots.txt'), 'no object can take these paths');
+    check($container->get(\Campanella\Http\Router::class)->paths('query') === ['/', '/hirek', '/kategoriak']);
+
+    $settings->set(['site.url' => null, 'site.indexing' => null, 'site.share_image' => null, 'site.description' => null]);
+    $service->delete($system, $public);
+    $service->delete($system, $draft);
+    $repository->delete($image);
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('Kernel: the site settings page, for administrators', function () use ($newUser): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $container = $kernel->container();
+    if ($container->get(Connection::class)->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $settings = $container->get(\Campanella\Settings\Settings::class);
+    $settings->set(array_fill_keys(array_map(static fn (string $k): string => 'site.' . $k, \Campanella\Site\SiteSettings::KEYS), null));
+    $storage = new ArraySessionStorage();
+    $container->set(Session::class, static fn () => new Session($storage));
+    $auth = $container->get(AuthService::class);
+    $send = function (string $method, string $path, array $post = []) use ($kernel, $storage) {
+        $storage->endRequest();
+
+        return $kernel->handle(new Request($method, $path, post: $post, headers: ['host' => 'pelda.hu']));
+    };
+    $csrfOf = static fn ($response): string => preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $response->body, $m) === 1 ? $m[1] : '';
+
+    $auth->login(new Request('GET', '/'), $newUser('beallito-szerk@example.hu', 'beallito-jelszo-1', ['editor']));
+    check($send('GET', '/admin/system/settings')->status === 403, 'not for editors');
+    $auth->login(new Request('GET', '/'), $newUser('beallito@example.hu', 'beallito-jelszo-1', ['administrator']));
+
+    $page = $send('GET', '/admin/system/settings');
+    check($page->status === 200 && str_contains($page->body, 'value="Campanella"') && str_contains($page->body, 'placeholder="http://pelda.hu"') && str_contains($page->body, 'href="/admin/system/settings">Webhely-beállítások</a>'), 'the form, with the address it was opened at');
+    $form = ['_csrf' => $csrfOf($page), 'name' => '', 'slogan' => 'Új szlogen', 'description' => 'Leírás', 'url' => 'pelda.hu', 'share_image' => '', 'indexing' => '1'];
+    check($send('POST', '/admin/system/settings', ['_csrf' => 'x'] + $form)->status === 400);
+    $bad = $send('POST', '/admin/system/settings', $form);
+    check($bad->status === 422 && str_contains($bad->body, 'value="Új szlogen"') && str_contains($bad->body, 'is-invalid') && $settings->get('site.slogan') === null, 'nothing saved with an error');
+    $done = $send('POST', '/admin/system/settings', ['name' => 'Beállított webhely', 'url' => 'https://pelda.hu/'] + $form);
+    check($done->status === 303 && ($done->headers['Location'] ?? '') === '/admin/system/settings');
+    check(str_contains($send('GET', '/admin/system/settings')->body, 'A beállításokat mentettük.'));
+    $home = $send('GET', '/');
+    check(str_contains($home->body, '<title>Beállított webhely</title>') && str_contains($home->body, 'Új szlogen') && str_contains($home->body, '<link rel="canonical" href="https://pelda.hu/">'), 'the site uses them at once');
+
+    $system = $send('GET', '/admin/system');
+    check(str_contains($system->body, 'Webhely') && str_contains($system->body, 'https://pelda.hu'), 'the System page shows the address');
+
+    $settings->set(array_fill_keys(array_map(static fn (string $k): string => 'site.' . $k, \Campanella\Site\SiteSettings::KEYS), null));
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('SiteCheck: the site\'s address and indexing', function () use ($db): void {
+    $settings = new \Campanella\Settings\Settings($db);
+    $settings->set(['site.url' => null, 'site.indexing' => null]);
+    $site = new \Campanella\Site\SiteSettings($settings, ['name' => 'X']);
+    $publicDir = sys_get_temp_dir() . '/campanella-public-' . bin2hex(random_bytes(4));
+    mkdir($publicDir);
+    $run = static function (?Request $request) use ($site, $publicDir): array {
+        $lines = [];
+        foreach ((\Campanella\System\SiteCheck::checks($site, $publicDir))($request) as $line) {
+            $lines[$line->label] = $line->status->name . ':' . $line->value . ($line->hint !== null ? '|' . $line->hint->key . json_encode($line->hint->params) : '');
+        }
+
+        return $lines;
+    };
+    $request = new Request('GET', '/admin/system', headers: ['host' => 'pelda.hu'], secure: true);
+    check($run($request)['admin.system.site_url'] === 'Warning:admin.system.site_url_missing|admin.system.site_url_suggest{"origin":"https:\/\/pelda.hu"}', $run($request)['admin.system.site_url']);
+    check(str_starts_with($run(null)['admin.system.site_url'], 'Warning:admin.system.site_url_missing|admin.system.site_url_missing_hint'));
+    $settings->set(['site.url' => 'https://pelda.hu']);
+    $site->reset();
+    check($run($request)['admin.system.site_url'] === 'Ok:https://pelda.hu' && $run($request)['admin.system.indexing'] === 'Ok:admin.system.indexing_on' && !isset($run($request)['robots.txt']));
+    check(str_starts_with($run(new Request('GET', '/', headers: ['host' => 'localhost:8080']))['admin.system.site_url'], 'Warning:https://pelda.hu|admin.system.site_url_other'));
+    $settings->set(['site.indexing' => '0']);
+    $site->reset();
+    file_put_contents($publicDir . '/robots.txt', "User-agent: *\n");
+    check(str_starts_with($run($request)['admin.system.indexing'], 'Warning:admin.system.indexing_off') && str_starts_with($run($request)['robots.txt'], 'Info:'));
+    unlink($publicDir . '/robots.txt');
+    rmdir($publicDir);
+    $settings->set(['site.url' => null, 'site.indexing' => null]);
 });
 
 echo "\nDocumentation examples\n";

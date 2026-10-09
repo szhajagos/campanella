@@ -176,6 +176,31 @@ certificate breaks. Turn it on once HTTPS works everywhere:
 'security' => ['hsts' => 31536000],   // a year; 'hsts_subdomains' => true only if every subdomain has HTTPS
 ```
 
+### The site's address and search engines
+
+Since 0.1.1 the site's own address (e.g. `https://example.hu`) is a setting:
+canonical URLs, the links and images shown when a page is shared, and
+`sitemap.xml` are made from it, never from the request's `Host` header (which
+anyone can send). Installing from the browser saves the address it was opened
+at; check it under **System → Site settings** (`/admin/system/settings`), with
+`https://` once HTTPS works. The System page warns while it is not set, or
+when you open the admin at another address. It can also be given in
+`config/local.php` (`'site' => ['url' => 'https://example.hu']`) or as the
+`CAMPANELLA_SITE_URL` environment variable, until it is saved in the admin.
+
+While a site is being built, turn off *Search engines may index the site* on
+the same page: every page then says `noindex` (in its head and in the
+`X-Robots-Tag` header), and there is no sitemap. Turn it on when the site goes
+live. (To keep a site private, protect it with a password in the web server:
+`noindex` only asks search engines.)
+
+`/robots.txt` and `/sitemap.xml` are generated (the admin is listed in
+`robots.txt` only at its default path `/admin`, so a path of its own is not
+revealed). A `robots.txt` file of your own
+in `public/` is served by the web server instead (the System page notes it).
+Search engines read `robots.txt` only at the root of a host: if the site is in
+a folder (`example.hu/campanella/`), put its rules into the host's own file.
+
 ## 4. File permissions
 
 The web server's user (e.g. `www-data`) needs to **write** only:
@@ -236,6 +261,8 @@ An installation older than 0.0.6 is upgraded to 0.0.7 first.
 - [ ] The web root is `public/` (or the `.htaccess` test in section 1 passes).
 - [ ] HTTPS works, plain HTTP redirects to it; behind a proxy,
       `trusted_proxies` is set and the System page shows *HTTPS*.
+- [ ] The site's address is right under *Site settings* (with `https://`), and
+      search engines may index the site.
 - [ ] `debug` is `false`.
 - [ ] `upgrade.key` is not set (unless an upgrade needs it right now).
 - [ ] Only `var/cache/`, `var/backups/` and `public/media/` are writable by the

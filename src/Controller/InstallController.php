@@ -22,6 +22,7 @@ use Campanella\Model\ObjectRepository;
 use Campanella\Model\ValidationException;
 use Campanella\Security\Csrf;
 use Campanella\Security\FileThrottle;
+use Campanella\Site\SiteSettings;
 use Campanella\System\SystemCheck;
 use Campanella\View\Presentation;
 use Closure;
@@ -35,7 +36,8 @@ use Closure;
  * `config/local.php` (`install.key`, at least MIN_KEY_LENGTH characters): without
  * it, anyone who finds a freshly uploaded site could install it as their own.
  * Wrong keys are limited per address and in total (FileThrottle: the database
- * cannot be used yet). Once a user exists, the page answers 404.
+ * cannot be used yet). Once a user exists, the page answers 404. The address the
+ * page was opened at becomes the site's address (SiteSettings::rememberUrl()).
  */
 final class InstallController implements Controller
 {
@@ -75,6 +77,7 @@ final class InstallController implements Controller
         private readonly ?string $key,
         private readonly array $writable,
         private readonly Closure $seed,
+        private readonly ?SiteSettings $site = null,
     ) {
     }
 
@@ -144,6 +147,8 @@ final class InstallController implements Controller
             $auth->setPassword($request->postString('password'));
             $auth->setRoles(['administrator']);
             $this->repository->save($user);
+            // The site's address: where it was installed from (changeable in the settings; since 0.1.1).
+            $this->site?->rememberUrl(SiteSettings::originOf($request) ?? '');
             if ($input['seed']) {
                 ($this->seed)();
             }

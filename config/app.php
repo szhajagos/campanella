@@ -39,9 +39,16 @@ return [
         'system_roles' => ['administrator'],
     ],
 
+    // The site's settings. Edited in the admin (System → Settings, since 0.1.1); these
+    // values apply until they are first saved there. Other keys (e.g. a theme's own)
+    // are passed to templates as they are: {{ site.<key> }}.
     'site' => [
         'name' => 'Campanella',
         'slogan' => 'Capability-vezérelt CMS',
+        'description' => '',        // the default meta description
+        'url' => getenv('CAMPANELLA_SITE_URL') ?: '',   // e.g. https://example.hu; needed for canonical URLs, Open Graph, sitemap.xml
+        'share_image' => null,      // an image object's ID, shown when a page is shared
+        'indexing' => true,         // false: search engines are asked not to index the site
     ],
 
     // Can also be set via environment variables (e.g. in Docker); local.php overrides them.

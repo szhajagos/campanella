@@ -27,7 +27,9 @@ CHANGELOG's **Security** section names it.
 - **Output:** Twig escapes everything; HTML texts are filtered on every save
   with an allowlist; link URLs and site paths are checked; templates run in a
   sandbox that cannot read hidden fields (password hash, e-mail address,
-  roles); a strict Content-Security-Policy on every page.
+  roles); a strict Content-Security-Policy on every page; absolute URLs
+  (canonical, sharing, sitemap) only from the site's configured address, never
+  from the request's `Host` header.
 - **Files:** uploaded images are recognised by their content and re-encoded;
   random names; the media folder runs no script; backups are not reachable
   from the web.

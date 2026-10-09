@@ -10,6 +10,7 @@ use Campanella\Access\Actor;
 use Campanella\Access\Operation;
 use Campanella\Admin\AdminAccess;
 use Campanella\Admin\Form\ObjectForm;
+use Campanella\Admin\SettingsPage;
 use Campanella\Admin\StructurePages;
 use Campanella\Admin\UserPages;
 use Campanella\Service\UserService;
@@ -112,6 +113,7 @@ final class AdminController implements Controller
         private readonly UserPages $userPages,
         private readonly UserService $users,
         private readonly StructurePages $structure,
+        private readonly SettingsPage $settings,
     ) {
     }
 
@@ -183,7 +185,8 @@ final class AdminController implements Controller
 
     /**
      * /admin/system: the system check; POST /admin/system/clear-cache empties the
-     * template cache. Only for the system roles (AdminAccess::allowsSystem()).
+     * template cache; /admin/system/settings: the site's settings; /admin/system/blueprints
+     * and /capabilities: the structure. Only for the system roles (AdminAccess::allowsSystem()).
      *
      * @param list<string> $segments The path after /admin/system
      */
@@ -210,6 +213,10 @@ final class AdminController implements Controller
         }
         if ($segments === ['capabilities']) {
             return $this->render('capabilities', 'capabilities', ['title' => 'structure.capabilities', 'capabilities' => $this->structure->capabilities()]);
+        }
+        // The site's settings (since 0.1.1).
+        if ($segments === ['settings']) {
+            return $this->settings->handle($request, $actor, fn (string $template, string $active, array $context): Response => $this->render($template, $active, $context));
         }
         if ($segments !== []) {
             throw HttpException::notFound();
