@@ -10,6 +10,12 @@ backward-incompatible.
 
 ## [Unreleased]
 
+### Fixed
+
+- The Site settings field of the site's address is called *Web address (URL)*
+  (Hungarian: *Webcím (URL)*): "A webhely címe" could be read as the site's
+  title, and the System page's warning now names the field to fill in.
+
 ## [0.1.1] – 2026-10-09
 
 The first step towards 0.2.0 ("the site communicates"): site basics. The
