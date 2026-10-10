@@ -4618,6 +4618,269 @@ test('Kernel: srcset in texts, the delete page of a used image, making the missi
     putenv('CAMPANELLA_DB_PREFIX');
 });
 
+echo "\nEvents and e-mail (0.1.3)\n";
+
+/** A mail transport that keeps the messages (or fails, with a message). */
+function captureTransport(?string $fail = null): \Symfony\Component\Mailer\Transport\TransportInterface
+{
+    return new class ($fail) extends \Symfony\Component\Mailer\Transport\AbstractTransport {
+        /** @var list<\Symfony\Component\Mime\Email> */
+        public array $sent = [];
+
+        public function __construct(private readonly ?string $fail)
+        {
+            parent::__construct();
+        }
+
+        protected function doSend(\Symfony\Component\Mailer\SentMessage $message): void
+        {
+            if ($this->fail !== null) {
+                throw new \Symfony\Component\Mailer\Exception\TransportException($this->fail);
+            }
+            $original = $message->getOriginalMessage();
+            if ($original instanceof \Symfony\Component\Mime\Email) {
+                $this->sent[] = $original;
+            }
+        }
+
+        public function __toString(): string
+        {
+            return 'capture://';
+        }
+    };
+}
+
+test('EventDispatcher: listeners of the class and of its parents; a failing one does not stop the others', function (): void {
+    $events = new \Campanella\Event\EventDispatcher();
+    $seen = [];
+    $events->listen(\Campanella\Event\ObjectPublished::class, static function ($e) use (&$seen): void { $seen[] = 'published:' . $e->name(); });
+    $events->listen(\Campanella\Event\ObjectEvent::class, static function ($e) use (&$seen): void { $seen[] = 'object:' . $e->name(); });
+    $events->listen(\Campanella\Event\ObjectEvent::class, static function (): void { throw new \RuntimeException('hiba'); });
+    $events->listen(\Campanella\Event\Event::class, static function ($e) use (&$seen): void { $seen[] = 'any:' . $e->name(); });
+    $repository = $GLOBALS['repository'];
+    $article = $repository->create('article', ['title' => 'Esemény']);
+    $log = ini_set('error_log', '/dev/null');
+    $events->dispatch(new \Campanella\Event\ObjectPublished($article));
+    ini_set('error_log', (string) $log);
+    check($seen === ['published:ObjectPublished', 'object:ObjectPublished', 'any:ObjectPublished'], json_encode($seen));
+    check($events->hasListeners(\Campanella\Event\ObjectDeleted::class) && !(new \Campanella\Event\EventDispatcher())->hasListeners(\Campanella\Event\ObjectDeleted::class));
+    throws(\InvalidArgumentException::class, fn () => $events->listen(\stdClass::class, static fn () => null));
+
+    $made = 0;
+    $action = new class () implements \Campanella\Event\Action {
+        public static array $handled = [];
+
+        public function __construct(array $unused = [])
+        {
+        }
+
+        public static function create(\Campanella\Core\Container $container): self
+        {
+            return new self();
+        }
+
+        public function handle(\Campanella\Event\Event $event): void
+        {
+            self::$handled[] = $event->name();
+        }
+    };
+    $bound = new \Campanella\Event\EventDispatcher();
+    $bound->bind([\Campanella\Event\UserCreated::class => [$action::class]], static function (string $class) use (&$made) {
+        $made++;
+
+        return $class::create(new \Campanella\Core\Container());
+    });
+    check($made === 0, 'made on its first event');
+    $bound->dispatch(new \Campanella\Event\UserCreated($article));
+    $bound->dispatch(new \Campanella\Event\UserCreated($article));
+    $bound->dispatch(new \Campanella\Event\ObjectDeleted($article));
+    check($made === 1 && $action::$handled === ['UserCreated', 'UserCreated'], json_encode($action::$handled));
+    $log = ini_set('error_log', '/dev/null');
+    $problems = $bound->bind(['NincsIlyen' => [$action::class], \Campanella\Event\UserCreated::class => [\stdClass::class]], static fn () => null);
+    ini_set('error_log', (string) $log);
+    check(count($problems) === 2 && $bound->problems() === $problems, 'a wrong binding is skipped and reported, not fatal');
+
+    // In the order they were added, whatever class they listen to.
+    $order = new \Campanella\Event\EventDispatcher();
+    $ran = [];
+    $order->listen(\Campanella\Event\Event::class, static function () use (&$ran): void { $ran[] = 'A'; });
+    $order->listen(\Campanella\Event\ObjectPublished::class, static function () use (&$ran): void { $ran[] = 'B'; });
+    $order->listen(\Campanella\Event\Event::class, static function () use (&$ran): void { $ran[] = 'C'; });
+    $order->dispatch(new \Campanella\Event\ObjectPublished($article));
+    check($ran === ['A', 'B', 'C'], implode($ran));
+});
+
+test('ObjectService and UserService dispatch their events after saving', function () use ($repository, $policy, $admin, $engine, $db): void {
+    $events = new \Campanella\Event\EventDispatcher();
+    $seen = [];
+    $events->listen(\Campanella\Event\Event::class, static function (\Campanella\Event\Event $e) use (&$seen): void {
+        $seen[] = $e->name() . ($e instanceof \Campanella\Event\ObjectEvent ? ($e->object->isNew() ? ':new' : ':saved') : '');
+    });
+    $service = new ObjectService($repository, $policy, $events);
+    $article = $service->create($admin, 'article', ['title' => 'Eseményes cikk'], publish: true);
+    $service->update($admin, $article, ['title' => 'Eseményes cikk 2']);
+    $service->unpublish($admin, $article);
+    $scheduled = null;
+    $events->listen(\Campanella\Event\ObjectPublished::class, static function (\Campanella\Event\ObjectPublished $e) use (&$scheduled): void { $scheduled = $e; });
+    $service->publish($admin, $article, new DateTimeImmutable('+2 days'));
+    check($scheduled !== null && $scheduled->isScheduled() && $scheduled->summary()->key === 'event.object_scheduled' && $scheduled->summary()->params['title'] === 'Eseményes cikk 2');
+    $service->delete($admin, $article);
+    check($seen === ['ObjectCreated:saved', 'ObjectPublished:saved', 'ObjectUpdated:saved', 'ObjectUnpublished:saved', 'ObjectPublished:saved', 'ObjectDeleted:saved'], json_encode($seen));
+    check((new \Campanella\Event\ObjectDeleted($article))->summary()->key === 'event.object_deleted' && (new \Campanella\Event\ObjectDeleted($article))->title() === 'Eseményes cikk 2');
+
+    $seen = [];
+    $users = new \Campanella\Service\UserService($repository, $engine, $policy, new Throttle($db), [Actor::ADMINISTRATOR, 'editor'], $db, $events);
+    $user = $users->create($admin, 'Esemény Ernő', 'esemeny@example.hu', 'esemeny-jelszo-1', ['editor']);
+    $users->setPassword($admin, $user, 'esemeny-jelszo-2');
+    $changed = null;
+    $events->listen(\Campanella\Event\PasswordChanged::class, static function ($e) use (&$changed): void { $changed = $e; });
+    $users->changeOwnPassword($user, 'esemeny-jelszo-2', 'esemeny-jelszo-3');
+    check($seen === ['UserCreated', 'PasswordChanged', 'PasswordChanged'] && $changed !== null && !$changed->byAdministrator && $changed->actor?->id === $user->id(), json_encode($seen));
+    check((new \Campanella\Event\UserCreated($user))->summary()->params['name'] === 'Esemény Ernő');
+    $repository->delete($user);
+});
+
+test('Mailer: from templates, logged, never throws; nothing is sent without settings', function () use ($db): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $env = (new \Campanella\Core\Kernel(dirname(__DIR__)))->container()->get(\Twig\Environment::class);
+    putenv('CAMPANELLA_DB_PREFIX');
+    $M = \Campanella\Mail\Mailer::class;
+    $db->execute('DELETE FROM {mail_log}');
+
+    $off = $M::fromConfig([], static fn () => $env, static fn () => 'Webhely', $db);
+    check(!$off->isConfigured() && $off->configError() === null && $off->send('valaki@example.hu', 'test')->status === 'not_configured');
+    check($off->log(5)[0]['status'] === 'not_configured' && $off->log(5)[0]['recipient'] === 'valaki@example.hu');
+
+    $bad = $M::fromConfig(['dsn' => 'nemletezik://user:titok@host', 'from' => 'noreply@example.hu'], static fn () => $env, static fn () => 'W', $db);
+    check(!$bad->isConfigured() && $bad->configError() !== null && !str_contains((string) $bad->configError(), 'titok') && $bad->description() === 'nemletezik://host', (string) $bad->configError());
+    check($M::fromConfig(['dsn' => 'null://null', 'from' => 'nem cím'], static fn () => $env, static fn () => 'W')->configError() === 'mail.from is not an e-mail address');
+    check($M::describeDsn('smtp://user:pass@smtp.example.hu:587?verify_peer=0') === 'smtp://smtp.example.hu:587' && $M::describeDsn('') === '');
+    check($M::fromConfig(['dsn' => 'null://null', 'from' => 'noreply@example.hu'], static fn () => $env, static fn () => 'W')->isConfigured(), 'a valid DSN');
+
+    $transport = captureTransport();
+    $mailer = new $M($transport, 'noreply@example.hu', static fn () => $env, static fn () => "Webhely & Társa\r\nBcc: x@y.hu", $db, 90, 'capture://');
+    $result = $mailer->send('olvaso@example.hu', 'test', ['sent_at' => '2026-10-10 08:00:00 UTC'], 'Kiss & Nagy');
+    check($result->sent() && count($transport->sent) === 1, (string) $result->error);
+    $email = $transport->sent[0];
+    check($email->getTo()[0]->getAddress() === 'olvaso@example.hu' && $email->getFrom()[0]->getAddress() === 'noreply@example.hu');
+    check(!str_contains($email->getFrom()[0]->getName(), "\n") && str_starts_with($email->getFrom()[0]->getName(), 'Webhely & Társa'), 'one line: ' . json_encode($email->getFrom()[0]->getName()));
+    check(str_starts_with((string) $email->getSubject(), 'Teszt e-mail: ') && !str_contains((string) $email->getSubject(), '&amp;'), (string) $email->getSubject());
+    $text = (string) $email->getTextBody();
+    check(str_contains($text, 'Kedves Kiss & Nagy!') && str_contains($text, 'Elküldve: 2026-10-10 08:00:00 UTC') && !str_contains($text, '&amp;') && $email->getHtmlBody() === null, $text);
+    check($email->getHeaders()->get('Auto-Submitted')?->getBodyAsString() === 'auto-generated');
+
+    $failing = new $M(captureTransport('Could not connect to smtp://user:titok@mail.example.hu:25'), 'noreply@example.hu', static fn () => $env, static fn () => 'W', $db);
+    $log = ini_set('error_log', '/dev/null');
+    $failed = $failing->send('olvaso@example.hu', 'test', ['sent_at' => '']);
+    $invalid = $mailer->send('nem-cím', 'test', ['sent_at' => '']);
+    ini_set('error_log', (string) $log);
+    check($failed->status === 'failed' && str_contains((string) $failed->error, 'smtp://***@mail.example.hu') && !str_contains((string) $failed->error, 'titok'), (string) $failed->error);
+    $log = ini_set('error_log', '/dev/null');
+    $next = $failing->send('masik@example.hu', 'test', ['sent_at' => '']);
+    ini_set('error_log', (string) $log);
+    check($next->status === 'failed' && str_starts_with((string) $next->error, 'not tried: the mail server failed earlier'), 'a failed server is not tried again in the request');
+    $smtp = $M::fromConfig(['dsn' => 'smtp://127.0.0.1:2599', 'from' => 'noreply@example.hu', 'timeout' => 3], static fn () => $env, static fn () => 'W');
+    $transportProperty = new \ReflectionProperty($M, 'transport');
+    $stream = $transportProperty->getValue($smtp)->getStream();
+    check($stream->getTimeout() === 3.0, 'the timeout: ' . $stream->getTimeout());
+    check($invalid->status === 'failed' && count($transport->sent) === 1, 'an invalid address: a failure, not an exception');
+    throws(\InvalidArgumentException::class, fn () => $mailer->send('a@b.hu', '../../config/local'));
+
+    $entries = $mailer->log(10);
+    check(count($entries) === 5 && $entries[0]['status'] === 'failed' && $entries[3]['status'] === 'sent' && $entries[3]['subject'] !== '', json_encode(array_column($entries, 'status')));
+    // Old entries are removed on the next write.
+    $db->insert('mail_log', ['created_at' => '2020-01-01 00:00:00', 'recipient' => 'regi@example.hu', 'template' => 'test', 'subject' => 'Régi', 'status' => 'sent', 'error' => null]);
+    (new $M(null, '', static fn () => $env, static fn () => 'W', $db, 30))->send('a@b.hu', 'test');
+    check((int) $db->fetchValue("SELECT COUNT(*) FROM {mail_log} WHERE recipient = 'regi@example.hu'") === 0, 'pruned');
+    $db->execute('DELETE FROM {mail_log}');
+});
+
+test('MailAdministrators: the active administrators get the event, not the one who did it', function () use ($repository, $engine, $db, $newUser): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $env = (new \Campanella\Core\Kernel(dirname(__DIR__)))->container()->get(\Twig\Environment::class);
+    putenv('CAMPANELLA_DB_PREFIX');
+    $transport = captureTransport();
+    $mailer = new \Campanella\Mail\Mailer($transport, 'noreply@example.hu', static fn () => $env, static fn () => 'Webhely');
+    $first = $newUser('mail-admin-1@example.hu', 'mail-admin-jelszo-1', ['administrator']);
+    $second = $newUser('mail-admin-2@example.hu', 'mail-admin-jelszo-2', ['administrator']);
+    $blocked = $newUser('mail-admin-3@example.hu', 'mail-admin-jelszo-3', ['administrator']);
+    $blocked->as(Authenticatable::class)->block();
+    $repository->save($blocked);
+    $settings = new \Campanella\Settings\Settings($db);
+    $settings->set(['site.url' => 'https://pelda.hu']);
+    $action = new \Campanella\Event\Action\MailAdministrators($mailer, $engine, new \Campanella\Site\SiteSettings($settings, ['name' => 'Webhely']), new \Campanella\Admin\AdminAccess());
+    $article = $repository->create('article', ['title' => 'Friss cikk']);
+    $repository->save($article);
+    $action->handle(new \Campanella\Event\ObjectPublished($article, new Actor(\Campanella\Access\ActorKind::User, (int) $first->id(), ['administrator'])));
+    $to = array_map(static fn ($e) => $e->getTo()[0]->getAddress(), $transport->sent);
+    check(in_array('mail-admin-2@example.hu', $to, true) && !in_array('mail-admin-1@example.hu', $to, true) && !in_array('mail-admin-3@example.hu', $to, true), json_encode($to));
+    $mail = $transport->sent[array_search('mail-admin-2@example.hu', $to, true)];
+    check(preg_match('/^\[.+\] Közzétéve: Friss cikk$/u', (string) $mail->getSubject()) === 1, (string) $mail->getSubject());
+    check(str_contains((string) $mail->getTextBody(), 'Végezte: ') && str_contains((string) $mail->getTextBody(), 'mail-admin-1@example.hu') && str_contains((string) $mail->getTextBody(), 'https://pelda.hu/admin/article/' . $article->id()), (string) $mail->getTextBody());
+    $settings->set(['site.url' => null]);
+    foreach ([$first, $second, $blocked, $article] as $object) {
+        $repository->delete($object);
+    }
+});
+
+test('Kernel: the e-mail lines of the System page, a test e-mail to oneself, the log', function () use ($newUser): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $container = $kernel->container();
+    if ($container->get(Connection::class)->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $container->get(Connection::class)->execute('DELETE FROM {mail_log}');
+    $container->get(Connection::class)->execute("DELETE FROM {throttle}");
+    $storage = new ArraySessionStorage();
+    $container->set(Session::class, static fn () => new Session($storage));
+    $send = function (string $method, string $path, array $post = []) use ($kernel, $storage) {
+        $storage->endRequest();
+
+        return $kernel->handle(new Request($method, $path, post: $post));
+    };
+    $csrfOf = static fn ($response): string => preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $response->body, $m) === 1 ? $m[1] : '';
+    $auth = $container->get(AuthService::class);
+    $auth->login(new Request('GET', '/'), $newUser('levelezo@example.hu', 'levelezo-jelszo-1', ['administrator']));
+
+    $system = $send('GET', '/admin/system');
+    check(str_contains($system->body, 'E-mail') && str_contains($system->body, 'nincs beállítva') && !str_contains($system->body, 'system/mail-test'), 'not set up: a warning, no button');
+    check(str_contains($send('GET', '/admin/system/mail')->body, 'Még nem ment ki e-mail.'));
+
+    // Set up (a new kernel: the System page's checks are made once).
+    $transport = captureTransport();
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $container = $kernel->container();
+    $container->set(Session::class, static fn () => new Session($storage));
+    $container->set(\Campanella\Mail\Mailer::class, static fn (\Campanella\Core\Container $c) => new \Campanella\Mail\Mailer($transport, 'noreply@example.hu', static fn () => $c->get(\Twig\Environment::class), static fn () => 'Teszt webhely', $c->get(Connection::class), 90, 'smtp://mail.example.hu:587'));
+    $auth = $container->get(AuthService::class);
+    $send = function (string $method, string $path, array $post = []) use ($kernel, $storage) {
+        $storage->endRequest();
+
+        return $kernel->handle(new Request($method, $path, post: $post));
+    };
+    $system = $send('GET', '/admin/system');
+    check(str_contains($system->body, 'smtp://mail.example.hu:587') && str_contains($system->body, 'action="/admin/system/mail-test"') && str_contains($system->body, 'noreply@example.hu'), 'the button');
+    check($send('GET', '/admin/system/mail-test')->status === 405);
+    $sent = $send('POST', '/admin/system/mail-test', ['_csrf' => $csrfOf($system), 'to' => 'mas@example.hu']);
+    check($sent->status === 303 && count($transport->sent) === 1 && $transport->sent[0]->getTo()[0]->getAddress() === 'levelezo@example.hu', 'only to one\'s own address');
+    $page = $send('GET', '/admin/system');
+    check(str_contains($page->body, 'A teszt e-mailt elküldtük ide: levelezo@example.hu') && str_contains($page->body, 'Legutóbbi e-mail'), 'the result and the latest e-mail');
+    for ($i = 0; $i < 5; $i++) {
+        $send('POST', '/admin/system/mail-test', ['_csrf' => $csrfOf($system)]);
+    }
+    check(count($transport->sent) === 5 && str_contains($send('GET', '/admin/system')->body, 'Túl sok teszt e-mail'), 'at most 5: ' . count($transport->sent));
+    $log = $send('GET', '/admin/system/mail');
+    check($log->status === 200 && str_contains($log->body, 'levelezo@example.hu') && str_contains($log->body, 'Teszt e-mail: ') && str_contains($log->body, 'elküldve'), 'the log');
+
+    $auth->login(new Request('GET', '/'), $newUser('levelezo-szerk@example.hu', 'levelezo-jelszo-2', ['editor']));
+    check($send('GET', '/admin/system/mail')->status === 403 && $send('POST', '/admin/system/mail-test', [])->status === 403, 'not for editors');
+    $container->get(Connection::class)->execute('DELETE FROM {mail_log}');
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
 echo "\nDocumentation examples\n";
 
 test('New capability as in the docs example (Featured)', function () use ($db, $admin): void {

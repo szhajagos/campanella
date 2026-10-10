@@ -35,6 +35,11 @@ CHANGELOG's **Security** section names it.
   from the web.
 - **Installing and upgrading:** from the browser only with a long key (wrong
   keys limited) or as an administrator; backups before migrations.
+- **E-mail:** the mail server's address (with its password) is set only in
+  the configuration file, never shown (the System page shows its kind and host;
+  error messages have the password masked); the test e-mail goes only to the
+  logged-in administrator's own address, at most 5 in 15 minutes; addresses
+  and headers are checked by symfony/mailer; the log never keeps the text.
 - **Dependencies:** only MIT-compatible ones; `composer audit` runs in CI on
   every push.
 

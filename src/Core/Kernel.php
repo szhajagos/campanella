@@ -5,11 +5,16 @@ declare(strict_types=1);
 namespace Campanella\Core;
 
 use Campanella\Cli\Output;
+use Campanella\Event\Action;
+use Campanella\Event\EventDispatcher;
+use Campanella\Mail\MailCheck;
+use Campanella\Mail\Mailer;
 use Campanella\Settings\Settings;
 use Campanella\Site\MetaBuilder;
 use Campanella\Site\SiteSettings;
 use Campanella\Site\SiteValues;
 use Campanella\Service\UserService;
+use Campanella\Admin\MailPages;
 use Campanella\Admin\SettingsPage;
 use Campanella\Admin\StructurePages;
 use Campanella\Admin\UserPages;
@@ -330,6 +335,16 @@ final class Kernel
             );
             $system->add(MediaCheck::checks($c->get(ImageProcessor::class), $c->get(MediaStorage::class), $c->get(MediaService::class)));
             $system->add(SyncCheck::checks($c->get(Installer::class), $c->get(SchemaSync::class)));
+            $system->add(MailCheck::checks($c->get(Mailer::class)));
+            // A wrong `events` setting (since 0.1.3).
+            $system->add(static function () use ($c): array {
+                $problems = $c->get(EventDispatcher::class)->problems();
+
+                return $problems === [] ? [] : [new \Campanella\System\CheckResult(
+                    'admin.system.group.settings', 'events', \Campanella\System\CheckStatus::Error,
+                    implode('; ', $problems), new \Campanella\I18n\Message('admin.system.events_invalid'),
+                )];
+            });
             $system->add(SiteCheck::checks($c->get(SiteSettings::class), $root . '/public'));
             $system->add(SecurityCheck::checks(
                 $root,
@@ -370,11 +385,30 @@ final class Kernel
                 (array) $config->get('admin.system_roles', []),
             ))));
 
-            return new UserService($c->get(ObjectRepository::class), $c->get(QueryEngine::class), $c->get(AccessPolicy::class), $c->get(Throttle::class), $roles, $c->get(Connection::class));
+            return new UserService($c->get(ObjectRepository::class), $c->get(QueryEngine::class), $c->get(AccessPolicy::class), $c->get(Throttle::class), $roles, $c->get(Connection::class), $c->get(EventDispatcher::class));
         });
 
+        // Events (since 0.1.3): the actions of the `events` setting, made on their first event.
+        $c->set(EventDispatcher::class, static function (Container $c): EventDispatcher {
+            $events = new EventDispatcher();
+            $events->bind(
+                (array) $c->get(Config::class)->get('events', []),
+                static fn (string $action): Action => $action::create($c),
+            );
+
+            return $events;
+        });
+
+        // E-mail (since 0.1.3), set up in config/local.php.
+        $c->set(Mailer::class, static fn (Container $c): Mailer => Mailer::fromConfig(
+            (array) $c->get(Config::class)->get('mail', []),
+            static fn (): Environment => $c->get(Environment::class),
+            static fn (): string => $c->get(SiteSettings::class)->name(),
+            $c->get(Connection::class),
+        ));
+
         $c->set(ObjectService::class, static function (Container $c): ObjectService {
-            $service = new ObjectService($c->get(ObjectRepository::class), $c->get(AccessPolicy::class));
+            $service = new ObjectService($c->get(ObjectRepository::class), $c->get(AccessPolicy::class), $c->get(EventDispatcher::class));
             // A deleted image takes its file with it.
             $service->addListener(new DeleteMediaFile($c->get(MediaStorage::class)));
 
@@ -569,6 +603,7 @@ final class Kernel
             new StructurePages($c->get(BlueprintRegistry::class), $c->get(CapabilityRegistry::class), $c->get(QueryEngine::class), $c->get(AdminAccess::class)),
             new SettingsPage($c->get(SiteSettings::class), $c->get(QueryEngine::class), $c->get(MediaStorage::class), $c->get(Csrf::class), $c->get(Flash::class), $c->get(AdminAccess::class)),
             new MediaUsage($c->get(Connection::class), $c->get(QueryEngine::class), $c->get(SiteSettings::class)),
+            new MailPages($c->get(Mailer::class), $c->get(ObjectRepository::class), $c->get(Throttle::class), $c->get(Csrf::class), $c->get(Flash::class), $c->get(AdminAccess::class)),
         ));
 
         $c->set('controller.upgrade', static fn (Container $c): Controller => new UpgradeController(

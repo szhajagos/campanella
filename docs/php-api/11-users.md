@@ -265,7 +265,9 @@ A forgotten password by e-mail comes later (it needs e-mail sending).
 
 `Campanella\Service\UserService` · **Public** · container: `UserService::class`
 
-The rules of managing users; the admin pages only read the forms.
+The rules of managing users; the admin pages only read the forms. Since 0.1.3
+it dispatches `UserCreated` and `PasswordChanged` after saving (constructor's
+last argument: `?EventDispatcher $events = null`; [chapter 21](21-events-and-mail.md#events)).
 
 | Method | Description |
 |---|---|

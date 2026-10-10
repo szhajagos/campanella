@@ -10,6 +10,61 @@ backward-incompatible.
 
 ## [Unreleased]
 
+## [0.1.3] – 2026-10-10
+
+Events and e-mail: Campanella says what happened (an article was published, a
+user was created), actions can be bound to that in the configuration, and the
+site can send e-mail through symfony/mailer, with templates and a log. The
+forgotten password (0.1.4) and the contact form (0.1.5) build on these.
+
+**Upgrading from 0.1.2:**
+
+1. Upload the new files, and **install the new dependencies**:
+   `composer install --no-dev` (with Docker: `docker compose exec web composer
+   install`; then `docker compose up -d` to start the new Mailpit container).
+   The release package of the tag has them in `vendor/`.
+2. Run `php bin/campanella install`, or open `/admin/upgrade` (schema version
+   9: the new `mail_log` table; no migration). Until then the site answers 503.
+3. Set up e-mail in `config/local.php` (`mail.dsn`, `mail.from`;
+   [docs/deployment.md](docs/deployment.md#e-mail)), and send a test e-mail
+   from the System page. Without it, nothing is sent and the System page warns.
+
+### Added
+
+- **Events** (`Campanella\Event`): `ObjectCreated`, `ObjectUpdated`,
+  `ObjectPublished` (also scheduled), `ObjectUnpublished`, `ObjectDeleted`
+  from the `ObjectService`; `UserCreated`, `PasswordChanged` from the
+  `UserService`; dispatched after saving by the `EventDispatcher`. A failing
+  listener is logged; the operation stands.
+- **Actions** bound to events in the configuration (`events`: event class =>
+  Action classes), and a built-in one, `MailAdministrators` (not bound by
+  default): e-mails the active administrators about the event, with a link to
+  the object in the admin.
+- **E-mail** (`Campanella\Mail\Mailer`, symfony/mailer 7.4, MIT): SMTP
+  (`smtp://`, `smtps://`) or PHP's own settings (`native://default`), set in
+  `config/local.php` (`mail.dsn`, `mail.from`, `mail.from_name`) or as
+  environment variables; translatable templates in `templates/mail/` (a theme
+  can override them); every attempt logged in `mail_log` (never the text; kept
+  for `mail.log_days`, 90 days); sending never throws. The mail server gets
+  `mail.timeout` (10) seconds, and after a failure the other e-mails of the
+  request are not tried, so a hanging server cannot hold a request for minutes.
+- A wrong entry in the `events` setting is skipped and shown as an error on
+  the System page, instead of breaking the site.
+- The System page's **E-mail** group: whether sending is set up, the sender,
+  the latest e-mail, and a button for a **test e-mail to one's own address**
+  (at most 5 in 15 minutes); the **e-mail log** under *System → E-mail*.
+- Docker: **Mailpit** catches the e-mails of the development site
+  (http://localhost:8025).
+- Documentation: [chapter 21, Events and e-mail](docs/php-api/21-events-and-mail.md);
+  e-mail in the [deployment guide](docs/deployment.md#e-mail).
+
+### Changed
+
+- `ObjectService` and `UserService` take an optional `EventDispatcher` (their
+  last constructor argument).
+- New dependency: symfony/mailer (with symfony/mime, egulias/email-validator
+  and their dependencies; all MIT).
+
 ## [0.1.2] – 2026-10-09
 
 Images: every uploaded image gets smaller copies, and the texts show the copy

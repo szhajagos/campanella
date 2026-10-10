@@ -1,4 +1,4 @@
-# Campanella 0.1.2
+# Campanella 0.1.3
 
 [![CI](https://github.com/szhajagos/campanella/actions/workflows/ci.yml/badge.svg)](https://github.com/szhajagos/campanella/actions/workflows/ci.yml)
 
@@ -20,6 +20,9 @@ versions (the [CHANGELOG](CHANGELOG.md) always says how).
   upload, the main menu edited as a tree.
 - **Images:** checked and re-encoded on upload, with smaller copies for every
   screen (`srcset`); an image's delete page lists the texts that show it.
+- **E-mail and events** (since 0.1.3): sending e-mail through SMTP or PHP's
+  own settings, with templates and a log; events (published, created …) with
+  actions bound to them in the configuration.
 - **Users:** administrators and editors, managed in the browser; a profile
   with one's own password; login protection (throttling, a honeypot, the same
   answer for every failure).
@@ -47,8 +50,8 @@ folder; putting a site on a public server is described in the
 - MariaDB 10.6+ or MySQL 8.0+ (InnoDB, utf8mb4)
 - Composer (to download the dependencies; you can also upload the project to your web host together with the `vendor/` folder)
 
-PHP dependencies: Twig and symfony/html-sanitizer (with their dependencies,
-all MIT or BSD). Bootstrap 5.3 and the Jodit editor (CSS and JavaScript) are
+PHP dependencies: Twig, symfony/html-sanitizer and symfony/mailer (with their
+dependencies, all MIT or BSD). Bootstrap 5.3 and the Jodit editor (CSS and JavaScript) are
 shipped in `public/assets/vendor/`. PHPStan is needed for development only.
 
 ## Installation
@@ -129,7 +132,9 @@ docker compose exec web php bin/campanella install
 docker compose exec web php bin/campanella seed
 ```
 
-The system is then available at <http://localhost:8080>. The `Dockerfile` is
+The system is then available at <http://localhost:8080>. Every e-mail it sends
+is caught by Mailpit, at <http://localhost:8025> (since 0.1.3), so none reaches
+anyone. The `Dockerfile` is
 based on the official `php:8.3-apache` image: it installs the `pdo_mysql`,
 `gd` (with JPEG, PNG and WebP) and `exif` extensions, enables the
 `mod_rewrite` and `mod_headers` modules, raises PHP's upload and memory limits
@@ -184,7 +189,7 @@ On every push, GitHub runs the checks above
 documentation checks, `composer audit` (known vulnerabilities of the
 dependencies), and the tests on MariaDB 10.6 and 11.4, and MySQL 8.0 and 8.4. The results are shown next to the commits and on the Actions tab.
 
-After a version tag (`git tag v0.1.2 && git push --tags`), GitHub builds the
+After a version tag (`git tag v0.1.3 && git push --tags`), GitHub builds the
 installation package and attaches it to the release. For an existing tag it
 can also be started manually: Actions → CI → Run workflow, entering the tag.
 
@@ -319,8 +324,7 @@ on its own.
 
 ## Not included yet
 
-A forgotten password by e-mail, e-mail sending, Event / Action, a contact
-form (all planned for 0.2.0), search and redirects, an image
+A forgotten password by e-mail, a contact form (both planned for 0.2.0), search and redirects, an image
 picker (0.3.0), Component / Region / Layout, cache, multilingual content.
 
 ## Made with AI assistance

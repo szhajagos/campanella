@@ -130,6 +130,24 @@ return [
         'secure' => 'auto',            // 'auto': send the cookie over HTTPS only; true / false: forced
     ],
 
+    // E-mail (since 0.1.3): set it up in config/local.php, because the server's address
+    // may hold a password. Without both dsn and from, nothing is sent.
+    //   'dsn' => 'smtp://user:password@smtp.example.hu:587'   an SMTP server (STARTTLS)
+    //   'dsn' => 'smtps://user:password@smtp.example.hu:465'  SMTP over TLS
+    //   'dsn' => 'native://default'                            PHP's own settings (sendmail_path), like mail()
+    // See docs/php-api/21-events-and-mail.md.
+    'mail' => [
+        'dsn' => getenv('CAMPANELLA_MAIL_DSN') ?: '',
+        'from' => getenv('CAMPANELLA_MAIL_FROM') ?: '',   // the sender's address, e.g. noreply@example.hu
+        'from_name' => '',                                // '': the site's name
+        'log_days' => 90,                                 // the mail log keeps this many days
+        'timeout' => 10,                                  // seconds to wait for the mail server
+    ],
+
+    // Events (since 0.1.3): actions bound to them, event class => list of Action classes, e.g.
+    //   \Campanella\Event\ObjectPublished::class => [\Campanella\Event\Action\MailAdministrators::class],
+    'events' => [],
+
     // Login throttling.
     'auth' => [
         'max_attempts' => 5,           // this many failed attempts per e-mail address + IP address pair

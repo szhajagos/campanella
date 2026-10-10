@@ -5,9 +5,14 @@
 `Campanella\Service\ObjectService` · **Public** · `final class` · container: `ObjectService::class`
 
 The business logic of operations on objects. Controllers, the CLI and, later,
-the API and Webform all call it, so access control checks (and, later,
-dispatching Events) happen in one place. **Always use it for modifying
-operations**, not the repository directly.
+the API and Webform all call it, so access control checks and the events
+happen in one place. **Always use it for modifying operations**, not the
+repository directly.
+
+Constructor: `__construct(ObjectRepository $repository, AccessPolicy $policy, ?EventDispatcher $events = null)`.
+Since 0.1.3 it dispatches, after saving, `ObjectCreated`, `ObjectUpdated`,
+`ObjectPublished`, `ObjectUnpublished` and `ObjectDeleted`
+([chapter 21](21-events-and-mail.md#events)).
 
 | Method | Checked operation | Description |
 |---|---|---|
@@ -36,8 +41,9 @@ $service->publish($actor, $draft, new DateTimeImmutable('2026-10-01 08:00', new 
 
 `Campanella\Service\ObjectListener` · **Public** · `interface`
 
-A minimal hook until the Event / Action system: notified by the
-`ObjectService` after deleting (since 0.0.5). The built-in one,
+A minimal hook from before the events: notified by the `ObjectService` after
+deleting (since 0.0.5). New code listens to `ObjectDeleted` instead
+([chapter 21](21-events-and-mail.md)). The built-in one,
 `DeleteMediaFile`, deletes an image's file together with its object
 ([chapter 16](16-media.md)).
 

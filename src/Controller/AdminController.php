@@ -10,6 +10,7 @@ use Campanella\Access\Actor;
 use Campanella\Access\Operation;
 use Campanella\Admin\AdminAccess;
 use Campanella\Admin\Form\ObjectForm;
+use Campanella\Admin\MailPages;
 use Campanella\Admin\SettingsPage;
 use Campanella\Admin\StructurePages;
 use Campanella\Admin\UserPages;
@@ -119,6 +120,7 @@ final class AdminController implements Controller
         private readonly StructurePages $structure,
         private readonly SettingsPage $settings,
         private readonly ?MediaUsage $usage = null,
+        private readonly ?MailPages $mail = null,
     ) {
     }
 
@@ -233,6 +235,13 @@ final class AdminController implements Controller
             }
 
             return Response::redirect($request->basePath . $this->access->path('system'), 303);
+        }
+        // E-mail: the log and a test e-mail (since 0.1.3).
+        if ($this->mail !== null && $segments === ['mail']) {
+            return $this->mail->log(fn (string $template, string $active, array $context): Response => $this->render($template, $active, $context));
+        }
+        if ($this->mail !== null && $segments === ['mail-test']) {
+            return $this->mail->test($request, $actor);
         }
         // The site's settings (since 0.1.1).
         if ($segments === ['settings']) {

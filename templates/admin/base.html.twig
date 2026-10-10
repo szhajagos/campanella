@@ -57,6 +57,7 @@
                         {% if can_system ?? false %}
                             <li class="nav-item mt-3"><a class="nav-link{{ (active ?? '') == 'system' ? ' active' : '' }}" href="{{ admin_url('system') }}">{{ t('admin.system.title') }}</a></li>
                             <li class="nav-item"><a class="nav-link admin-subnav{{ (active ?? '') == 'settings' ? ' active' : '' }}" href="{{ admin_url('system/settings') }}">{{ t('settings.title') }}</a></li>
+                            <li class="nav-item"><a class="nav-link admin-subnav{{ (active ?? '') == 'mail' ? ' active' : '' }}" href="{{ admin_url('system/mail') }}">{{ t('mail.log.menu') }}</a></li>
                             <li class="nav-item"><a class="nav-link admin-subnav{{ (active ?? '') == 'blueprints' ? ' active' : '' }}" href="{{ admin_url('system/blueprints') }}">{{ t('structure.blueprints') }}</a></li>
                             <li class="nav-item"><a class="nav-link admin-subnav{{ (active ?? '') == 'capabilities' ? ' active' : '' }}" href="{{ admin_url('system/capabilities') }}">{{ t('structure.capabilities') }}</a></li>
                         {% endif %}

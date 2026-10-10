@@ -19,6 +19,7 @@ final class CoreSchema
     public const string MIGRATIONS = 'migrations';
     public const string SETTINGS = 'settings';
     public const string MEDIA_USAGE = 'media_usage';
+    public const string MAIL_LOG = 'mail_log';
 
     /** @return list<Table> */
     public static function tables(): array
@@ -144,6 +145,22 @@ final class CoreSchema
                     new ForeignKey('object_id', self::OBJECTS),
                     new ForeignKey('media_id', self::OBJECTS),
                 ],
+            ),
+            // The e-mails sent, or tried (since 0.1.3, schema version 9): kept for mail.log_days
+            // days (Campanella\Mail\Mailer). Never the message itself.
+            new Table(
+                name: self::MAIL_LOG,
+                columns: [
+                    new Column('id', ColumnType::Id, autoIncrement: true),
+                    new Column('created_at', ColumnType::DateTime),
+                    new Column('recipient', ColumnType::String, length: 255),
+                    new Column('template', ColumnType::String, length: 64),
+                    new Column('subject', ColumnType::String, length: 255),
+                    new Column('status', ColumnType::String, length: 16),
+                    new Column('error', ColumnType::Text, nullable: true),
+                ],
+                primaryKey: ['id'],
+                indexes: ['idx_created' => ['created_at']],
             ),
             // Throttling of attempts (e.g. login). The SHA-256 hash of the key.
             new Table(

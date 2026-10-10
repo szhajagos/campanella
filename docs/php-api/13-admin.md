@@ -62,6 +62,7 @@ The `subpath` route parameter selects the page. Everything goes through the
 | `/admin/upgrade` | Running the upgrade from the browser; a route of its own (`UpgradeController`), so it works before logging in and while the rest of the admin waits for the upgrade ([chapter 17](17-migrations.md#from-the-browser)) |
 | `POST /admin/system/clear-cache` | Clears the template cache |
 | `POST /admin/system/media-variants` | Makes the missing smaller copies of images, for at most `VARIANT_SECONDS` (20) seconds; the System page shows the button while some are missing (since 0.1.2) |
+| `/admin/system/mail`, `POST /admin/system/mail-test` | The e-mail log, and a test e-mail to one's own address (since 0.1.3; [chapter 21](21-events-and-mail.md#in-the-admin)) |
 | `/admin/system/settings` | The site's settings: name, slogan, description, address, share image, indexing (since 0.1.1; [chapter 20](20-site.md#the-site-settings-page-settingspage)) |
 
 | Constant | Value |

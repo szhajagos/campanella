@@ -23,6 +23,7 @@ Completed changes are listed in the [CHANGELOG](CHANGELOG.md).
 | 0.1.0 | First milestone: installing from the browser (`/install`, with a key), users in the browser (administrators manage them; everyone's profile and password; sessions end on a password change), ready for a public server (trusted proxies, Content-Security-Policy and other headers, System page checks, deployment guide), Blueprints and capabilities in the admin (read-only), a security review (template sandbox, login throttling, fail-closed `.htaccess`, `composer audit` in CI); upgrades from 0.0.6 on |
 | 0.1.1 | Site basics: site settings in the admin (name, slogan, description, address, share image, indexing), meta description, canonical URLs and Open Graph tags, `sitemap.xml`, `robots.txt` |
 | 0.1.2 | Images: smaller copies for `srcset` (made on upload, and for older images from the System page or `media:variants`), responsive images in texts, where an image is used (listed on its delete page) |
+| 0.1.3 | Events and e-mail: object and user events, actions bound in the configuration (`MailAdministrators`), e-mail with symfony/mailer (SMTP or PHP's own settings, templates, a log, a test e-mail from the System page), Mailpit for development |
 | – | Continuous integration (GitHub Actions): PHPStan, documentation, tests on MariaDB 10.6/11.4 and MySQL 8.0/8.4; installation package with `vendor/` for every version tag |
 
 ## Next
@@ -38,7 +39,7 @@ CHANGELOG entry; small additions may join a step along the way.
 |---|---|
 | 0.1.1 ✔ | **Site basics** (released 2026-10-09). Site settings edited in the admin (name, slogan, default meta description, image for social sharing), stored in the database, with the configuration file as fallback. `<meta name="description">` (from the lead, or the site's default), canonical URLs, Open Graph tags; `sitemap.xml` of the public content; `robots.txt` (the admin excluded). |
 | 0.1.2 ✔ | **Images** (released 2026-10-09). Image variants (a thumbnail and sizes for `srcset`), made on upload and re-encoded like the original; tracking where an image is used, so its delete page lists the texts that use it. |
-| 0.1.3 | **Events and e-mail.** The Event / Action foundation (`ObjectPublished`, `UserCreated` …; workflows and a state machine later). Sending e-mail with symfony/mailer: SMTP or PHP's `mail()`, translatable templates, a log, a test e-mail from the System page. |
+| 0.1.3 ✔ | **Events and e-mail** (released 2026-10-10). The Event / Action foundation (`ObjectPublished`, `UserCreated` …; workflows and a state machine later). Sending e-mail with symfony/mailer: SMTP or PHP's `mail()`, translatable templates, a log, a test e-mail from the System page. |
 | 0.1.4 | **Forgotten password and sessions.** A password reset by e-mail (a single-use, short-lived link; the same answer whether the address exists or not); the list of one's sessions on the profile, with "log out everywhere"; an absolute session lifetime. Closes the related accepted risks in [docs/security.md](docs/security.md). |
 | 0.1.5 | **Webform.** A contact form (honeypot, throttling, CSRF); the submissions are objects, listed in the admin; an e-mail notification about each. |
 | 0.2.0 | **Release:** upgrade guide, and a short security review of the new forms and of e-mail sending. |

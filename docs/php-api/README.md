@@ -1,6 +1,6 @@
 # PHP API
 
-Reference for the Campanella 0.1.2 PHP API. Every class is in the `Campanella\`
+Reference for the Campanella 0.1.3 PHP API. Every class is in the `Campanella\`
 namespace, in the `src/` folder (PSR-4).
 
 ## Chapters
@@ -25,6 +25,7 @@ namespace, in the `src/` folder (PSR-4).
 18. [Trees](18-trees.md): `Hierarchical`, the rules of a tree, `TreeBuilder`, separate trees (`tree_scope`)
 19. [Menus](19-menus.md): the `menu` and `menu_item` Blueprints, `Link`, `Keyed`, `MenuBuilder`, `menu()` in templates
 20. [The site](20-site.md): `Settings`, `SiteSettings`, `site` and `meta` in templates, `MetaBuilder`, `/sitemap.xml`, `/robots.txt`
+21. [Events and e-mail](21-events-and-mail.md): `Event` and its kinds, `EventDispatcher`, `Action`, `MailAdministrators`, `Mailer`, mail templates, the mail log
 
 ## Namespaces
 
@@ -36,6 +37,8 @@ namespace, in the `src/` folder (PSR-4).
 | `Campanella\Menu` | Service | Building menus for a visitor (since 0.0.7) |
 | `Campanella\Site` | Service | The site's settings, meta tags of pages (since 0.1.1) |
 | `Campanella\Settings` | Infrastructure | Settings saved in the admin (since 0.1.1) |
+| `Campanella\Event` | Service | Events and the actions bound to them (since 0.1.3) |
+| `Campanella\Mail` | Infrastructure | Sending e-mail (symfony/mailer), the mail log (since 0.1.3) |
 | `Campanella\Query` | Model | Query, conditions, compiler, executor |
 | `Campanella\Access` | Model | Actors, operations, policies |
 | `Campanella\Relation` | Model | Relation definitions and loading |

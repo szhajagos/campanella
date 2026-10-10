@@ -7,12 +7,16 @@ namespace Campanella\Service;
 use Campanella\Access\AccessDeniedException;
 use Campanella\Access\AccessPolicy;
 use Campanella\Access\Actor;
+use Campanella\Access\ActorKind;
 use Campanella\Access\Operation;
 use Campanella\Capability\AccountStatus;
 use Campanella\Capability\Authenticatable;
 use Campanella\Capability\Identifiable;
 use Campanella\Capability\Titled;
 use Campanella\Database\Connection;
+use Campanella\Event\EventDispatcher;
+use Campanella\Event\PasswordChanged;
+use Campanella\Event\UserCreated;
 use Campanella\I18n\Message;
 use Campanella\Model\CampanellaObject;
 use Campanella\Model\ObjectRepository;
@@ -31,7 +35,8 @@ use Campanella\Security\Throttle;
  *    site always has someone who can manage it; nobody can block themselves;
  *  - a password is changed only through setPassword() / changeOwnPassword(),
  *    and a changed password ends the user's other sessions (AuthService);
- *  - changing one's own password needs the current one (attempts are limited).
+ *  - changing one's own password needs the current one (attempts are limited);
+ *  - UserCreated and PasswordChanged are dispatched after saving (since 0.1.3).
  *
  * Users are not deleted here: blocking keeps their content's authors intact.
  */
@@ -57,6 +62,7 @@ final class UserService
         private readonly Throttle $throttle,
         private readonly array $roles = [Actor::ADMINISTRATOR, 'editor'],
         private readonly ?Connection $db = null,
+        private readonly ?EventDispatcher $events = null,
     ) {
     }
 
@@ -120,6 +126,7 @@ final class UserService
         }
         $user->as(Authenticatable::class)->setRoles($roles);
         $this->repository->save($user);
+        $this->events?->dispatch(new UserCreated($user, $actor));
 
         return $user;
     }
@@ -183,6 +190,7 @@ final class UserService
         }
         $user->as(Authenticatable::class)->setPassword($password);
         $this->repository->save($user);
+        $this->events?->dispatch(new PasswordChanged($user, true, $actor));
     }
 
     /** One's own name (the profile page). */
@@ -216,6 +224,7 @@ final class UserService
         $auth->setPassword($new);
         $this->repository->save($user);
         $this->throttle->clear($key);
+        $this->events?->dispatch(new PasswordChanged($user, false, new Actor(ActorKind::User, (int) $user->id(), $auth->roles())));
     }
 
     /** The active administrators, other than the given user. */

@@ -119,6 +119,8 @@ New controller: a `controller.<name>` entry in the container, and a route in
 | `trusted_proxies` | `[]` | The proxies whose `X-Forwarded-For` and `X-Forwarded-Proto` headers are believed (IPs or CIDR ranges; since 0.1.0; [chapter 7](07-http-and-view.md#trustedproxies)) |
 | `security.content_security_policy` | `null` (the built-in policy) | Replaces the public site's Content-Security-Policy; every source added is trusted with the visitors' pages (since 0.1.0; [chapter 7](07-http-and-view.md#securityheaders)) |
 | `security.hsts`, `security.hsts_subdomains` | `0` (off), `false` | `Strict-Transport-Security` max-age in seconds, over HTTPS only (since 0.1.0) |
+| `mail.dsn`, `mail.from`, `mail.from_name`, `mail.log_days`, `mail.timeout` | `''`, `''`, `''`, `90`, `10` | `CAMPANELLA_MAIL_DSN`, `CAMPANELLA_MAIL_FROM`. Sending e-mail; without `dsn` and `from` nothing is sent (since 0.1.3; [chapter 21](21-events-and-mail.md#settings)) |
+| `events` | `[]` | Actions bound to events: event class => list of Action classes (since 0.1.3; [chapter 21](21-events-and-mail.md#actions)) |
 | `migrations` | `[]` | The site's own migrations (class names), run after Campanella's ([chapter 17](17-migrations.md#writing-a-migration)) |
 | `session.*`, `auth.*` | see [chapter 11](11-users.md#configuration) | |
 
@@ -131,7 +133,7 @@ set, it is the project root (by default the parent directory of `public/`).
 
 `Campanella\Core\Version` · **Public**
 
-`CAMPANELLA = '0.1.2'` (the system version) and `SCHEMA = '8'` (the version of
+`CAMPANELLA = '0.1.3'` (the system version) and `SCHEMA = '9'` (the version of
 the core tables; incremented for a new core table. Changes of existing tables
 are migrations: [chapter 17](17-migrations.md)).
 `MIN_UPGRADE_SCHEMA = '6'` (since 0.1.0): the oldest schema an upgrade can start

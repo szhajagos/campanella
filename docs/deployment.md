@@ -138,6 +138,31 @@ host.
 - `install.key` and `upgrade.key` only while you need them (installing from
   the browser, an upgrade), then remove them.
 
+### E-mail
+
+Since 0.1.3 the site can send e-mail (soon: forgotten passwords, the contact
+form). Set it up in `config/local.php`, with the details of your host's mail
+server:
+
+```php
+'mail' => [
+    'dsn' => 'smtp://user%40example.hu:password@mail.example.hu:587',
+    'from' => 'noreply@example.hu',
+],
+```
+
+- `smtp://` uses STARTTLS when the server offers it; `smtps://…:465` is TLS
+  from the start. Without an SMTP server, `native://default` uses PHP's own
+  settings (`sendmail_path`), as PHP's `mail()` does.
+- In the user name and password, special characters are URL-encoded (`@` →
+  `%40`, `:` → `%3A`).
+- The sender (`from`) should be an address of the site's own domain that the
+  server may send for (SPF and DKIM set up at the domain), or the e-mails land
+  in spam.
+- Then send a test e-mail from the System page (*E-mail → Send a test e-mail
+  to myself*). The *E-mail* page under System shows the log of the e-mails
+  sent (kept for 90 days, never their text).
+
 ### Security headers
 
 Every page gets:
@@ -264,6 +289,7 @@ An installation older than 0.0.6 is upgraded to 0.0.7 first.
 - [ ] The site's address is right under *Site settings* (with `https://`), and
       search engines may index the site.
 - [ ] `debug` is `false`.
+- [ ] E-mail is set up, and the test e-mail from the System page arrives.
 - [ ] `upgrade.key` is not set (unless an upgrade needs it right now).
 - [ ] Only `var/cache/`, `var/backups/` and `public/media/` are writable by the
       web server; `config/local.php` is not readable by others.

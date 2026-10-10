@@ -2,6 +2,7 @@
 # Install:      docker compose exec web php bin/campanella install
 # Sample data:  docker compose exec web php bin/campanella seed
 # Open:         http://localhost:8080
+# E-mails:      http://localhost:8025 (Mailpit catches every e-mail the site sends; since 0.1.3)
 services:
   web:
     build: .
@@ -13,6 +14,9 @@ services:
       CAMPANELLA_DB_NAME: campanella
       CAMPANELLA_DB_USER: campanella
       CAMPANELLA_DB_PASSWORD: campanella
+      # E-mails go to Mailpit, never to the real recipients (see the mailpit service).
+      CAMPANELLA_MAIL_DSN: smtp://mailpit:1025
+      CAMPANELLA_MAIL_FROM: noreply@campanella.local
     volumes:
       # For development: changes to the files on your machine show up immediately.
       # In this case the vendor/ folder also comes from your machine; if it is missing, run:
@@ -21,6 +25,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      mailpit:
+        condition: service_started
 
   db:
     image: mariadb:10.11
@@ -36,6 +42,13 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+
+  # A mail catcher for development (MIT licensed): every e-mail the site sends ends up
+  # here, readable at http://localhost:8025, and none reaches anyone.
+  mailpit:
+    image: axllent/mailpit:v1.30.0
+    ports:
+      - "127.0.0.1:8025:8025"   # only from this computer: the e-mails may hold password-reset links
 
 volumes:
   db-data:

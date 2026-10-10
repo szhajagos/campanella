@@ -1,0 +1,9 @@
+{% autoescape false %}
+
+-- 
+{{ site.name }}{% if site.url %}
+{{ site.url }}{% endif %}
+
+
+{{ t('mail.footer') }}
+{% endautoescape %}
