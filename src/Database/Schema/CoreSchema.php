@@ -21,6 +21,7 @@ final class CoreSchema
     public const string MEDIA_USAGE = 'media_usage';
     public const string MAIL_LOG = 'mail_log';
     public const string SESSIONS = 'sessions';
+    public const string PASSWORD_RESETS = 'password_resets';
 
     /** @return list<Table> */
     public static function tables(): array
@@ -183,6 +184,24 @@ final class CoreSchema
                     'idx_seen' => ['last_seen_at'],
                 ],
                 uniques: ['uniq_token' => ['token_hash']],
+                foreignKeys: [new ForeignKey('user_id', self::OBJECTS)],
+            ),
+            // The forgotten password's links (since 0.1.4, schema version 11): the selector
+            // finds the row, the verifier is kept only as a hash (Campanella\Auth\PasswordReset).
+            // At most one per user; used, expired or replaced rows are deleted.
+            new Table(
+                name: self::PASSWORD_RESETS,
+                columns: [
+                    new Column('id', ColumnType::Id, autoIncrement: true),
+                    new Column('user_id', ColumnType::Id),
+                    new Column('selector', ColumnType::String, length: 32),
+                    new Column('verifier_hash', ColumnType::String, length: 64),
+                    new Column('created_at', ColumnType::DateTime),
+                    new Column('expires_at', ColumnType::DateTime),
+                ],
+                primaryKey: ['id'],
+                indexes: ['idx_user' => ['user_id'], 'idx_expires' => ['expires_at']],
+                uniques: ['uniq_selector' => ['selector']],
                 foreignKeys: [new ForeignKey('user_id', self::OBJECTS)],
             ),
             // Throttling of attempts (e.g. login). The SHA-256 hash of the key.

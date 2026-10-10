@@ -14,6 +14,25 @@ Work towards 0.1.4 (forgotten password and sessions), in parts.
 
 ### Added
 
+- **The forgotten password**: *Forgot your password?* on the login page, a
+  link by e-mail (`/password-reset`; the path is `paths.password_reset`) that
+  sets a new password. Offered only while e-mail and the site's address are
+  set up. The same answer and response time for every address (the account
+  is looked up and the e-mail sent after the response); the link works once,
+  for `auth.password_reset_minutes` (60) minutes, is stored only as a hash,
+  and is voided by a newer link or any password change; requests and wrong
+  links are limited; the new password ends every session. New:
+  `Campanella\Auth\PasswordReset`, `UserService::resetPassword()`, the
+  `password_resets` table (**schema version 11: run the upgrade**),
+  `PasswordChanged::$byReset`, the `password_reset` mail template.
+- **`MailUser`**, an action that e-mails the user an event is about (their
+  account was created, their password changed), with its own overridable
+  templates (`user_created`, `user_password_changed`, `user_event`). Not
+  bound by default. New: the `UserEvent` interface.
+- **Work after the response** (`Campanella\Core\Deferred`,
+  `Kernel::terminate()`): `public/index.php` calls it after sending the
+  response; a custom entry point should too. Every response now has a
+  `Content-Length`.
 - **Where you are logged in**, on the profile (`/admin/profile`): every login
   in progress with its browser, IP address, the time of logging in and of
   the last activity; any other one can be logged out, or all of them at once

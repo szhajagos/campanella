@@ -306,6 +306,7 @@ stored; if the file cannot be written, attempts are not limited.
 | `GET /login` | Login form (`page/login.html.twig`). Redirects a logged-in user |
 | `POST /login` | Login. Success: 303 redirect to the page given in the `return` field (or the front page). Failure: the form again, with 422 (with 400 for an expired CSRF token) |
 | `POST /logout` | Logout (with CSRF token), then a redirect to the front page. A GET request does not log out |
+| `GET /password-reset`, `POST /password-reset` | The forgotten password (since 0.1.4): see [below](#the-forgotten-password) |
 
 **The paths are settings** (since 0.1.4; until then `/belepes` and `/kilepes`
 with a `vissza` field). English by default, any can be changed, e.g. to the
@@ -313,19 +314,19 @@ site's language:
 
 ```php
 // config/local.php
-'paths' => ['login' => '/belepes', 'logout' => '/kilepes'],
+'paths' => ['login' => '/belepes', 'logout' => '/kilepes', 'password_reset' => '/elfelejtett-jelszo'],
 ```
 
 `Campanella\Http\SitePaths` · **Public** · container: `SitePaths::class`
 
 | Member | |
 |---|---|
-| `__construct(array $paths = [])` | The `paths` setting over `DEFAULTS` (`login` => `/login`, `logout` => `/logout`). `InvalidArgumentException` for an unknown name, an unusable path (`/`, spaces, `?`, `#`, backslashes) or two names with one path |
+| `__construct(array $paths = [])` | The `paths` setting over `DEFAULTS` (`login` => `/login`, `logout` => `/logout`, `password_reset` => `/password-reset`). `InvalidArgumentException` for an unknown name, an unusable path (`/`, spaces, `?`, `#`, backslashes) or two names with one path |
 | `get(string $name): string` | A page's path |
 | `all(): array` | name => path |
 | `login(string $return = ''): string` | The login page that sends back afterwards: `/login?return=%2Fadmin` |
 
-Templates use `path('login')`, `path('logout')` (with the installation's
+Templates use `path('login')`, `path('logout')`, `path('password_reset')` (with the installation's
 folder). The Kernel adds the routes; `robots.txt` lists them as not to crawl.
 A configured path is not a security measure in itself (the login is protected
 by its throttling), but keeps the noise of bots trying `/login` away.
@@ -336,6 +337,73 @@ path within the site (`/…`, but not `//…`). Anything else is replaced with
 
 In templates: `{{ current_user() }}` is the logged-in user (or `null`),
 `{{ csrf_field() }}` is the hidden token field.
+
+## The forgotten password
+
+*Since 0.1.4.* `Campanella\Auth\PasswordReset` · **Public** · container: `PasswordReset::class`
+
+A link by e-mail with which a user sets a new password. Offered (the login
+page's *Forgot your password?* link; otherwise `/password-reset` answers 404)
+only while e-mail is set up ([chapter 21](21-events-and-mail.md#settings)) and
+the site's address is set ([chapter 20](20-site.md#the-sites-settings-sitesettings)):
+the link is made from that address, **never from the request's `Host`
+header**, which anyone can send (an attacker could otherwise have the link
+point to their own site).
+
+| Step | |
+|---|---|
+| `GET /password-reset` | The form: an e-mail address (with the login guards' fields, e.g. the honeypot) |
+| `POST /password-reset` | 303 to `/password-reset?sent=1`: *if this address belongs to an account, the link has been sent*, **the same answer for every address** (registered, unknown, blocked). An invalid address: 422; too many requests: 429. A rejected guard (a bot): the usual answer, nothing sent |
+| the e-mail | `mail/password_reset.txt.twig`: the link `https://example.hu/password-reset?token=…`, valid for 60 minutes |
+| `GET /password-reset?token=…` | The token moves into the session, and a 303 to `/password-reset`: it does not stay in the address bar or the browser's history |
+| `GET /password-reset` | The new password's form (twice); a link no longer valid: 410, with *Request a new link* (`?again=1`) |
+| `POST /password-reset` | The new password: 303 to the login page (`?reset=1`: *Your new password is set*). A password breaking the rules: 422, the link still works |
+
+**Security:**
+
+- The **same answer and the same response time** for every address: the
+  account is looked up, the link made and the e-mail sent **after the
+  response** ([Deferred](09-system.md#deferred)).
+- The token is 96 hexadecimal characters: a **selector** (128 bits) that
+  finds the row, and a **verifier** (256 bits) kept only as its SHA-256 hash
+  (`password_resets` table, schema version 11), compared in constant time. Who
+  reads the table cannot use it.
+- Valid for `auth.password_reset_minutes` (60) minutes; **once**: using it
+  deletes it (in a locked transaction, so two parallel requests cannot both
+  use it); a newer link replaces the older; any password change voids it
+  (the profile, an administrator, the command line).
+- **Limits** (`Throttle`): 5 requests per IP address (IPv6: /64) in 15
+  minutes, 3 per e-mail address in an hour, whether it is registered or not;
+  20 wrong links per IP address in 15 minutes.
+- A **blocked account** gets no link, and a link stops working when its
+  account is blocked.
+- The new password **ends every session** of the user, everywhere (the stamp,
+  and the [session list](#sessionregistry)); they log in with it. It
+  dispatches `PasswordChanged` with `byReset` (no e-mail by default; see
+  [MailUser](21-events-and-mail.md#actions)).
+
+Why 60 minutes: e-mail is often slow (greylisting delays the first message
+from a sender by 5–15 minutes), and the link is single-use, 256 bits strong
+and stored only as a hash, so a longer window adds little risk (Laravel's
+default is 60 minutes too). A shorter one is a setting.
+
+| Member | |
+|---|---|
+| `isAvailable(): bool` | E-mail set up, the site's address set, the table exists |
+| `minutes(): int` | How long a link is valid |
+| `request(Request $request, string $email): ?Message` | Counts the request; then, after the response, e-mails a link if the address belongs to an active account. Returns an error that does not depend on the account (`auth.reset.invalid_email`, `auth.reset.too_many`), or null |
+| `issue(CampanellaObject $user): string` | Makes a link for the user (the previous one stops working); returns its token. Deletes the expired links |
+| `verify(Request $request, string $token): ?CampanellaObject` | The link's user, or null (wrong, expired, used, inactive account); a wrong one counts against the IP address |
+| `complete(Request $request, string $token, string $password): ?CampanellaObject` | Sets the new password (`UserService::resetPassword()`) and uses up the link; null if the link is not usable; `ValidationException` on `password` |
+| `forget(int $userId): void` | Voids the user's link (the Kernel calls it on every `PasswordChanged`) |
+
+Constants: `DEFAULT_MINUTES` (60), `MAX_PER_IP` (5), `IP_DECAY_SECONDS` (900),
+`MAX_PER_ADDRESS` (3), `ADDRESS_DECAY_SECONDS` (3600), `MAX_INVALID_PER_IP`
+(20), `INVALID_DECAY_SECONDS` (900). `AuthController::RESET_TOKEN`: the
+session key of the token between the link and the new password.
+
+Template: `page/password_reset.html.twig`, with `step` (`request`, `sent`,
+`new`, `invalid`).
 
 ## In the admin
 
@@ -361,6 +429,7 @@ last argument: `?EventDispatcher $events = null`; [chapter 21](21-events-and-mai
 | `create(Actor $actor, string $name, string $email, string $password, array $roles): CampanellaObject` | |
 | `update(Actor $actor, CampanellaObject $user, string $name, string $email, array $roles, bool $active): void` | |
 | `setPassword(Actor $actor, CampanellaObject $user, string $password): void` | An administrator sets someone else's password; their sessions end. One's own: only `changeOwnPassword()` (`users.own_password_profile`) |
+| `resetPassword(CampanellaObject $user, string $password): void` | A new password with a forgotten password's link (`PasswordReset`; since 0.1.4); every session of the user ends |
 | `updateProfile(CampanellaObject $user, string $name): void` | One's own name |
 | `changeOwnPassword(CampanellaObject $user, string $current, string $new): void` | With the current password; wrong ones are limited (5 in 15 minutes, `Throttle`) |
 | `activeAdministrators(int $except = 0): int` | |
@@ -412,6 +481,7 @@ are **internal**.
 | `auth.max_attempts` | `5` | Failed attempts per e-mail address and IP address pair |
 | `auth.max_attempts_per_ip` | `20` | Failed attempts per IP address |
 | `auth.decay_seconds` | `900` | The time window |
+| `auth.password_reset_minutes` | `60` | How long a forgotten password's link is valid (since 0.1.4) |
 | `auth.guards` | `[HoneypotGuard::class]` | LoginGuard classes |
 
 **Behind a proxy:** HTTPS detection relies on the `HTTPS` server variable. If

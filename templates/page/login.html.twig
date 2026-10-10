@@ -4,6 +4,9 @@
     <section class="login mx-auto">
         <h1 class="h3 mb-4">{{ t('auth.login') }}</h1>
 
+        {% if reset_done ?? false %}
+            <div class="alert alert-success" role="status">{{ t('auth.reset.done') }}</div>
+        {% endif %}
         {% if error %}
             <div class="alert alert-danger" role="alert">{{ error }}</div>
         {% endif %}
@@ -23,5 +26,8 @@
             </div>
             <button type="submit" class="btn btn-primary w-100">{{ t('auth.login') }}</button>
         </form>
+        {% if reset_available ?? false %}
+            <p class="mt-3 text-center"><a href="{{ path('password_reset') }}">{{ t('auth.reset.link') }}</a></p>
+        {% endif %}
     </section>
 {% endblock %}

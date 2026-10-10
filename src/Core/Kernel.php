@@ -37,6 +37,7 @@ use Campanella\Admin\AdminAccess;
 use Campanella\Admin\Form\ObjectForm;
 use Campanella\Capability\CapabilityRegistry;
 use Campanella\Auth\AuthService;
+use Campanella\Auth\PasswordReset;
 use Campanella\Auth\SessionRegistry;
 use Campanella\Auth\LoginGuard;
 use Campanella\Controller\AuthController;
@@ -137,6 +138,36 @@ final class Kernel
     }
 
     /**
+     * After the response was sent (public/index.php): runs the Deferred work, if any,
+     * having ended the connection where PHP can (since 0.1.4).
+     */
+    public function terminate(): void
+    {
+        if ($this->container === null) {
+            return;
+        }
+        $deferred = $this->container->get(Deferred::class);
+        if ($deferred->isEmpty()) {
+            return;
+        }
+        ignore_user_abort(true);
+        // The visitor's next request must not wait for this one's session lock.
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_write_close();
+        }
+        if (function_exists('fastcgi_finish_request')) {
+            fastcgi_finish_request();
+        } elseif (function_exists('litespeed_finish_request')) {
+            litespeed_finish_request();
+        } else {
+            while (ob_get_level() > 0 && @ob_end_flush()) {
+            }
+            flush();
+        }
+        $deferred->run();
+    }
+
+    /**
      * While search engines are asked not to index the site (Site settings), every
      * response without its own X-Robots-Tag says noindex (since 0.1.1).
      */
@@ -226,6 +257,9 @@ final class Kernel
         $root = $this->rootDir;
 
         $c->set(Config::class, static fn (): Config => Config::load($root . '/config'));
+
+        // Work after the response (since 0.1.4): see terminate().
+        $c->set(Deferred::class, static fn (): Deferred => new Deferred());
 
         $c->set(Connection::class, static fn (Container $c): Connection => Connection::fromConfig(
             $c->get(Config::class)->get('database'),
@@ -408,12 +442,17 @@ final class Kernel
         // Events (since 0.1.3): the actions of the `events` setting, made on their first event.
         $c->set(EventDispatcher::class, static function (Container $c): EventDispatcher {
             $events = new EventDispatcher();
-            // A password set by an administrator ends every login of the user (one's own
-            // change ends the others: AuthService::refresh()).
+            // A password set by an administrator or with a forgotten password's link ends every
+            // login of the user (one's own change ends the others: AuthService::refresh()), and
+            // any change voids a forgotten password's link (since 0.1.4).
             $events->listen(PasswordChanged::class, static function (Event $event) use ($c): void {
-                if ($event instanceof PasswordChanged && $event->byAdministrator) {
+                if (!$event instanceof PasswordChanged) {
+                    return;
+                }
+                if ($event->byAdministrator || $event->byReset) {
                     $c->get(SessionRegistry::class)->endAll((int) $event->user->id());
                 }
+                $c->get(PasswordReset::class)->forget((int) $event->user->id());
             });
             $events->bind(
                 (array) $c->get(Config::class)->get('events', []),
@@ -589,6 +628,7 @@ final class Kernel
             $paths = $c->get(SitePaths::class);
             $router->add($paths->get('login'), 'auth', ['action' => 'login']);
             $router->add($paths->get('logout'), 'auth', ['action' => 'logout']);
+            $router->add($paths->get('password_reset'), 'auth', ['action' => 'reset']);
             // For search engines (since 0.1.1).
             $router->add('/robots.txt', 'site', ['action' => 'robots']);
             $router->add('/sitemap.xml', 'site', ['action' => 'sitemap']);
@@ -691,6 +731,23 @@ final class Kernel
             $c->get(Csrf::class),
             $c->get(Presentation::class),
             $c->get(Translator::class),
+            $c->get(PasswordReset::class),
+            $c->get(Session::class),
+            $c->get(SitePaths::class),
+        ));
+
+        // The forgotten password (since 0.1.4).
+        $c->set(PasswordReset::class, static fn (Container $c): PasswordReset => new PasswordReset(
+            $c->get(Connection::class),
+            $c->get(AuthService::class),
+            $c->get(ObjectRepository::class),
+            $c->get(UserService::class),
+            $c->get(Mailer::class),
+            $c->get(SiteSettings::class),
+            $c->get(SitePaths::class),
+            $c->get(Throttle::class),
+            $c->get(Deferred::class),
+            (int) $c->get(Config::class)->get('auth.password_reset_minutes', PasswordReset::DEFAULT_MINUTES),
         ));
 
         $c->set('controller.query', static fn (Container $c): Controller => new QueryController(

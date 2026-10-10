@@ -4262,7 +4262,7 @@ test('Kernel: meta tags, robots.txt and sitemap.xml', function () use ($fakeImag
     check(str_contains($page->body, '<meta property="og:type" content="article">') && str_contains($page->body, '<meta property="og:title" content="Térképes cikk">'));
     check($kernel->handle(new Request('GET', '/sitemap.xml'))->status === 404, 'no sitemap without the address');
     $robots = $kernel->handle(new Request('GET', '/robots.txt'));
-    check($robots->status === 200 && str_starts_with($robots->headers['Content-Type'] ?? '', 'text/plain') && str_contains($robots->body, "User-agent: *\nDisallow: /admin/\nDisallow: /login\nDisallow: /logout\nDisallow: /install\n") && !str_contains($robots->body, 'Sitemap:'), $robots->body);
+    check($robots->status === 200 && str_starts_with($robots->headers['Content-Type'] ?? '', 'text/plain') && str_contains($robots->body, "User-agent: *\nDisallow: /admin/\nDisallow: /login\nDisallow: /logout\nDisallow: /password-reset\nDisallow: /install\n") && !str_contains($robots->body, 'Sitemap:'), $robots->body);
 
     $settings->set(['site.url' => 'https://pelda.hu']);
     $page = $kernel->handle(new Request('GET', '/terkepes-cikk'));
@@ -4912,7 +4912,7 @@ test('SitePaths: English by default, configurable, checked', function (): void {
     $default = new $P();
     check($default->get('login') === '/login' && $default->get('logout') === '/logout' && $default->login('/admin/article?status=draft') === '/login?return=%2Fadmin%2Farticle%3Fstatus%3Ddraft');
     $hu = new $P(['login' => '/belepes/', 'logout' => 'kilepes']);
-    check($hu->all() === ['login' => '/belepes', 'logout' => '/kilepes'], json_encode($hu->all()));
+    check($hu->all() === ['login' => '/belepes', 'logout' => '/kilepes', 'password_reset' => '/password-reset'], json_encode($hu->all()));
     foreach ([['bejelentkezes' => '/x'], ['login' => '/'], ['login' => '/a b'], ['login' => '/a?b'], ['login' => 42], ['login' => '/x', 'logout' => '/x']] as $bad) {
         throws(\InvalidArgumentException::class, fn () => new $P($bad));
     }
@@ -5149,6 +5149,173 @@ test('Kernel: the session list on the profile; an administrator\'s new password 
 
     $db->execute('DELETE FROM {sessions}');
     putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('Deferred: work after the response, in order; a failure does not stop the rest', function (): void {
+    $deferred = new \Campanella\Core\Deferred();
+    $done = [];
+    $deferred->add(static function () use (&$done, $deferred): void {
+        $done[] = 1;
+        $deferred->add(static function () use (&$done): void { $done[] = 3; });
+    });
+    $deferred->add(static function (): void { throw new \RuntimeException('hiba'); });
+    $deferred->add(static function () use (&$done): void { $done[] = 2; });
+    check(!$deferred->isEmpty());
+    $log = ini_set('error_log', '/dev/null');
+    check($deferred->run() === 4 && $done === [1, 2, 3] && $deferred->isEmpty(), json_encode($done));
+    ini_set('error_log', (string) $log);
+});
+
+test('Kernel: the forgotten password, from the request to the new password', function () use ($newUser, $db, $repository): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $make = static function (?object $transport, ArraySessionStorage $storage): \Campanella\Core\Kernel {
+        $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+        $c = $kernel->container();
+        $config = $c->get(\Campanella\Core\Config::class);
+        $c->set(\Campanella\Core\Config::class, static fn () => new \Campanella\Core\Config(['site' => ['url' => 'https://pelda.example'] + (array) $config->get('site')] + $config->all()));
+        $c->set(Session::class, static fn () => new Session($storage));
+        if ($transport !== null) {
+            $c->set(\Campanella\Mail\Mailer::class, static fn (\Campanella\Core\Container $c) => new \Campanella\Mail\Mailer($transport, 'noreply@example.hu', static fn () => $c->get(\Twig\Environment::class), static fn () => 'Teszt webhely', $c->get(Connection::class)));
+        }
+
+        return $kernel;
+    };
+    $probe = $make(null, new ArraySessionStorage());
+    if ($probe->container()->get(Connection::class)->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $db->execute('DELETE FROM {settings} WHERE name = :n', ['n' => 'site.url']);
+    $db->execute('DELETE FROM {throttle}');
+    $user = $newUser('felejto@example.hu', 'felejto-jelszo-1', ['editor']);
+
+    // Without e-mail: not offered.
+    check($probe->handle(new Request('GET', '/password-reset'))->status === 404, 'no e-mail: 404');
+    check(!str_contains($probe->handle(new Request('GET', '/login'))->body, 'Elfelejtetted'), 'no link');
+
+    $transport = captureTransport();
+    $storage = new ArraySessionStorage();
+    $kernel = $make($transport, $storage);
+    $send = static function (string $method, string $path, array $post = [], array $query = [], string $ip = '10.0.7.1') use (&$kernel, $storage) {
+        $storage->endRequest();
+
+        return $kernel->handle(new Request($method, $path, query: $query, post: $post, headers: ['host' => 'tamado.example'], ip: $ip));
+    };
+    $csrfOf = static fn ($response): string => preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $response->body, $m) === 1 ? $m[1] : '';
+    check(str_contains($send('GET', '/login')->body, 'href="/password-reset">Elfelejtetted a jelszavad?'), 'the link on the login page');
+    $form = $send('GET', '/password-reset');
+    check($form->status === 200 && str_contains($form->body, 'name="email"') && ($form->headers['X-Robots-Tag'] ?? '') === 'noindex' && str_contains($form->body, 'name="website"'), 'the form, with the honeypot');
+
+    // The same answer for an unknown, a blocked and a known address; the e-mail goes after the response.
+    $blocked = $newUser('letiltott-felejto@example.hu', 'letiltott-jelszo-1', ['editor']);
+    $blocked->as(Authenticatable::class)->block();
+    $repository->save($blocked);
+    $answers = [];
+    foreach (['nincs-ilyen@example.hu', 'letiltott-felejto@example.hu', ' Felejto@Example.hu '] as $email) {
+        $r = $send('POST', '/password-reset', ['_csrf' => $csrfOf($form), 'email' => $email, 'website' => '']);
+        $answers[] = $r->status . ' ' . ($r->headers['Location'] ?? '') . ' ' . $r->body;
+    }
+    check(count(array_unique($answers)) === 1 && str_starts_with($answers[0], '303 /password-reset?sent=1'), json_encode($answers));
+    check($transport->sent === [], 'nothing sent before the response is out');
+    $kernel->terminate();
+    check(count($transport->sent) === 1, 'one e-mail: ' . count($transport->sent));
+    $mail = $transport->sent[0];
+    check($mail->getTo()[0]->getAddress() === 'felejto@example.hu' && str_contains((string) $mail->getSubject(), 'Új jelszó beállítása'));
+    check(preg_match('#https://pelda\.example/password-reset\?token=([0-9a-f]{96})#', (string) $mail->getTextBody(), $m) === 1, 'the link, on the site\'s address (not the Host header): ' . $mail->getTextBody());
+    $token = $m[1];
+    check(str_contains((string) $mail->getTextBody(), '60 percig') && !str_contains(json_encode($db->fetchAll('SELECT * FROM {password_resets}')), substr($token, 32)), 'the verifier is not stored');
+    check(str_contains($send('GET', '/password-reset', [], ['sent' => '1'])->body, 'Ha ez a cím egy fiókhoz tartozik'));
+
+    // A bot (the honeypot filled in) gets the same answer, and nothing.
+    $bot = $send('POST', '/password-reset', ['_csrf' => $csrfOf($form), 'email' => 'felejto@example.hu', 'website' => 'http://spam.example']);
+    $kernel->terminate();
+    check($bot->status === 303 && count($transport->sent) === 1, 'the honeypot');
+    check($send('POST', '/password-reset', ['_csrf' => $csrfOf($form), 'email' => 'nem-cim', 'website' => ''])->status === 422);
+    check($send('POST', '/password-reset', ['_csrf' => 'rossz', 'email' => 'felejto@example.hu', 'website' => ''])->status === 400);
+
+    // At most 3 per address in an hour (whether it exists or not).
+    $send('POST', '/password-reset', ['_csrf' => $csrfOf($form), 'email' => 'felejto@example.hu', 'website' => ''], [], '10.0.7.2');
+    $send('POST', '/password-reset', ['_csrf' => $csrfOf($form), 'email' => 'felejto@example.hu', 'website' => ''], [], '10.0.7.3');
+    $limited = $send('POST', '/password-reset', ['_csrf' => $csrfOf($form), 'email' => 'felejto@example.hu', 'website' => ''], [], '10.0.7.4');
+    check($limited->status === 429 && str_contains($limited->body, 'Túl sok kérés'), 'the address limit');
+    $kernel->terminate();
+    check(count($transport->sent) === 3, 'two more e-mails: ' . count($transport->sent));
+    preg_match('#token=([0-9a-f]{96})#', (string) $transport->sent[2]->getTextBody(), $m);
+    $newest = $m[1];
+
+    // An older link stops working when a newer one is made.
+    $old = $send('GET', '/password-reset', [], ['token' => $token]);
+    check($old->status === 303 && ($old->headers['Location'] ?? '') === '/password-reset' && $storage->get(\Campanella\Controller\AuthController::RESET_TOKEN) === $token, 'into the session, out of the address');
+    $invalid = $send('GET', '/password-reset');
+    check($invalid->status === 410 && str_contains($invalid->body, 'nem érvényes') && $storage->get(\Campanella\Controller\AuthController::RESET_TOKEN) === null, 'the older link');
+
+    // The user is logged in elsewhere; the newest link sets the new password.
+    $elsewhere = new ArraySessionStorage();
+    $other = $make($transport, $elsewhere);
+    $other->container()->get(AuthService::class)->login(new Request('GET', '/'), $user);
+    $send('GET', '/password-reset', [], ['token' => $newest]);
+    $new = $send('GET', '/password-reset');
+    check($new->status === 200 && str_contains($new->body, 'name="password_again"') && !str_contains($new->body, 'felejto@example.hu'), 'the new password form');
+    check($send('POST', '/password-reset', ['_csrf' => $csrfOf($new), 'password' => 'uj-jelszo-felejto-1', 'password_again' => 'mas-jelszo-felejto-1'])->status === 422, 'mismatch');
+    $short = $send('POST', '/password-reset', ['_csrf' => $csrfOf($new), 'password' => 'rovid', 'password_again' => 'rovid']);
+    check($short->status === 422 && str_contains($short->body, 'is-invalid'), 'too short; the link still works');
+    $done = $send('POST', '/password-reset', ['_csrf' => $csrfOf($new), 'password' => 'uj-jelszo-felejto-1', 'password_again' => 'uj-jelszo-felejto-1']);
+    check($done->status === 303 && ($done->headers['Location'] ?? '') === '/login?reset=1', (string) ($done->headers['Location'] ?? $done->status));
+    check(str_contains($send('GET', '/login', [], ['reset' => '1'])->body, 'Az új jelszavad beállítva'));
+    $fresh = $repository->find((int) $user->id());
+    check($fresh !== null && $fresh->as(Authenticatable::class)->verifyPassword('uj-jelszo-felejto-1'), 'the new password');
+    $elsewhere->endRequest();
+    check($other->handle(new Request('GET', '/admin'))->status === 302, 'logged out elsewhere');
+    check((int) $db->fetchValue('SELECT COUNT(*) FROM {password_resets} WHERE user_id = :u', ['u' => $user->id()]) === 0, 'used up');
+    $send('GET', '/password-reset', [], ['token' => $newest]);
+    check($send('GET', '/password-reset')->status === 410, 'once only');
+
+    // Expired, wrong, voided by a password change.
+    $service = $kernel->container()->get(\Campanella\Auth\PasswordReset::class);
+    $expired = $service->issue($user);
+    $db->execute('UPDATE {password_resets} SET expires_at = :t', ['t' => gmdate('Y-m-d H:i:s', time() - 1)]);
+    check($service->verify(new Request('GET', '/', ip: '10.0.7.9'), $expired) === null, 'expired');
+    $valid = $service->issue($user);
+    check($service->verify(new Request('GET', '/', ip: '10.0.7.9'), $valid)?->id() === $user->id());
+    check($service->verify(new Request('GET', '/', ip: '10.0.7.9'), substr($valid, 0, 32) . str_repeat('0', 64)) === null, 'a wrong verifier');
+    $kernel->container()->get(\Campanella\Service\UserService::class)->changeOwnPassword($fresh, 'uj-jelszo-felejto-1', 'uj-jelszo-felejto-2');
+    check($service->verify(new Request('GET', '/', ip: '10.0.7.9'), $valid) === null, 'voided by the password change');
+    // Wrong links count against the address.
+    for ($i = 0; $i < 20; $i++) {
+        $service->verify(new Request('GET', '/', ip: '10.0.7.10'), str_repeat('a', 96));
+    }
+    $again = $service->issue($user);
+    check($service->verify(new Request('GET', '/', ip: '10.0.7.10'), $again) === null && $service->verify(new Request('GET', '/', ip: '10.0.7.11'), $again) !== null, 'too many wrong links from one address');
+
+    $db->execute('DELETE FROM {password_resets}');
+    $db->execute('DELETE FROM {throttle}');
+    $db->execute('DELETE FROM {sessions}');
+    $db->execute('DELETE FROM {mail_log}');
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('MailUser: the user an event is about, with its own template; not a blocked one', function () use ($newUser, $repository): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    putenv('CAMPANELLA_DB_PREFIX');
+    $c = $kernel->container();
+    $transport = captureTransport();
+    $mailer = new \Campanella\Mail\Mailer($transport, 'noreply@example.hu', static fn () => $c->get(\Twig\Environment::class), static fn () => 'Teszt webhely');
+    $action = new \Campanella\Event\Action\MailUser($mailer);
+    $user = $newUser('ertesitett@example.hu', 'ertesitett-jelszo-1', ['editor']);
+    $action->handle(new \Campanella\Event\PasswordChanged($user, true, Actor::system()));
+    $action->handle(new \Campanella\Event\UserCreated($user));
+    $action->handle(new \Campanella\Event\ObjectDeleted($user));
+    check(count($transport->sent) === 2, 'only the user events: ' . count($transport->sent));
+    check($transport->sent[0]->getTo()[0]->getAddress() === 'ertesitett@example.hu' && str_contains((string) $transport->sent[0]->getTextBody(), 'egy adminisztrátor új jelszót állított be') && !str_contains((string) $transport->sent[0]->getTextBody(), 'ertesitett-jelszo'), 'the password changed, by an administrator');
+    check(str_contains((string) $transport->sent[1]->getSubject(), 'Fiókot kaptál'));
+    check(\Campanella\Event\Action\MailUser::templateFor(new \Campanella\Event\PasswordChanged($user, false)) === 'user_password_changed');
+    $user->as(Authenticatable::class)->block();
+    $repository->save($user);
+    $action->handle(new \Campanella\Event\PasswordChanged($user, true));
+    check(count($transport->sent) === 2, 'not to a blocked account');
+    $repository->delete($user);
 });
 
 echo "\nDocumentation examples\n";

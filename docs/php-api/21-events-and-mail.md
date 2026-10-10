@@ -29,7 +29,11 @@ operation was saved:
 | `ObjectUnpublished` | `ObjectService::unpublish()` | `object` |
 | `ObjectDeleted` | `ObjectService::delete()` | `object` (its ID is still readable; it cannot be loaded any more) |
 | `UserCreated` | `UserService::create()` | `user` |
-| `PasswordChanged` | `UserService::setPassword()`, `changeOwnPassword()` | `user`, `byAdministrator` (never the password); its `actor` is the administrator, or the user (on the profile) |
+| `PasswordChanged` | `UserService::setPassword()`, `changeOwnPassword()`, `resetPassword()` | `user`, `byAdministrator`, `byReset` (with a forgotten password's link; since 0.1.4); never the password. Its `actor` is the administrator, or the user |
+
+`UserCreated` and `PasswordChanged` implement `Campanella\Event\UserEvent`
+(**Public** · `interface`, since 0.1.4): `user(): CampanellaObject`, the user
+the event is about.
 
 Every event has `actor` (`?Actor`: who did it; null for the system),
 `occurredAt` (UTC), `summary(): Message` (a translatable sentence, e.g.
@@ -100,6 +104,29 @@ the admin (if the site's address is set). The one who did it gets none (so
 an administrator changing their own password is not mailed about it).
 Nothing happens while e-mail is not set up.
 
+`Campanella\Event\Action\MailUser` · **Public** · since 0.1.4: e-mails the
+user a `UserEvent` is about; other events are ignored, and so is a blocked
+account. **Not bound by default**: an administrator who sets someone's
+password to lock them out may not want them told. To tell users:
+
+```php
+use Campanella\Event\Action\MailUser;
+use Campanella\Event\PasswordChanged;
+use Campanella\Event\UserCreated;
+
+'events' => [
+    PasswordChanged::class => [MailUser::class],   // whoever changed it
+    UserCreated::class => [MailUser::class],       // "an account for you", never the password
+],
+```
+
+The template is `static templateFor(Event $event): string`: `user_created`,
+`user_password_changed`, or `user_event` for any other `UserEvent`. Their
+context: `summary`, `occurred_at`, `by_administrator`, `by_reset`,
+`login_link` and `reset_link` (absolute URLs, null without the site's address;
+`reset_link` only while the forgotten password is offered). A theme overrides
+any of them with its own `mail/<name>.txt.twig`.
+
 ## Sending e-mail
 
 ### Settings
@@ -153,8 +180,10 @@ An e-mail is a template, `templates/mail/<name>.txt.twig`, with two blocks:
 - A theme overrides a template by having its own `mail/<name>.txt.twig`.
 - The subject is one line, at most 200 characters (`Mailer::MAX_SUBJECT`).
 
-Built-in templates: `test` (the System page's test e-mail), `event`
-(`MailAdministrators`), `_footer` (included by both).
+Built-in templates: `test` (the System page's test e-mail), `password_reset`
+(the forgotten password's link; since 0.1.4), `user_created`,
+`user_password_changed`, `user_event` (`MailUser`; since 0.1.4), `event`
+(`MailAdministrators`), `_footer` (included by all).
 
 ### Mailer
 

@@ -53,6 +53,7 @@ if (!is_file($autoload)) {
 
 require $autoload;
 
-(new Kernel($root))
-    ->handle(Request::fromGlobals())
-    ->send();
+$kernel = new Kernel($root);
+$kernel->handle(Request::fromGlobals())->send();
+// Work left for after the response, e.g. an e-mail (since 0.1.4).
+$kernel->terminate();

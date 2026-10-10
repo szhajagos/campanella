@@ -12,6 +12,7 @@ Assembles the system and serves a request.
 | `rootDir(): string` | |
 | `container(): Container` | The service container (built on first call) |
 | `handle(Request $request): Response` | Routing, controller, error handling |
+| `terminate(): void` | After the response was sent: runs the `Deferred` work (since 0.1.4; see below) |
 
 Error handling in `handle()`:
 
@@ -27,7 +28,31 @@ Custom entry point (e.g. for a test):
 ```php
 $kernel = new Kernel('/path/to/project');
 $response = $kernel->handle(new Request('GET', '/hirek'));
+$response->send();
+$kernel->terminate();   // work left for after the response, if any
 ```
+
+### Deferred
+
+`Campanella\Core\Deferred` · **Public** · since 0.1.4 · container: `Deferred::class`
+
+Work done after the response was sent, e.g. an e-mail whose delay must not
+show in the response time (the forgotten password must not tell by its speed
+whether an address is registered). `public/index.php` sends the response, then
+calls `Kernel::terminate()`, which ends the connection where PHP can (PHP-FPM:
+`fastcgi_finish_request()`; LiteSpeed), closes the session (so the visitor's
+next request does not wait for its lock), and runs the work. Elsewhere (e.g.
+Apache's mod_php) the response is flushed first: since 0.1.4 every response
+has a `Content-Length`, so browsers take it as complete; the connection stays
+open until the work is done.
+
+| Method | |
+|---|---|
+| `add(Closure $work): void` | Work for later |
+| `isEmpty(): bool` | |
+| `run(): int` | Runs the work, in order (also what is added meanwhile); a failure is logged and the rest still runs. Returns how many ran |
+
+Without `terminate()` (the command line, tests), call `run()` yourself.
 
 ## Container
 
@@ -56,6 +81,8 @@ by explicit factory functions in the `Kernel`, on first request, once.
 | `RelationLoader::class` | Relation loading |
 | `Session::class`, `Csrf::class`, `Throttle::class`, `AuthService::class` | Session, CSRF, throttling, login |
 | `SessionRegistry::class` | The logins in progress (since 0.1.4; [chapter 11](11-users.md#sessionregistry)) |
+| `PasswordReset::class` | The forgotten password (since 0.1.4; [chapter 11](11-users.md#the-forgotten-password)) |
+| `Deferred::class` | Work after the response (since 0.1.4; [above](#deferred)) |
 | `ObjectService::class` | Operations |
 | `Installer::class` | Installer |
 | `Twig\Environment::class`, `Presentation::class` | Rendering |

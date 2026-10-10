@@ -1,0 +1,18 @@
+{# To a new user (the MailUser action, when bound; since 0.1.4). Never the password. #}
+{% block subject %}{{ t('mail.user.created.subject', {site: site.name}) }}{% endblock %}
+{% block body %}{% autoescape false %}
+{{ to_name ? t('mail.greeting', {name: to_name}) : t('mail.greeting_anonymous') }}
+
+{{ t('mail.user.created.body', {site: site.name}) }}
+{% if login_link %}
+
+{{ t('mail.user.created.login') }}
+{{ login_link }}
+{% endif %}
+{% if reset_link %}
+
+{{ t('mail.user.created.reset') }}
+{{ reset_link }}
+{% endif %}
+{% include 'mail/_footer.txt.twig' %}
+{% endautoescape %}{% endblock %}

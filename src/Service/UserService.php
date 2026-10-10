@@ -9,6 +9,7 @@ use Campanella\Access\AccessPolicy;
 use Campanella\Access\Actor;
 use Campanella\Access\ActorKind;
 use Campanella\Access\Operation;
+use Campanella\Auth\AuthService;
 use Campanella\Capability\AccountStatus;
 use Campanella\Capability\Authenticatable;
 use Campanella\Capability\Identifiable;
@@ -191,6 +192,20 @@ final class UserService
         $user->as(Authenticatable::class)->setPassword($password);
         $this->repository->save($user);
         $this->events?->dispatch(new PasswordChanged($user, true, $actor));
+    }
+
+    /**
+     * A new password with a forgotten password's link (PasswordReset; since 0.1.4): the
+     * link stands for the current password. Every session of the user ends.
+     *
+     * @throws ValidationException on `password`
+     */
+    public function resetPassword(CampanellaObject $user, #[\SensitiveParameter] string $password): void
+    {
+        $user->as(Authenticatable::class)->setPassword($password);
+        $this->repository->save($user);
+        $this->throttle->clear('password-change|' . $user->id());
+        $this->events?->dispatch(new PasswordChanged($user, false, AuthService::actorFor($user), true));
     }
 
     /** One's own name (the profile page). */

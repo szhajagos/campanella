@@ -168,6 +168,7 @@ User-agent: *
 Disallow: /admin/
 Disallow: /login
 Disallow: /logout
+Disallow: /password-reset
 Disallow: /install
 
 Sitemap: https://example.hu/sitemap.xml

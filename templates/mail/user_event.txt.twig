@@ -1,0 +1,9 @@
+{# To the user an event is about, for events without a template of their own (the MailUser action; since 0.1.4). #}
+{% block subject %}[{{ site.name }}] {{ t(summary.key, summary.params) }}{% endblock %}
+{% block body %}{% autoescape false %}
+{{ to_name ? t('mail.greeting', {name: to_name}) : t('mail.greeting_anonymous') }}
+
+{{ t(summary.key, summary.params) }}
+{{ t('mail.event.at', {time: occurred_at}) }}
+{% include 'mail/_footer.txt.twig' %}
+{% endautoescape %}{% endblock %}

@@ -47,6 +47,7 @@ return [
     'paths' => [
         'login' => '/login',
         'logout' => '/logout',
+        'password_reset' => '/password-reset',   // the forgotten password
     ],
 
     'site' => [
@@ -162,6 +163,9 @@ return [
         'max_attempts_per_ip' => 20,   // and this many per IP address (IPv6: per /64 network)
         'max_attempts_per_account' => 30, // and this many per account, from any address (since 0.1.0)
         'decay_seconds' => 900,        // within this time window (15 minutes)
+        // The forgotten password (since 0.1.4; needs e-mail and the site's address): how
+        // long the link sent is valid, in minutes. It works once, and a newer one replaces it.
+        'password_reset_minutes' => 60,
         // Additional protections run before the password check (Campanella\Auth\LoginGuard).
         'guards' => [
             HoneypotGuard::class,

@@ -10,11 +10,17 @@ use Campanella\Model\CampanellaObject;
 use Campanella\Service\UserService;
 
 /** A user was created in the admin (UserService; since 0.1.3). */
-final class UserCreated extends Event
+final class UserCreated extends Event implements UserEvent
 {
     public function __construct(public readonly CampanellaObject $user, ?Actor $actor = null)
     {
         parent::__construct($actor);
+    }
+
+    #[\Override]
+    public function user(): CampanellaObject
+    {
+        return $this->user;
     }
 
     #[\Override]

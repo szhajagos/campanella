@@ -23,6 +23,7 @@ shown according to the user's roles (e.g. an `editor` also sees drafts).
 | `GET /kategoriak` | `config/routes.php` → Query `categories` | Published categories (0.0.2); since 0.0.7 as a tree, in their hand-set order |
 | `GET /login`, `POST /login` | `AuthController` | Login form and login (0.0.3); the path is a setting (`paths.login`, since 0.1.4); details: [PHP API chapter 11](../php-api/11-users.md#web-interface) |
 | `POST /logout` | `AuthController` | Logout with a CSRF token (`paths.logout`) |
+| `GET /password-reset`, `POST /password-reset` | `AuthController` | The forgotten password (0.1.4; `paths.password_reset`): only while e-mail and the site's address are set up, otherwise 404; [PHP API chapter 11](../php-api/11-users.md#the-forgotten-password) |
 | `GET /install`, `POST /install` | `InstallController` | Installing from the browser (0.1.0): only with the install key, only while there is no user, otherwise 404; [PHP API chapter 17](../php-api/17-migrations.md#installing-from-the-browser) |
 | `GET /admin/upgrade`, `POST /admin/upgrade` | `UpgradeController` | Running the upgrade from the browser (0.0.6): for administrators, or with the upgrade key; [PHP API chapter 17](../php-api/17-migrations.md#from-the-browser) |
 | `GET /admin…`, `POST /admin…` | `AdminController` | The admin UI (0.0.4): dashboard, lists, forms, publishing, deleting; users and the profile (0.1.0); details: [PHP API chapter 13](../php-api/13-admin.md#admincontroller) |
@@ -39,7 +40,9 @@ shown according to the user's roles (e.g. an `editor` also sees drafts).
 | `404` | No such route, or the object is not visible (draft, scheduled). The two are intentionally indistinguishable |
 | `405` | A GET request to an action that only accepts POST (e.g. `/admin/<blueprint>/<id>/publish`) |
 | `409` | Saving an admin form that someone else saved in the meantime |
+| `410` | A forgotten password's link that is no longer valid (since 0.1.4) |
 | `422` | An admin form with invalid values |
+| `429` | Too many forgotten password requests (since 0.1.4) |
 | `500` | Internal error; with the message in debug mode |
 | `503` | The system is not installed yet, or an upgrade is needed (with `Retry-After: 300`; since 0.0.6 also when a migration is pending: every page except logging in and out and the upgrade page) |
 

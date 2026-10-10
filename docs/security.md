@@ -25,6 +25,12 @@ CHANGELOG's **Security** section names it.
   session ID on login; a blocked account or a changed password ends the
   sessions; a login lasts at most 12 hours, however active, and every login is listed
   on the profile, where it can be ended (since 0.1.4); no default account.
+- **Forgotten password** (since 0.1.4): the same answer and response time for
+  every address (the e-mail goes after the response); a single-use link,
+  valid for 60 minutes, stored only as a hash, made from the site's set
+  address (never the `Host` header); requests limited per address and per
+  e-mail address, wrong links per address; the new password ends every
+  session.
 - **Output:** Twig escapes everything; HTML texts are filtered on every save
   with an allowlist; link URLs and site paths are checked; templates run in a
   sandbox that cannot read hidden fields (password hash, e-mail address,
@@ -84,6 +90,15 @@ reach its database from the review's environment: it runs in CI instead.
   minutes by default): otherwise logging in to one's own account would reset
   the counter between guesses at others. Behind one shared address (an
   office) the setting `max_attempts_per_ip` can be raised.
+- **A forgotten password's requests can be used up** (since 0.1.4): 3 per
+  e-mail address in an hour, counted for any address, so someone who knows a
+  user's address can delay that user's link by up to an hour. Counting only
+  registered addresses would tell which are registered. An administrator can
+  still set a new password.
+- **The forgotten password's e-mail on Apache's mod_php** (since 0.1.4): the
+  response is complete for the browser, but PHP keeps the connection open
+  until the e-mail is sent. The answer's time does not depend on the account
+  either way; PHP-FPM also closes the connection first.
 - **The installer shows the requirements** (PHP and database versions,
   missing extensions) to anyone before the site is installed: it helps the
   person installing, and there is nothing yet to protect. Once a user exists,

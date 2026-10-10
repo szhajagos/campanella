@@ -8,10 +8,10 @@ use Campanella\Capability\Routable;
 
 /**
  * The addresses of the system's own public pages (since 0.1.4): logging in and out
- * (and, from 0.1.4 on, the forgotten password). English by default, any of them can
- * be changed in the configuration, e.g. to the site's language:
+ * and the forgotten password. English by default, any of them can be changed in the
+ * configuration, e.g. to the site's language:
  *
- *     'paths' => ['login' => '/belepes', 'logout' => '/kilepes'],
+ *     'paths' => ['login' => '/belepes', 'logout' => '/kilepes', 'password_reset' => '/elfelejtett-jelszo'],
  *
  * Templates get them with path('login'). The admin's own address is `admin.path`
  * (AdminAccess).
@@ -21,6 +21,7 @@ final class SitePaths
     public const array DEFAULTS = [
         'login' => '/login',
         'logout' => '/logout',
+        'password_reset' => '/password-reset',
     ];
 
     /** @var array<string, string> */
