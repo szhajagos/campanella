@@ -49,6 +49,7 @@ return [
         'login' => '/login',
         'logout' => '/logout',
         'password_reset' => '/password-reset',   // the forgotten password
+        'contact' => '/contact',                 // the contact form (since 0.1.5)
     ],
 
     'site' => [
@@ -153,6 +154,17 @@ return [
         'from_name' => '',                                // '': the site's name
         'log_days' => 90,                                 // the mail log keeps this many days
         'timeout' => 10,                                  // seconds to wait for the mail server
+    ],
+
+    // The contact form (since 0.1.5), at paths.contact; templates can show it anywhere
+    // with {{ contact_form() }}. Its messages are under Submissions in the admin.
+    'contact' => [
+        'enabled' => true,
+        'min_seconds' => 3,            // a form sent sooner after it was shown is taken for a bot's
+        // Additional protections, as for logging in (LoginGuard classes).
+        'guards' => [
+            HoneypotGuard::class,
+        ],
     ],
 
     // Events (since 0.1.3): actions bound to them, event class => list of Action classes, e.g.

@@ -21,7 +21,15 @@ Work towards 0.1.5 (the contact form), in parts.
   e-mail address, subject, message, form, read time; hidden from templates;
   no IP address stored). New: `Campanella\Capability\Submitted`,
   `Campanella\Service\SubmissionService`; **schema version 12: run the
-  upgrade**. The contact form itself comes in the next part.
+  upgrade**.
+- **The contact form** at `/contact` (`paths.contact`), and on any page with
+  `{{ contact_form() }}`: name, e-mail address, subject (optional), message.
+  Protected by a CSRF token, the honeypot (`contact.guards`), a signed time
+  (sent sooner than `contact.min_seconds`, 3 seconds: taken for a bot's),
+  and limits (5 messages per IP address, 3 per e-mail address in an hour).
+  `contact.enabled: false` turns it off. The contact page is in
+  `sitemap.xml`. New: `Campanella\Webform\ContactForm`, `ContactResult`,
+  `SubmissionService::check()`.
 
 ### Security
 

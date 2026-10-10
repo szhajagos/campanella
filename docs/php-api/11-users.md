@@ -323,7 +323,7 @@ site's language:
 
 | Member | |
 |---|---|
-| `__construct(array $paths = [])` | The `paths` setting over `DEFAULTS` (`login` => `/login`, `logout` => `/logout`, `password_reset` => `/password-reset`). `InvalidArgumentException` for an unknown name, an unusable path (`/`, spaces, `?`, `#`, backslashes) or two names with one path |
+| `__construct(array $paths = [])` | The `paths` setting over `DEFAULTS` (`login` => `/login`, `logout` => `/logout`, `password_reset` => `/password-reset`, `contact` => `/contact` since 0.1.5). `InvalidArgumentException` for an unknown name, an unusable path (`/`, spaces, `?`, `#`, backslashes) or two names with one path |
 | `get(string $name): string` | A page's path |
 | `all(): array` | name => path |
 | `login(string $return = ''): string` | The login page that sends back afterwards: `/login?return=%2Fadmin` |

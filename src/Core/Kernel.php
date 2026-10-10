@@ -43,6 +43,7 @@ use Campanella\Auth\PasswordReset;
 use Campanella\Auth\SessionRegistry;
 use Campanella\Auth\LoginGuard;
 use Campanella\Controller\AuthController;
+use Campanella\Controller\ContactController;
 use Campanella\Controller\Controller;
 use Campanella\Controller\ObjectController;
 use Campanella\Controller\QueryController;
@@ -94,6 +95,7 @@ use Twig\Environment;
 use Twig\Extension\CoreExtension;
 use Twig\Extension\SandboxExtension;
 use Campanella\View\TemplatePolicy;
+use Campanella\Webform\ContactForm;
 use Campanella\View\TemplateLoader;
 
 /**
@@ -635,6 +637,19 @@ final class Kernel
                 ),
                 static fn (): ResponsiveImages => $c->get(ResponsiveImages::class),
                 $c->get(SitePaths::class),
+                static function () use ($c, $currentRequest): string {
+                    $form = $c->get(ContactForm::class);
+                    if (!$form->isEnabled()) {
+                        return '';
+                    }
+
+                    return $c->get(Presentation::class)->render('page/_contact_form.html.twig', [
+                        'values' => array_fill_keys(array_keys(ContactForm::FIELDS), ''),
+                        'errors' => [],
+                        'message' => null,
+                        'max' => ContactForm::FIELDS,
+                    ] + $form->fields($currentRequest()));
+                },
             ));
 
             return $twig;
@@ -659,6 +674,8 @@ final class Kernel
             $router->add($paths->get('login'), 'auth', ['action' => 'login']);
             $router->add($paths->get('logout'), 'auth', ['action' => 'logout']);
             $router->add($paths->get('password_reset'), 'auth', ['action' => 'reset']);
+            // The contact form (since 0.1.5).
+            $router->add($paths->get('contact'), 'contact');
             // For search engines (since 0.1.1).
             $router->add('/robots.txt', 'site', ['action' => 'robots']);
             $router->add('/sitemap.xml', 'site', ['action' => 'sitemap']);
@@ -705,6 +722,27 @@ final class Kernel
             new MailPages($c->get(Mailer::class), $c->get(ObjectRepository::class), $c->get(Throttle::class), $c->get(Csrf::class), $c->get(Flash::class), $c->get(AdminAccess::class)),
             $c->get(SitePaths::class),
             new SubmissionPages($c->get(SubmissionService::class), $c->get(Csrf::class), $c->get(Flash::class), $c->get(AdminAccess::class)),
+        ));
+
+        // The contact form (since 0.1.5).
+        $c->set(ContactForm::class, static function (Container $c): ContactForm {
+            $config = $c->get(Config::class);
+
+            return new ContactForm(
+                $c->get(SubmissionService::class),
+                $c->get(Csrf::class),
+                $c->get(Throttle::class),
+                self::guards((array) $config->get('contact.guards', [])),
+                (bool) $config->get('contact.enabled', true),
+                (int) $config->get('contact.min_seconds', ContactForm::MIN_SECONDS),
+            );
+        });
+
+        $c->set('controller.contact', static fn (Container $c): Controller => new ContactController(
+            $c->get(ContactForm::class),
+            $c->get(Presentation::class),
+            $c->get(Translator::class),
+            $c->get(SitePaths::class),
         ));
 
         // The forms' messages (since 0.1.5).
@@ -757,7 +795,8 @@ final class Kernel
             return new SiteController(
                 $c->get(SiteSettings::class),
                 $c->get(QueryEngine::class),
-                $router->paths('query'),
+                // The lists, and the contact page (since 0.1.5).
+                [...$router->paths('query'), ...$router->paths('contact')],
                 // The admin only at its default path: a path of its own is not revealed here
                 // (the admin pages send noindex themselves).
                 [...($admin->path() === '/admin' ? ['/admin/'] : []), ...$router->paths('auth'), InstallController::PATH],
@@ -810,7 +849,7 @@ final class Kernel
         foreach ($classes as $class) {
             $guard = is_string($class) && class_exists($class) ? new $class() : null;
             if (!$guard instanceof LoginGuard) {
-                throw new \LogicException('auth.guards may only contain LoginGuard classes: ' . var_export($class, true));
+                throw new \LogicException('auth.guards and contact.guards may only contain LoginGuard classes: ' . var_export($class, true));
             }
             $guards[] = $guard;
         }

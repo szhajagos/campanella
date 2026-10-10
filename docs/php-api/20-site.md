@@ -185,7 +185,8 @@ its own gets `X-Robots-Tag: noindex` (the Kernel), the pages say
 deliberately **not** forbidden in `robots.txt`: a search engine that may not
 fetch a page cannot read its `noindex`, and may still list its address.
 
-The sitemap lists the lists (the `query` routes: `Router::paths('query')`) and
+The sitemap lists the lists (the `query` routes: `Router::paths('query')`), the
+contact page (since 0.1.5) and
 every `Routable` object the **anonymous** visitor can see, so a draft or a
 scheduled article never appears, with its last modification. Above
 `SiteController::PER_FILE` (2,000) addresses `/sitemap.xml` becomes an index of

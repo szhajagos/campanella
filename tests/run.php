@@ -4912,7 +4912,7 @@ test('SitePaths: English by default, configurable, checked', function (): void {
     $default = new $P();
     check($default->get('login') === '/login' && $default->get('logout') === '/logout' && $default->login('/admin/article?status=draft') === '/login?return=%2Fadmin%2Farticle%3Fstatus%3Ddraft');
     $hu = new $P(['login' => '/belepes/', 'logout' => 'kilepes']);
-    check($hu->all() === ['login' => '/belepes', 'logout' => '/kilepes', 'password_reset' => '/password-reset'], json_encode($hu->all()));
+    check($hu->all() === ['login' => '/belepes', 'logout' => '/kilepes', 'password_reset' => '/password-reset', 'contact' => '/contact'], json_encode($hu->all()));
     foreach ([['bejelentkezes' => '/x'], ['login' => '/'], ['login' => '/a b'], ['login' => '/a?b'], ['login' => 42], ['login' => '/x', 'logout' => '/x']] as $bad) {
         throws(\InvalidArgumentException::class, fn () => new $P($bad));
     }
@@ -5486,6 +5486,100 @@ test('Kernel: the submissions in the admin, for administrators only', function (
     $deleted = $admin('POST', '/admin/submission/' . $first->id() . '/delete', ['_csrf' => $csrfOf($view)]);
     check($deleted->status === 303 && $service->find(Actor::system(), (int) $first->id()) === null && str_contains($admin('GET', '/admin/submission')->body, 'Az üzenet törölve'), 'deleted');
 
+    $db->execute("DELETE FROM {objects} WHERE blueprint = 'submission'");
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('Kernel: the contact form, from the page to a saved message', function () use ($db): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $storage = new ArraySessionStorage();
+    $make = static function (array $override = []) use ($storage): \Campanella\Core\Kernel {
+        $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+        $c = $kernel->container();
+        $config = $c->get(\Campanella\Core\Config::class);
+        if ($override !== []) {
+            $c->set(\Campanella\Core\Config::class, static fn () => new \Campanella\Core\Config(array_replace_recursive($config->all(), $override)));
+        }
+        $c->set(Session::class, static fn () => new Session($storage));
+
+        return $kernel;
+    };
+    $kernel = $make();
+    if ($kernel->container()->get(Connection::class)->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $db->execute('DELETE FROM {throttle}');
+    $db->execute("DELETE FROM {objects} WHERE blueprint = 'submission'");
+    $send = static function (string $method, string $path, array $post = [], array $query = [], string $ip = '10.0.9.1') use (&$kernel, $storage) {
+        $storage->endRequest();
+
+        return $kernel->handle(new Request($method, $path, query: $query, post: $post, ip: $ip));
+    };
+    // The form's signed time, as if it had been shown $ago seconds ago.
+    $ts = static function (int $ago) use ($storage): string {
+        $time = (string) (time() - $ago);
+
+        return $time . '.' . hash_hmac('sha256', 'contact|' . $time, (string) $storage->get('_csrf_token'));
+    };
+    $count = static fn (): int => (int) $db->fetchValue("SELECT COUNT(*) FROM {objects} WHERE blueprint = 'submission'");
+
+    $page = $send('GET', '/contact');
+    check($page->status === 200 && str_contains($page->body, 'action="/contact"') && str_contains($page->body, 'name="_ts"') && str_contains($page->body, 'name="website"')
+        && str_contains($page->body, 'name="message"') && str_contains($page->body, 'maxlength="5000"') && !isset($page->headers['X-Robots-Tag']), 'the page');
+    preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $page->body, $m);
+    $csrf = $m[1];
+    preg_match('/name="_ts" value="([0-9.a-f]+)"/', $page->body, $m);
+    $fields = ['_csrf' => $csrf, 'website' => '', 'name' => 'Szabó Péter', 'email' => 'Peter@Example.hu', 'subject' => 'Kérdés', 'message' => "Helló!\nMikor vagytok nyitva?"];
+
+    // Sent at once: a bot's speed; shown again, nothing saved.
+    $fast = $send('POST', '/contact', $fields + ['_ts' => $m[1]]);
+    check($fast->status === 422 && str_contains($fast->body, 'nagyon gyorsan') && str_contains($fast->body, 'value="Szabó Péter"') && $count() === 0, 'too fast');
+    $fastWrong = $send('POST', '/contact', ['_ts' => $m[1], 'email' => 'nem-cim'] + $fields);
+    check($fastWrong->status === 422 && str_contains($fastWrong->body, 'id="contact-email-error"') && !str_contains($fastWrong->body, 'nagyon gyorsan'), 'the fields come first');
+    // Forged, missing or old time; a wrong CSRF token.
+    check($send('POST', '/contact', $fields + ['_ts' => (time() - 60) . '.' . str_repeat('0', 64)])->status === 400, 'a forged time');
+    check($send('POST', '/contact', $fields)->status === 400 && $send('POST', '/contact', $fields + ['_ts' => $ts(90000)])->status === 400, 'missing, or a day old');
+    check($send('POST', '/contact', ['_csrf' => 'rossz', '_ts' => $ts(10)] + $fields)->status === 400 && $count() === 0, 'CSRF');
+
+    // A bot filling in the honeypot: "sent", nothing saved.
+    $bot = $send('POST', '/contact', ['website' => 'http://spam.example', '_ts' => $ts(10)] + $fields);
+    check($bot->status === 303 && ($bot->headers['Location'] ?? '') === '/contact?sent=1' && $count() === 0, 'the honeypot');
+
+    // Missing and invalid fields, escaped when shown again.
+    $bad = $send('POST', '/contact', ['_ts' => $ts(10), 'name' => '', 'email' => 'nem-cim', 'message' => '', 'subject' => '<script>alert(1)</script>'] + $fields);
+    check($bad->status === 422 && substr_count($bad->body, 'is-invalid') === 3 && str_contains($bad->body, '&lt;script&gt;alert(1)&lt;/script&gt;') && !str_contains($bad->body, '<script>alert(1)'), 'invalid: ' . substr_count($bad->body, 'is-invalid'));
+    $long = $send('POST', '/contact', ['_ts' => $ts(10), 'subject' => str_repeat('x', 201)] + $fields);
+    check($long->status === 422 && str_contains($long->body, 'id="contact-subject-error"'), 'too long');
+
+    // A good one.
+    $ok = $send('POST', '/contact', ['_ts' => $ts(10)] + $fields);
+    check($ok->status === 303 && ($ok->headers['Location'] ?? '') === '/contact?sent=1' && $count() === 1, 'sent');
+    $thanks = $send('GET', '/contact', [], ['sent' => '1']);
+    check($thanks->status === 200 && str_contains($thanks->body, 'Köszönjük, megkaptuk') && !str_contains($thanks->body, 'name="message"'));
+    $saved = $kernel->container()->get(\Campanella\Service\SubmissionService::class)->page(Actor::system())->items[0];
+    $lens = $saved->as(\Campanella\Capability\Submitted::class);
+    check($saved->get('title') === 'Szabó Péter' && $lens->email() === 'peter@example.hu' && $lens->message() === "Helló!\nMikor vagytok nyitva?" && $lens->form() === 'contact' && !$lens->isRead());
+
+    // At most 3 per e-mail address (from any address), 5 per IP address, in an hour.
+    $send('POST', '/contact', ['_ts' => $ts(10)] + $fields, [], '10.0.9.2');
+    $send('POST', '/contact', ['_ts' => $ts(10)] + $fields, [], '10.0.9.3');
+    $limited = $send('POST', '/contact', ['_ts' => $ts(10)] + $fields, [], '10.0.9.4');
+    check($limited->status === 429 && str_contains($limited->body, 'Túl sok üzenet') && $count() === 3, 'per e-mail address: ' . $count());
+    for ($i = 1; $i <= 6; $i++) {
+        $last = $send('POST', '/contact', ['_ts' => $ts(10), 'email' => "masik{$i}@example.hu"] + $fields, [], '10.0.9.5');
+    }
+    check($last->status === 429 && $count() === 8, 'per IP address: ' . $count());
+
+    // On any page: contact_form(); turned off: 404, and nothing on the pages.
+    $twig = $kernel->container()->get(\Twig\Environment::class);
+    $html = $twig->createTemplate('{{ contact_form() }}')->render([]);
+    check(str_contains($html, 'action="/contact"') && str_contains($html, 'name="_ts"') && str_contains($html, 'name="_csrf"'), 'contact_form()');
+    $kernel = $make(['contact' => ['enabled' => false]]);
+    check($send('GET', '/contact')->status === 404 && $kernel->container()->get(\Twig\Environment::class)->createTemplate('[{{ contact_form() }}]')->render([]) === '[]', 'turned off');
+
+    $db->execute('DELETE FROM {throttle}');
     $db->execute("DELETE FROM {objects} WHERE blueprint = 'submission'");
     putenv('CAMPANELLA_DB_PREFIX');
 });

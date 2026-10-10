@@ -92,6 +92,7 @@ h1, h2, h3, .h1, .h2, .h3, .h4, .h5 { line-height: 1.25; }
 .object--teaser:last-child { border-bottom: 0 !important; }
 .object--teaser h2 a:hover { color: var(--cc-accent) !important; }
 .login { max-width: 24rem; }
+.contact { max-width: 40rem; }
 
 /* The login honeypot (also hidden by an inline style, independent of the theme). */
 .hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }

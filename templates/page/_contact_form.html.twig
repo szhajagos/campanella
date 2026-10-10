@@ -1,0 +1,28 @@
+{#
+  The contact form (since 0.1.5), on its own page and from {{ contact_form() }}.
+  Variables: values, errors, message (a Message or null), max (field => longest),
+  ts (the signed time it was shown), guard_fields (the guards' hidden fields).
+  It is always sent to path('contact'). A theme can override this template.
+#}
+<form method="post" action="{{ path('contact') }}" class="contact-form card card-body shadow-sm" novalidate>
+    {% if message %}<div class="alert alert-danger" role="alert">{{ t(message.key, message.params) }}</div>{% endif %}
+    {{ csrf_field() }}
+    <input type="hidden" name="_ts" value="{{ ts }}">
+    {{ guard_fields|raw }}
+    {% for field, spec in {name: ['text', 'name', true], email: ['email', 'email', true], subject: ['text', 'off', false]} %}
+        {% set invalid = errors[field] ?? null %}
+        <div class="mb-3">
+            <label for="contact-{{ field }}" class="form-label">{{ t('contact.' ~ field) }}{% if spec[2] %} <span class="text-danger" aria-hidden="true">*</span>{% endif %}</label>
+            <input type="{{ spec[0] }}" class="form-control{{ invalid ? ' is-invalid' }}" id="contact-{{ field }}" name="{{ field }}" value="{{ values[field] ?? '' }}"
+                   maxlength="{{ max[field] }}" autocomplete="{{ spec[1] }}"{% if spec[2] %} required{% endif %}{% if invalid %} aria-invalid="true" aria-describedby="contact-{{ field }}-error"{% endif %}>
+            {% if invalid %}<div class="invalid-feedback" id="contact-{{ field }}-error">{{ invalid.key is defined ? t(invalid.key, invalid.params) : t(invalid) }}</div>{% endif %}
+        </div>
+    {% endfor %}
+    {% set invalid = errors.message ?? null %}
+    <div class="mb-4">
+        <label for="contact-message" class="form-label">{{ t('contact.message') }} <span class="text-danger" aria-hidden="true">*</span></label>
+        <textarea class="form-control{{ invalid ? ' is-invalid' }}" id="contact-message" name="message" rows="7" maxlength="{{ max.message }}" required{% if invalid %} aria-invalid="true" aria-describedby="contact-message-error"{% endif %}>{{ values.message ?? '' }}</textarea>
+        {% if invalid %}<div class="invalid-feedback" id="contact-message-error">{{ invalid.key is defined ? t(invalid.key, invalid.params) : t(invalid) }}</div>{% endif %}
+    </div>
+    <button type="submit" class="btn btn-primary">{{ t('contact.send') }}</button>
+</form>

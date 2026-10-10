@@ -9,6 +9,7 @@ use Campanella\Access\AccessPolicy;
 use Campanella\Access\Actor;
 use Campanella\Access\Operation;
 use Campanella\Capability\Submitted;
+use Campanella\I18n\Message;
 use Campanella\Model\CampanellaObject;
 use Campanella\Model\ObjectRepository;
 use Campanella\Model\ValidationException;
@@ -25,6 +26,9 @@ final class SubmissionService
 {
     public const string BLUEPRINT = 'submission';
 
+    /** The longest sender's name, in characters. */
+    public const int MAX_NAME = 100;
+
     /** Submissions per page in the admin. */
     public const int PER_PAGE = 50;
 
@@ -36,6 +40,39 @@ final class SubmissionService
     }
 
     /**
+     * The problems of a message from a form, without saving it: field => message key
+     * or Message (`title` is the name). Empty: it can be saved.
+     *
+     * @return array<string, Message|string>
+     */
+    public function check(string $name, string $email, string $subject, string $message): array
+    {
+        $name = self::cleanName($name);
+        $email = trim($email);
+        $errors = [];
+        if ($name === '') {
+            $errors['title'] = 'validation.required';
+        } elseif (mb_strlen($name, 'UTF-8') > self::MAX_NAME) {
+            $errors['title'] = new Message('validation.value_too_long', ['max' => self::MAX_NAME]);
+        }
+        if ($email === '') {
+            $errors['sender_email'] = 'validation.required';
+        } elseif (strlen($email) > Submitted::MAX_EMAIL || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+            $errors['sender_email'] = 'validation.invalid_email';
+        }
+        if (mb_strlen(trim($subject), 'UTF-8') > Submitted::MAX_SUBJECT) {
+            $errors['subject'] = new Message('validation.value_too_long', ['max' => Submitted::MAX_SUBJECT]);
+        }
+        if (trim($message) === '') {
+            $errors['message'] = 'validation.required';
+        } elseif (mb_strlen(trim($message), 'UTF-8') > Submitted::MAX_MESSAGE) {
+            $errors['message'] = new Message('validation.value_too_long', ['max' => Submitted::MAX_MESSAGE]);
+        }
+
+        return $errors;
+    }
+
+    /**
      * Saves a message from a form (the visitor's input, checked here: name, e-mail
      * address, message required; lengths limited).
      *
@@ -43,24 +80,12 @@ final class SubmissionService
      */
     public function submit(string $name, string $email, string $subject, string $message, string $form = 'contact'): CampanellaObject
     {
-        $name = trim((string) preg_replace('/[\x00-\x1F\x7F]+/u', ' ', $name));
-        $errors = [];
-        if ($name === '') {
-            $errors['title'] = 'validation.required';
-        } elseif (mb_strlen($name, 'UTF-8') > 100) {
-            $errors['title'] = new \Campanella\I18n\Message('validation.value_too_long', ['max' => 100]);
-        }
-        if (trim($email) === '') {
-            $errors['sender_email'] = 'validation.required';
-        }
-        if (trim($message) === '') {
-            $errors['message'] = 'validation.required';
-        }
+        $errors = $this->check($name, $email, $subject, $message);
         if ($errors !== []) {
             throw new ValidationException($errors);
         }
         $submission = $this->repository->create(self::BLUEPRINT, [
-            'title' => $name,
+            'title' => self::cleanName($name),
             'sender_email' => $email,
             'subject' => $subject,
             'message' => $message,
@@ -69,6 +94,11 @@ final class SubmissionService
         $this->repository->save($submission);
 
         return $submission;
+    }
+
+    private static function cleanName(string $name): string
+    {
+        return trim((string) preg_replace('/[\x00-\x1F\x7F]+/u', ' ', $name));
     }
 
     /** Whether the actor may see the submissions (by default: administrators). */

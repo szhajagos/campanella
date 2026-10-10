@@ -79,6 +79,7 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
         private readonly ?Closure $menus = null,
         private readonly ?Closure $images = null,
         private readonly ?SitePaths $paths = null,
+        private readonly ?Closure $contactForm = null,
     ) {
     }
 
@@ -93,6 +94,7 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
             new TwigFunction('related', $this->related(...)),
             new TwigFunction('current_user', $this->currentUser(...)),
             new TwigFunction('csrf_field', $this->csrfField(...), ['is_safe' => ['html']]),
+            new TwigFunction('contact_form', $this->contactForm(...), ['is_safe' => ['html']]),
             new TwigFunction('theme_asset', $this->themeAsset(...)),
             new TwigFunction('t', $this->translate(...)),
             new TwigFunction('admin_url', $this->adminUrl(...)),
@@ -315,6 +317,16 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
     }
 
     /** Hidden field with the CSRF token; it must be put into every POST form. */
+    /**
+     * The contact form (since 0.1.5), to put on any page: `{{ contact_form() }}`. It is
+     * sent to the contact page (paths.contact), which shows the result. '' while the
+     * contact form is turned off.
+     */
+    public function contactForm(): string
+    {
+        return $this->contactForm === null ? '' : ($this->contactForm)();
+    }
+
     public function csrfField(): string
     {
         if ($this->csrfToken === null) {

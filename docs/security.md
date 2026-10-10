@@ -33,6 +33,11 @@ CHANGELOG's **Security** section names it.
   it), made from the site's set address (never the `Host` header); requests
   limited per address and per e-mail address; the new password ends every
   session.
+- **Contact form** (since 0.1.5): a CSRF token, a honeypot, a signed time
+  (a form sent within 3 seconds is taken for a bot's), 5 messages per IP
+  address and 3 per e-mail address in an hour, length limits; the messages
+  are for administrators only, never shown to templates, and shown in the
+  admin as plain text; the sender's IP address is not stored.
 - **Output:** Twig escapes everything; HTML texts are filtered on every save
   with an allowlist; link URLs and site paths are checked; templates run in a
   sandbox that cannot read hidden fields (password hash, e-mail address,

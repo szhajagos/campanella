@@ -1,0 +1,15 @@
+{% extends 'base.html.twig' %}
+
+{# The contact form's page (since 0.1.5). #}
+{% block content %}
+    <section class="contact mx-auto">
+        <h1 class="h3 mb-4">{{ t('contact.title') }}</h1>
+        {% if sent %}
+            <div class="alert alert-success" role="status">{{ t('contact.sent') }}</div>
+            <p><a href="{{ url('/') }}">{{ t('contact.back_home') }}</a></p>
+        {% else %}
+            <p>{{ t('contact.intro') }}</p>
+            {% include 'page/_contact_form.html.twig' with form only %}
+        {% endif %}
+    </section>
+{% endblock %}
