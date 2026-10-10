@@ -44,6 +44,7 @@ user = Titled + Identifiable + Authenticatable
 |---|---|
 | `MIN_PASSWORD_LENGTH` (10), `MAX_PASSWORD_BYTES` (72) | Password rule. The 72-byte upper limit is a bcrypt limitation |
 | `setPassword(string $password): void` | Hashes it (`password_hash`, `PASSWORD_DEFAULT`). On a rule violation: `ValidationException` (with the `password` key) |
+| `static checkPassword(string $password): void` | Only the rules, without setting it (since 0.1.4); `ValidationException` as above |
 | `verifyPassword(string $password): bool` | `password_verify` |
 | `needsRehash(): bool`, `rehash(string $password): void` | If PHP switches to a stronger default, the hash is upgraded automatically on login |
 | `status(): AccountStatus`, `isActive(): bool`, `block()`, `activate()` | Account status |
@@ -248,7 +249,8 @@ A lazily started session with an idle timeout.
 | `regenerate(): void`, `destroy(): void` | New ID, or deletion together with the cookie |
 
 Anonymous visitors get no cookie. A session starts only on the login page
-(because of the CSRF token) and after login. If the request has a session, the
+and the forgotten password's pages (because of the CSRF token, and the
+link's token, since 0.1.4) and after login. If the request has a session, the
 `Kernel` adds a `Cache-Control: private, no-store` header to the response so
 that intermediate caches do not store the personalized page.
 
@@ -355,7 +357,7 @@ point to their own site).
 | `GET /password-reset` | The form: an e-mail address (with the login guards' fields, e.g. the honeypot) |
 | `POST /password-reset` | 303 to `/password-reset?sent=1`: *if this address belongs to an account, the link has been sent*, **the same answer for every address** (registered, unknown, blocked). An invalid address: 422; too many requests: 429. A rejected guard (a bot): the usual answer, nothing sent |
 | the e-mail | `mail/password_reset.txt.twig`: the link `https://example.hu/password-reset?token=…`, valid for 60 minutes |
-| `GET /password-reset?token=…` | The token moves into the session, and a 303 to `/password-reset`: it does not stay in the address bar or the browser's history |
+| `GET /password-reset?token=…` | The token moves into the session (with a new session ID, so a session ID planted by someone else cannot see it), and a 303 to `/password-reset`: it does not stay in the address bar, and later requests (their `Referer`, the web server's log) do not carry it. The link's own address may still be in the browser's history and the web server's log: it works once, and only for a short time |
 | `GET /password-reset` | The new password's form (twice); a link no longer valid: 410, with *Request a new link* (`?again=1`) |
 | `POST /password-reset` | The new password: 303 to the login page (`?reset=1`: *Your new password is set*). A password breaking the rules: 422, the link still works |
 
@@ -365,22 +367,26 @@ point to their own site).
   account is looked up, the link made and the e-mail sent **after the
   response** ([Deferred](09-system.md#deferred)).
 - The token is 96 hexadecimal characters: a **selector** (128 bits) that
-  finds the row, and a **verifier** (256 bits) kept only as its SHA-256 hash
-  (`password_resets` table, schema version 11), compared in constant time. Who
-  reads the table cannot use it.
-- Valid for `auth.password_reset_minutes` (60) minutes; **once**: using it
-  deletes it (in a locked transaction, so two parallel requests cannot both
-  use it); a newer link replaces the older; any password change voids it
-  (the profile, an administrator, the command line).
+  finds the row, and a **verifier** (256 bits) kept only as an HMAC-SHA-256
+  hash (`password_resets` table, schema version 11), compared in constant
+  time. Who reads the table cannot use it.
+- The hash also covers the account's **e-mail address and password hash**:
+  a link stops working when either changes, however it changes (the profile,
+  an administrator, the command line, custom code saving the user).
+- Valid for `auth.password_reset_minutes` (60) minutes; **once**: it is used
+  up in a short locked transaction before the password is set, so two
+  parallel requests cannot both use it, and nothing slow runs under the lock.
+  A newer link replaces the older.
 - **Limits** (`Throttle`): 5 requests per IP address (IPv6: /64) in 15
-  minutes, 3 per e-mail address in an hour, whether it is registered or not;
-  20 wrong links per IP address in 15 minutes.
-- A **blocked account** gets no link, and a link stops working when its
-  account is blocked.
-- The new password **ends every session** of the user, everywhere (the stamp,
-  and the [session list](#sessionregistry)); they log in with it. It
-  dispatches `PasswordChanged` with `byReset` (no e-mail by default; see
-  [MailUser](21-events-and-mail.md#actions)).
+  minutes, 3 per e-mail address in an hour, whether it is registered or not.
+  Wrong links are not limited: guessing one is hopeless (2^384), and a limit
+  per address would let others behind a shared address block a valid link.
+- A **blocked account** gets no link, and blocking voids its link for good
+  (also from the command line).
+- The new password **ends every session** of the user, everywhere (the
+  stamp, and the [session list](#sessionregistry), directly); they log in
+  with it. It dispatches `PasswordChanged` with `byReset` (no e-mail by
+  default; see [MailUser](21-events-and-mail.md#actions)).
 
 Why 60 minutes: e-mail is often slow (greylisting delays the first message
 from a sender by 5–15 minutes), and the link is single-use, 256 bits strong
@@ -393,13 +399,13 @@ default is 60 minutes too). A shorter one is a setting.
 | `minutes(): int` | How long a link is valid |
 | `request(Request $request, string $email): ?Message` | Counts the request; then, after the response, e-mails a link if the address belongs to an active account. Returns an error that does not depend on the account (`auth.reset.invalid_email`, `auth.reset.too_many`), or null |
 | `issue(CampanellaObject $user): string` | Makes a link for the user (the previous one stops working); returns its token. Deletes the expired links |
-| `verify(Request $request, string $token): ?CampanellaObject` | The link's user, or null (wrong, expired, used, inactive account); a wrong one counts against the IP address |
-| `complete(Request $request, string $token, string $password): ?CampanellaObject` | Sets the new password (`UserService::resetPassword()`) and uses up the link; null if the link is not usable; `ValidationException` on `password` |
+| `verify(string $token): ?CampanellaObject` | The link's user, or null (wrong, expired, used, voided, inactive account) |
+| `complete(string $token, string $password): ?CampanellaObject` | Checks the password's rules (`ValidationException` on `password`: the link stays usable), uses up the link, sets the new password (`UserService::resetPassword()`) and ends the user's sessions; null if the link is not usable |
 | `forget(int $userId): void` | Voids the user's link (the Kernel calls it on every `PasswordChanged`) |
+| `static forgetIn(Connection $db, int $userId): void` | The same where the service is not at hand (`UserService` on blocking, the command line) |
 
 Constants: `DEFAULT_MINUTES` (60), `MAX_PER_IP` (5), `IP_DECAY_SECONDS` (900),
-`MAX_PER_ADDRESS` (3), `ADDRESS_DECAY_SECONDS` (3600), `MAX_INVALID_PER_IP`
-(20), `INVALID_DECAY_SECONDS` (900). `AuthController::RESET_TOKEN`: the
+`MAX_PER_ADDRESS` (3), `ADDRESS_DECAY_SECONDS` (3600). `AuthController::RESET_TOKEN`: the
 session key of the token between the link and the new password.
 
 Template: `page/password_reset.html.twig`, with `step` (`request`, `sent`,

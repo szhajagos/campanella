@@ -124,6 +124,8 @@ final class AuthController implements Controller
         $token = $request->queryString('token');
         if ($token !== '') {
             $session->start($request);
+            // A new session ID: a session ID someone else planted must not see the token.
+            $session->regenerate();
             $session->set(self::RESET_TOKEN, substr($token, 0, 200));
 
             return Response::redirect($self, 303);
@@ -162,7 +164,7 @@ final class AuthController implements Controller
     private function newPassword(Request $request, string $token, PasswordReset $reset, Session $session): Response
     {
         if (!$request->isPost()) {
-            if ($reset->verify($request, $token) === null) {
+            if ($reset->verify($token) === null) {
                 $session->remove(self::RESET_TOKEN);
 
                 return $this->resetPage('invalid', [], 410);
@@ -178,7 +180,7 @@ final class AuthController implements Controller
             return $this->resetPage('new', ['errors' => ['password_again' => new Message('users.password_mismatch')]], 422);
         }
         try {
-            $user = $reset->complete($request, $token, $password);
+            $user = $reset->complete($token, $password);
         } catch (ValidationException $e) {
             return $this->resetPage('new', ['errors' => $e->errors], 422);
         }

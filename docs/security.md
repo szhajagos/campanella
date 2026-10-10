@@ -26,10 +26,11 @@ CHANGELOG's **Security** section names it.
   sessions; a login lasts at most 12 hours, however active, and every login is listed
   on the profile, where it can be ended (since 0.1.4); no default account.
 - **Forgotten password** (since 0.1.4): the same answer and response time for
-  every address (the e-mail goes after the response); a single-use link,
-  valid for 60 minutes, stored only as a hash, made from the site's set
-  address (never the `Host` header); requests limited per address and per
-  e-mail address, wrong links per address; the new password ends every
+  every address (the account is looked up and the e-mail sent after the
+  response); a single-use link, valid for 60 minutes, stored only as a hash
+  that also covers the account's address and password (so any change voids
+  it), made from the site's set address (never the `Host` header); requests
+  limited per address and per e-mail address; the new password ends every
   session.
 - **Output:** Twig escapes everything; HTML texts are filtered on every save
   with an allowlist; link URLs and site paths are checked; templates run in a
@@ -49,6 +50,24 @@ CHANGELOG's **Security** section names it.
   and headers are checked by symfony/mailer; the log never keeps the text.
 - **Dependencies:** only MIT-compatible ones; `composer audit` runs in CI on
   every push.
+
+## Security review for 0.1.4 (2026-10-10)
+
+An independent review of the 0.1.4 changes (the absolute session lifetime,
+the session list, the forgotten password, work after the response). No
+critical or high-severity issue was found. Fixed before the release:
+
+| Severity | Issue | Fix |
+|---|---|---|
+| Medium | A password set on the command line (`user:password`) did not void a forgotten password's link that was already sent | The link's hash covers the account's password hash and e-mail address: any change voids it, however it is made; the command now also ends the user's logins |
+| Medium | On Apache's mod_php the deferred e-mail held up the browser's next request on the same connection, so its timing showed whether an address was registered | `Connection: close` with such responses; the remaining connection-close timing is an accepted risk (below), PHP-FPM recommended |
+| Low | The link's token was put into the visitor's existing session, whose ID someone else could have planted | A new session ID when the token is stored |
+| Low | The new password was set inside the link's locked transaction, with the listeners (session ends, e-mails): a failing listener could roll the change back silently | The link is used up in a short transaction first; the password is set after it, and the sessions are ended directly |
+| Low | Every response had a `Content-Length`, which turns off PHP's own output compression | Only responses with deferred work have one, and not when PHP compresses |
+| Low | Any database error looked like a missing table: a revoked login could be let through during a lock wait | `Connection::tableExists()` answers no only for "no such table" (`42S02`) |
+| Low | A link sent before the account's e-mail address changed, or before it was blocked, kept working | Voided by both |
+| Low | (A second look at the fixes) Logging out failed with a database error before the session was destroyed; a password set with a link could overwrite a block made in the meantime | The session is destroyed whatever happens; the account is read again, and must be active, before the password is set |
+| Info | 20 wrong links from a shared address blocked valid links of others behind it | The limit on wrong links is gone: guessing one is hopeless (2^384) |
 
 ## Security review for 0.1.0 (2026-10-08)
 
@@ -95,10 +114,19 @@ reach its database from the review's environment: it runs in CI instead.
   user's address can delay that user's link by up to an hour. Counting only
   registered addresses would tell which are registered. An administrator can
   still set a new password.
-- **The forgotten password's e-mail on Apache's mod_php** (since 0.1.4): the
-  response is complete for the browser, but PHP keeps the connection open
-  until the e-mail is sent. The answer's time does not depend on the account
-  either way; PHP-FPM also closes the connection first.
+- **The forgotten password on Apache's mod_php** (since 0.1.4): the answer is
+  complete for the browser at once, and its next request uses a new
+  connection, but PHP closes the connection only when the deferred work (the
+  account's lookup and the e-mail) is done. A script that times the close can
+  tell a registered address (an e-mail is sent) from an unknown one, at the
+  pace the request limits allow (3 per address an hour, 5 per IP address in
+  15 minutes). PHP-FPM (and LiteSpeed) close the connection before the work:
+  use it where this matters. A queue run apart from the requests would remove
+  it everywhere; it may come later.
+- **A forgotten password's link in the browser's history:** the link's own
+  address (with the token) may stay in the history and in the web server's
+  log; it works once, for 60 minutes, and only while the account's password
+  and address are unchanged.
 - **The installer shows the requirements** (PHP and database versions,
   missing extensions) to anyone before the site is installed: it helps the
   person installing, and there is nothing yet to protect. Once a user exists,

@@ -243,8 +243,13 @@ final class Connection
             $this->run(sprintf('SELECT 1 FROM %s LIMIT 1', $this->table($table)));
 
             return true;
-        } catch (PDOException) {
-            return false;
+        } catch (PDOException $e) {
+            // Only "no such table" (SQLSTATE 42S02, on MariaDB and MySQL alike) is a no; any other
+            // error (a lock wait, a lost connection, a missing privilege) is not an answer (since 0.1.4).
+            if ($e->getCode() === '42S02') {
+                return false;
+            }
+            throw $e;
         }
     }
 

@@ -22,7 +22,8 @@ use Campanella\Http\Request;
  * goes when the login ends.
  *
  * Before the upgrade that creates the table every method is a no-op (and lookups
- * answer "unknown"), so logging in still works and the upgrade can be run.
+ * answer "unknown"), so logging in still works and the upgrade can be run. Any other
+ * database error is thrown (Connection::tableExists()): never "unknown".
  */
 final class SessionRegistry
 {
@@ -43,15 +44,9 @@ final class SessionRegistry
     /** Whether the table exists (read once). */
     public function isAvailable(): bool
     {
-        if ($this->available === null) {
-            try {
-                $this->available = $this->db->tableExists('sessions');
-            } catch (\Throwable) {
-                $this->available = false;
-            }
-        }
-
-        return $this->available;
+        // Only a missing table (before the upgrade) is a no: any other database error is
+        // thrown, so a revoked login is never let through because of it.
+        return $this->available ??= $this->db->tableExists('sessions');
     }
 
     /**

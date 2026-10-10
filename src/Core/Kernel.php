@@ -130,11 +130,39 @@ final class Kernel
         }
         $response = $this->noindex($this->dispatch($request));
         try {
-            return $this->container()->get(SecurityHeaders::class)->apply($response, $request);
+            $response = $this->container()->get(SecurityHeaders::class)->apply($response, $request);
         } catch (\Throwable) {
             // A broken setting must not hide the page; the strict policy still applies.
-            return (new SecurityHeaders())->apply($response, $request);
+            $response = (new SecurityHeaders())->apply($response, $request);
         }
+
+        return $this->beforeDeferred($response);
+    }
+
+    /**
+     * A response with work left for after it (Deferred): where PHP cannot end the
+     * connection itself (e.g. Apache's mod_php), it says how long it is, so the browser
+     * takes it as complete, and that the connection closes after it, so the browser's
+     * next request does not wait behind the work on the same connection (since 0.1.4).
+     * Not with PHP's own output compression, which a Content-Length would turn off.
+     */
+    private function beforeDeferred(Response $response): Response
+    {
+        try {
+            if ($this->container === null || $this->container->get(Deferred::class)->isEmpty()
+                || function_exists('fastcgi_finish_request') || function_exists('litespeed_finish_request')) {
+                return $response;
+            }
+        } catch (\Throwable) {
+            return $response;
+        }
+        $response = $response->withHeader('Connection', 'close');
+        // On, or a buffer size (e.g. "4096"): PHP compresses.
+        $zlib = strtolower(trim((string) ini_get('zlib.output_compression')));
+        $compressed = !in_array($zlib, ['', '0', 'off', 'false', 'no'], true);
+        $buffered = ob_get_level() > 0 && (int) ob_get_length() > 0;
+
+        return $compressed || $buffered ? $response : $response->withHeader('Content-Length', (string) strlen($response->body));
     }
 
     /**
@@ -748,6 +776,7 @@ final class Kernel
             $c->get(Throttle::class),
             $c->get(Deferred::class),
             (int) $c->get(Config::class)->get('auth.password_reset_minutes', PasswordReset::DEFAULT_MINUTES),
+            $c->get(SessionRegistry::class),
         ));
 
         $c->set('controller.query', static fn (Container $c): Controller => new QueryController(

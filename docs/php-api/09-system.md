@@ -41,10 +41,16 @@ show in the response time (the forgotten password must not tell by its speed
 whether an address is registered). `public/index.php` sends the response, then
 calls `Kernel::terminate()`, which ends the connection where PHP can (PHP-FPM:
 `fastcgi_finish_request()`; LiteSpeed), closes the session (so the visitor's
-next request does not wait for its lock), and runs the work. Elsewhere (e.g.
-Apache's mod_php) the response is flushed first: since 0.1.4 every response
-has a `Content-Length`, so browsers take it as complete; the connection stays
-open until the work is done.
+next request does not wait for its lock), and runs the work.
+
+Elsewhere (e.g. Apache's mod_php) a response with deferred work gets
+`Connection: close` and (unless PHP compresses the output itself, or
+something is already in the output buffer) a `Content-Length`, and is
+flushed first: the browser takes it as complete, and its next request opens a
+new connection instead of waiting behind the work. The server still closes
+the connection only when the work is done, which a script can time: use
+PHP-FPM where that matters (see [the accepted risks](../security.md#known-and-accepted-decided-2026-10-08)).
+Other responses are unchanged.
 
 | Method | |
 |---|---|

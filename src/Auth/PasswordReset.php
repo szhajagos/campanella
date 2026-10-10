@@ -26,15 +26,18 @@ use Campanella\Site\SiteSettings;
  *    account is looked up, the link made and e-mailed after the response (Deferred),
  *    so the response's time does not tell either;
  *  - the link holds a selector (128 bits, finds the row) and a verifier (256 bits,
- *    kept only as its SHA-256 hash, compared in constant time): the table alone is
- *    no use to anyone who reads it;
+ *    kept only as a SHA-256 hash, compared in constant time): the table alone is no
+ *    use to anyone who reads it. The hash also covers the account's e-mail address
+ *    and password hash, so a link stops working when either changes, however (the
+ *    profile, an administrator, the command line);
  *  - it is valid for `auth.password_reset_minutes` (60) minutes, works once, and a
- *    newer one replaces it; any change of the password (e.g. on the profile) voids it;
+ *    newer one replaces it; blocking the account voids it;
  *  - the address of the link is made from the site's address (Site settings), never
  *    from the request's Host header, which anyone can send ("reset poisoning"): without
  *    it, the forgotten password is not offered;
  *  - requests are limited per IP address (5 in 15 minutes) and per e-mail address
- *    (3 in an hour), wrong links per IP address (20 in 15 minutes);
+ *    (3 in an hour). Wrong links are not limited: guessing one is hopeless (2^384),
+ *    and a limit per address would let others on a shared address block a valid link;
  *  - a new password ends every session of the user (they log in with it).
  */
 final class PasswordReset
@@ -45,8 +48,6 @@ final class PasswordReset
     public const int IP_DECAY_SECONDS = 900;
     public const int MAX_PER_ADDRESS = 3;
     public const int ADDRESS_DECAY_SECONDS = 3600;
-    public const int MAX_INVALID_PER_IP = 20;
-    public const int INVALID_DECAY_SECONDS = 900;
 
     /** A link's token: a 32-character selector and a 64-character verifier, in hexadecimal. */
     private const string TOKEN_PATTERN = '/^([0-9a-f]{32})([0-9a-f]{64})$/';
@@ -64,6 +65,7 @@ final class PasswordReset
         private readonly Throttle $throttle,
         private readonly Deferred $deferred,
         private readonly int $minutes = self::DEFAULT_MINUTES,
+        private readonly ?SessionRegistry $sessions = null,
     ) {
     }
 
@@ -134,7 +136,7 @@ final class PasswordReset
             $db->insert('password_resets', [
                 'user_id' => (int) $user->id(),
                 'selector' => $selector,
-                'verifier_hash' => hash('sha256', $verifier),
+                'verifier_hash' => self::verifierHash($verifier, $user),
                 'created_at' => gmdate('Y-m-d H:i:s'),
                 'expires_at' => gmdate('Y-m-d H:i:s', time() + $this->minutes() * 60),
             ]);
@@ -143,55 +145,62 @@ final class PasswordReset
         return $selector . $verifier;
     }
 
-    /**
-     * The user a link belongs to, or null if it is wrong, expired, used, or its account
-     * is not active. A wrong link counts against the IP address.
-     */
-    public function verify(Request $request, string $token): ?CampanellaObject
+    /** The user a link belongs to, or null if it is wrong, expired, used, voided, or its account is not active. */
+    public function verify(string $token): ?CampanellaObject
     {
-        $key = 'reset-invalid|' . AuthService::clientKey($request->ip);
-        if ($this->throttle->tooManyAttempts($key, self::MAX_INVALID_PER_IP)) {
+        return $this->find($token)[0] ?? null;
+    }
+
+    /**
+     * Sets the new password with a link, which then stops working, and ends every
+     * session of the user.
+     *
+     * The link is used up first (in a short locked transaction, so it cannot be used
+     * twice at the same time), then the password is set: nothing slow (a listener, an
+     * e-mail) runs while the row is locked, and a listener's failure cannot undo it.
+     *
+     * @return ?CampanellaObject The user, or null if the link is no longer usable
+     * @throws \Campanella\Model\ValidationException on `password` (checked first: the link stays usable)
+     */
+    public function complete(string $token, #[\SensitiveParameter] string $password): ?CampanellaObject
+    {
+        if ($this->verify($token) === null) {
             return null;
         }
-        $user = $this->find($token)[0] ?? null;
+        Authenticatable::checkPassword($password);
+        $user = $this->db->transactional(function (Connection $db) use ($token): ?CampanellaObject {
+            [$user] = $this->find($token, true) + [null];
+            if ($user !== null) {
+                $db->execute('DELETE FROM {password_resets} WHERE user_id = :user', ['user' => $user->id()]);
+            }
+
+            return $user;
+        });
         if ($user === null) {
-            $this->throttle->hit($key, self::INVALID_DECAY_SECONDS);
+            return null;
         }
+        // Read again: an administrator may have blocked the account (or changed it) meanwhile.
+        $user = $this->repository->find((int) $user->id());
+        if ($user === null || !$user->has(Authenticatable::class) || !$user->as(Authenticatable::class)->isActive()) {
+            return null;
+        }
+        $this->users->resetPassword($user, $password);
+        $this->sessions?->endAll((int) $user->id());
 
         return $user;
     }
 
-    /**
-     * Sets the new password with a link, which then stops working. The user's sessions
-     * end (the Kernel's PasswordChanged listener).
-     *
-     * @return ?CampanellaObject The user, or null if the link is no longer usable
-     * @throws \Campanella\Model\ValidationException on `password` (the link stays usable)
-     */
-    public function complete(Request $request, string $token, #[\SensitiveParameter] string $password): ?CampanellaObject
-    {
-        if ($this->verify($request, $token) === null) {
-            return null;
-        }
-
-        return $this->db->transactional(function (Connection $db) use ($token, $password): ?CampanellaObject {
-            // Locked, so the same link cannot be used twice at the same time.
-            [$user] = $this->find($token, true) + [null];
-            if ($user === null) {
-                return null;
-            }
-            $this->users->resetPassword($user, $password);
-            $db->execute('DELETE FROM {password_resets} WHERE user_id = :user', ['user' => $user->id()]);
-
-            return $user;
-        });
-    }
-
-    /** Voids the user's link, if any (their password changed some other way). */
+    /** Voids the user's link, if any (e.g. the account was blocked). */
     public function forget(int $userId): void
     {
-        if ($this->isTableReady()) {
-            $this->db->execute('DELETE FROM {password_resets} WHERE user_id = :user', ['user' => $userId]);
+        self::forgetIn($this->db, $userId);
+    }
+
+    /** Voids a user's link, if any, where no PasswordReset service is at hand (UserService, the command line). */
+    public static function forgetIn(Connection $db, int $userId): void
+    {
+        if ($db->tableExists('password_resets')) {
+            $db->execute('DELETE FROM {password_resets} WHERE user_id = :user', ['user' => $userId]);
         }
     }
 
@@ -205,27 +214,31 @@ final class PasswordReset
             'SELECT user_id, verifier_hash, expires_at FROM {password_resets} WHERE selector = :selector' . ($lock ? ' FOR UPDATE' : ''),
             ['selector' => $parts[1]],
         );
-        if ($row === null || !hash_equals((string) $row['verifier_hash'], hash('sha256', $parts[2]))
-            || (string) $row['expires_at'] < gmdate('Y-m-d H:i:s')) {
+        if ($row === null || (string) $row['expires_at'] < gmdate('Y-m-d H:i:s')) {
             return [];
         }
         $user = $this->repository->find((int) $row['user_id']);
-        if ($user === null || !$user->has(Authenticatable::class) || !$user->as(Authenticatable::class)->isActive()) {
+        if ($user === null || !$user->has(Authenticatable::class) || !$user->as(Authenticatable::class)->isActive()
+            || !hash_equals((string) $row['verifier_hash'], self::verifierHash($parts[2], $user))) {
             return [];
         }
 
         return [$user];
     }
 
+    /**
+     * The stored hash of a verifier: it covers the account's e-mail address and password
+     * hash too, so a link sent before either changed no longer matches.
+     */
+    private static function verifierHash(string $verifier, CampanellaObject $user): string
+    {
+        return hash_hmac('sha256', $verifier, $user->as(Identifiable::class)->email() . "\0" . (string) $user->get('password_hash'));
+    }
+
     private function isTableReady(): bool
     {
-        if ($this->tableExists === null) {
-            try {
-                $this->tableExists = $this->db->tableExists('password_resets');
-            } catch (\Throwable) {
-                $this->tableExists = false;
-            }
-        }
+        // Before the upgrade that creates it: not offered. Any other database error is not hidden.
+        $this->tableExists ??= $this->db->tableExists('password_resets');
 
         return $this->tableExists;
     }

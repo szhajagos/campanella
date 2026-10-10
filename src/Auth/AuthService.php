@@ -201,11 +201,15 @@ final class AuthService
     public function logout(): void
     {
         $token = $this->token();
-        if ($this->sessions !== null && $token !== null) {
-            $this->sessions->end($token);
+        try {
+            if ($this->sessions !== null && $token !== null) {
+                $this->sessions->end($token);
+            }
+        } finally {
+            // Logged out even if the record cannot be deleted (e.g. a database error).
+            $this->session->destroy();
+            $this->current = null;
         }
-        $this->session->destroy();
-        $this->current = null;
     }
 
     /** The logged-in user of the request, or null. */

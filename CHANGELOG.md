@@ -10,7 +10,30 @@ backward-incompatible.
 
 ## [Unreleased]
 
-Work towards 0.1.4 (forgotten password and sessions), in parts.
+## [0.1.4] – 2026-10-10
+
+Forgotten password and sessions: a forgotten password can be reset with a
+link by e-mail, everyone sees on their profile where they are logged in and
+can log out any of those, and a login lasts at most 12 hours. The paths of
+logging in and out are settings (English by default). An independent security
+review of the changes; its findings are fixed.
+
+**Upgrading from 0.1.3:**
+
+1. Upload the new files (`public/index.php` changed too). No new dependency.
+2. Run `php bin/campanella install`, or open `/admin/upgrade` (schema version
+   11: the new `sessions` and `password_resets` tables; no migration). Until
+   then the site answers 503; logging in works.
+3. **Logging in moved to `/login`** (was `/belepes`), logging out to
+   `/logout`. To keep the old addresses (e.g. bookmarks):
+   `'paths' => ['login' => '/belepes', 'logout' => '/kilepes']` in
+   `config/local.php`. A site that changed `config/routes.php` removes the two
+   old routes there. A theme's templates use `path('login')` and
+   `path('logout')` instead of `url('/belepes')`.
+4. For the forgotten password, e-mail must be set up and the site's address
+   set (*Site settings*); otherwise it is not offered.
+5. Logins from before the upgrade stay logged in; their 12 hours start at
+   their next request.
 
 ### Added
 
@@ -31,8 +54,9 @@ Work towards 0.1.4 (forgotten password and sessions), in parts.
   bound by default. New: the `UserEvent` interface.
 - **Work after the response** (`Campanella\Core\Deferred`,
   `Kernel::terminate()`): `public/index.php` calls it after sending the
-  response; a custom entry point should too. Every response now has a
-  `Content-Length`.
+  response; a custom entry point should too. Where PHP cannot end the
+  connection itself (mod_php), a response with such work has a
+  `Content-Length` and `Connection: close`.
 - **Where you are logged in**, on the profile (`/admin/profile`): every login
   in progress with its browser, IP address, the time of logging in and of
   the last activity; any other one can be logged out, or all of them at once
@@ -45,6 +69,14 @@ Work towards 0.1.4 (forgotten password and sessions), in parts.
 
 ### Security
 
+- **An independent security review** of these changes; its findings are
+  fixed (see [docs/security.md](docs/security.md#security-review-for-014-2026-10-10)).
+  Among them: `user:password` on the command line now ends the user's
+  logins (as an administrator's new password does), and blocking from the
+  command line ends them too.
+- **`Connection::tableExists()` answers no only for a missing table**
+  (SQLSTATE `42S02`); any other database error is thrown instead of being
+  taken for a missing table.
 - **A login lasts at most 12 hours**, however actively it is used
   (`session.absolute_timeout`, in seconds; `0`: no limit). Until now only 2
   hours without activity ended a session, so a stolen session cookie kept

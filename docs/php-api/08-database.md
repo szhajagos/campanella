@@ -64,7 +64,7 @@ $db->fetchValue('SELECT COUNT(*) FROM {objects} WHERE blueprint = :b', ['b' => '
 | Method | Description |
 |---|---|
 | `pdo(): PDO` | The PDO connection (created if needed) |
-| `tableExists(string $table): bool` | Whether the table exists. Throws on a connection error instead of returning `false` |
+| `tableExists(string $table): bool` | Whether the table exists. Only "no such table" (SQLSTATE `42S02`) is `false`; any other error (a connection error, a lock wait, a missing privilege) is thrown (since 0.1.4: before, every error was `false`) |
 | `serverVersion(): string` | E.g. `10.11.14-MariaDB` |
 
 ## Schema

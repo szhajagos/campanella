@@ -54,8 +54,6 @@ final class Response
             header('X-Content-Type-Options: nosniff');
             header('X-Frame-Options: SAMEORIGIN');
             header('Referrer-Policy: same-origin');
-            // So the browser knows the response is complete even while work goes on after it (Kernel::terminate()).
-            header('Content-Length: ' . strlen($this->body));
         }
         echo $this->body;
     }

@@ -5245,7 +5245,9 @@ test('Kernel: the forgotten password, from the request to the new password', fun
     $newest = $m[1];
 
     // An older link stops working when a newer one is made.
+    $generation = $storage->generation();
     $old = $send('GET', '/password-reset', [], ['token' => $token]);
+    check($storage->generation() === $generation + 1, 'a new session ID for the token');
     check($old->status === 303 && ($old->headers['Location'] ?? '') === '/password-reset' && $storage->get(\Campanella\Controller\AuthController::RESET_TOKEN) === $token, 'into the session, out of the address');
     $invalid = $send('GET', '/password-reset');
     check($invalid->status === 410 && str_contains($invalid->body, 'nem érvényes') && $storage->get(\Campanella\Controller\AuthController::RESET_TOKEN) === null, 'the older link');
@@ -5271,22 +5273,34 @@ test('Kernel: the forgotten password, from the request to the new password', fun
     $send('GET', '/password-reset', [], ['token' => $newest]);
     check($send('GET', '/password-reset')->status === 410, 'once only');
 
-    // Expired, wrong, voided by a password change.
+    // Expired, wrong, voided by a password change (from anywhere), an e-mail change, blocking.
     $service = $kernel->container()->get(\Campanella\Auth\PasswordReset::class);
-    $expired = $service->issue($user);
+    $expired = $service->issue($fresh);
     $db->execute('UPDATE {password_resets} SET expires_at = :t', ['t' => gmdate('Y-m-d H:i:s', time() - 1)]);
-    check($service->verify(new Request('GET', '/', ip: '10.0.7.9'), $expired) === null, 'expired');
-    $valid = $service->issue($user);
-    check($service->verify(new Request('GET', '/', ip: '10.0.7.9'), $valid)?->id() === $user->id());
-    check($service->verify(new Request('GET', '/', ip: '10.0.7.9'), substr($valid, 0, 32) . str_repeat('0', 64)) === null, 'a wrong verifier');
-    $kernel->container()->get(\Campanella\Service\UserService::class)->changeOwnPassword($fresh, 'uj-jelszo-felejto-1', 'uj-jelszo-felejto-2');
-    check($service->verify(new Request('GET', '/', ip: '10.0.7.9'), $valid) === null, 'voided by the password change');
-    // Wrong links count against the address.
-    for ($i = 0; $i < 20; $i++) {
-        $service->verify(new Request('GET', '/', ip: '10.0.7.10'), str_repeat('a', 96));
-    }
-    $again = $service->issue($user);
-    check($service->verify(new Request('GET', '/', ip: '10.0.7.10'), $again) === null && $service->verify(new Request('GET', '/', ip: '10.0.7.11'), $again) !== null, 'too many wrong links from one address');
+    check($service->verify($expired) === null, 'expired');
+    $valid = $service->issue($fresh);
+    check($service->verify($valid)?->id() === $user->id());
+    check($service->verify(substr($valid, 0, 32) . str_repeat('0', 64)) === null && $service->verify('x') === null, 'a wrong verifier');
+    $users = $kernel->container()->get(\Campanella\Service\UserService::class);
+    $users->changeOwnPassword($fresh, 'uj-jelszo-felejto-1', 'uj-jelszo-felejto-2');
+    check($service->verify($valid) === null, 'voided by the password change');
+    // Even a change that dispatches no event (e.g. saved directly) voids it: the link covers the password hash.
+    $valid = $service->issue($fresh);
+    $fresh->as(Authenticatable::class)->setPassword('uj-jelszo-felejto-3');
+    $repository->save($fresh);
+    check($service->verify($valid) === null, 'voided by a password saved directly');
+    $valid = $service->issue($fresh);
+    $boss = $newUser('felejto-admin@example.hu', 'felejto-admin-jelszo-1', ['administrator']);
+    $users->update(AuthService::actorFor($boss), $fresh, 'Felejtő', 'felejto-uj@example.hu', ['editor'], true);
+    check($service->verify($valid) === null, 'voided by an e-mail change');
+    $valid = $service->issue($fresh);
+    $users->update(AuthService::actorFor($boss), $fresh, 'Felejtő', 'felejto-uj@example.hu', ['editor'], false);
+    $users->update(AuthService::actorFor($boss), $fresh, 'Felejtő', 'felejto-uj@example.hu', ['editor'], true);
+    check($service->verify($valid) === null, 'blocking voids it for good');
+    // A wrong password for complete(): checked before the link is used up.
+    $valid = $service->issue($fresh);
+    throws(ValidationException::class, fn () => $service->complete($valid, 'rovid'));
+    check($service->verify($valid) !== null, 'still usable');
 
     $db->execute('DELETE FROM {password_resets}');
     $db->execute('DELETE FROM {throttle}');
@@ -5316,6 +5330,59 @@ test('MailUser: the user an event is about, with its own template; not a blocked
     $action->handle(new \Campanella\Event\PasswordChanged($user, true));
     check(count($transport->sent) === 2, 'not to a blocked account');
     $repository->delete($user);
+});
+
+test('Review fixes (0.1.4): the command line ends logins and voids links; only a missing table is "no"; deferred responses', function () use ($newUser, $db): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $c = $kernel->container();
+    if ($c->get(Connection::class)->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $user = $newUser('parancssor@example.hu', 'parancssor-jelszo-1', ['editor']);
+    $registry = $c->get(SessionRegistry::class);
+    $reset = $c->get(\Campanella\Auth\PasswordReset::class);
+    $command = static function (string $args, string $stdin = '') use ($c): int {
+        $in = fopen('php://memory', 'r+');
+        fwrite($in, $stdin);
+        rewind($in);
+        $out = fopen('php://memory', 'w+');
+
+        return (new \Campanella\Cli\UserPasswordCommand(new \Campanella\Cli\Input($in)))->run($c, explode(' ', $args), new \Campanella\Cli\Output($out, $out));
+    };
+    $registry->start((int) $user->id(), new Request('GET', '/'));
+    $link = $reset->issue($user);
+    check($command('parancssor@example.hu', "parancssor-uj-jelszo-1\n") === 0);
+    check($registry->forUser((int) $user->id()) === [] && (int) $db->fetchValue('SELECT COUNT(*) FROM {password_resets} WHERE user_id = :u', ['u' => $user->id()]) === 0, 'a new password: logins and link gone');
+    $fresh = $c->get(AuthService::class)->findUserByEmail('parancssor@example.hu');
+    $registry->start((int) $user->id(), new Request('GET', '/'));
+    $link = $reset->issue($fresh);
+    check($command('parancssor@example.hu --block') === 0);
+    check($registry->forUser((int) $user->id()) === [] && $reset->verify($link) === null, 'blocked: logins and link gone');
+    check($command('parancssor@example.hu --activate') === 0 && $reset->verify($link) === null, 'and stays gone');
+
+    // Only "no such table" is a no.
+    check(!$db->tableExists('nincs_ilyen_tabla') && $db->tableExists('sessions'));
+    $limited = Connection::fromConfig(['prefix' => 'test_'] + Config::load(dirname(__DIR__) . '/config')->get('database'));
+    // Under LOCK TABLES, another table answers "was not locked with LOCK TABLES" (an error, not a missing table).
+    $limited->execute('LOCK TABLES {objects} READ');
+    try {
+        throws(PDOException::class, fn () => $limited->tableExists('sessions'));
+    } finally {
+        $limited->execute('UNLOCK TABLES');
+    }
+
+    // A response with deferred work: its length and Connection: close (no fastcgi_finish_request here).
+    $c->get(\Campanella\Core\Deferred::class)->add(static function (): void {});
+    $response = $kernel->handle(new Request('GET', '/robots.txt'));
+    check(($response->headers['Connection'] ?? '') === 'close' && ($response->headers['Content-Length'] ?? '') === (string) strlen($response->body), json_encode($response->headers));
+    $kernel->terminate();
+    check(!isset($kernel->handle(new Request('GET', '/robots.txt'))->headers['Content-Length']), 'not without deferred work');
+
+    $db->execute('DELETE FROM {sessions}');
+    putenv('CAMPANELLA_DB_PREFIX');
 });
 
 echo "\nDocumentation examples\n";

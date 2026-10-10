@@ -52,13 +52,23 @@ final class Authenticatable extends Capability
      */
     public function setPassword(#[\SensitiveParameter] string $password): void
     {
+        self::checkPassword($password);
+        $this->object->set('password_hash', password_hash($password, PASSWORD_DEFAULT));
+    }
+
+    /**
+     * Whether a password meets the rules, without setting it (since 0.1.4).
+     *
+     * @throws ValidationException on `password`: too short or too long
+     */
+    public static function checkPassword(#[\SensitiveParameter] string $password): void
+    {
         if (mb_strlen($password, 'UTF-8') < self::MIN_PASSWORD_LENGTH) {
             throw new ValidationException(['password' => new Message('validation.password_too_short', ['min' => self::MIN_PASSWORD_LENGTH])]);
         }
         if (strlen($password) > self::MAX_PASSWORD_BYTES) {
             throw new ValidationException(['password' => new Message('validation.password_too_long', ['max' => self::MAX_PASSWORD_BYTES])]);
         }
-        $this->object->set('password_hash', password_hash($password, PASSWORD_DEFAULT));
     }
 
     /**

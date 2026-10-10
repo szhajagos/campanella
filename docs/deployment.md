@@ -140,8 +140,9 @@ host.
 
 ### E-mail
 
-Since 0.1.3 the site can send e-mail (soon: forgotten passwords, the contact
-form). Set it up in `config/local.php`, with the details of your host's mail
+Since 0.1.3 the site can send e-mail: since 0.1.4 the forgotten password's
+link (offered only while e-mail is set up and the site's address is set),
+soon the contact form. Set it up in `config/local.php`, with the details of your host's mail
 server:
 
 ```php
@@ -250,6 +251,10 @@ above runs no PHP file but `index.php`).
   to upload (the System page shows the effective limit), and `memory_limit`
   for processing large images ([media settings](php-api/16-media.md#settings-configappphp-media)).
 - OPcache on (faster; the System page shows it).
+- **PHP-FPM** (or LiteSpeed) rather than Apache's mod_php, where possible:
+  they close the connection before the work left for after a response (e.g.
+  the forgotten password's e-mail), so not even the connection's timing tells
+  whether an address is registered (see [the accepted risks](security.md#known-and-accepted-decided-2026-10-08)).
 
 ## 6. Backups
 
@@ -289,7 +294,8 @@ An installation older than 0.0.6 is upgraded to 0.0.7 first.
 - [ ] The site's address is right under *Site settings* (with `https://`), and
       search engines may index the site.
 - [ ] `debug` is `false`.
-- [ ] E-mail is set up, and the test e-mail from the System page arrives.
+- [ ] E-mail is set up, and the test e-mail from the System page arrives; the
+      forgotten password's link works (log out, *Forgot your password?*).
 - [ ] `upgrade.key` is not set (unless an upgrade needs it right now).
 - [ ] Only `var/cache/`, `var/backups/` and `public/media/` are writable by the
       web server; `config/local.php` is not readable by others.
