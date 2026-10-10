@@ -94,12 +94,15 @@ Constants: `Actor::ADMINISTRATOR`, `DefaultPolicy::EDITOR`.
 | `refresh(Request $request, CampanellaObject $user): void` | After the user changed their own password: this session goes on with a new ID and stamp (since 0.1.0), but not longer: its login time stays |
 | `logout(): void` | Destroys the session |
 | `currentUser(Request $request): ?CampanellaObject` | The logged-in user. Does not start a session for anonymous visitors. Logs out a blocked or deleted account, and a login older than the absolute lifetime |
+| `sessions(Request $request): list<SessionInfo>` | The logged-in user's logins in progress, this one marked (since 0.1.4) |
+| `endSession(Request $request, int $id): bool` | Ends one of the logged-in user's **other** logins; false for an unknown ID, someone else's login, or this one (since 0.1.4) |
+| `endOtherSessions(Request $request): int` | Ends every login of the logged-in user but this one; returns how many (since 0.1.4) |
 | `currentActor(Request $request): Actor` | The same as an `Actor`; the `Kernel` passes this to controllers |
 | `static actorFor(CampanellaObject $user): Actor` | `ActorKind::User`, ID, roles, name |
 | `findUserByEmail(string $email): ?CampanellaObject` | |
 | `guards(): list<LoginGuard>` | The configured guards |
 | `absoluteTimeout(): int` | The longest a login lasts, in seconds; 0: no limit (since 0.1.4) |
-| `ABSOLUTE_TIMEOUT` | `43200` (12 hours): the default of the constructor's last argument, `int $absoluteTimeout` (the Kernel passes `session.absolute_timeout`) |
+| `ABSOLUTE_TIMEOUT` | `43200` (12 hours): the default of the constructor's `int $absoluteTimeout` argument (the Kernel passes `session.absolute_timeout`); after it, `?SessionRegistry $sessions = null` (since 0.1.4; null: logins are not recorded) |
 | `GENERIC_ERROR` | The message key `'auth.invalid_credentials'` ("Invalid e-mail address or password."; see [chapter 12](12-translation.md)) |
 
 **Security behavior:**
@@ -130,6 +133,12 @@ Constants: `Actor::ADMINISTRATOR`, `DefaultPolicy::EDITOR`.
   (`session.idle_timeout`). A stolen session cookie is thus usable for a
   limited time. A session from before 0.1.4 starts counting on its next
   request. Changing one's own password (`refresh()`) does not lengthen it.
+- **Every login is recorded and can be ended** (since 0.1.4, see
+  [SessionRegistry](#sessionregistry)): on every request the login's token is
+  looked up, and a login ended from the profile is logged out (with a new
+  session ID) on its next request. Changing one's own password ends the
+  others' rows too; a password set by an administrator ends all of them
+  (the Kernel listens to `PasswordChanged`).
 
 `LoginResult` (`final readonly class`): `$success`, `$user`, `$error` (a
 message key, or a ready-made text), `$errorParams`;
@@ -179,6 +188,49 @@ separate steps. A future two-factor authentication will be a capability of its
 own on the user (e.g. holding the TOTP key) and will fit between the two
 steps: after a successful password check it will not log in immediately but
 ask for the second factor. See the [ROADMAP](../../ROADMAP.md).
+
+## SessionRegistry
+
+`Campanella\Auth\SessionRegistry` · **Public** · since 0.1.4 · container: `SessionRegistry::class`
+
+The logins in progress, one row each in the `sessions` table (schema version
+10), so a user can see on their profile where they are logged in, and end any
+of them. `AuthService` uses it; it is rarely needed directly.
+
+- A login gets a random token (256 bits) kept in its server-side session
+  (`AuthService::SESSION_TOKEN`); the table holds only the token's SHA-256
+  hash, **never the session ID**. A row deleted means the login has ended:
+  its next request is anonymous.
+- Stored for the user's own list: when they logged in, when they were last
+  active (written at most once a minute, `TOUCH_INTERVAL`), the last IP
+  address and the browser's User-Agent (control characters removed, at most
+  255 characters). Nothing is kept after a login ends: logging out, ending it
+  from the profile, a changed password or deleting the user deletes its row;
+  rows past the idle or the absolute lifetime are deleted at the next login.
+- A login from before 0.1.4 is recorded on its next request, with the time it
+  logged in.
+- Before the upgrade that creates the table every method does nothing (lookups
+  answer "unknown"), so one can log in and run the upgrade.
+
+| Member | Description |
+|---|---|
+| `__construct(Connection $db, int $idleTimeout = 7200, int $absoluteTimeout = 43200)` | The Kernel passes `session.idle_timeout` and `session.absolute_timeout` |
+| `isAvailable(): bool` | Whether the table exists |
+| `start(int $userId, Request $request, ?int $loggedInAt = null): ?string` | Records a login; returns its token (null before the upgrade). Deletes the expired rows |
+| `touch(string $token, int $userId, Request $request): ?bool` | A request of the login: true if it is recorded for the user (updates its last activity and IP address), false if it was ended, null if unknown |
+| `end(string $token): void` | Ends the login with the token |
+| `endById(int $userId, int $id): bool` | Ends one of the user's logins by its ID |
+| `endAll(int $userId, ?string $except = null): int` | Ends the user's logins, except the one with the token |
+| `forUser(int $userId, ?string $current = null): list<SessionInfo>` | The user's logins in progress, the most recently active first; the one with `$current` token is marked |
+| `cleanup(): int` | Deletes the rows past the idle or the absolute lifetime |
+
+`Campanella\Auth\SessionInfo` · **Public** · `final readonly class`: `id`,
+`createdAt`, `lastSeenAt` (UTC `DateTimeImmutable`), `ip`, `userAgent`,
+`current` (the request's own login); `browser(): string` and `system(): string`
+(e.g. `Firefox`, `Windows`; `''` if not recognized), also as
+`static browserOf(string $userAgent)` and `static systemOf(string $userAgent)`.
+The User-Agent is whatever the browser sent: the names are a guess for
+people, never a basis for a decision.
 
 ## Session
 

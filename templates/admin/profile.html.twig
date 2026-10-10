@@ -43,5 +43,58 @@
                 <div><button type="submit" class="btn btn-primary">{{ t('users.change_password') }}</button></div>
             </form>
         </div>
+        {% if sessions ?? [] %}
+            <div class="col-12">
+                <section class="card card-body" id="sessions" aria-labelledby="sessions-title">
+                    <h2 class="h6 mb-2" id="sessions-title">{{ t('users.sessions.title') }}</h2>
+                    <p class="small text-body-secondary">{{ t('users.sessions.help') }}</p>
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-3">
+                            <thead>
+                                <tr>
+                                    <th scope="col">{{ t('users.sessions.device') }}</th>
+                                    <th scope="col" class="d-none d-md-table-cell">{{ t('users.sessions.ip') }}</th>
+                                    <th scope="col" class="d-none d-md-table-cell">{{ t('users.sessions.created') }}</th>
+                                    <th scope="col" class="d-none d-md-table-cell">{{ t('users.sessions.seen') }}</th>
+                                    <th scope="col"><span class="visually-hidden">{{ t('users.sessions.end') }}</span></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for s in sessions %}
+                                    <tr>
+                                        <td>{% if s.browser or s.system %}{{ s.browser ?: t('users.sessions.unknown') }}{% if s.system %}, {{ s.system }}{% endif %}{% else %}{{ t('users.sessions.unknown') }}{% endif %}
+                                            {# On a narrow screen the other columns are hidden: their values here. #}
+                                            <div class="d-md-none small text-body-secondary">{{ s.ip ?: '–' }} · {{ t('users.sessions.seen') }}: <time datetime="{{ s.seen }}">{{ s.seen|date }}</time></div>
+                                        </td>
+                                        <td class="small font-monospace d-none d-md-table-cell">{{ s.ip ?: '–' }}</td>
+                                        <td class="small text-nowrap d-none d-md-table-cell"><time datetime="{{ s.created }}">{{ s.created|date }}</time></td>
+                                        <td class="small text-nowrap d-none d-md-table-cell"><time datetime="{{ s.seen }}">{{ s.seen|date }}</time></td>
+                                        <td class="text-end">
+                                            {% if s.current %}
+                                                <span class="badge text-bg-success">{{ t('users.sessions.current') }}</span>
+                                            {% else %}
+                                                <form method="post" action="{{ admin_url('profile/sessions/end') }}" class="m-0">
+                                                    {{ csrf_field() }}
+                                                    <input type="hidden" name="session" value="{{ s.id }}">
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger" aria-label="{{ t('users.sessions.end_label', {when: s.created|date}) }}">{{ t('users.sessions.end') }}</button>
+                                                </form>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% if sessions|length > 1 %}
+                        <form method="post" action="{{ admin_url('profile/sessions/others') }}" class="m-0">
+                            {{ csrf_field() }}
+                            <button type="submit" class="btn btn-outline-danger">{{ t('users.sessions.end_others') }}</button>
+                        </form>
+                    {% else %}
+                        <p class="small text-body-secondary mb-0">{{ t('users.sessions.none_other') }}</p>
+                    {% endif %}
+                </section>
+            </div>
+        {% endif %}
     </div>
 {% endblock %}

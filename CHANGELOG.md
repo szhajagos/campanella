@@ -12,6 +12,18 @@ backward-incompatible.
 
 Work towards 0.1.4 (forgotten password and sessions), in parts.
 
+### Added
+
+- **Where you are logged in**, on the profile (`/admin/profile`): every login
+  in progress with its browser, IP address, the time of logging in and of
+  the last activity; any other one can be logged out, or all of them at once
+  (*Log out everywhere else*). A login ended so is logged out on its next
+  request. A password set by an administrator now ends the user's logins on
+  the list too. New: `Campanella\Auth\SessionRegistry`, `SessionInfo`,
+  `AuthService::sessions()`, `endSession()`, `endOtherSessions()`; the
+  `sessions` table (**schema version 10: run the upgrade**). The table holds a
+  hash of each login's token, never the session ID.
+
 ### Security
 
 - **A login lasts at most 12 hours**, however actively it is used

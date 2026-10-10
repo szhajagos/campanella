@@ -6,7 +6,9 @@ namespace Campanella\Core;
 
 use Campanella\Cli\Output;
 use Campanella\Event\Action;
+use Campanella\Event\Event;
 use Campanella\Event\EventDispatcher;
+use Campanella\Event\PasswordChanged;
 use Campanella\Mail\MailCheck;
 use Campanella\Mail\Mailer;
 use Campanella\Settings\Settings;
@@ -35,6 +37,7 @@ use Campanella\Admin\AdminAccess;
 use Campanella\Admin\Form\ObjectForm;
 use Campanella\Capability\CapabilityRegistry;
 use Campanella\Auth\AuthService;
+use Campanella\Auth\SessionRegistry;
 use Campanella\Auth\LoginGuard;
 use Campanella\Controller\AuthController;
 use Campanella\Controller\Controller;
@@ -380,6 +383,14 @@ final class Kernel
             (array) $c->get(Config::class)->get('auth', []),
             self::guards((array) $c->get(Config::class)->get('auth.guards', [])),
             (int) $c->get(Config::class)->get('session.absolute_timeout', AuthService::ABSOLUTE_TIMEOUT),
+            $c->get(SessionRegistry::class),
+        ));
+
+        // The logins in progress (since 0.1.4): the profile's session list.
+        $c->set(SessionRegistry::class, static fn (Container $c): SessionRegistry => new SessionRegistry(
+            $c->get(Connection::class),
+            (int) $c->get(Config::class)->get('session.idle_timeout', 7200),
+            (int) $c->get(Config::class)->get('session.absolute_timeout', AuthService::ABSOLUTE_TIMEOUT),
         ));
 
         $c->set(UserService::class, static function (Container $c): UserService {
@@ -397,6 +408,13 @@ final class Kernel
         // Events (since 0.1.3): the actions of the `events` setting, made on their first event.
         $c->set(EventDispatcher::class, static function (Container $c): EventDispatcher {
             $events = new EventDispatcher();
+            // A password set by an administrator ends every login of the user (one's own
+            // change ends the others: AuthService::refresh()).
+            $events->listen(PasswordChanged::class, static function (Event $event) use ($c): void {
+                if ($event instanceof PasswordChanged && $event->byAdministrator) {
+                    $c->get(SessionRegistry::class)->endAll((int) $event->user->id());
+                }
+            });
             $events->bind(
                 (array) $c->get(Config::class)->get('events', []),
                 static fn (string $action): Action => $action::create($c),

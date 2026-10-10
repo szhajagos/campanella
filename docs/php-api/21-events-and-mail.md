@@ -41,6 +41,10 @@ class's short name). The object events extend `ObjectEvent`, which adds
 time; that the scheduled time arrives is not an event yet (it needs a
 scheduler).
 
+Campanella listens to `PasswordChanged` itself too (since 0.1.4): a password
+set by an administrator ends every login of the user on the session list
+([chapter 11](11-users.md#sessionregistry)).
+
 Saving through the `ObjectRepository` directly (e.g. `seed`, migrations)
 dispatches nothing: events belong to the operations of the services.
 

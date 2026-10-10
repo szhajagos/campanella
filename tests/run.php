@@ -51,6 +51,8 @@ use Campanella\Relation\Relation;
 use Campanella\Relation\RelationLoader;
 use Campanella\Auth\AuthService;
 use Campanella\Auth\Guard\HoneypotGuard;
+use Campanella\Auth\SessionInfo;
+use Campanella\Auth\SessionRegistry;
 use Campanella\Capability\Authenticatable;
 use Campanella\Capability\Authorable;
 use Campanella\Controller\AuthController;
@@ -5000,6 +5002,153 @@ test('Session: absolute lifetime, also for an active session; refresh keeps it; 
     check($user !== null);
     $auth->refresh($request, $user);
     check($storage->get(AuthService::SESSION_LOGIN_AT) === time() - 3000 || $storage->get(AuthService::SESSION_LOGIN_AT) === time() - 3001, 'refresh keeps the login time');
+});
+
+test('SessionRegistry: logins recorded and checked on every request; ending one, the others, logging out', function () use ($repository, $engine, $db, $newUser): void {
+    $user = $newUser('munkamenet@example.hu', 'munkamenet-jelszo-1', ['editor']);
+    $other = $newUser('masik-munkamenet@example.hu', 'masik-munkamenet-1', ['editor']);
+    $registry = new SessionRegistry($db, 7200, 43200);
+    $make = static function (ArraySessionStorage $storage, ?SessionRegistry $sessions) use ($repository, $engine, $db): AuthService {
+        $session = new Session($storage, 7200);
+
+        return new AuthService($repository, $engine, $session, new Throttle($db), new Csrf($session), [], [], 43200, $sessions);
+    };
+    $firefox = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:131.0) Gecko/20100101 Firefox/131.0';
+    $android = "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36\x07";
+    $request = static fn (string $agent = '', string $ip = '10.0.5.1') => new Request('GET', '/admin', headers: ['user-agent' => $agent], ip: $ip);
+    $next = static function (ArraySessionStorage $storage, Request $r) use ($make, $registry): array {
+        $storage->endRequest();
+        $auth = $make($storage, $registry);
+
+        return [$auth, $auth->currentUser($r)];
+    };
+
+    // Two browsers.
+    $a = new ArraySessionStorage();
+    $make($a, $registry)->login($request($firefox), $user);
+    $token = $a->get(AuthService::SESSION_TOKEN);
+    check(is_string($token) && strlen($token) === 64, 'a token in the session');
+    $row = $db->fetchOne('SELECT * FROM {sessions} WHERE user_id = :u', ['u' => $user->id()]);
+    check($row !== null && $row['token_hash'] === hash('sha256', $token) && !str_contains(json_encode($row), $token), 'only its hash in the table');
+    $b = new ArraySessionStorage();
+    $make($b, $registry)->login($request($android, '10.0.5.2'), $user);
+    $make(new ArraySessionStorage(), $registry)->login($request(), $other);
+
+    [$authA, $me] = $next($a, $reqA = $request($firefox));
+    check($me !== null);
+    $list = $authA->sessions($reqA);
+    check(count($list) === 2, 'only the user\'s own logins: ' . count($list));
+    $mine = array_values(array_filter($list, static fn ($s) => $s->current));
+    $theirs = array_values(array_filter($list, static fn ($s) => !$s->current));
+    check(count($mine) === 1 && $mine[0]->browser() === 'Firefox' && $mine[0]->system() === 'Windows' && $mine[0]->ip === '10.0.5.1');
+    check($theirs[0]->browser() === 'Chrome' && $theirs[0]->system() === 'Android' && !str_contains($theirs[0]->userAgent, "\x07"), 'control characters removed');
+    check(!$authA->endSession($reqA, $mine[0]->id), 'not this one');
+    $otherRow = (int) $db->fetchValue('SELECT id FROM {sessions} WHERE user_id = :u', ['u' => $other->id()]);
+    check(!$authA->endSession($reqA, $otherRow), 'not someone else\'s');
+
+    // A ends B: B's next request is anonymous, with a new session ID.
+    check($authA->endSession($reqA, $theirs[0]->id));
+    $generation = $b->generation();
+    [, $bUser] = $next($b, $request($android, '10.0.5.2'));
+    check($bUser === null && $b->generation() === $generation + 1 && $b->get(AuthService::SESSION_TOKEN) === null, 'B is logged out');
+
+    // Logging in again in B, then "everywhere else" from A.
+    $make($b, $registry)->login($request($android), $user);
+    [$authA] = $next($a, $reqA = $request($firefox));
+    check($authA->endOtherSessions($reqA) === 1);
+    check($next($b, $request($android))[1] === null && $next($a, $request($firefox))[1] !== null, 'B out, A in');
+
+    // The IP address follows the login; logging out deletes its row.
+    [, $still] = $next($a, $request($firefox, '10.0.5.9'));
+    check($still !== null && $db->fetchValue('SELECT ip FROM {sessions} WHERE token_hash = :h', ['h' => hash('sha256', $token)]) === '10.0.5.9');
+    $make($a, $registry)->logout();
+    check((int) $db->fetchValue('SELECT COUNT(*) FROM {sessions} WHERE user_id = :u', ['u' => $user->id()]) === 0, 'logged out: no row');
+
+    // A login from before 0.1.4 (no token) is recorded on its next request.
+    $old = new ArraySessionStorage();
+    $make($old, null)->login($request($firefox), $user);
+    check($old->get(AuthService::SESSION_TOKEN) === null);
+    $old->set(AuthService::SESSION_LOGIN_AT, time() - 1800);
+    [, $oldUser] = $next($old, $request($firefox));
+    check($oldUser !== null && is_string($old->get(AuthService::SESSION_TOKEN)), 'recorded now');
+    $since = $registry->forUser((int) $user->id())[0]->createdAt->getTimestamp();
+    check(abs($since - (time() - 1800)) <= 1, 'with the time of logging in');
+
+    // Expired rows are not listed, and go at the next login.
+    $db->execute('UPDATE {sessions} SET last_seen_at = :t WHERE user_id = :u', ['t' => gmdate('Y-m-d H:i:s', time() - 7300), 'u' => $user->id()]);
+    check($registry->forUser((int) $user->id()) === []);
+    $make(new ArraySessionStorage(), $registry)->login($request(), $other);
+    check((int) $db->fetchValue('SELECT COUNT(*) FROM {sessions} WHERE user_id = :u', ['u' => $user->id()]) === 0, 'cleaned up');
+
+    // Before the upgrade (no table): logging in still works, nothing is recorded.
+    $missing = new SessionRegistry(Connection::fromConfig(['prefix' => 'nincs_'] + Config::load(dirname(__DIR__) . '/config')->get('database')));
+    $c = new ArraySessionStorage();
+    $make($c, $missing)->login($request(), $user);
+    $c->endRequest();
+    check(!$missing->isAvailable() && $make($c, $missing)->currentUser($request()) !== null, 'works without the table');
+
+    check(SessionInfo::browserOf('Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Safari/605.1.15') === 'Safari');
+    check(SessionInfo::browserOf('Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Safari/537.36 Edg/129.0') === 'Edge');
+    check(SessionInfo::systemOf('Mozilla/5.0 (iPhone; CPU iPhone OS 17_6 like Mac OS X)') === 'iOS' && SessionInfo::browserOf('x') === '' && SessionInfo::systemOf('') === '');
+    $db->execute('DELETE FROM {sessions}');
+});
+
+test('Kernel: the session list on the profile; an administrator\'s new password ends every login', function () use ($newUser, $db): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    if ($kernel->container()->get(Connection::class)->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $user = $newUser('lista@example.hu', 'lista-jelszo-1', ['editor']);
+    $browser = static function (string $agent) use ($user): \Closure {
+        $storage = new ArraySessionStorage();
+        $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+        $kernel->container()->set(Session::class, static fn () => new Session($storage));
+        $kernel->container()->get(AuthService::class)->login(new Request('GET', '/', headers: ['user-agent' => $agent]), $user);
+        $send = static function (string $method, string $path, array $post = []) use ($kernel, $storage, $agent) {
+            $storage->endRequest();
+
+            return $kernel->handle(new Request($method, $path, post: $post, headers: ['user-agent' => $agent]));
+        };
+
+        return $send;
+    };
+    $csrfOf = static fn ($response): string => preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $response->body, $m) === 1 ? $m[1] : '';
+    $a = $browser('Mozilla/5.0 (X11; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0');
+    $b = $browser('Mozilla/5.0 (iPhone; CPU iPhone OS 17_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Mobile/15E148 Safari/604.1');
+
+    $profile = $a('GET', '/admin/profile');
+    check($profile->status === 200 && str_contains($profile->body, 'Hol vagy belépve') && str_contains($profile->body, 'Firefox, Linux') && str_contains($profile->body, 'Safari, iOS') && str_contains($profile->body, '>Ez az<'), 'the list');
+    check(str_contains($profile->body, 'action="/admin/profile/sessions/others"'));
+    preg_match('/name="session" value="(\d+)"/', $profile->body, $m);
+    check(isset($m[1]), 'the other one can be ended');
+    check($a('GET', '/admin/profile/sessions/end')->status === 405 && $a('POST', '/admin/profile/sessions/nincs', ['_csrf' => $csrfOf($profile)])->status === 404);
+    check($a('POST', '/admin/profile/sessions/end', ['_csrf' => 'rossz', 'session' => $m[1]])->status === 400, 'CSRF');
+    $ended = $a('POST', '/admin/profile/sessions/end', ['_csrf' => $csrfOf($profile), 'session' => $m[1]]);
+    check($ended->status === 303 && ($ended->headers['Location'] ?? '') === '/admin/profile#sessions');
+    check(str_contains($a('GET', '/admin/profile')->body, 'Az a belépés véget ért'));
+    check($b('GET', '/admin')->status === 302, 'B was logged out');
+    $again = $a('POST', '/admin/profile/sessions/end', ['_csrf' => $csrfOf($profile), 'session' => $m[1]]);
+    check($again->status === 303 && str_contains($a('GET', '/admin/profile')->body, 'már véget ért'));
+    check(str_contains($a('GET', '/admin/profile')->body, 'Máshol nem vagy belépve'));
+
+    // Everywhere else.
+    $c = $browser('curl/8.0');
+    $page = $a('GET', '/admin/profile');
+    check($a('POST', '/admin/profile/sessions/others', ['_csrf' => $csrfOf($page)])->status === 303);
+    check(str_contains($a('GET', '/admin/profile')->body, '1 belépés ért véget') && $c('GET', '/admin')->status === 302 && $a('GET', '/admin')->status === 200);
+
+    // An administrator sets a new password: every login of the user ends, rows too.
+    $boss = $newUser('lista-admin@example.hu', 'lista-admin-jelszo-1', ['administrator']);
+    $bossKernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $bossKernel->container()->get(\Campanella\Service\UserService::class)->setPassword(AuthService::actorFor($boss), $user, 'lista-uj-jelszo-1');
+    check((int) $db->fetchValue('SELECT COUNT(*) FROM {sessions} WHERE user_id = :u', ['u' => $user->id()]) === 0, 'no rows left');
+    check($a('GET', '/admin')->status === 302);
+
+    $db->execute('DELETE FROM {sessions}');
+    putenv('CAMPANELLA_DB_PREFIX');
 });
 
 echo "\nDocumentation examples\n";

@@ -20,6 +20,7 @@ final class CoreSchema
     public const string SETTINGS = 'settings';
     public const string MEDIA_USAGE = 'media_usage';
     public const string MAIL_LOG = 'mail_log';
+    public const string SESSIONS = 'sessions';
 
     /** @return list<Table> */
     public static function tables(): array
@@ -161,6 +162,28 @@ final class CoreSchema
                 ],
                 primaryKey: ['id'],
                 indexes: ['idx_created' => ['created_at']],
+            ),
+            // The logins in progress (since 0.1.4, schema version 10): a hash of each one's
+            // token, never the session ID (Campanella\Auth\SessionRegistry). Deleting the
+            // user deletes their rows.
+            new Table(
+                name: self::SESSIONS,
+                columns: [
+                    new Column('id', ColumnType::Id, autoIncrement: true),
+                    new Column('user_id', ColumnType::Id),
+                    new Column('token_hash', ColumnType::String, length: 64),
+                    new Column('created_at', ColumnType::DateTime),
+                    new Column('last_seen_at', ColumnType::DateTime),
+                    new Column('ip', ColumnType::String, length: 45),
+                    new Column('user_agent', ColumnType::String, length: 255),
+                ],
+                primaryKey: ['id'],
+                indexes: [
+                    'idx_user' => ['user_id', 'last_seen_at'],
+                    'idx_seen' => ['last_seen_at'],
+                ],
+                uniques: ['uniq_token' => ['token_hash']],
+                foreignKeys: [new ForeignKey('user_id', self::OBJECTS)],
             ),
             // Throttling of attempts (e.g. login). The SHA-256 hash of the key.
             new Table(

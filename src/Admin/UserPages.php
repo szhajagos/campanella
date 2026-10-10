@@ -7,6 +7,7 @@ namespace Campanella\Admin;
 use Campanella\Access\AccessDeniedException;
 use Campanella\Access\Actor;
 use Campanella\Auth\AuthService;
+use Campanella\Auth\SessionInfo;
 use Campanella\Capability\Authenticatable;
 use Campanella\Http\Flash;
 use Campanella\Http\HttpException;
@@ -27,6 +28,8 @@ use Closure;
  *   /admin/user/<id>              name, e-mail address, roles, status
  *   POST /admin/user/<id>/password  a new password for the user
  *   /admin/profile                one's own name; POST /admin/profile/password: one's own password
+ *   POST /admin/profile/sessions/end     ends one of one's other logins (`session`: its ID; since 0.1.4)
+ *   POST /admin/profile/sessions/others  ends every other login (since 0.1.4)
  *
  * The rules are the UserService's; this class only reads the forms and shows the pages.
  * Passwords are never shown again in a form.
@@ -68,7 +71,11 @@ final class UserPages
     public function profile(Request $request, Actor $actor, array $segments, Closure $render): Response
     {
         $user = $this->auth->currentUser($request) ?? throw new HttpException(403, 'error.forbidden');
-        $context = ['title' => 'users.profile', 'me' => self::row($user), 'errors' => [], 'name' => (string) $user->get('title'), 'password_errors' => []];
+        $context = ['title' => 'users.profile', 'me' => self::row($user), 'errors' => [], 'name' => (string) $user->get('title'), 'password_errors' => [], 'sessions' => $this->sessionRows($request)];
+
+        if (($segments[0] ?? null) === 'sessions') {
+            return $this->endSessions($request, array_slice($segments, 1), $context, $render);
+        }
 
         if ($segments === ['password']) {
             if (!$request->isPost()) {
@@ -111,6 +118,51 @@ final class UserPages
         $this->flash->add(Flash::SUCCESS, 'users.profile_saved');
 
         return Response::redirect($request->basePath . $this->access->path('profile'), 303);
+    }
+
+    /**
+     * @param list<string> $segments The path after /admin/profile/sessions
+     * @param array<string, mixed> $context
+     * @param Closure(string, string, array<string, mixed>): Response $render
+     */
+    private function endSessions(Request $request, array $segments, array $context, Closure $render): Response
+    {
+        if ($segments !== ['end'] && $segments !== ['others']) {
+            throw HttpException::notFound();
+        }
+        if (!$request->isPost()) {
+            throw new HttpException(405, 'error.method_not_allowed');
+        }
+        if (!$this->csrf->isValid($request)) {
+            return $this->status($render('profile', 'profile', ['alert' => 'auth.form_expired'] + $context), 400);
+        }
+        if ($segments === ['others']) {
+            $count = $this->auth->endOtherSessions($request);
+            $this->flash->add(Flash::SUCCESS, new Message('users.sessions.others_ended', ['count' => $count]));
+        } else {
+            $id = $request->postString('session');
+            if (preg_match('/^[1-9]\d{0,18}$/', $id) === 1 && $this->auth->endSession($request, (int) $id)) {
+                $this->flash->add(Flash::SUCCESS, 'users.sessions.ended');
+            } else {
+                $this->flash->add(Flash::WARNING, 'users.sessions.not_found');
+            }
+        }
+
+        return Response::redirect($request->basePath . $this->access->path('profile') . '#sessions', 303);
+    }
+
+    /** @return list<array{id: int, current: bool, browser: string, system: string, ip: string, created: string, seen: string}> */
+    private function sessionRows(Request $request): array
+    {
+        return array_map(static fn (SessionInfo $info): array => [
+            'id' => $info->id,
+            'current' => $info->current,
+            'browser' => $info->browser(),
+            'system' => $info->system(),
+            'ip' => $info->ip,
+            'created' => $info->createdAt->format(DATE_ATOM),
+            'seen' => $info->lastSeenAt->format(DATE_ATOM),
+        ], $this->auth->sessions($request));
     }
 
     /** @param Closure(string, string, array<string, mixed>): Response $render */

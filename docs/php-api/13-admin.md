@@ -312,7 +312,15 @@ are the `UserService`'s ([chapter 11](11-users.md#userservice)).
 | `/admin/user` | Those who may manage users (administrators) | Name, e-mail address, roles, status; "you" marks one's own row |
 | `/admin/user/new` | 〃 | Name, e-mail address, roles, the password twice |
 | `/admin/user/<id>` | 〃 | Name, e-mail address, roles, status (one's own "Blocked" is disabled); beside it, setting a new password (`POST …/password`) |
-| `/admin/profile` | Everyone logged in | One's own name; changing one's own password with the current one (`POST /admin/profile/password`): this session stays, the others end |
+| `/admin/profile` | Everyone logged in | One's own name; changing one's own password with the current one (`POST /admin/profile/password`): this session stays, the others end; *Where you are logged in*: one's logins in progress (since 0.1.4) |
+| `POST /admin/profile/sessions/end` | 〃 | Ends one of one's other logins (`session`: its ID); one's own current login is not ended here (that is logging out) |
+| `POST /admin/profile/sessions/others` | 〃 | *Log out everywhere else*: ends every login but this one |
+
+The session list shows each login's browser and operating system (guessed
+from the User-Agent), IP address, the time of logging in and of the last
+activity; on a narrow screen only the browser, with the IP address and the
+last activity under it. Both forms are POST with a CSRF token, and lead back
+to `/admin/profile#sessions` with a message.
 
 Editors see only their profile (`/admin/user` answers 403). The sidebar shows
 *Users* to those who may manage them and *My profile* to everyone; the name

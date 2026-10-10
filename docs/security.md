@@ -23,7 +23,8 @@ CHANGELOG's **Security** section names it.
   attempts limited per address and e-mail, per address, and per account (also
   for unknown addresses, so a locked account looks like any other); a new
   session ID on login; a blocked account or a changed password ends the
-  sessions; a login lasts at most 12 hours, however active (since 0.1.4); no default account.
+  sessions; a login lasts at most 12 hours, however active, and every login is listed
+  on the profile, where it can be ended (since 0.1.4); no default account.
 - **Output:** Twig escapes everything; HTML texts are filtered on every save
   with an allowlist; link URLs and site paths are checked; templates run in a
   sandbox that cannot read hidden fields (password hash, e-mail address,

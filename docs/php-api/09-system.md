@@ -55,6 +55,7 @@ by explicit factory functions in the `Kernel`, on first request, once.
 | `QueryEngine::class` | Queries |
 | `RelationLoader::class` | Relation loading |
 | `Session::class`, `Csrf::class`, `Throttle::class`, `AuthService::class` | Session, CSRF, throttling, login |
+| `SessionRegistry::class` | The logins in progress (since 0.1.4; [chapter 11](11-users.md#sessionregistry)) |
 | `ObjectService::class` | Operations |
 | `Installer::class` | Installer |
 | `Twig\Environment::class`, `Presentation::class` | Rendering |

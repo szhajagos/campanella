@@ -31,7 +31,9 @@ use Campanella\Security\Throttle;
  *  - a changed password ends the user's other sessions (since 0.1.0): the
  *    session holds a stamp of the password hash, checked on every request;
  *  - a login lasts at most `session.absolute_timeout` seconds (12 hours by
- *    default; since 0.1.4), however actively it is used: then one logs in again.
+ *    default; since 0.1.4), however actively it is used: then one logs in again;
+ *  - every login is recorded (SessionRegistry, since 0.1.4), and checked on every
+ *    request: the user can end any of them from their profile.
  *
  * Extensibility: LoginGuards run before the password check (honeypot,
  * CAPTCHA …). Checking the password (attempt) and actually logging in
@@ -46,6 +48,8 @@ final class AuthService
     public const string SESSION_STAMP = 'auth_stamp';
     /** When the user logged in (a Unix time; since 0.1.4). */
     public const string SESSION_LOGIN_AT = 'auth_login_at';
+    /** The login's token in the SessionRegistry (since 0.1.4). */
+    public const string SESSION_TOKEN = 'auth_token';
 
     /** The default absolute lifetime of a login: 12 hours. */
     public const int ABSOLUTE_TIMEOUT = 43200;
@@ -61,6 +65,7 @@ final class AuthService
      * @param list<LoginGuard> $guards Additional protections that run before the password check.
      * @param int $absoluteTimeout The longest a login lasts, in seconds, however actively it is used
      *        (`session.absolute_timeout`; 0: no limit, only the idle timeout)
+     * @param ?SessionRegistry $sessions The record of logins; null: none (no session list)
      */
     public function __construct(
         private readonly ObjectRepository $repository,
@@ -71,6 +76,7 @@ final class AuthService
         private readonly array $config = [],
         private readonly array $guards = [],
         private readonly int $absoluteTimeout = self::ABSOLUTE_TIMEOUT,
+        private readonly ?SessionRegistry $sessions = null,
     ) {
     }
 
@@ -164,6 +170,12 @@ final class AuthService
         $this->session->set(self::SESSION_USER, $user->id());
         $this->session->set(self::SESSION_STAMP, self::stamp($user));
         $this->session->set(self::SESSION_LOGIN_AT, time());
+        $previous = $this->token();   // logging in again in the same browser: the old login ends
+        if ($this->sessions !== null && $previous !== null) {
+            $this->sessions->end($previous);
+        }
+        $this->session->remove(self::SESSION_TOKEN);
+        $this->record($request, $user);
         $this->resolvedFor = $request;
         $this->current = $user;
     }
@@ -178,12 +190,20 @@ final class AuthService
         $this->session->start($request);
         $this->session->regenerate();
         $this->session->set(self::SESSION_STAMP, self::stamp($user));
+        $token = $this->token();
+        if ($this->sessions !== null && $token !== null) {
+            $this->sessions->endAll((int) $user->id(), $token);
+        }
         $this->resolvedFor = $request;
         $this->current = $user;
     }
 
     public function logout(): void
     {
+        $token = $this->token();
+        if ($this->sessions !== null && $token !== null) {
+            $this->sessions->end($token);
+        }
         $this->session->destroy();
         $this->current = null;
     }
@@ -206,7 +226,7 @@ final class AuthService
         }
         $user = $this->repository->find($id);
         if ($user === null || !$user->has(Authenticatable::class) || !$user->as(Authenticatable::class)->isActive()) {
-            $this->session->remove(self::SESSION_USER);   // deleted or blocked account: log it out
+            $this->endLogin();   // deleted or blocked account: log it out
 
             return null;
         }
@@ -227,6 +247,17 @@ final class AuthService
 
             return null;
         }
+        // Still recorded? A login ended from the session list (or before 0.1.4: not recorded yet).
+        if ($this->sessions !== null) {
+            $token = $this->token();
+            if ($token === null) {
+                $this->record($request, $user);
+            } elseif ($this->sessions->touch($token, (int) $user->id(), $request) === false) {
+                $this->endLogin();
+
+                return null;
+            }
+        }
 
         return $this->current = $user;
     }
@@ -234,10 +265,79 @@ final class AuthService
     /** Ends the login of the session (with a new session ID); the session itself (e.g. its CSRF token) stays. */
     private function endLogin(): void
     {
+        $token = $this->token();
+        if ($this->sessions !== null && $token !== null) {
+            $this->sessions->end($token);
+        }
+        $this->session->remove(self::SESSION_TOKEN);
         $this->session->remove(self::SESSION_USER);
         $this->session->remove(self::SESSION_STAMP);
         $this->session->remove(self::SESSION_LOGIN_AT);
         $this->session->regenerate();
+    }
+
+    /**
+     * The logged-in user's logins in progress, this one marked (since 0.1.4).
+     *
+     * @return list<SessionInfo>
+     */
+    public function sessions(Request $request): array
+    {
+        $user = $this->currentUser($request);
+        if ($user === null || $this->sessions === null) {
+            return [];
+        }
+
+        return $this->sessions->forUser((int) $user->id(), $this->token());
+    }
+
+    /** Ends one of the logged-in user's other logins; false if there is no such login, or it is this one. */
+    public function endSession(Request $request, int $id): bool
+    {
+        $user = $this->currentUser($request);
+        if ($user === null || $this->sessions === null) {
+            return false;
+        }
+        foreach ($this->sessions->forUser((int) $user->id(), $this->token()) as $info) {
+            if ($info->id === $id && $info->current) {
+                return false;   // this one: logging out is for that
+            }
+        }
+
+        return $this->sessions->endById((int) $user->id(), $id);
+    }
+
+    /**
+     * Ends every login of the logged-in user but this one.
+     *
+     * @return int How many were ended
+     */
+    public function endOtherSessions(Request $request): int
+    {
+        $user = $this->currentUser($request);
+        $token = $this->token();
+        if ($user === null || $this->sessions === null || $token === null) {
+            return 0;
+        }
+
+        return $this->sessions->endAll((int) $user->id(), $token);
+    }
+
+    /** Records the login of the session in the SessionRegistry, if there is one. */
+    private function record(Request $request, CampanellaObject $user): void
+    {
+        $loginAt = $this->session->get(self::SESSION_LOGIN_AT);
+        $token = $this->sessions?->start((int) $user->id(), $request, is_int($loginAt) ? $loginAt : null);
+        if ($token !== null) {
+            $this->session->set(self::SESSION_TOKEN, $token);
+        }
+    }
+
+    private function token(): ?string
+    {
+        $token = $this->session->get(self::SESSION_TOKEN);
+
+        return is_string($token) && $token !== '' ? $token : null;
     }
 
     public function currentActor(Request $request): Actor
