@@ -21,8 +21,8 @@ shown according to the user's roles (e.g. an `editor` also sees drafts).
 | `GET /hirek` | `config/routes.php` → Query `news` | Published articles, 5 per page |
 | `GET /hirek?page=N` | | Pagination; a nonexistent page: 404 |
 | `GET /kategoriak` | `config/routes.php` → Query `categories` | Published categories (0.0.2); since 0.0.7 as a tree, in their hand-set order |
-| `GET /belepes`, `POST /belepes` | `AuthController` | Login form and login (0.0.3); details: [PHP API chapter 11](../php-api/11-users.md#web-interface) |
-| `POST /kilepes` | `AuthController` | Logout with a CSRF token |
+| `GET /login`, `POST /login` | `AuthController` | Login form and login (0.0.3); the path is a setting (`paths.login`, since 0.1.4); details: [PHP API chapter 11](../php-api/11-users.md#web-interface) |
+| `POST /logout` | `AuthController` | Logout with a CSRF token (`paths.logout`) |
 | `GET /install`, `POST /install` | `InstallController` | Installing from the browser (0.1.0): only with the install key, only while there is no user, otherwise 404; [PHP API chapter 17](../php-api/17-migrations.md#installing-from-the-browser) |
 | `GET /admin/upgrade`, `POST /admin/upgrade` | `UpgradeController` | Running the upgrade from the browser (0.0.6): for administrators, or with the upgrade key; [PHP API chapter 17](../php-api/17-migrations.md#from-the-browser) |
 | `GET /admin…`, `POST /admin…` | `AdminController` | The admin UI (0.0.4): dashboard, lists, forms, publishing, deleting; users and the profile (0.1.0); details: [PHP API chapter 13](../php-api/13-admin.md#admincontroller) |

@@ -262,7 +262,7 @@ Query::objects()->whereRelated('categories', $science);   // the category's arti
 Details: [docs/php-api/10-relations.md](docs/php-api/10-relations.md).
 
 **Users (0.0.3).** A user is an object too (`user` Blueprint). Login:
-`/belepes`. The first administrator is created with the `user:create` command;
+`/login` (configurable: `paths`). The first administrator is created with the `user:create` command;
 there is no default account or password. Details: [docs/php-api/11-users.md](docs/php-api/11-users.md).
 
 **Admin UI (0.0.4).** Under `/admin`, for the `administrator` and `editor`

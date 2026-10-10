@@ -42,6 +42,7 @@ use Campanella\System\CheckStatus;
 use Campanella\System\SystemCheck;
 use Campanella\System\TemplateCache;
 use Campanella\Http\Router;
+use Campanella\Http\SitePaths;
 use Campanella\Capability\Routable;
 use Campanella\Model\Blueprint;
 use Campanella\Model\BlueprintRegistry;
@@ -121,6 +122,7 @@ final class AdminController implements Controller
         private readonly SettingsPage $settings,
         private readonly ?MediaUsage $usage = null,
         private readonly ?MailPages $mail = null,
+        private readonly SitePaths $paths = new SitePaths(),
     ) {
     }
 
@@ -142,7 +144,7 @@ final class AdminController implements Controller
                 ? $this->access->path('image')
                 : $request->path . ($request->query === [] ? '' : '?' . http_build_query($request->query));
 
-            return Response::redirect($request->basePath . '/belepes?vissza=' . rawurlencode($target));
+            return Response::redirect($request->basePath . $this->paths->login($target));
         }
         if (!$this->access->allows($actor)) {
             throw new HttpException(403, 'error.forbidden');

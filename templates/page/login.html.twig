@@ -8,9 +8,9 @@
             <div class="alert alert-danger" role="alert">{{ error }}</div>
         {% endif %}
 
-        <form method="post" action="{{ url('/belepes') }}" class="card card-body shadow-sm">
+        <form method="post" action="{{ path('login') }}" class="card card-body shadow-sm">
             {{ csrf_field() }}
-            <input type="hidden" name="vissza" value="{{ target }}">
+            <input type="hidden" name="return" value="{{ target }}">
             {{ guard_fields|raw }}
 
             <div class="mb-3">

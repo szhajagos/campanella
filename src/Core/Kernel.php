@@ -54,6 +54,7 @@ use Campanella\Http\NativeSessionStorage;
 use Campanella\Http\Request;
 use Campanella\Http\SecurityHeaders;
 use Campanella\Http\TrustedProxies;
+use Campanella\Http\SitePaths;
 use Campanella\Http\Response;
 use Campanella\Http\Router;
 use Campanella\Http\Session;
@@ -252,6 +253,10 @@ final class Kernel
             $c->get(QueryEngine::class),
             $c->get(MediaStorage::class),
             (string) $c->get(Config::class)->get('media.url', '/media'),
+        ));
+
+        $c->set(SitePaths::class, static fn (Container $c): SitePaths => new SitePaths(
+            (array) $c->get(Config::class)->get('paths', []),
         ));
 
         $c->set(TrustedProxies::class, static fn (Container $c): TrustedProxies => new TrustedProxies(
@@ -541,6 +546,7 @@ final class Kernel
                     $basePath(),
                 ),
                 static fn (): ResponsiveImages => $c->get(ResponsiveImages::class),
+                $c->get(SitePaths::class),
             ));
 
             return $twig;
@@ -560,6 +566,10 @@ final class Kernel
             $router->prefix($c->get(AdminAccess::class)->path(), 'admin');
             $router->add($c->get(AdminAccess::class)->path('upgrade'), 'upgrade');
             $router->add(InstallController::PATH, 'install');
+            // Logging in and out, at the configured paths (since 0.1.4).
+            $paths = $c->get(SitePaths::class);
+            $router->add($paths->get('login'), 'auth', ['action' => 'login']);
+            $router->add($paths->get('logout'), 'auth', ['action' => 'logout']);
             // For search engines (since 0.1.1).
             $router->add('/robots.txt', 'site', ['action' => 'robots']);
             $router->add('/sitemap.xml', 'site', ['action' => 'sitemap']);
@@ -604,6 +614,7 @@ final class Kernel
             new SettingsPage($c->get(SiteSettings::class), $c->get(QueryEngine::class), $c->get(MediaStorage::class), $c->get(Csrf::class), $c->get(Flash::class), $c->get(AdminAccess::class)),
             new MediaUsage($c->get(Connection::class), $c->get(QueryEngine::class), $c->get(SiteSettings::class)),
             new MailPages($c->get(Mailer::class), $c->get(ObjectRepository::class), $c->get(Throttle::class), $c->get(Csrf::class), $c->get(Flash::class), $c->get(AdminAccess::class)),
+            $c->get(SitePaths::class),
         ));
 
         $c->set('controller.upgrade', static fn (Container $c): Controller => new UpgradeController(
@@ -616,6 +627,7 @@ final class Kernel
             $c->get(Throttle::class),
             $c->get(Presentation::class),
             UpgradeController::usableKey($c->get(Config::class)->get('upgrade.key')),
+            $c->get(SitePaths::class),
         ));
 
         $c->set('controller.install', static fn (Container $c): Controller => new InstallController(

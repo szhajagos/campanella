@@ -10,6 +10,18 @@ backward-incompatible.
 
 ## [Unreleased]
 
+Work towards 0.1.4 (forgotten password and sessions), in parts.
+
+### Changed
+
+- **Logging in and out moved to `/login` and `/logout`** (until now `/belepes`
+  and `/kilepes`), and their paths are settings (`paths` in
+  `config/local.php`, e.g. `'paths' => ['login' => '/belepes', 'logout' =>
+  '/kilepes']` to keep the old ones; `SitePaths`). The login page's return
+  parameter is `return` (was `vissza`). Templates: `path('login')`,
+  `path('logout')` instead of `url('/belepes')`. The two routes left
+  `config/routes.php`: a site that changed that file removes them there.
+
 ## [0.1.3] – 2026-10-10
 
 Events and e-mail: Campanella says what happened (an article was published, a

@@ -550,7 +550,7 @@ $authFor = static function (ArraySessionStorage $storage, array $guards = []) us
 
     return [new AuthService($repository, $engine, $session, new Throttle($db), $csrf, ['max_attempts' => 3, 'max_attempts_per_ip' => 50, 'decay_seconds' => 900], $guards), $csrf, $session];
 };
-$req = static fn (array $post = [], string $ip = '10.0.0.1') => new Request($post === [] ? 'GET' : 'POST', '/belepes', post: $post, ip: $ip);
+$req = static fn (array $post = [], string $ip = '10.0.0.1') => new Request($post === [] ? 'GET' : 'POST', '/login', post: $post, ip: $ip);
 
 $editorUser = $newUser('Szerkeszto@Example.hu', 'szerkeszto-jelszo', ['editor']);
 
@@ -693,7 +693,7 @@ test('Kernel: full login and logout through the form', function (): void {
     check($kernel->handle(new Request('GET', '/szerkesztoi-piszkozat'))->status === 404);
     $storage->endRequest();
 
-    $form = $kernel->handle(new Request('GET', '/belepes'));
+    $form = $kernel->handle(new Request('GET', '/login'));
     preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $form->body, $m);
     check(isset($m[1]) && str_contains($form->body, 'name="website"'), 'missing CSRF or honeypot field');
     check(($form->headers['Cache-Control'] ?? '') === 'private, no-store');
@@ -701,9 +701,9 @@ test('Kernel: full login and logout through the form', function (): void {
     check(str_contains($form->body, 'campanella.css?v=' . Version::CAMPANELLA), 'asset() does not append the version');
     $storage->endRequest();
 
-    $login = $kernel->handle(new Request('POST', '/belepes', post: [
+    $login = $kernel->handle(new Request('POST', '/login', post: [
         '_csrf' => $m[1], 'email' => 'szerkeszto@example.hu', 'password' => 'szerkeszto-jelszo',
-        'website' => '', 'vissza' => '/szerkesztoi-piszkozat',
+        'website' => '', 'return' => '/szerkesztoi-piszkozat',
     ], ip: '10.7.7.7'));
     check($login->status === 303 && ($login->headers['Location'] ?? '') === '/szerkesztoi-piszkozat', (string) $login->status);
     $storage->endRequest();
@@ -713,7 +713,7 @@ test('Kernel: full login and logout through the form', function (): void {
     preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $page->body, $m2);
     $storage->endRequest();
 
-    $kernel->handle(new Request('POST', '/kilepes', post: ['_csrf' => $m2[1] ?? '']));
+    $kernel->handle(new Request('POST', '/logout', post: ['_csrf' => $m2[1] ?? '']));
     $storage->endRequest();
     check($kernel->handle(new Request('GET', '/szerkesztoi-piszkozat'))->status === 404, 'still visible after logout');
     putenv('CAMPANELLA_DB_PREFIX');
@@ -1004,7 +1004,7 @@ test('Kernel: the login page in English (CAMPANELLA_LOCALE=en)', function (): vo
         return;
     }
     $kernel->container()->set(Session::class, static fn (): Session => new Session(new ArraySessionStorage()));
-    $page = $kernel->handle(new Request('GET', '/belepes'));
+    $page = $kernel->handle(new Request('GET', '/login'));
     check($page->status === 200 && str_contains($page->body, '<html lang="en">'), 'lang attribute');
     check(str_contains($page->body, '>Log in</h1>') && str_contains($page->body, 'E-mail address'), 'English texts');
     check(!str_contains($page->body, 'Belépés'), 'Hungarian text left on the page');
@@ -1148,9 +1148,9 @@ test('Kernel: the admin is only for admin roles', function () use ($editorUser, 
     };
 
     $anonymous = $kernel->handle(new Request('GET', '/admin'));
-    check($anonymous->status === 302 && ($anonymous->headers['Location'] ?? '') === '/belepes?vissza=%2Fadmin', 'anonymous: to the login page');
+    check($anonymous->status === 302 && ($anonymous->headers['Location'] ?? '') === '/login?return=%2Fadmin', 'anonymous: to the login page');
     $deep = $kernel->handle(new Request('GET', '/admin/article', query: ['status' => 'draft']));
-    check(($deep->headers['Location'] ?? '') === '/belepes?vissza=' . rawurlencode('/admin/article?status=draft'), 'back to the requested page');
+    check(($deep->headers['Location'] ?? '') === '/login?return=' . rawurlencode('/admin/article?status=draft'), 'back to the requested page');
 
     $as($newUser('tag@example.hu', 'tag-jelszava-1', ['member']));
     check($kernel->handle(new Request('GET', '/admin'))->status === 403, 'a member may not enter');
@@ -1332,7 +1332,7 @@ test('Kernel: creating and editing in the admin, with conflict detection', funct
     $long = $send('POST', $location, ['_csrf' => $token($edit->body), '_version' => $stamp, 'f' => ['title' => str_repeat('x', 300)]]);
     check($long->status === 422 && str_contains($long->body, 'legfeljebb 255 karakter'), 'too long title: ' . $long->status);
     check(str_contains($long->body, '<h1 class="h3 mb-0 me-2">Űrlapból készült cikk</h1>'), 'after a failed save the stored title is shown');
-    $reserved = $send('POST', $location, ['_csrf' => $token($edit->body), '_version' => $stamp, 'f' => ['title' => 'Belépés', 'path' => '/belepes']]);
+    $reserved = $send('POST', $location, ['_csrf' => $token($edit->body), '_version' => $stamp, 'f' => ['title' => 'Belépés', 'path' => '/login']]);
     check($reserved->status === 422 && str_contains($reserved->body, 'ezt az útvonalat a rendszer használja'), 'reserved path: ' . $reserved->status);
     $fromTitle = $send('POST', $location, ['_csrf' => $token($edit->body), '_version' => $stamp, 'f' => ['title' => 'Admin', 'path' => '']]);
     check($fromTitle->status === 422, 'a path made from the title is checked too');
@@ -2300,7 +2300,7 @@ test('Kernel: uploading an image from the admin (POST /admin/media/upload)', fun
     check($expired->status === 401 && $json($expired)['message'] === 'A munkamenet lejárt. Jelentkezz be újra (például egy másik lapon), majd próbáld újra.', $expired->body);
     check($send('GET', '/admin/article')->status === 302, 'other admin pages still redirect to the login page');
     $plainExpired = $send('POST', '/admin/media/upload', ['_csrf' => $csrf], $upload(testImage('png', 10, 10)), ['accept' => 'text/html']);
-    check($plainExpired->status === 302 && str_ends_with($plainExpired->headers['Location'] ?? '', '?vissza=%2Fadmin%2Fimage'), 'the form without JavaScript: to the login page, then back to the list');
+    check($plainExpired->status === 302 && str_ends_with($plainExpired->headers['Location'] ?? '', '?return=%2Fadmin%2Fimage'), 'the form without JavaScript: to the login page, then back to the list');
 
     putenv('CAMPANELLA_DB_PREFIX');
 });
@@ -2737,14 +2737,14 @@ test('Upgrading from the browser: the site waits, an administrator or the key ru
     check($home->status === 503 && ($home->headers['Retry-After'] ?? '') === '300' && str_contains($home->body, 'frissítés alatt'), 'visitors wait: ' . $home->status);
     $admin = $send('GET', '/admin');
     check($admin->status === 503 && str_contains($admin->body, '/admin/upgrade'), 'the admin points to the upgrade page');
-    check($send('GET', '/belepes')->status === 200, 'logging in still works');
+    check($send('GET', '/login')->status === 200, 'logging in still works');
 
     // Anonymous, no key configured: no details, how to set a key, no running.
     $page = $send('GET', '/admin/upgrade');
-    check($page->status === 200 && !str_contains($page->body, 'test:0030_web') && str_contains($page->body, "'upgrade' => ['key' => '") && str_contains($page->body, '/belepes?vissza=%2Fadmin%2Fupgrade'), 'anonymous: no details');
+    check($page->status === 200 && !str_contains($page->body, 'test:0030_web') && str_contains($page->body, "'upgrade' => ['key' => '") && str_contains($page->body, '/login?return=%2Fadmin%2Fupgrade'), 'anonymous: no details');
     check(!str_contains($page->body, 'name="key"') && str_contains((string) ($page->headers['Content-Security-Policy'] ?? ''), "script-src 'self'"));
     // (The page has no form without a key; a token from the login page.)
-    $refused = $send('POST', '/admin/upgrade', ['_csrf' => $csrfOf($send('GET', '/belepes'))]);
+    $refused = $send('POST', '/admin/upgrade', ['_csrf' => $csrfOf($send('GET', '/login'))]);
     check($refused->status === 403 && $ran === 0 && str_contains($refused->body, 'csak adminisztrátor'), $refused->status . ' ' . strip_tags($refused->body));
 
     // With a key in the configuration.
@@ -4238,7 +4238,7 @@ test('Kernel: meta tags, robots.txt and sitemap.xml', function () use ($fakeImag
     check(str_contains($page->body, '<meta property="og:type" content="article">') && str_contains($page->body, '<meta property="og:title" content="Térképes cikk">'));
     check($kernel->handle(new Request('GET', '/sitemap.xml'))->status === 404, 'no sitemap without the address');
     $robots = $kernel->handle(new Request('GET', '/robots.txt'));
-    check($robots->status === 200 && str_starts_with($robots->headers['Content-Type'] ?? '', 'text/plain') && str_contains($robots->body, "User-agent: *\nDisallow: /admin/\nDisallow: /belepes\nDisallow: /kilepes\nDisallow: /install\n") && !str_contains($robots->body, 'Sitemap:'), $robots->body);
+    check($robots->status === 200 && str_starts_with($robots->headers['Content-Type'] ?? '', 'text/plain') && str_contains($robots->body, "User-agent: *\nDisallow: /admin/\nDisallow: /login\nDisallow: /logout\nDisallow: /install\n") && !str_contains($robots->body, 'Sitemap:'), $robots->body);
 
     $settings->set(['site.url' => 'https://pelda.hu']);
     $page = $kernel->handle(new Request('GET', '/terkepes-cikk'));
@@ -4258,7 +4258,7 @@ test('Kernel: meta tags, robots.txt and sitemap.xml', function () use ($fakeImag
     $home = $kernel->handle(new Request('GET', '/'));
     check(str_contains($home->body, '<meta property="og:image" content="https://pelda.hu/media/' . $image->get('file_path') . '">') && str_contains($home->body, '<meta name="description" content="A webhely leírása">') && str_contains($home->body, 'summary_large_image'), 'the front page');
 
-    check(($kernel->handle(new Request('GET', '/nincs-ilyen'))->headers['X-Robots-Tag'] ?? '') === 'noindex' && ($kernel->handle(new Request('GET', '/belepes'))->headers['X-Robots-Tag'] ?? '') === 'noindex', 'error and login pages are never indexed');
+    check(($kernel->handle(new Request('GET', '/nincs-ilyen'))->headers['X-Robots-Tag'] ?? '') === 'noindex' && ($kernel->handle(new Request('GET', '/login'))->headers['X-Robots-Tag'] ?? '') === 'noindex', 'error and login pages are never indexed');
     check(!isset($kernel->handle(new Request('GET', '/terkepes-cikk'))->headers['X-Robots-Tag']), 'content pages are');
 
     // Indexing turned off: every page asks not to be indexed, but crawling stays allowed (or the noindex could not be read).
@@ -4878,6 +4878,55 @@ test('Kernel: the e-mail lines of the System page, a test e-mail to oneself, the
     $auth->login(new Request('GET', '/'), $newUser('levelezo-szerk@example.hu', 'levelezo-jelszo-2', ['editor']));
     check($send('GET', '/admin/system/mail')->status === 403 && $send('POST', '/admin/system/mail-test', [])->status === 403, 'not for editors');
     $container->get(Connection::class)->execute('DELETE FROM {mail_log}');
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
+echo "\nLogin and sessions (0.1.4)\n";
+
+test('SitePaths: English by default, configurable, checked', function (): void {
+    $P = \Campanella\Http\SitePaths::class;
+    $default = new $P();
+    check($default->get('login') === '/login' && $default->get('logout') === '/logout' && $default->login('/admin/article?status=draft') === '/login?return=%2Fadmin%2Farticle%3Fstatus%3Ddraft');
+    $hu = new $P(['login' => '/belepes/', 'logout' => 'kilepes']);
+    check($hu->all() === ['login' => '/belepes', 'logout' => '/kilepes'], json_encode($hu->all()));
+    foreach ([['bejelentkezes' => '/x'], ['login' => '/'], ['login' => '/a b'], ['login' => '/a?b'], ['login' => 42], ['login' => '/x', 'logout' => '/x']] as $bad) {
+        throws(\InvalidArgumentException::class, fn () => new $P($bad));
+    }
+    throws(\InvalidArgumentException::class, fn () => $default->get('nincs'));
+});
+
+test('Kernel: logging in at a configured path, back to where one came from', function () use ($newUser): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $container = $kernel->container();
+    if ($container->get(Connection::class)->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $config = $container->get(\Campanella\Core\Config::class);
+    $container->set(\Campanella\Core\Config::class, static fn () => new \Campanella\Core\Config(['paths' => ['login' => '/belepes', 'logout' => '/kilepes']] + $config->all()));
+    $storage = new ArraySessionStorage();
+    $container->set(Session::class, static fn () => new Session($storage));
+    $send = function (string $method, string $path, array $post = [], array $query = []) use ($kernel, $storage) {
+        $storage->endRequest();
+
+        return $kernel->handle(new Request($method, $path, query: $query, post: $post));
+    };
+    $newUser('utvonal@example.hu', 'utvonal-jelszo-1', ['editor']);
+    check($send('GET', '/login')->status === 404, 'the default path is free for content');
+    $admin = $send('GET', '/admin/article');
+    check(($admin->headers['Location'] ?? '') === '/belepes?return=%2Fadmin%2Farticle', (string) ($admin->headers['Location'] ?? ''));
+    $evil = $send('GET', '/belepes', [], ['return' => '//evil.example']);
+    check(str_contains($evil->body, 'name="return" value="/"'), 'only a path of this site');
+    $form = $send('GET', '/belepes', [], ['return' => '/admin/article']);
+    check($form->status === 200 && str_contains($form->body, 'action="/belepes"') && str_contains($form->body, 'name="return" value="/admin/article"'), 'the form');
+    preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $form->body, $m);
+    $in = $send('POST', '/belepes', ['_csrf' => $m[1] ?? '', 'email' => 'utvonal@example.hu', 'password' => 'utvonal-jelszo-1', 'website' => '', 'return' => '/admin/article']);
+    check($in->status === 303 && ($in->headers['Location'] ?? '') === '/admin/article', 'back to the list');
+    $page = $send('GET', '/admin');
+    check(str_contains($page->body, 'action="/kilepes"'), 'the logout form uses the configured path');
+    check(str_contains($send('GET', '/robots.txt')->body, "Disallow: /belepes\nDisallow: /kilepes\n"));
     putenv('CAMPANELLA_DB_PREFIX');
 });
 

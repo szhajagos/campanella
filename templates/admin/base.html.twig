@@ -28,7 +28,7 @@
                     <a class="small" href="{{ url('/') }}">{{ t('admin.back_to_site') }}</a>
                     {% if user %}
                         <a class="small text-body-secondary" href="{{ admin_url('profile') }}" title="{{ t('users.profile') }}">{{ user.title }}</a>
-                        <form method="post" action="{{ url('/kilepes') }}" class="m-0">
+                        <form method="post" action="{{ path('logout') }}" class="m-0">
                             {{ csrf_field() }}
                             <button type="submit" class="btn btn-sm btn-outline-secondary">{{ t('auth.logout') }}</button>
                         </form>

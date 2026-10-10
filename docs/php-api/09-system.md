@@ -121,6 +121,7 @@ New controller: a `controller.<name>` entry in the container, and a route in
 | `security.hsts`, `security.hsts_subdomains` | `0` (off), `false` | `Strict-Transport-Security` max-age in seconds, over HTTPS only (since 0.1.0) |
 | `mail.dsn`, `mail.from`, `mail.from_name`, `mail.log_days`, `mail.timeout` | `''`, `''`, `''`, `90`, `10` | `CAMPANELLA_MAIL_DSN`, `CAMPANELLA_MAIL_FROM`. Sending e-mail; without `dsn` and `from` nothing is sent (since 0.1.3; [chapter 21](21-events-and-mail.md#settings)) |
 | `events` | `[]` | Actions bound to events: event class => list of Action classes (since 0.1.3; [chapter 21](21-events-and-mail.md#actions)) |
+| `paths.login`, `paths.logout` | `'/login'`, `'/logout'` | The paths of logging in and out (since 0.1.4; [chapter 11](11-users.md#web-interface)) |
 | `migrations` | `[]` | The site's own migrations (class names), run after Campanella's ([chapter 17](17-migrations.md#writing-a-migration)) |
 | `session.*`, `auth.*` | see [chapter 11](11-users.md#configuration) | |
 

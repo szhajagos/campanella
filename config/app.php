@@ -42,6 +42,13 @@ return [
     // The site's settings. Edited in the admin (System → Settings, since 0.1.1); these
     // values apply until they are first saved there. Other keys (e.g. a theme's own)
     // are passed to templates as they are: {{ site.<key> }}.
+    // The paths of the system's own public pages (since 0.1.4). English by default;
+    // any can be changed, e.g. to the site's language: ['login' => '/belepes'].
+    'paths' => [
+        'login' => '/login',
+        'logout' => '/logout',
+    ],
+
     'site' => [
         'name' => 'Campanella',
         'slogan' => 'Capability-vezérelt CMS',

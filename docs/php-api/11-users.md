@@ -242,9 +242,32 @@ stored; if the file cannot be written, attempts are not limited.
 
 | Route | Description |
 |---|---|
-| `GET /belepes` | Login form (`page/login.html.twig`). Redirects a logged-in user |
-| `POST /belepes` | Login. Success: 303 redirect to the page given in the `vissza` field (or the front page). Failure: the form again, with 422 (with 400 for an expired CSRF token) |
-| `POST /kilepes` | Logout (with CSRF token), then a redirect to the front page. A GET request does not log out |
+| `GET /login` | Login form (`page/login.html.twig`). Redirects a logged-in user |
+| `POST /login` | Login. Success: 303 redirect to the page given in the `return` field (or the front page). Failure: the form again, with 422 (with 400 for an expired CSRF token) |
+| `POST /logout` | Logout (with CSRF token), then a redirect to the front page. A GET request does not log out |
+
+**The paths are settings** (since 0.1.4; until then `/belepes` and `/kilepes`
+with a `vissza` field). English by default, any can be changed, e.g. to the
+site's language:
+
+```php
+// config/local.php
+'paths' => ['login' => '/belepes', 'logout' => '/kilepes'],
+```
+
+`Campanella\Http\SitePaths` · **Public** · container: `SitePaths::class`
+
+| Member | |
+|---|---|
+| `__construct(array $paths = [])` | The `paths` setting over `DEFAULTS` (`login` => `/login`, `logout` => `/logout`). `InvalidArgumentException` for an unknown name, an unusable path (`/`, spaces, `?`, `#`, backslashes) or two names with one path |
+| `get(string $name): string` | A page's path |
+| `all(): array` | name => path |
+| `login(string $return = ''): string` | The login page that sends back afterwards: `/login?return=%2Fadmin` |
+
+Templates use `path('login')`, `path('logout')` (with the installation's
+folder). The Kernel adds the routes; `robots.txt` lists them as not to crawl.
+A configured path is not a security measure in itself (the login is protected
+by its throttling), but keeps the noise of bots trying `/login` away.
 
 `static safeTarget(string $target): string`: the redirect target can only be a
 path within the site (`/…`, but not `//…`). Anything else is replaced with

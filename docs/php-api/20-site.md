@@ -166,8 +166,8 @@ Routes added by the Kernel (so no object can take these paths):
 # Campanella
 User-agent: *
 Disallow: /admin/
-Disallow: /belepes
-Disallow: /kilepes
+Disallow: /login
+Disallow: /logout
 Disallow: /install
 
 Sitemap: https://example.hu/sitemap.xml

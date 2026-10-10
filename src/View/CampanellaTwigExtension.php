@@ -7,6 +7,7 @@ namespace Campanella\View;
 use Campanella\Access\Actor;
 use Campanella\Admin\AdminAccess;
 use Campanella\Http\Flash;
+use Campanella\Http\SitePaths;
 use Campanella\Capability\MediaFile;
 use Campanella\Capability\Textual;
 use Campanella\Media\ResponsiveImages;
@@ -28,6 +29,7 @@ use Twig\TwigFunction;
  * Campanella functions available in templates:
  *
  *   {{ url('/hirek') }}                 subdirectory-safe URL
+ *   {{ path('login') }}                 a system page's URL (SitePaths: login, logout …; since 0.1.4)
  *   {{ asset('campanella.css') }}       a file under public/assets/
  *   {{ theme_asset('style.css') }}      a file of the active theme (public/themes/<name>/)
  *   {{ render_object(item, 'teaser') }} an object in a presentation mode
@@ -61,6 +63,7 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
      * @param (Closure(string, int): ?list<MenuEntry>)|null $menus Builds a menu for the current
      *        visitor and page: key, levels (MenuBuilder; since 0.0.7).
      * @param (Closure(): ResponsiveImages)|null $images The images' copies (lazy; since 0.1.2).
+     * @param SitePaths|null $paths The system pages' paths, for path() (since 0.1.4).
      */
     public function __construct(
         private readonly Closure $presentation,
@@ -75,6 +78,7 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
         private readonly ?Closure $flash = null,
         private readonly ?Closure $menus = null,
         private readonly ?Closure $images = null,
+        private readonly ?SitePaths $paths = null,
     ) {
     }
 
@@ -83,6 +87,7 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
     {
         return [
             new TwigFunction('url', $this->url(...)),
+            new TwigFunction('path', $this->path(...)),
             new TwigFunction('asset', $this->asset(...)),
             new TwigFunction('render_object', $this->renderObject(...), ['is_safe' => ['html']]),
             new TwigFunction('related', $this->related(...)),
@@ -126,6 +131,12 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
         $path = (string) preg_replace_callback('/[\\\\\x00-\x20\x7f]/', static fn (array $m): string => rawurlencode($m[0]), $path);
 
         return ($this->basePath)() . '/' . ltrim($path, '/');
+    }
+
+    /** The URL of a system page by its name (`path('login')`), with the installation's prefix. Since 0.1.4. */
+    public function path(string $name): string
+    {
+        return $this->url(($this->paths ?? new SitePaths())->get($name));
     }
 
     /**

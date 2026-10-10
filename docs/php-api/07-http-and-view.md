@@ -298,6 +298,7 @@ without extending it, it decides which CSS and JavaScript it loads.
 | `{{ related(object, 'categories') }}` | `related(CampanellaObject $object, string $relation)` | The loaded target objects of a relation, or an empty list |
 | `{{ current_user() }}` | `currentUser()` | The logged-in user or `null` ([chapter 11](11-users.md#web-interface)) |
 | `{{ csrf_field() }}` | `csrfField()` | Hidden CSRF field for POST forms |
+| `{{ path('login') }}` | `path(string $name)` | A system page's URL by its name (`login`, `logout`; `SitePaths`, since 0.1.4) |
 | `{{ theme_asset('style.css') }}` | `themeAsset(string $path)` | A file of the active theme (`public/themes/<name>/`), with the version as cache buster |
 | `{{ admin_url('article') }}` | `adminUrl(string $subpath = '')` | The URL of an admin page ([chapter 13](13-admin.md)) |
 | `{{ admin_access() }}` | `adminAccess()` | Whether the current visitor may enter the admin (e.g. to show an "Admin" link) |

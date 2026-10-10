@@ -19,6 +19,7 @@ use Campanella\Http\HttpException;
 use Campanella\Http\Request;
 use Campanella\Http\Response;
 use Campanella\Http\RouteMatch;
+use Campanella\Http\SitePaths;
 use Campanella\I18n\Message;
 use Campanella\Security\Csrf;
 use Campanella\Security\Throttle;
@@ -61,6 +62,7 @@ final class UpgradeController implements Controller
         private readonly Throttle $throttle,
         private readonly Presentation $presentation,
         private readonly ?string $key = null,
+        private readonly SitePaths $paths = new SitePaths(),
     ) {
     }
 
@@ -85,7 +87,7 @@ final class UpgradeController implements Controller
             'logged_in' => !$actor->isAnonymous(),
             'key_enabled' => self::usableKey($this->key) !== null,
             'key_suggestion' => bin2hex(random_bytes(20)),
-            'login_url' => '/belepes?vissza=' . rawurlencode($this->access->path('upgrade')),
+            'login_url' => $this->paths->login($this->access->path('upgrade')),
             'action' => $this->access->path('upgrade'),
             'system_url' => $this->access->path('system'),
             'error' => null,

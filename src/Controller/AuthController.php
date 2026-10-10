@@ -14,7 +14,9 @@ use Campanella\Security\Csrf;
 use Campanella\View\Presentation;
 
 /**
- * Login (/belepes) and logout (/kilepes).
+ * Login and logout, at the paths of the `paths` setting (SitePaths; /login and
+ * /logout by default). After logging in, back to the `return` parameter's path
+ * (a path of this site only).
  *
  * Logout only works with a POST request and a CSRF token, so a foreign site
  * cannot log the visitor out.
@@ -40,7 +42,7 @@ final class AuthController implements Controller
 
     private function login(Request $request, Actor $actor): Response
     {
-        $target = self::safeTarget($request->isPost() ? $request->postString('vissza') : $request->queryString('vissza'));
+        $target = self::safeTarget($request->isPost() ? $request->postString('return') : $request->queryString('return'));
 
         if (!$actor->isAnonymous()) {
             return Response::redirect($request->basePath . $target);
