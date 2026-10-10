@@ -134,6 +134,7 @@ return [
     'session' => [
         'name' => 'campanella_session',
         'idle_timeout' => 7200,        // logs the user out after this many seconds of inactivity
+        'absolute_timeout' => 43200,   // and after this many seconds from logging in, however active (12 h; since 0.1.4)
         'secure' => 'auto',            // 'auto': send the cookie over HTTPS only; true / false: forced
     ],
 

@@ -23,7 +23,7 @@ CHANGELOG's **Security** section names it.
   attempts limited per address and e-mail, per address, and per account (also
   for unknown addresses, so a locked account looks like any other); a new
   session ID on login; a blocked account or a changed password ends the
-  sessions; no default account.
+  sessions; a login lasts at most 12 hours, however active (since 0.1.4); no default account.
 - **Output:** Twig escapes everything; HTML texts are filtered on every save
   with an allowlist; link URLs and site paths are checked; templates run in a
   sandbox that cannot read hidden fields (password hash, e-mail address,
@@ -83,9 +83,6 @@ reach its database from the review's environment: it runs in CI instead.
   minutes by default): otherwise logging in to one's own account would reset
   the counter between guesses at others. Behind one shared address (an
   office) the setting `max_attempts_per_ip` can be raised.
-- **No absolute session lifetime:** a session ends after 2 hours without
-  activity (`session.idle_timeout`), but not while it is used. Planned for
-  0.1.4, with the session list (see the ROADMAP).
 - **The installer shows the requirements** (PHP and database versions,
   missing extensions) to anyone before the site is installed: it helps the
   person installing, and there is nothing yet to protect. Once a user exists,

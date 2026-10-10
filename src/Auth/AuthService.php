@@ -29,7 +29,9 @@ use Campanella\Security\Throttle;
  *  - a new session ID and a new CSRF token on login;
  *  - a blocked account cannot log in, and its existing session ends;
  *  - a changed password ends the user's other sessions (since 0.1.0): the
- *    session holds a stamp of the password hash, checked on every request.
+ *    session holds a stamp of the password hash, checked on every request;
+ *  - a login lasts at most `session.absolute_timeout` seconds (12 hours by
+ *    default; since 0.1.4), however actively it is used: then one logs in again.
  *
  * Extensibility: LoginGuards run before the password check (honeypot,
  * CAPTCHA …). Checking the password (attempt) and actually logging in
@@ -42,6 +44,12 @@ final class AuthService
 
     /** A hash of the user's password hash at login (since 0.1.0). */
     public const string SESSION_STAMP = 'auth_stamp';
+    /** When the user logged in (a Unix time; since 0.1.4). */
+    public const string SESSION_LOGIN_AT = 'auth_login_at';
+
+    /** The default absolute lifetime of a login: 12 hours. */
+    public const int ABSOLUTE_TIMEOUT = 43200;
+
     /** Message key of the generic login error (the same for a wrong e-mail address and a wrong password). */
     public const string GENERIC_ERROR = 'auth.invalid_credentials';
 
@@ -51,6 +59,8 @@ final class AuthService
     /**
      * @param array{max_attempts?: int, max_attempts_per_ip?: int, max_attempts_per_account?: int, decay_seconds?: int} $config
      * @param list<LoginGuard> $guards Additional protections that run before the password check.
+     * @param int $absoluteTimeout The longest a login lasts, in seconds, however actively it is used
+     *        (`session.absolute_timeout`; 0: no limit, only the idle timeout)
      */
     public function __construct(
         private readonly ObjectRepository $repository,
@@ -60,7 +70,14 @@ final class AuthService
         private readonly Csrf $csrf,
         private readonly array $config = [],
         private readonly array $guards = [],
+        private readonly int $absoluteTimeout = self::ABSOLUTE_TIMEOUT,
     ) {
+    }
+
+    /** The longest a login lasts, in seconds (0: no limit). */
+    public function absoluteTimeout(): int
+    {
+        return max(0, $this->absoluteTimeout);
     }
 
     /** @return list<LoginGuard> */
@@ -146,13 +163,15 @@ final class AuthService
         $this->csrf->rotate();
         $this->session->set(self::SESSION_USER, $user->id());
         $this->session->set(self::SESSION_STAMP, self::stamp($user));
+        $this->session->set(self::SESSION_LOGIN_AT, time());
         $this->resolvedFor = $request;
         $this->current = $user;
     }
 
     /**
      * After the user changed their own password: this session goes on (with a new
-     * ID and stamp), the user's other sessions end on their next request.
+     * ID and stamp, but not longer: its login time stays), the user's other sessions
+     * end on their next request.
      */
     public function refresh(Request $request, CampanellaObject $user): void
     {
@@ -191,17 +210,34 @@ final class AuthService
 
             return null;
         }
+        // The absolute lifetime (since 0.1.4); a session from before it starts counting now.
+        $loginAt = $this->session->get(self::SESSION_LOGIN_AT);
+        if (!is_int($loginAt)) {
+            $this->session->set(self::SESSION_LOGIN_AT, time());
+        } elseif ($this->absoluteTimeout() > 0 && $loginAt + $this->absoluteTimeout() < time()) {
+            $this->endLogin();
+
+            return null;
+        }
         $stamp = $this->session->get(self::SESSION_STAMP);
         if (!is_string($stamp)) {
             $this->session->set(self::SESSION_STAMP, self::stamp($user)); // a session from before 0.1.0
         } elseif (!hash_equals($stamp, self::stamp($user))) {
-            $this->session->remove(self::SESSION_USER);   // the password changed since: log it out
-            $this->session->remove(self::SESSION_STAMP);
+            $this->endLogin();   // the password changed since: log it out
 
             return null;
         }
 
         return $this->current = $user;
+    }
+
+    /** Ends the login of the session (with a new session ID); the session itself (e.g. its CSRF token) stays. */
+    private function endLogin(): void
+    {
+        $this->session->remove(self::SESSION_USER);
+        $this->session->remove(self::SESSION_STAMP);
+        $this->session->remove(self::SESSION_LOGIN_AT);
+        $this->session->regenerate();
     }
 
     public function currentActor(Request $request): Actor

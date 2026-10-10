@@ -379,6 +379,7 @@ final class Kernel
             $c->get(Csrf::class),
             (array) $c->get(Config::class)->get('auth', []),
             self::guards((array) $c->get(Config::class)->get('auth.guards', [])),
+            (int) $c->get(Config::class)->get('session.absolute_timeout', AuthService::ABSOLUTE_TIMEOUT),
         ));
 
         $c->set(UserService::class, static function (Container $c): UserService {

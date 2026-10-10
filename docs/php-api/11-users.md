@@ -91,13 +91,15 @@ Constants: `Actor::ADMINISTRATOR`, `DefaultPolicy::EDITOR`.
 |---|---|
 | `attempt(Request $request, string $email, string $password): LoginResult` | Login attempt: guards, throttling, password, account status; on success it also logs the user in |
 | `login(Request $request, CampanellaObject $user): void` | Logs in without checks (e.g. after a second factor). New session ID, new CSRF token |
-| `refresh(Request $request, CampanellaObject $user): void` | After the user changed their own password: this session goes on with a new ID and stamp (since 0.1.0) |
+| `refresh(Request $request, CampanellaObject $user): void` | After the user changed their own password: this session goes on with a new ID and stamp (since 0.1.0), but not longer: its login time stays |
 | `logout(): void` | Destroys the session |
-| `currentUser(Request $request): ?CampanellaObject` | The logged-in user. Does not start a session for anonymous visitors. Logs out a blocked or deleted account |
+| `currentUser(Request $request): ?CampanellaObject` | The logged-in user. Does not start a session for anonymous visitors. Logs out a blocked or deleted account, and a login older than the absolute lifetime |
 | `currentActor(Request $request): Actor` | The same as an `Actor`; the `Kernel` passes this to controllers |
 | `static actorFor(CampanellaObject $user): Actor` | `ActorKind::User`, ID, roles, name |
 | `findUserByEmail(string $email): ?CampanellaObject` | |
 | `guards(): list<LoginGuard>` | The configured guards |
+| `absoluteTimeout(): int` | The longest a login lasts, in seconds; 0: no limit (since 0.1.4) |
+| `ABSOLUTE_TIMEOUT` | `43200` (12 hours): the default of the constructor's last argument, `int $absoluteTimeout` (the Kernel passes `session.absolute_timeout`) |
 | `GENERIC_ERROR` | The message key `'auth.invalid_credentials'` ("Invalid e-mail address or password."; see [chapter 12](12-translation.md)) |
 
 **Security behavior:**
@@ -121,6 +123,13 @@ Constants: `Actor::ADMINISTRATOR`, `DefaultPolicy::EDITOR`.
   session holds a stamp of the password hash (`SESSION_STAMP`, a hash of the
   hash, not the hash itself), checked on every request. A session from before
   0.1.0 gets its stamp on its next request.
+- **A login lasts at most 12 hours** (since 0.1.4), however actively it is
+  used: the session holds the time of logging in (`SESSION_LOGIN_AT`), and
+  after `session.absolute_timeout` seconds the user is logged out, with a new
+  session ID. Besides that, 2 hours without activity end it
+  (`session.idle_timeout`). A stolen session cookie is thus usable for a
+  limited time. A session from before 0.1.4 starts counting on its next
+  request. Changing one's own password (`refresh()`) does not lengthen it.
 
 `LoginResult` (`final readonly class`): `$success`, `$user`, `$error` (a
 message key, or a ready-made text), `$errorParams`;
@@ -346,6 +355,7 @@ are **internal**.
 |---|---|---|
 | `session.name` | `'campanella_session'` | The cookie name |
 | `session.idle_timeout` | `7200` | Idle timeout in seconds |
+| `session.absolute_timeout` | `43200` | The longest a login lasts, in seconds, however actively it is used (12 hours; since 0.1.4). `0`: no limit |
 | `session.secure` | `'auto'` | `'auto'`: Secure only over HTTPS; `true` / `false`: forced |
 | `auth.max_attempts` | `5` | Failed attempts per e-mail address and IP address pair |
 | `auth.max_attempts_per_ip` | `20` | Failed attempts per IP address |

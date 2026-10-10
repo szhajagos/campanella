@@ -12,6 +12,15 @@ backward-incompatible.
 
 Work towards 0.1.4 (forgotten password and sessions), in parts.
 
+### Security
+
+- **A login lasts at most 12 hours**, however actively it is used
+  (`session.absolute_timeout`, in seconds; `0`: no limit). Until now only 2
+  hours without activity ended a session, so a stolen session cookie kept
+  working as long as it was used. Sessions from before this version start
+  counting on their next request. `AuthService` takes the lifetime as its new
+  last constructor argument.
+
 ### Changed
 
 - **Logging in and out moved to `/login` and `/logout`** (until now `/belepes`

@@ -4930,6 +4930,56 @@ test('Kernel: logging in at a configured path, back to where one came from', fun
     putenv('CAMPANELLA_DB_PREFIX');
 });
 
+test('Session: absolute lifetime, also for an active session; refresh keeps it; 0 turns it off', function () use ($repository, $engine, $db, $req, $newUser): void {
+    $newUser('elettartam@example.hu', 'elettartam-jelszo-1', ['editor']);
+    $make = static function (ArraySessionStorage $storage, int $timeout) use ($repository, $engine, $db): AuthService {
+        $session = new Session($storage, 7200);
+
+        return new AuthService($repository, $engine, $session, new Throttle($db), new Csrf($session), ['max_attempts' => 50, 'max_attempts_per_ip' => 50, 'decay_seconds' => 900], [], $timeout);
+    };
+    $next = static function (ArraySessionStorage $storage, int $timeout = 3600) use ($make, $req): ?CampanellaObject {
+        $storage->endRequest();
+
+        return $make($storage, $timeout)->currentUser($req());
+    };
+    check((new AuthService($repository, $engine, new Session(new ArraySessionStorage()), new Throttle($db), new Csrf(new Session(new ArraySessionStorage()))))->absoluteTimeout() === 12 * 3600, 'the default is 12 hours');
+
+    $storage = new ArraySessionStorage();
+    $result = $make($storage, 3600)->attempt($req(['x' => 1], '10.0.4.1'), 'elettartam@example.hu', 'elettartam-jelszo-1');
+    check($result->success, (string) json_encode($result->error));
+    $loginAt = $storage->get(AuthService::SESSION_LOGIN_AT);
+    check(is_int($loginAt) && abs($loginAt - time()) <= 1, 'the login time is stored');
+    check($next($storage) !== null, 'within the lifetime');
+
+    // Active all along (the idle timeout never ran out), but logged in 61 minutes ago.
+    $storage->set(AuthService::SESSION_LOGIN_AT, time() - 3660);
+    $generation = $storage->generation();
+    check($next($storage) === null, 'logged out after the absolute lifetime');
+    check($storage->generation() === $generation + 1, 'with a new session ID');
+    check($storage->get(AuthService::SESSION_USER) === null && $storage->get(AuthService::SESSION_LOGIN_AT) === null);
+    check($next($storage) === null, 'and stays logged out');
+
+    // 0: no absolute limit.
+    $storage = new ArraySessionStorage();
+    $make($storage, 0)->attempt($req(['x' => 1], '10.0.4.1'), 'elettartam@example.hu', 'elettartam-jelszo-1');
+    $storage->set(AuthService::SESSION_LOGIN_AT, time() - 400 * 86400);
+    check($next($storage, 0) !== null, 'no limit');
+
+    // A session from before 0.1.4 (no login time) starts counting now.
+    $storage->remove(AuthService::SESSION_LOGIN_AT);
+    check($next($storage) !== null && is_int($storage->get(AuthService::SESSION_LOGIN_AT)), 'an old session gets a login time');
+
+    // refresh() (after changing one's own password) does not lengthen the login.
+    $storage->set(AuthService::SESSION_LOGIN_AT, time() - 3000);
+    $storage->endRequest();
+    $auth = $make($storage, 3600);
+    $request = $req();
+    $user = $auth->currentUser($request);
+    check($user !== null);
+    $auth->refresh($request, $user);
+    check($storage->get(AuthService::SESSION_LOGIN_AT) === time() - 3000 || $storage->get(AuthService::SESSION_LOGIN_AT) === time() - 3001, 'refresh keeps the login time');
+});
+
 echo "\nDocumentation examples\n";
 
 test('New capability as in the docs example (Featured)', function () use ($db, $admin): void {
