@@ -131,8 +131,9 @@ final class Mailer
      * Sends the template `mail/<template>.txt.twig` to an address.
      *
      * @param array<string, mixed> $context The template's variables (plus `to_name`)
+     * @param string $replyTo Where replies go (`Reply-To`; since 0.1.5), e.g. a contact form's sender
      */
-    public function send(string $to, string $template, array $context = [], string $toName = ''): MailResult
+    public function send(string $to, string $template, array $context = [], string $toName = '', string $replyTo = '', string $replyToName = ''): MailResult
     {
         if (preg_match('/^[a-z0-9_]+\z/', $template) !== 1) {
             throw new \InvalidArgumentException("Not a mail template name: {$template}");
@@ -154,6 +155,11 @@ final class Mailer
                 ->to(new Address($to, self::headerText($toName)))
                 ->subject($subject)
                 ->text(trim($text->renderBlock('body', $context)) . "\n");
+            // Replying goes to someone else, e.g. a contact form's sender (since 0.1.5); an
+            // invalid address is left out rather than losing the e-mail.
+            if ($replyTo !== '' && filter_var($replyTo, FILTER_VALIDATE_EMAIL) !== false) {
+                $email->replyTo(new Address($replyTo, self::headerText($replyToName)));
+            }
             if ($twig->getLoader()->exists("mail/{$template}.html.twig")) {
                 $email->html($twig->load("mail/{$template}.html.twig")->renderBlock('body', $context));
             }

@@ -9,6 +9,8 @@ use Campanella\Access\AccessPolicy;
 use Campanella\Access\Actor;
 use Campanella\Access\Operation;
 use Campanella\Capability\Submitted;
+use Campanella\Event\EventDispatcher;
+use Campanella\Event\FormSubmitted;
 use Campanella\I18n\Message;
 use Campanella\Model\CampanellaObject;
 use Campanella\Model\ObjectRepository;
@@ -36,6 +38,7 @@ final class SubmissionService
         private readonly ObjectRepository $repository,
         private readonly QueryEngine $queries,
         private readonly AccessPolicy $policy,
+        private readonly ?EventDispatcher $events = null,
     ) {
     }
 
@@ -74,7 +77,7 @@ final class SubmissionService
 
     /**
      * Saves a message from a form (the visitor's input, checked here: name, e-mail
-     * address, message required; lengths limited).
+     * address, message required; lengths limited), then dispatches FormSubmitted.
      *
      * @throws ValidationException on `title` (the name), `sender_email`, `subject`, `message`
      */
@@ -92,6 +95,7 @@ final class SubmissionService
             'form' => $form,
         ]);
         $this->repository->save($submission);
+        $this->events?->dispatch(new FormSubmitted($submission, $form));
 
         return $submission;
     }

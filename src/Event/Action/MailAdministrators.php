@@ -12,6 +12,7 @@ use Campanella\Capability\Identifiable;
 use Campanella\Core\Container;
 use Campanella\Event\Action;
 use Campanella\Event\Event;
+use Campanella\Event\FormSubmitted;
 use Campanella\Event\ObjectDeleted;
 use Campanella\Event\ObjectEvent;
 use Campanella\Event\PasswordChanged;
@@ -108,6 +109,7 @@ final class MailAdministrators implements Action
             $event instanceof ObjectEvent => $event->object->blueprint() . '/' . $event->object->id(),
             $event instanceof UserCreated => UserService::BLUEPRINT . '/' . $event->user->id(),
             $event instanceof PasswordChanged => UserService::BLUEPRINT . '/' . $event->user->id(),
+            $event instanceof FormSubmitted => \Campanella\Service\SubmissionService::BLUEPRINT . '/' . $event->submission->id(),
             default => null,
         };
 

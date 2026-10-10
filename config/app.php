@@ -161,6 +161,10 @@ return [
     'contact' => [
         'enabled' => true,
         'min_seconds' => 3,            // a form sent sooner after it was shown is taken for a bot's
+        // An e-mail about each new message (since 0.1.5; needs e-mail set up): to these
+        // addresses, e.g. ['info@example.hu']; empty: to the active administrators.
+        'notify' => true,
+        'notify_to' => [],
         // Additional protections, as for logging in (LoginGuard classes).
         'guards' => [
             HoneypotGuard::class,

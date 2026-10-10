@@ -31,6 +31,17 @@ Work towards 0.1.5 (the contact form), in parts.
   `sitemap.xml`. New: `Campanella\Webform\ContactForm`, `ContactResult`,
   `SubmissionService::check()`.
 
+- **An e-mail about each new message** of the contact form, to the active
+  administrators or to `contact.notify_to`; replying to it goes to the
+  sender (`Reply-To`). Sent after the response; its subject holds nothing the
+  sender wrote. `contact.notify: false` turns it off. New: the
+  `FormSubmitted` event, the `MailSubmission` action, the `submission` mail
+  template, `Mailer::send()`'s `$replyTo` and `$replyToName`.
+
+### Fixed
+
+- **E-mails' footer:** the site's name and address were on one line.
+
 ### Security
 
 - **Administrators-only objects:** `DefaultPolicy` keeps the objects of the

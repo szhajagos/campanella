@@ -5584,6 +5584,67 @@ test('Kernel: the contact form, from the page to a saved message', function () u
     putenv('CAMPANELLA_DB_PREFIX');
 });
 
+test('Kernel: an e-mail about each new message, after the response, with Reply-To', function () use ($newUser, $db): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $transport = captureTransport();
+    $make = static function (array $override = []) use ($transport): \Campanella\Core\Kernel {
+        $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+        $c = $kernel->container();
+        $config = $c->get(\Campanella\Core\Config::class);
+        $c->set(\Campanella\Core\Config::class, static fn () => new \Campanella\Core\Config(array_replace_recursive($config->all(), ['site' => ['url' => 'https://pelda.example']], $override)));
+        $c->set(\Campanella\Mail\Mailer::class, static fn (\Campanella\Core\Container $c) => new \Campanella\Mail\Mailer($transport, 'noreply@example.hu', static fn () => $c->get(\Twig\Environment::class), static fn () => 'Teszt webhely', $c->get(Connection::class)));
+
+        return $kernel;
+    };
+    $kernel = $make();
+    if ($kernel->container()->get(Connection::class)->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $db->execute("DELETE FROM {settings} WHERE name = 'site.url'");
+    $db->execute("DELETE FROM {objects} WHERE blueprint IN ('submission', 'user')");
+    $db->execute('DELETE FROM {mail_log}');
+    $newUser('ertesites-admin@example.hu', 'ertesites-admin-1', ['administrator']);
+    $newUser('ertesites-szerk@example.hu', 'ertesites-szerk-1', ['editor']);
+    $events = [];
+    $kernel->container()->get(\Campanella\Event\EventDispatcher::class)->listen(\Campanella\Event\FormSubmitted::class, static function ($e) use (&$events): void { $events[] = $e; });
+
+    $service = $kernel->container()->get(\Campanella\Service\SubmissionService::class);
+    $submission = $service->submit("Gonosz\r\nBcc: aldozat@example.hu", 'kuldo@example.hu', 'Titkos tárgy', "Első sor\nMásodik sor");
+    check(count($events) === 1 && $events[0]->form === 'contact' && $events[0]->actor === null && $events[0]->summary()->key === 'event.form_submitted', 'the event');
+    check($transport->sent === [], 'not before the response');
+    $kernel->terminate();
+    check(count($transport->sent) === 1, 'only the administrators: ' . count($transport->sent));
+    $mail = $transport->sent[0];
+    $text = (string) $mail->getTextBody();
+    check($mail->getTo()[0]->getAddress() === 'ertesites-admin@example.hu' && $mail->getReplyTo()[0]->getAddress() === 'kuldo@example.hu', 'to the administrator, replies to the sender');
+    check(!$mail->getHeaders()->has('Bcc') && !str_contains($mail->getHeaders()->toString(), "\r\nBcc:") && str_contains((string) $mail->getReplyTo()[0]->getName(), 'Gonosz'), 'no header injection');
+    check(str_contains((string) $mail->getSubject(), 'Új üzenet a kapcsolati űrlapról') && !str_contains((string) $mail->getSubject(), 'Titkos'), 'a subject without what the sender wrote');
+    check(str_contains($text, "Első sor\nMásodik sor") && str_contains($text, 'Tárgy: Titkos tárgy') && str_contains($text, 'https://pelda.example/admin/submission/' . $submission->id()), $text);
+    check(!str_contains((string) json_encode($db->fetchAll('SELECT * FROM {mail_log}'), JSON_UNESCAPED_UNICODE), 'Titkos'), 'the log keeps nothing the sender wrote');
+
+    // To given addresses; or nobody.
+    $kernel = $make(['contact' => ['notify_to' => ['Info@Example.hu', 'nem-cim', 'info@example.hu']]]);
+    $kernel->container()->get(\Campanella\Service\SubmissionService::class)->submit('Valaki', 'valaki@example.hu', '', 'Szia');
+    $kernel->terminate();
+    check(count($transport->sent) === 2 && $transport->sent[1]->getTo()[0]->getAddress() === 'info@example.hu', 'notify_to: ' . count($transport->sent));
+    $kernel = $make(['contact' => ['notify' => false]]);
+    $kernel->container()->get(\Campanella\Service\SubmissionService::class)->submit('Valaki', 'valaki@example.hu', '', 'Szia');
+    $kernel->terminate();
+    check(count($transport->sent) === 2, 'notify: false');
+    // Another form's messages: not by default.
+    $kernel = $make();
+    $kernel->container()->get(\Campanella\Service\SubmissionService::class)->submit('Valaki', 'valaki@example.hu', '', 'Szia', 'hirlevel');
+    $kernel->terminate();
+    check(count($transport->sent) === 2, 'only the contact form');
+    check(\Campanella\Event\Action\MailSubmission::recipientsOf('egy@example.hu') === ['egy@example.hu'] && \Campanella\Event\Action\MailSubmission::recipientsOf(null) === []);
+
+    $db->execute("DELETE FROM {objects} WHERE blueprint IN ('submission', 'user')");
+    $db->execute('DELETE FROM {mail_log}');
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
 echo "\nDocumentation examples\n";
 
 test('New capability as in the docs example (Featured)', function () use ($db, $admin): void {

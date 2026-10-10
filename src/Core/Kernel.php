@@ -6,8 +6,10 @@ namespace Campanella\Core;
 
 use Campanella\Cli\Output;
 use Campanella\Event\Action;
+use Campanella\Event\Action\MailSubmission;
 use Campanella\Event\Event;
 use Campanella\Event\EventDispatcher;
+use Campanella\Event\FormSubmitted;
 use Campanella\Event\PasswordChanged;
 use Campanella\Mail\MailCheck;
 use Campanella\Mail\Mailer;
@@ -486,6 +488,14 @@ final class Kernel
                 }
                 $c->get(PasswordReset::class)->forget((int) $event->user->id());
             });
+            // An e-mail about the contact form's new messages (since 0.1.5; `contact.notify`).
+            if ((bool) $c->get(Config::class)->get('contact.notify', true)) {
+                $events->listen(FormSubmitted::class, static function (Event $event) use ($c): void {
+                    if ($event instanceof FormSubmitted && $event->form === ContactForm::FORM) {
+                        MailSubmission::create($c)->handle($event);
+                    }
+                });
+            }
             $events->bind(
                 (array) $c->get(Config::class)->get('events', []),
                 static fn (string $action): Action => $action::create($c),
@@ -750,6 +760,7 @@ final class Kernel
             $c->get(ObjectRepository::class),
             $c->get(QueryEngine::class),
             $c->get(AccessPolicy::class),
+            $c->get(EventDispatcher::class),
         ));
 
         $c->set('controller.upgrade', static fn (Container $c): Controller => new UpgradeController(

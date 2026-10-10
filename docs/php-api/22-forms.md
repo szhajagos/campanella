@@ -2,8 +2,8 @@
 
 Since 0.1.5 the site has a contact form. Its messages are objects, kept in the
 database and read in the admin; only administrators see them. 0.1.5 is built
-in parts: this chapter grows with them (the e-mail notification and the
-deletion of old messages come next).
+in parts: this chapter grows with them (the deletion of old messages comes
+next).
 
 | Class | Namespace | What it does |
 |---|---|---|
@@ -167,3 +167,34 @@ Constants: `FORM` (`'contact'`), `TIME_FIELD` (`'_ts'`), `MIN_SECONDS` (3),
 The form's template is `page/_contact_form.html.twig` (variables: `values`,
 `errors`, `message`, `max`, `ts`, `guard_fields`); a theme may override it,
 keeping the hidden fields (`csrf_field()`, `_ts`, `guard_fields`).
+
+## The e-mail notification
+
+*Since 0.1.5 (part 3).* Every new message of the contact form is e-mailed
+(when e-mail is set up, [chapter 21](21-events-and-mail.md#settings)):
+
+```php
+// config/local.php
+'contact' => [
+    'notify_to' => ['info@example.hu'],   // empty (the default): the active administrators
+    // 'notify' => false,                 // no e-mail; the messages are still in the admin
+],
+```
+
+| Key | Default | |
+|---|---|---|
+| `contact.notify` | `true` | Whether an e-mail goes about each message |
+| `contact.notify_to` | `[]` | The recipients (at most 20); empty: the active administrators. Invalid addresses are left out |
+
+The e-mail (`mail/submission.txt.twig`, overridable by a theme) holds the
+sender's name and address, the subject and the message as plain text, and a
+link to it in the admin (if the site's address is set). **Replying to it goes
+to the sender** (`Reply-To`). Its subject is always *A new message from the
+contact form*: nothing the sender wrote, because the mail log keeps the
+subjects. It goes **after the response** (`Deferred`), so the visitor does not
+wait for the mail server; if it fails, the mail log says so, and the message is
+in the admin anyway.
+
+How it works: `SubmissionService::submit()` dispatches `FormSubmitted`; the
+Kernel's listener runs `MailSubmission` for the contact form's messages
+([chapter 21](21-events-and-mail.md#actions)).

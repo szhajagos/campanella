@@ -1,0 +1,21 @@
+{# A form's new message, for its recipients (the MailSubmission action; since 0.1.5).
+   The subject holds nothing the sender wrote: the mail log keeps it. #}
+{% block subject %}[{{ site.name }}] {{ t('mail.submission.subject') }}{% endblock %}
+{% block body %}{% autoescape false %}
+{{ to_name ? t('mail.greeting', {name: to_name}) : t('mail.greeting_anonymous') }}
+
+{{ t('mail.submission.intro', {site: site.name}) }}
+
+{{ t('mail.submission.from') }} {{ sender_name }} <{{ sender_email }}>
+{% if subject %}{{ t('mail.submission.subject_line') }} {{ subject }}
+{% endif %}{{ t('mail.event.at', {time: received_at}) }}
+
+----------------------------------------
+{{ message }}
+----------------------------------------
+
+{% if link %}{{ t('mail.submission.link') }}
+{{ link }}
+{% endif %}
+{% include 'mail/_footer.txt.twig' with {replies_go_to_sender: true} %}
+{% endautoescape %}{% endblock %}

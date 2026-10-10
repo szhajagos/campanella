@@ -1,9 +1,9 @@
 {% autoescape false %}
 
 -- 
-{{ site.name }}{% if site.url %}
-{{ site.url }}{% endif %}
+{{ site.name }}
+{% if site.url %}{{ site.url }}
+{% endif %}
 
-
-{{ t('mail.footer') }}
+{{ replies_go_to_sender ?? false ? t('mail.footer_reply') : t('mail.footer') }}
 {% endautoescape %}

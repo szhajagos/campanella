@@ -29,6 +29,7 @@ operation was saved:
 | `ObjectUnpublished` | `ObjectService::unpublish()` | `object` |
 | `ObjectDeleted` | `ObjectService::delete()` | `object` (its ID is still readable; it cannot be loaded any more) |
 | `UserCreated` | `UserService::create()` | `user` |
+| `FormSubmitted` | `SubmissionService::submit()` (since 0.1.5) | `submission`, `form` (e.g. `contact`); its actor is null (a visitor sent it); its summary holds nothing the sender wrote |
 | `PasswordChanged` | `UserService::setPassword()`, `changeOwnPassword()`, `resetPassword()` | `user`, `byAdministrator`, `byReset` (with a forgotten password's link; since 0.1.4); never the password. Its `actor` is the administrator, or the user |
 
 `UserCreated` and `PasswordChanged` implement `Campanella\Event\UserEvent`
@@ -120,6 +121,16 @@ use Campanella\Event\UserCreated;
 ],
 ```
 
+`Campanella\Event\Action\MailSubmission` · **Public** · since 0.1.5: e-mails
+a form's new message (`FormSubmitted`) to the given addresses, or to the
+active administrators (at most `MAX_RECIPIENTS`, 20), with the `submission`
+template; `Reply-To` is the sender. Sent after the response (`Deferred`). The
+Kernel binds it to the contact form by default (`contact.notify`; see
+[chapter 22](22-forms.md#the-e-mail-notification)); do not bind it to
+`FormSubmitted` again in `events`, or the contact form's messages are mailed
+twice. `static recipientsOf(mixed $setting): array`: the valid addresses of a
+`notify_to` setting.
+
 The template is `static templateFor(Event $event): string`: `user_created`,
 `user_password_changed`, or `user_event` for any other `UserEvent`. Their
 context: `summary`, `occurred_at`, `by_administrator`, `by_reset`,
@@ -180,10 +191,13 @@ An e-mail is a template, `templates/mail/<name>.txt.twig`, with two blocks:
 - A theme overrides a template by having its own `mail/<name>.txt.twig`.
 - The subject is one line, at most 200 characters (`Mailer::MAX_SUBJECT`).
 
-Built-in templates: `test` (the System page's test e-mail), `password_reset`
+Built-in templates: `test` (the System page's test e-mail), `submission` (a
+form's new message; since 0.1.5), `password_reset`
 (the forgotten password's link; since 0.1.4), `user_created`,
 `user_password_changed`, `user_event` (`MailUser`; since 0.1.4), `event`
-(`MailAdministrators`), `_footer` (included by all).
+(`MailAdministrators`), `_footer` (included by all; with
+`replies_go_to_sender: true` it says that a reply goes to the sender, instead
+of that replies are not read).
 
 ### Mailer
 
@@ -192,13 +206,16 @@ Built-in templates: `test` (the System page's test e-mail), `password_reset`
 | Member | |
 |---|---|
 | `static fromConfig(array $config, Closure $twig, Closure $fromName, ?Connection $db = null): self` | From the `mail` settings; `$twig` gives the templates' environment, `$fromName` the sender's name (both lazy) |
-| `send(string $to, string $template, array $context = [], string $toName = ''): MailResult` | Renders and sends the template, and logs it. **Never throws** for a failure to send (an invalid address, a broken template, a mail server error): it is the result. `InvalidArgumentException` only for an invalid template name (lowercase letters, digits, `_`) |
+| `send(string $to, string $template, array $context = [], string $toName = '', string $replyTo = '', string $replyToName = ''): MailResult` | Renders and sends the template, and logs it. **Never throws** for a failure to send (an invalid address, a broken template, a mail server error): it is the result. `InvalidArgumentException` only for an invalid template name (lowercase letters, digits, `_`) |
 | `isConfigured(): bool` | Whether e-mails can be sent |
 | `configError(): ?string` | Why the settings are not usable, if they are given but wrong |
 | `description(): string` | The transport for people: `smtp://smtp.example.hu:587` (never the user name or password) |
 | `from(): string` | The sender's address |
 | `log(int $limit = 50): list<array>` | The latest log entries, newest first: `created_at` (UTC), `recipient`, `template`, `subject`, `status`, `error` |
 | `static describeDsn(string $dsn): string` | `smtp://user:pass@host:587?x` → `smtp://host:587` |
+
+`$replyTo` (since 0.1.5) sets where replies go (`Reply-To`), e.g. a contact
+form's sender; an invalid address is left out, and the e-mail still goes.
 
 Every e-mail gets `Auto-Submitted: auto-generated` (no out-of-office replies to
 it). **After a mail server failure, the other e-mails of the same request are
