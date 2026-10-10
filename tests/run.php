@@ -1510,6 +1510,28 @@ test('TemplateCache: a folder per version, usage, clearing every version', funct
     throws(\InvalidArgumentException::class, fn () => new \Campanella\System\TemplateCache($base, '../x'));
 });
 
+test('TemplateLoader: a changed template is compiled again, even with an older file time', function (): void {
+    $dir = sys_get_temp_dir() . '/campanella-tpl-' . bin2hex(random_bytes(4));
+    mkdir($dir . '/cache', 0775, true);
+    $file = $dir . '/page.html.twig';
+    $render = static function () use ($dir): string {
+        $loader = new \Campanella\View\TemplateLoader();
+        $loader->addPath($dir);
+
+        return (new \Twig\Environment($loader, ['cache' => $dir . '/cache', 'auto_reload' => true]))->render('page.html.twig');
+    };
+    file_put_contents($file, '<a href="/belepes">old</a>');
+    touch($file, time() - 7200);
+    check($render() === '<a href="/belepes">old</a>');
+    // As after unpacking a ZIP: new content, but a file time older than the compiled copy.
+    file_put_contents($file, '<a href="/login">new</a>');
+    touch($file, time() - 3600);
+    clearstatcache();
+    check($render() === '<a href="/login">new</a>', 'the old compiled copy was served');
+    check($render() === '<a href="/login">new</a>');
+    exec('rm -rf ' . escapeshellarg($dir));
+});
+
 test('SystemCheck: versions, extensions, web-only checks, own checks, no secrets', function (): void {
     putenv('CAMPANELLA_DB_PREFIX=test_');
     $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));

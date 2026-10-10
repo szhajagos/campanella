@@ -284,6 +284,17 @@ without extending it, it decides which CSS and JavaScript it loads.
 | `isActive(): bool` | Whether a theme is set |
 | `assetPath(string $path): string` | `themes/<name>/<path>`; `LogicException` without a theme |
 
+### TemplateLoader
+
+`Campanella\View\TemplateLoader` · **Internal** · since 0.1.4 · extends Twig's `FilesystemLoader`
+
+The Kernel's template loader. Its `getCacheKey(string $name): string` adds a
+hash of the template's content (xxh128) to Twig's key, so a changed template
+gets a new compiled copy even when its file time is older than the old copy's
+(as after unpacking a ZIP or uploading with an FTP client that keeps file
+times). Twig's `auto_reload` (a file time check) is still on. The cost: the
+templates a request uses are read and hashed once per request.
+
 ## Twig extension
 
 `Campanella\View\CampanellaTwigExtension` · **Public** (the template functions) · the extension class is **Internal**

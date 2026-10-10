@@ -88,7 +88,7 @@ use Twig\Environment;
 use Twig\Extension\CoreExtension;
 use Twig\Extension\SandboxExtension;
 use Campanella\View\TemplatePolicy;
-use Twig\Loader\FilesystemLoader;
+use Campanella\View\TemplateLoader;
 
 /**
  * Assembles the system and serves a request.
@@ -506,7 +506,7 @@ final class Kernel
             // The active theme's templates take precedence over the core ones; the core
             // templates are also reachable as @core/… (e.g. to extend them from a theme).
             $theme = $c->get(Theme::class);
-            $loader = new FilesystemLoader();
+            $loader = new TemplateLoader();
             if ($theme->templateDir !== null) {
                 $loader->addPath($theme->templateDir);
             }

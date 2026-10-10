@@ -21,6 +21,15 @@ Work towards 0.1.4 (forgotten password and sessions), in parts.
   counting on their next request. `AuthService` takes the lifetime as its new
   last constructor argument.
 
+### Fixed
+
+- **A changed template could keep its old compiled copy** until the next
+  version: when the files kept their original times (unpacking a ZIP, many
+  FTP clients), Twig took them for older than their compiled copies. The key
+  of a compiled template now holds a hash of its content
+  (`Campanella\View\TemplateLoader`), so a changed template is always
+  compiled again.
+
 ### Changed
 
 - **Logging in and out moved to `/login` and `/logout`** (until now `/belepes`

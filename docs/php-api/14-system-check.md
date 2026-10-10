@@ -95,8 +95,9 @@ folder per Campanella version, because upload tools (ZIP extraction, many FTP
 clients) often keep the files' original modification times: an uploaded
 template can then look older than its compiled copy, and Twig's
 `auto_reload` would keep serving the old one. A new version therefore starts
-with an empty folder; within a version, a changed template is still noticed
-by `auto_reload`.
+with an empty folder. Within a version (e.g. between releases), the
+`TemplateLoader` notices a changed template by its content (since 0.1.4; see
+[chapter 7](07-http-and-view.md#templateloader)).
 
 | Member | Description |
 |---|---|
