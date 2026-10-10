@@ -18,7 +18,8 @@ CHANGELOG's **Security** section names it.
 - **Access:** every query is filtered by the access policy before it reaches
   the database (drafts and scheduled content are never fetched for visitors);
   every admin action checks the policy and a CSRF token; editors cannot delete
-  or manage users.
+  or manage users; the contact form's messages are for administrators only
+  (since 0.1.5).
 - **Login:** the same answer for a wrong e-mail address and a wrong password;
   attempts limited per address and e-mail, per address, and per account (also
   for unknown addresses, so a locked account looks like any other); a new

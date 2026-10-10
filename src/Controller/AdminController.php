@@ -13,7 +13,9 @@ use Campanella\Admin\Form\ObjectForm;
 use Campanella\Admin\MailPages;
 use Campanella\Admin\SettingsPage;
 use Campanella\Admin\StructurePages;
+use Campanella\Admin\SubmissionPages;
 use Campanella\Admin\UserPages;
+use Campanella\Service\SubmissionService;
 use Campanella\Service\UserService;
 use Campanella\Http\Flash;
 use Campanella\I18n\Message;
@@ -123,6 +125,7 @@ final class AdminController implements Controller
         private readonly ?MediaUsage $usage = null,
         private readonly ?MailPages $mail = null,
         private readonly SitePaths $paths = new SitePaths(),
+        private readonly ?SubmissionPages $submissions = null,
     ) {
     }
 
@@ -179,6 +182,10 @@ final class AdminController implements Controller
         }
         if (($segments[0] ?? null) === 'profile') {
             return $this->userPages->profile($request, $actor, array_slice($segments, 1), $render);
+        }
+        // The forms' messages (since 0.1.5): read-only pages of their own.
+        if (($segments[0] ?? null) === SubmissionService::BLUEPRINT && $this->submissions !== null) {
+            return $this->submissions->handle($request, $actor, array_slice($segments, 1), $render);
         }
 
         return match (count($segments)) {
@@ -361,6 +368,10 @@ final class AdminController implements Controller
     {
         $counts = [];
         foreach ($this->blueprints->all() as $name => $blueprint) {
+            // The forms' messages: only for those who may see them (since 0.1.5).
+            if (isset($blueprint->capabilities['submitted']) && $this->submissions?->canView($actor) !== true) {
+                continue;
+            }
             $counts[] = [
                 'name' => $name,
                 'label' => $blueprint->label,
@@ -369,7 +380,11 @@ final class AdminController implements Controller
                 'path' => !isset($blueprint->capabilities['authenticatable']) || $this->users->canManage($actor) ? $this->access->path($name) : null,
             ];
         }
-        $recent = $this->queries->execute(Query::objects()->orderBy('updated', 'DESC')->limit(10), $actor);
+        // The latest changed content (not the forms' messages: they are not content).
+        $recent = $this->queries->execute(
+            Query::objects()->whereCondition(new \Campanella\Query\Condition\HasCapability('submitted', negated: true))->orderBy('updated', 'DESC')->limit(10),
+            $actor,
+        );
         $editable = [];
         foreach ($recent as $item) {
             $editable[(int) $item->id()] = $item->has(\Campanella\Capability\Authenticatable::class)
@@ -1205,10 +1220,16 @@ final class AdminController implements Controller
     }
 
     /** A Blueprint managed in the admin as content (users are managed from the command line for now). */
+    /** Users and the forms' messages have pages of their own, not the generic lists and forms. */
+    private static function ownPages(Blueprint $blueprint): bool
+    {
+        return isset($blueprint->capabilities['authenticatable']) || isset($blueprint->capabilities['submitted']);
+    }
+
     private function contentBlueprint(string $name): Blueprint
     {
         $blueprint = $this->blueprints->find($name);
-        if ($blueprint === null || isset($blueprint->capabilities['authenticatable'])) {
+        if ($blueprint === null || self::ownPages($blueprint)) {
             throw HttpException::notFound();
         }
 
@@ -1222,9 +1243,13 @@ final class AdminController implements Controller
     {
         $menu = [];
         foreach ($this->blueprints->all() as $name => $blueprint) {
-            if (!isset($blueprint->capabilities['authenticatable'])) {
+            if (!self::ownPages($blueprint)) {
                 $menu[] = ['name' => $name, 'label' => $blueprint->label];
             }
+        }
+        $unreadSubmissions = null;   // null: the actor may not see the forms' messages
+        if ($this->actor !== null && $this->submissions !== null && $this->submissions->canView($this->actor)) {
+            $unreadSubmissions = $this->submissions->unreadCount($this->actor);
         }
 
         return Response::html($this->presentation->render("@core/admin/{$template}.html.twig", $context + [
@@ -1232,6 +1257,8 @@ final class AdminController implements Controller
             'menu' => $menu,
             'can_system' => $this->actor !== null && $this->access->allowsSystem($this->actor),
             'can_users' => $this->actor !== null && $this->users->canManage($this->actor),
+            'can_submissions' => $unreadSubmissions !== null,
+            'unread_submissions' => $unreadSubmissions ?? 0,
             'min_password' => \Campanella\Capability\Authenticatable::MIN_PASSWORD_LENGTH,
             'blueprints' => $this->blueprints->all(),
         ]));

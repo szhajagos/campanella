@@ -333,6 +333,12 @@ Templates: `admin/users.html.twig`, `admin/user.html.twig`,
 `admin/_role.html.twig` (a role's label: `role.<name>` if the language file
 has it, else the name).
 
+## Submissions
+
+*Since 0.1.5.* The contact form's messages have read-only pages of their own
+(`SubmissionPages`), for administrators: see [chapter 22](22-forms.md#in-the-admin).
+Like users, the `submission` Blueprint is not in the generic lists and forms.
+
 ## Blueprints and capabilities (read-only)
 
 *Since 0.1.0.* `Campanella\Admin\StructurePages` · **Internal**: for those who

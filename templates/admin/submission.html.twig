@@ -1,0 +1,43 @@
+{% extends '@core/admin/base.html.twig' %}
+
+{# One message of a form (since 0.1.5). Opening it marks it read. #}
+{% block content %}
+    {% set s = submission %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb small">
+            <li class="breadcrumb-item"><a href="{{ admin_url('submission') }}">{{ t('submissions.title') }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ s.name }}</li>
+        </ol>
+    </nav>
+
+    <article class="card">
+        <div class="card-body">
+            <h1 class="h4">{{ s.subject ?: t('submissions.no_subject') }}</h1>
+            <dl class="row small mb-4">
+                <dt class="col-sm-3 col-lg-2">{{ t('submissions.sender') }}</dt>
+                <dd class="col-sm-9 col-lg-10">{{ s.name }} &lt;<a href="mailto:{{ s.email|url_encode }}">{{ s.email }}</a>&gt;</dd>
+                <dt class="col-sm-3 col-lg-2">{{ t('submissions.received') }}</dt>
+                <dd class="col-sm-9 col-lg-10"><time datetime="{{ s.created }}">{{ s.created|date }}</time></dd>
+                <dt class="col-sm-3 col-lg-2">{{ t('field.form') }}</dt>
+                <dd class="col-sm-9 col-lg-10"><code>{{ s.form }}</code></dd>
+            </dl>
+            {# Plain text: escaped, line breaks kept. #}
+            <div class="submission-message">{{ s.message }}</div>
+        </div>
+        <div class="card-footer d-flex flex-wrap gap-2 align-items-start">
+            <a class="btn btn-primary btn-sm" href="mailto:{{ s.email|url_encode }}?subject={{ ('Re: ' ~ (s.subject ?: site.name))|url_encode }}">{{ t('submissions.reply') }}</a>
+            <form method="post" action="{{ admin_url('submission/' ~ s.id ~ '/unread') }}" class="m-0">
+                {{ csrf_field() }}
+                <button type="submit" class="btn btn-outline-secondary btn-sm">{{ t('submissions.mark_unread') }}</button>
+            </form>
+            <details class="ms-auto">
+                <summary class="btn btn-outline-danger btn-sm">{{ t('submissions.delete') }}</summary>
+                <form method="post" action="{{ admin_url('submission/' ~ s.id ~ '/delete') }}" class="mt-2">
+                    {{ csrf_field() }}
+                    <p class="small mb-2">{{ t('submissions.delete_confirm') }}</p>
+                    <button type="submit" class="btn btn-danger btn-sm">{{ t('submissions.delete_final') }}</button>
+                </form>
+            </details>
+        </div>
+    </article>
+{% endblock %}

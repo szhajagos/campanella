@@ -9,6 +9,7 @@ use Campanella\Capability\Identifiable;
 use Campanella\Capability\MediaFile;
 use Campanella\Capability\Publishable;
 use Campanella\Capability\Routable;
+use Campanella\Capability\Submitted;
 use Campanella\Capability\Textual;
 use Campanella\Capability\Hierarchical;
 use Campanella\Capability\Keyed;
@@ -88,6 +89,7 @@ return [
         Hierarchical::class,
         Keyed::class,
         Link::class,
+        Submitted::class,
     ],
 
     // Uploaded files (images). The folder is under public/, so the files are served

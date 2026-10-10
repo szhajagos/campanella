@@ -10,6 +10,26 @@ backward-incompatible.
 
 ## [Unreleased]
 
+Work towards 0.1.5 (the contact form), in parts.
+
+### Added
+
+- **Submissions** in the admin (for administrators): the messages of the
+  site's forms, newest first, unread ones marked and counted in the menu;
+  opening one marks it read; reply by e-mail, mark unread, delete. A message
+  is an object of the new `submission` Blueprint (`Submitted` capability:
+  e-mail address, subject, message, form, read time; hidden from templates;
+  no IP address stored). New: `Campanella\Capability\Submitted`,
+  `Campanella\Service\SubmissionService`; **schema version 12: run the
+  upgrade**. The contact form itself comes in the next part.
+
+### Security
+
+- **Administrators-only objects:** `DefaultPolicy` keeps the objects of the
+  `submitted` capability (personal data) from editors and visitors, in every
+  query and operation (`DefaultPolicy::ADMINISTRATORS_ONLY`, the constructor's
+  argument).
+
 ## [0.1.4] – 2026-10-10
 
 Forgotten password and sessions: a forgotten password can be reset with a

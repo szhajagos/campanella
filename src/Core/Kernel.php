@@ -15,10 +15,12 @@ use Campanella\Settings\Settings;
 use Campanella\Site\MetaBuilder;
 use Campanella\Site\SiteSettings;
 use Campanella\Site\SiteValues;
+use Campanella\Service\SubmissionService;
 use Campanella\Service\UserService;
 use Campanella\Admin\MailPages;
 use Campanella\Admin\SettingsPage;
 use Campanella\Admin\StructurePages;
+use Campanella\Admin\SubmissionPages;
 use Campanella\Admin\UserPages;
 
 use Campanella\Cli\SeedCommand;
@@ -702,6 +704,14 @@ final class Kernel
             new MediaUsage($c->get(Connection::class), $c->get(QueryEngine::class), $c->get(SiteSettings::class)),
             new MailPages($c->get(Mailer::class), $c->get(ObjectRepository::class), $c->get(Throttle::class), $c->get(Csrf::class), $c->get(Flash::class), $c->get(AdminAccess::class)),
             $c->get(SitePaths::class),
+            new SubmissionPages($c->get(SubmissionService::class), $c->get(Csrf::class), $c->get(Flash::class), $c->get(AdminAccess::class)),
+        ));
+
+        // The forms' messages (since 0.1.5).
+        $c->set(SubmissionService::class, static fn (Container $c): SubmissionService => new SubmissionService(
+            $c->get(ObjectRepository::class),
+            $c->get(QueryEngine::class),
+            $c->get(AccessPolicy::class),
         ));
 
         $c->set('controller.upgrade', static fn (Container $c): Controller => new UpgradeController(

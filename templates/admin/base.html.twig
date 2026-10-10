@@ -50,6 +50,10 @@
                                 <li class="nav-item"><a class="nav-link{{ (active ?? '') == item.name ? ' active' : '' }}" href="{{ admin_url(item.name) }}">{{ t(item.label) }}</a></li>
                             {% endfor %}
                         {% endif %}
+                        {% if can_submissions ?? false %}
+                            <li class="nav-item mt-3"><a class="nav-link d-flex align-items-center{{ (active ?? '') == 'submission' ? ' active' : '' }}" href="{{ admin_url('submission') }}">{{ t('submissions.title') }}
+                                {%- if (unread_submissions ?? 0) > 0 %} <span class="badge rounded-pill text-bg-primary ms-auto">{{ unread_submissions }}<span class="visually-hidden"> {{ t('submissions.unread') }}</span></span>{% endif %}</a></li>
+                        {% endif %}
                         {% if can_users ?? false %}
                             <li class="nav-item mt-3"><a class="nav-link{{ (active ?? '') == 'user' ? ' active' : '' }}" href="{{ admin_url('user') }}">{{ t('users.title') }}</a></li>
                         {% endif %}

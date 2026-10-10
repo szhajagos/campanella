@@ -26,6 +26,7 @@ namespace, in the `src/` folder (PSR-4).
 19. [Menus](19-menus.md): the `menu` and `menu_item` Blueprints, `Link`, `Keyed`, `MenuBuilder`, `menu()` in templates
 20. [The site](20-site.md): `Settings`, `SiteSettings`, `site` and `meta` in templates, `MetaBuilder`, `/sitemap.xml`, `/robots.txt`
 21. [Events and e-mail](21-events-and-mail.md): `Event` and its kinds, `EventDispatcher`, `Action`, `MailAdministrators`, `Mailer`, mail templates, the mail log
+22. [Forms](22-forms.md): the contact form's messages (`Submitted`, `SubmissionService`), the admin's *Submissions*
 
 ## Namespaces
 

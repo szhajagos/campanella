@@ -46,3 +46,9 @@
 
 /* The settings page: the share image's preview (since 0.1.1). */
 .settings-share-preview { display: block; max-height: 220px; width: auto; max-width: 100%; object-fit: contain; background: var(--bs-tertiary-bg); }
+
+/* A form message (since 0.1.5): plain text, line breaks kept, long words broken. */
+.submission-message {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}

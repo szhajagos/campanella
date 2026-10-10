@@ -5385,6 +5385,111 @@ test('Review fixes (0.1.4): the command line ends logins and voids links; only a
     putenv('CAMPANELLA_DB_PREFIX');
 });
 
+echo "\nForms (0.1.5)\n";
+
+test('Submissions: saved from a form, checked; only administrators see them', function () use ($repository, $engine, $db, $newUser): void {
+    $policy = new DefaultPolicy();
+    $service = new \Campanella\Service\SubmissionService($repository, $engine, $policy);
+    $errors = static function (callable $make): array {
+        try {
+            $make();
+        } catch (ValidationException $e) {
+            return array_keys($e->errors);
+        }
+
+        return [];
+    };
+    check($errors(fn () => $service->submit('', '', '', '')) === ['title', 'sender_email', 'message']);
+    check($errors(fn () => $service->submit('Valaki', 'nem-cim', '', 'Szia')) === ['sender_email']);
+    check($errors(fn () => $service->submit('Valaki', 'a@example.hu', str_repeat('t', 201), str_repeat('ü', 5001))) === ['subject', 'message']);
+    check($errors(fn () => $service->submit(str_repeat('n', 101), 'a@example.hu', '', 'Szia')) === ['title']);
+
+    $one = $service->submit("  Kiss\x07 Anna ", ' Anna@Example.HU ', "Kérdés\r\nfejléc", "Első sor\r\nMásodik sor\x00 <script>x</script>");
+    $lens = $one->as(\Campanella\Capability\Submitted::class);
+    check($one->get('title') === 'Kiss  Anna' && $lens->email() === 'anna@example.hu' && $lens->subject() === 'Kérdés fejléc' && $lens->form() === 'contact', json_encode([$one->get('title'), $lens->subject()]));
+    check($lens->message() === "Első sor\nMásodik sor <script>x</script>" && !$lens->isRead(), 'line breaks kept, control characters gone');
+    check($one->sender_email === null && !isset($one->message), 'hidden from templates');
+    $two = $service->submit('Nagy Béla', 'bela@example.hu', '', 'Második');
+
+    $admin = AuthService::actorFor($newUser('bekuldes-admin@example.hu', 'bekuldes-admin-1', ['administrator']));
+    $editor = AuthService::actorFor($newUser('bekuldes-szerk@example.hu', 'bekuldes-szerk-1', ['editor']));
+    check($service->canView($admin) && !$service->canView($editor) && !$service->canView(Actor::anonymous()));
+    $all = Query::objects()->blueprint('submission');
+    check($engine->count($all, $admin) === 2 && $engine->count($all, $editor) === 0 && $engine->count($all, Actor::anonymous()) === 0, 'the policy');
+    check($engine->count(Query::objects(), Actor::anonymous()) === $engine->count(Query::objects()->whereCondition(new \Campanella\Query\Condition\HasCapability('submitted', negated: true)), Actor::anonymous()), 'not in any query');
+    check(!$policy->allows($editor, \Campanella\Access\Operation::View, $one) && !$policy->allows(Actor::anonymous(), \Campanella\Access\Operation::View, $one) && $policy->allows($admin, \Campanella\Access\Operation::Delete, $one));
+    check($service->find($editor, (int) $one->id()) === null && $service->find($admin, (int) $one->id())?->id() === $one->id());
+
+    check($service->unreadCount($admin) === 2);
+    $service->mark($admin, $one, true);
+    check($service->unreadCount($admin) === 1 && $repository->find((int) $one->id())?->as(\Campanella\Capability\Submitted::class)->isRead() === true);
+    check($service->page($admin, 1, unreadOnly: true)->items[0]->id() === $two->id() && $service->page($admin)->total === 2);
+    $service->mark($admin, $one, false);
+    check($service->unreadCount($admin) === 2);
+    throws(\Campanella\Access\AccessDeniedException::class, fn () => $service->delete($editor, $one));
+    throws(\Campanella\Access\AccessDeniedException::class, fn () => $service->mark($editor, $one, true));
+    $service->delete($admin, $one);
+    check($repository->find((int) $one->id()) === null);
+    $db->execute("DELETE FROM {objects} WHERE blueprint = 'submission'");
+});
+
+test('Kernel: the submissions in the admin, for administrators only', function () use ($newUser, $db): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $c = $kernel->container();
+    if ($c->get(Connection::class)->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $service = $c->get(\Campanella\Service\SubmissionService::class);
+    $first = $service->submit('Kovács Éva', 'eva@example.hu', 'Ajánlatkérés', "Jó napot!\n<b>Kérek</b> egy ajánlatot.");
+    $service->submit('Tóth Gábor', 'gabor@example.hu', '', 'Tárgy nélküli üzenet');
+    $browser = static function ($user) {
+        $storage = new ArraySessionStorage();
+        $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+        $kernel->container()->set(Session::class, static fn () => new Session($storage));
+        $kernel->container()->get(AuthService::class)->login(new Request('GET', '/'), $user);
+
+        return static function (string $method, string $path, array $post = [], array $query = []) use ($kernel, $storage) {
+            $storage->endRequest();
+
+            return $kernel->handle(new Request($method, $path, query: $query, post: $post));
+        };
+    };
+    $csrfOf = static fn ($response): string => preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $response->body, $m) === 1 ? $m[1] : '';
+    $admin = $browser($newUser('lista-bekuldes@example.hu', 'lista-bekuldes-1', ['administrator']));
+    $editor = $browser($newUser('lista-szerk@example.hu', 'lista-szerk-1', ['editor']));
+
+    $dash = $admin('GET', '/admin');
+    check(str_contains($dash->body, 'href="/admin/submission">Beküldések') && str_contains($dash->body, '>2<span class="visually-hidden"> Olvasatlan'), 'the menu, with the unread ones');
+    check(!str_contains($dash->body, 'Kovács Éva'), 'not among the latest content');
+    $editorDash = $editor('GET', '/admin');
+    check(!str_contains($editorDash->body, '/admin/submission') && !str_contains($editorDash->body, 'Beküldés'), 'an editor: nothing');
+    check($editor('GET', '/admin/submission')->status === 403 && $editor('GET', '/admin/submission/' . $first->id())->status === 403);
+
+    $list = $admin('GET', '/admin/submission');
+    check($list->status === 200 && str_contains($list->body, 'Kovács Éva') && str_contains($list->body, 'Ajánlatkérés') && str_contains($list->body, 'Tárgy nélküli üzenet') && substr_count($list->body, '>új</span>') === 2, 'the list');
+    check($admin('GET', '/admin/submission/new')->status === 404 && $admin('GET', '/admin/submission/999999')->status === 404 && $admin('GET', '/admin/submission', [], ['page' => '9'])->status === 404);
+
+    $view = $admin('GET', '/admin/submission/' . $first->id());
+    check($view->status === 200 && str_contains($view->body, '&lt;b&gt;Kérek&lt;/b&gt;') && !str_contains($view->body, '<b>Kérek</b>'), 'the message, escaped');
+    check(str_contains($view->body, 'href="mailto:eva%40example.hu?subject=Re%3A%20Aj%C3%A1nlatk%C3%A9r%C3%A9s"'), 'reply by e-mail');
+    check(str_contains($admin('GET', '/admin/submission')->body, '>1<span class="visually-hidden">'), 'opened: read');
+    check(substr_count($admin('GET', '/admin/submission', [], ['unread' => '1'])->body, 'Tóth Gábor') === 1 && !str_contains($admin('GET', '/admin/submission', [], ['unread' => '1'])->body, 'Kovács Éva'), 'only the unread ones');
+
+    check($admin('GET', '/admin/submission/' . $first->id() . '/unread')->status === 405);
+    check($admin('POST', '/admin/submission/' . $first->id() . '/unread', ['_csrf' => 'rossz'])->status === 303 && $service->unreadCount(Actor::system()) === 1, 'CSRF');
+    $unread = $admin('POST', '/admin/submission/' . $first->id() . '/unread', ['_csrf' => $csrfOf($view)]);
+    check($unread->status === 303 && ($unread->headers['Location'] ?? '') === '/admin/submission' && $service->unreadCount(Actor::system()) === 2, 'unread again');
+    check($editor('POST', '/admin/submission/' . $first->id() . '/delete', ['_csrf' => $csrfOf($view)])->status === 403);
+    $deleted = $admin('POST', '/admin/submission/' . $first->id() . '/delete', ['_csrf' => $csrfOf($view)]);
+    check($deleted->status === 303 && $service->find(Actor::system(), (int) $first->id()) === null && str_contains($admin('GET', '/admin/submission')->body, 'Az üzenet törölve'), 'deleted');
+
+    $db->execute("DELETE FROM {objects} WHERE blueprint = 'submission'");
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
 echo "\nDocumentation examples\n";
 
 test('New capability as in the docs example (Featured)', function () use ($db, $admin): void {

@@ -1,0 +1,56 @@
+{% extends '@core/admin/base.html.twig' %}
+
+{# The forms' messages (since 0.1.5). #}
+{% block content %}
+    <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2 mb-3">
+        <h1 class="h3 mb-0">{{ t('submissions.title') }}</h1>
+        <span class="text-body-secondary small">{{ t('admin.list.total', {count: total}) }}</span>
+    </div>
+
+    <ul class="nav nav-pills mb-3">
+        <li class="nav-item"><a class="nav-link{{ unread_only ? '' : ' active' }}" href="{{ admin_url('submission') }}"{% if not unread_only %} aria-current="page"{% endif %}>{{ t('submissions.all') }}</a></li>
+        <li class="nav-item"><a class="nav-link{{ unread_only ? ' active' : '' }}" href="{{ admin_url('submission') }}?unread=1"{% if unread_only %} aria-current="page"{% endif %}>{{ t('submissions.unread') }} <span class="badge text-bg-secondary">{{ unread }}</span></a></li>
+    </ul>
+
+    {% if submissions is empty %}
+        <p class="text-body-secondary">{{ unread_only ? t('submissions.none_unread') : t('submissions.none') }}</p>
+    {% else %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle admin-list">
+                <thead>
+                    <tr>
+                        <th scope="col">{{ t('submissions.sender') }}</th>
+                        <th scope="col">{{ t('field.subject') }}</th>
+                        <th scope="col" class="text-end d-none d-sm-table-cell">{{ t('submissions.received') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in submissions %}
+                        <tr id="row-{{ s.id }}"{% if not s.read %} class="fw-semibold"{% endif %}>
+                            <td>
+                                <a href="{{ admin_url('submission/' ~ s.id) }}">{{ s.name }}</a>
+                                {% if not s.read %}<span class="badge text-bg-primary ms-1">{{ t('submissions.new') }}</span>{% endif %}
+                                <div class="small text-body-secondary fw-normal">{{ s.email }}<span class="d-sm-none"> · <time datetime="{{ s.created }}">{{ s.created|date }}</time></span></div>
+                            </td>
+                            <td class="small">{{ s.subject ?: (s.message|length > 80 ? s.message|slice(0, 80) ~ '…' : s.message) }}</td>
+                            <td class="small text-end text-nowrap fw-normal d-none d-sm-table-cell"><time datetime="{{ s.created }}">{{ s.created|date }}</time></td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if pages > 1 %}
+            <nav aria-label="{{ t('content.pager') }}">
+                <ul class="pagination pagination-sm">
+                    {% for p in 1..pages %}
+                        {% if p == page %}
+                            <li class="page-item active" aria-current="page"><span class="page-link">{{ p }}</span></li>
+                        {% else %}
+                            <li class="page-item"><a class="page-link" href="{{ admin_url('submission') }}?page={{ p }}{{ unread_only ? '&unread=1' }}">{{ p }}</a></li>
+                        {% endif %}
+                    {% endfor %}
+                </ul>
+            </nav>
+        {% endif %}
+    {% endif %}
+{% endblock %}

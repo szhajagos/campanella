@@ -10,6 +10,7 @@ use Campanella\Capability\Link;
 use Campanella\Capability\MediaFile;
 use Campanella\Capability\Publishable;
 use Campanella\Capability\Routable;
+use Campanella\Capability\Submitted;
 use Campanella\Capability\Textual;
 use Campanella\Capability\Titled;
 use Campanella\Capability\Weighted;
@@ -119,5 +120,13 @@ return [
         // Each menu is its own tree.
         'tree_scope' => 'menu',
         'form_order' => ['title', 'menu', 'parent', 'weight', 'target', 'url'],
+    ],
+
+    // A message sent through the contact form (since 0.1.5): the sender's name (Titled),
+    // e-mail address, subject and message. Only administrators may see it (DefaultPolicy);
+    // in the admin under Submissions, read-only.
+    'submission' => [
+        'label' => 'blueprint.submission',
+        'capabilities' => [Titled::class, Submitted::class],
     ],
 ];

@@ -70,11 +70,18 @@ The built-in policy, deny by default:
 | with the `editor` role (`DefaultPolicy::EDITOR`, since 0.0.3) | everything, drafts included | Create, Update, Publish, Unpublish, but not on users (Authenticatable); Delete is denied |
 | anyone else | what is not Publishable, or is published and whose `published_at` has passed | denied |
 
-`constrain()` expresses the same in the Query as follows (`administrator` and
-`editor` get no condition):
+**Administrators only** (since 0.1.5): objects with a capability of
+`ADMINISTRATORS_ONLY` (by default `submitted`, the contact form's messages:
+personal data) are for administrators alone; editors and everyone else neither
+see them nor may do anything with them. The list is the constructor's
+argument: `new DefaultPolicy(['submitted', 'my_private_capability'])`.
+
+`constrain()` expresses the same in the Query as follows (`administrator`
+gets no condition, `editor` only the first line):
 
 ```
-(NOT HasCapability(publishable)) OR (status = 'published' AND published_at <= now)
+NOT HasCapability(submitted)
+AND ((NOT HasCapability(publishable)) OR (status = 'published' AND published_at <= now))
 ```
 
 ## Custom policy
