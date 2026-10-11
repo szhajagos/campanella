@@ -150,13 +150,7 @@ final class ContactForm
      */
     public static function networkOf(string $ip): string
     {
-        $ip = Request::normalizeIp($ip);
-        $packed = @inet_pton($ip);
-        if ($packed === false || strlen($packed) !== 16) {
-            return $ip;
-        }
-
-        return (string) inet_ntop(substr($packed, 0, 6) . str_repeat("\0", 10)) . '/48';
+        return Throttle::network($ip, 48);
     }
 
     /** An e-mail address as a limit counts it: lowercase, without a `+tag` (anna+1@ is anna@). */

@@ -27,7 +27,6 @@ return [
     'auth.email' => 'E-mail address',
     'auth.password' => 'Password',
     'auth.invalid_credentials' => 'Invalid e-mail address or password.',
-    'auth.account_blocked' => 'The account is blocked.',
     'auth.too_many_attempts' => 'Too many failed attempts. Try again in {minutes} minutes.',
     'auth.reset.link' => 'Forgot your password?',
     'auth.reset.title' => 'Forgotten password',

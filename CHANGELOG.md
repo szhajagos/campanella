@@ -50,6 +50,29 @@ Work towards 0.2.0 (the milestone: see the [ROADMAP](ROADMAP.md)), in parts.
 - A backup's first lines named the code's schema version; they name the
   database's now.
 
+### Security
+
+A review of the whole 0.1.x layer together (sessions, the forgotten
+password, the contact form, e-mail, the work after the response, throttling;
+[docs/security.md](docs/security.md#security-review-for-020-2026-10-11)).
+No critical or high issue; fixed:
+
+- **Blocking an account in the admin ends its logins at once.** Until now
+  each ended at its next request, so a login that made none until the
+  account was activated again went on (the command line's `--block` ended
+  them already).
+- **Logins and the forgotten password count an IPv6 address by its /48** for
+  their per-address limits (`Throttle::network()`), as the contact form
+  does; one connection often has a whole /48. The limit per account and
+  address stays /64.
+- **A blocked account gets the same answer as a wrong password**: "The
+  account is blocked" told whoever tried that the password was right. The
+  `auth.account_blocked` message is gone.
+- The dependencies were checked against the advisories of 2026: none
+  affects the versions in use. Three risks were added to the accepted ones
+  (sessions started by forms, `X-Forwarded-Proto` behind appending proxies,
+  the installer's limit file).
+
 ## [0.1.5] – 2026-10-11
 
 The contact form: visitors can write to the site, the messages arrive under

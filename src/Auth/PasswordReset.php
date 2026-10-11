@@ -35,7 +35,7 @@ use Campanella\Site\SiteSettings;
  *  - the address of the link is made from the site's address (Site settings), never
  *    from the request's Host header, which anyone can send ("reset poisoning"): without
  *    it, the forgotten password is not offered;
- *  - requests are limited per IP address (5 in 15 minutes) and per e-mail address
+ *  - requests are limited per IP address (IPv6: per /48; 5 in 15 minutes) and per e-mail address
  *    (3 in an hour). Wrong links are not limited: guessing one is hopeless (2^384),
  *    and a limit per address would let others on a shared address block a valid link;
  *  - a new password ends every session of the user (they log in with it).
@@ -95,7 +95,7 @@ final class PasswordReset
             return new Message('auth.reset.invalid_email');
         }
         // Counted before anything else, for every address alike.
-        $ipKey = 'reset-ip|' . AuthService::clientKey($request->ip);
+        $ipKey = 'reset-ip|' . Throttle::network($request->ip, 48);   // IPv6: per /48 (since 0.2.0)
         $addressKey = 'reset-address|' . $email;
         foreach ([[$ipKey, self::MAX_PER_IP, self::IP_DECAY_SECONDS], [$addressKey, self::MAX_PER_ADDRESS, self::ADDRESS_DECAY_SECONDS]] as [$key, $max, $decay]) {
             if ($this->throttle->tooManyAttempts($key, $max) || $this->throttle->hit($key, $decay) > $max) {

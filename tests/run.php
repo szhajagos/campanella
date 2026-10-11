@@ -629,7 +629,27 @@ test('Login: blocked account, and blocking also ends the existing session', func
     [$next] = $authFor($storage);
     check($next->currentActor($req())->isAnonymous(), 'the blocked user stayed logged in');
     $again = $next->attempt($req(['x' => 1]), 'tiltott@example.hu', 'tiltott-jelszo-1');
-    check(!$again->success && $again->error === 'auth.account_blocked');
+    // The same answer as a wrong password (since 0.2.0): it must not tell that the password is right.
+    check(!$again->success && $again->error === AuthService::GENERIC_ERROR, (string) $again->error);
+});
+
+test('Login counts an IPv6 address by its /48 for all accounts (0.2.0 review)', function () use ($repository, $engine, $db, $newUser): void {
+    check(Throttle::network('2001:db8:1:2:3:4:5:6', 48) === '2001:db8:1::/48' && Throttle::network('2001:db8:1:2:3:4:5:6', 64) === '2001:db8:1:2::/64');
+    check(Throttle::network('2001:db8:1:ff00::1', 56) === '2001:db8:1:ff00::/56' && Throttle::network('2001:db8:1:ffff::1', 52) === '2001:db8:1:f000::/52');
+    check(Throttle::network('::ffff:192.0.2.7', 48) === '192.0.2.7' && Throttle::network('192.0.2.7') === '192.0.2.7' && Throttle::network('nem-ip') === 'nem-ip');
+    check(AuthService::clientKey('2001:db8:1:2::9') === '2001:db8:1:2::/64' && \Campanella\Webform\ContactForm::networkOf('2001:db8:1:2::9') === '2001:db8:1::/48');
+
+    $newUser('halozat@example.hu', 'halozat-jelszo-1');
+    $auth = new AuthService($repository, $engine, new Session(new ArraySessionStorage(), 7200), new Throttle($db), new Csrf(new Session(new ArraySessionStorage(), 7200)), ['max_attempts' => 5, 'max_attempts_per_ip' => 3, 'decay_seconds' => 900]);
+    $from = static fn (string $ip) => new Request('POST', '/login', post: ['x' => '1'], ip: $ip);
+    foreach (['2001:db8:77:1::1', '2001:db8:77:2::1', '2001:db8:77:3::1'] as $i => $ip) {
+        $auth->attempt($from($ip), "talalgatas{$i}@example.hu", 'rossz-jelszo-123');
+    }
+    // A fourth /64 of the same /48: refused, even with the right password.
+    $refused = $auth->attempt($from('2001:db8:77:4::1'), 'halozat@example.hu', 'halozat-jelszo-1');
+    check(!$refused->success && $refused->error === 'auth.too_many_attempts', 'another /64 of the same /48 is a fresh address: ' . $refused->error);
+    // Another /48 is another address.
+    check($auth->attempt($from('2001:db8:78::1'), 'halozat@example.hu', 'halozat-jelszo-1')->success, 'another /48 is refused too');
 });
 
 test('Honeypot guard and CSRF', function () use ($authFor, $req): void {
@@ -5013,6 +5033,26 @@ test('Session: absolute lifetime, also for an active session; refresh keeps it; 
     check($user !== null);
     $auth->refresh($request, $user);
     check($storage->get(AuthService::SESSION_LOGIN_AT) === time() - 3000 || $storage->get(AuthService::SESSION_LOGIN_AT) === time() - 3001, 'refresh keeps the login time');
+});
+
+test('Blocking from the admin ends the logins at once, even if the account is activated again before their next request (0.2.0 review)', function () use ($repository, $engine, $db, $newUser, $policy): void {
+    $boss = $newUser('blokkolo-fonok@example.hu', 'blokkolo-fonok-1', ['administrator']);
+    $user = $newUser('blokkolt@example.hu', 'blokkolt-jelszo-1', ['editor']);
+    $registry = new SessionRegistry($db, 7200, 43200);
+    $storage = new ArraySessionStorage();
+    $make = static function () use ($repository, $engine, $db, $registry, $storage): AuthService {
+        $session = new Session($storage, 7200);
+
+        return new AuthService($repository, $engine, $session, new Throttle($db), new Csrf($session), [], [], 43200, $registry);
+    };
+    $make()->login(new Request('GET', '/admin', ip: '10.0.9.1'), $user);
+    $users = new \Campanella\Service\UserService($repository, $engine, $policy, new Throttle($db), [Actor::ADMINISTRATOR, 'editor'], $db);
+    $admin = AuthService::actorFor($boss);
+    $users->update($admin, $user, 'Blokkolt', 'blokkolt@example.hu', ['editor'], false);
+    check((int) $db->fetchValue('SELECT COUNT(*) FROM {sessions} WHERE user_id = :u', ['u' => $user->id()]) === 0, 'blocking left the logins recorded');
+    $users->update($admin, $repository->find((int) $user->id()) ?? throw new RuntimeException('gone'), 'Blokkolt', 'blokkolt@example.hu', ['editor'], true);
+    $storage->endRequest();
+    check($make()->currentUser(new Request('GET', '/admin', ip: '10.0.9.1')) === null, 'the login from before the block came back with the activation');
 });
 
 test('SessionRegistry: logins recorded and checked on every request; ending one, the others, logging out', function () use ($repository, $engine, $db, $newUser): void {

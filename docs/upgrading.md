@@ -150,6 +150,15 @@ when a new one arrives or an administrator opens the dashboard.
   sitemap appear once the address is set.
 - **The images** (0.1.2) have smaller copies, and texts show them with
   `srcset`. An image's delete page lists the texts that show it.
+- **A blocked account gets the same answer as a wrong password** (0.2.0),
+  not "The account is blocked". Tell a blocked user yourself why they cannot
+  log in.
+- **Blocking ends the account's logins at once** (0.2.0), also those that
+  made no request while it was blocked.
+- **The per-address login and forgotten-password limits count an IPv6
+  address by its /48** (0.2.0; before, by its /64). Many people behind one
+  /48, e.g. an office, share its 20 login attempts in 15 minutes; raise
+  `auth.max_attempts_per_ip` if they need more.
 
 ## Themes and custom code
 

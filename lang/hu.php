@@ -25,7 +25,6 @@ return [
     'auth.email' => 'E-mail-cím',
     'auth.password' => 'Jelszó',
     'auth.invalid_credentials' => 'Hibás e-mail-cím vagy jelszó.',
-    'auth.account_blocked' => 'A fiók le van tiltva.',
     'auth.too_many_attempts' => 'Túl sok sikertelen próbálkozás. Próbáld újra {minutes} perc múlva.',
     'auth.form_expired' => 'Az űrlap lejárt. Kérjük, próbáld újra.',
     'auth.reset.link' => 'Elfelejtetted a jelszavad?',

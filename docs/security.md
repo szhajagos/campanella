@@ -20,11 +20,12 @@ CHANGELOG's **Security** section names it.
   every admin action checks the policy and a CSRF token; editors cannot delete
   or manage users; the contact form's messages are for administrators only
   (since 0.1.5).
-- **Login:** the same answer for a wrong e-mail address and a wrong password;
-  attempts limited per address and e-mail, per address, and per account (also
-  for unknown addresses, so a locked account looks like any other); a new
-  session ID on login; a blocked account or a changed password ends the
-  sessions; a login lasts at most 12 hours, however active, and every login is listed
+- **Login:** the same answer for a wrong e-mail address, a wrong password and
+  a blocked account (since 0.2.0); attempts limited per address and e-mail,
+  per address (IPv6: per /48 since 0.2.0), and per account (also for unknown
+  addresses, so a locked account looks like any other); a new session ID on
+  login; blocking an account (at once, since 0.2.0) or a changed password ends
+  the sessions; a login lasts at most 12 hours, however active, and every login is listed
   on the profile, where it can be ended (since 0.1.4); no default account.
 - **Forgotten password** (since 0.1.4): the same answer and response time for
   every address (the account is looked up and the e-mail sent after the
@@ -64,6 +65,59 @@ CHANGELOG's **Security** section names it.
   login's answers and limits, the session cookie, the sessions, the forgotten
   password, the contact form, the Content-Security-Policy, the administrators'
   pages): see [Testing](testing.md#the-browser-tests).
+
+## Security review for 0.2.0 (2026-10-11)
+
+A review of the whole 0.1.x layer together: sessions and the session list,
+the forgotten password, the contact form, e-mail, the work after the
+response, throttling, trusted proxies, and the upgrade. The reviews of 0.1.4
+and 0.1.5 each looked at their own changes; this one looked for what only
+shows where the parts meet: every way a password, an e-mail address or an
+account's status can change, and whether each one ends the logins and voids
+the links; every limit that counts by address, and whether they count alike;
+what the session holds for a visitor who never logs in. No critical or high
+issue was found. Fixed:
+
+| Severity | Issue | Fix |
+|---|---|---|
+| Medium | The upgrade's backup was made after the new tables and the new schema version were written: restoring it did not bring back the old version's database (found while writing the [upgrade guide](upgrading.md#going-back)) | The backup first, before anything is written; a schema upgrade is always backed up; the upgrade test checks it |
+| Low | Blocking an account in the admin ended its logins only at their next request: a login that made none until the account was activated again went on. The command line ended them at once | The admin ends them at once too |
+| Low | Logins and the forgotten password counted an IPv6 address by its /64 for their per-address limits, while one connection often has a whole /48 (the contact form already counted by /48): one such connection could try 65,536 times as many passwords across the accounts | The per-address limits count by /48 (`Throttle::network()`); the per-account limit per address stays /64 |
+| Low | A blocked account with the right password got "The account is blocked", which told whoever tried that the password was right | The same answer as a wrong password |
+
+Checked and found sound, among others:
+
+- **Every change of a password ends the other logins and voids the link:**
+  one's own (the profile; this login goes on), an administrator's, the
+  command line's, the forgotten password's (every login), and a rehash on
+  login (the stamp changes); a changed e-mail address voids the link.
+- **The session:** a new ID on logging in and when a reset link's token is
+  stored; the CSRF token is renewed on logging in; logging out destroys the
+  session even if the database fails; the absolute lifetime survives one's own
+  password change; a login ended from the list cannot come back.
+- **Work after the response** (`Deferred`): the session is written and
+  closed first, so the next request does not wait; the forgotten password
+  queues its work for every address alike, so the response's headers and
+  time do not tell; a failure is logged, the rest still runs.
+- **Throttling:** atomic counters; only keyed hashes; the address from
+  `X-Forwarded-For` only behind a trusted proxy, and only the last address
+  that is not one (what the visitor writes before it is ignored); the guards
+  (the honeypot) before any counting.
+- **E-mail:** no header injection (the subject holds nothing a visitor
+  wrote, addresses are checked, names are encoded by symfony/mime); the log
+  keeps no text and no link.
+- **Dependencies:** Twig 3.30.0, symfony/mailer, symfony/mime 7.4.19,
+  symfony/html-sanitizer 7.4.20 and their dependencies (all MIT or BSD);
+  Bootstrap 5.3.8; Jodit 4.17.1. The advisories of 2026 for them are fixed
+  in these versions: Twig's sandbox and code-injection advisories (all
+  affecting 3.26.x and earlier, e.g. CVE-2026-48805, CVE-2026-49981,
+  CVE-2026-46640), symfony's of
+  May 2026 (fixed in 7.4.12: CVE-2026-45064, -45067, -45068, -45070), and
+  Jodit's prototype pollution (CVE-2026-54756, fixed in 4.12.18).
+  `composer audit` passes in CI.
+
+The accepted risks below were weighed again; they stand, with three added
+(marked 2026-10-11).
 
 ## Security review for 0.1.5 (2026-10-11)
 
@@ -133,6 +187,8 @@ reach its database from the review's environment: it runs in CI instead.
 
 ## Known and accepted (decided 2026-10-08)
 
+Weighed again for 0.2.0 on 2026-10-11: each still stands.
+
 - **An account can be locked for 15 minutes** by someone who sends 30 wrong
   passwords for it from several addresses. This is the price of limiting
   guesses per account; the alternative (letting fresh addresses through) would
@@ -176,3 +232,20 @@ reach its database from the review's environment: it runs in CI instead.
   cannot take it over; the command line still works.
 - **The admin's Content-Security-Policy allows inline styles** (the editor,
   Jodit, needs them); scripts remain only the site's own.
+- **Forms start a session for visitors** (2026-10-11): the CSRF token of
+  the login, the forgotten password and the contact form lives in a session,
+  so each visit of such a page without a cookie creates one (a file in PHP's
+  session folder). A flood of such visits can fill that folder; limit the
+  request rate at the web server or the proxy where this matters. Logged-out
+  pages without a form start none.
+- **`X-Forwarded-Proto` is read from its first value** (2026-10-11), as
+  most frameworks do. Behind a chain of proxies that append to the header
+  rather than set it, a visitor could add a value of their own; the worst
+  they get is a response marked for HTTPS on their own plain HTTP request.
+  The proxies should set the header (nginx: `proxy_set_header
+  X-Forwarded-Proto $scheme;`).
+- **The browser installer's limit file** (2026-10-11):
+  `var/cache/install-throttle.json` keeps the wrong install keys' counters
+  with a plain SHA-256 of the visitor's address, for 15 minutes, only while
+  the site is not installed (there is no database yet for a keyed hash).
+  `var/` is not reachable from the web.

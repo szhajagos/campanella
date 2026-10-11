@@ -6,6 +6,7 @@ namespace Campanella\Security;
 
 use Campanella\Database\Connection;
 use Campanella\Database\Schema\CoreSchema;
+use Campanella\Http\Request;
 use Campanella\Model\FieldType;
 use DateTimeImmutable;
 use DateTimeZone;
@@ -81,6 +82,29 @@ final class Throttle
     public function purge(): int
     {
         return $this->db->execute('DELETE FROM {throttle} WHERE reset_at <= :now', ['now' => self::now()->format(FieldType::STORAGE_DATE_FORMAT)]);
+    }
+
+    /**
+     * The address a limit counts by (since 0.2.0): an IPv4 address as it is (an
+     * IPv4-mapped IPv6 one as plain IPv4), an IPv6 address by its network of
+     * `$ipv6Bits` bits, e.g. `2001:db8:1::/48`. One connection usually gets a whole
+     * /64, often a /48: counted per address, it could make 2^16 or more as many tries.
+     */
+    public static function network(string $ip, int $ipv6Bits = 48): string
+    {
+        $ip = Request::normalizeIp($ip);
+        $packed = @inet_pton($ip);
+        if ($packed === false || strlen($packed) !== 16) {
+            return $ip;
+        }
+        $bits = max(0, min(128, $ipv6Bits));
+        $bytes = intdiv($bits, 8);
+        $network = substr($packed, 0, $bytes);
+        if ($bits % 8 !== 0) {
+            $network .= chr(ord($packed[$bytes]) & (0xff << (8 - $bits % 8) & 0xff));
+        }
+
+        return (string) inet_ntop(str_pad($network, 16, "\0")) . '/' . $bits;
     }
 
     /** In how many seconds another attempt is allowed (0 if right now). */

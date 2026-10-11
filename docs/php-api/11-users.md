@@ -117,11 +117,16 @@ Constants: `Actor::ADMINISTRATOR`, `DefaultPolicy::EDITOR`.
   from any address (`max_attempts_per_account`, since 0.1.0; an unknown
   address has its own counter, so a locked account cannot be told from a
   non-existent one), within 15 minutes. An IPv6 address counts by its /64
-  network, an IPv4-mapped one as plain IPv4 (`static clientKey(string $ip)`).
+  network for the pair (`static clientKey(string $ip)`), by its /48 for the
+  per-address limit (since 0.2.0: one connection often has a whole /48, which
+  could otherwise try 65,536 times as many passwords across the accounts); an
+  IPv4-mapped one as plain IPv4 (`Throttle::network()`).
   On success the pair's and the account's counters are cleared, the address's
   is not (see [the accepted risks](../security.md#known-and-accepted-decided-2026-10-08)).
-- A blocked account cannot log in even with the correct password
-  (key `auth.account_blocked`, "The account is blocked."), and its existing
+- A blocked account cannot log in even with the correct password. Since
+  0.2.0 it gets the same answer as a wrong password (`GENERIC_ERROR`; until
+  then `auth.account_blocked`, which told whoever tried that the password was
+  right), and its existing
   session ends on the next request.
 - **A changed password ends the user's other sessions** (since 0.1.0): the
   session holds a stamp of the password hash (`SESSION_STAMP`, a hash of the
@@ -295,6 +300,7 @@ deleted now and then (one hit in `PURGE_EVERY`, 20), and by `purge()`.
 | `availableIn(string $key): int` | Seconds until another attempt is allowed |
 | `clear(string $key): void` | |
 | `purge(): int` | Deletes the rows whose window has passed (since 0.1.5) |
+| `static network(string $ip, int $ipv6Bits = 48): string` | The address a limit counts by (since 0.2.0): IPv4 as it is (an IPv4-mapped IPv6 address as plain IPv4), IPv6 by its network, e.g. `2001:db8:1::/48`. Logins and the forgotten password count by /48 per address and by /64 per account and address; the contact form by /48 |
 
 Other features (the forgotten password, the contact form) use it too. On the
 upgrade to 0.1.5 the running counters start again (their keys are hashed
@@ -384,7 +390,7 @@ point to their own site).
   up in a short locked transaction before the password is set, so two
   parallel requests cannot both use it, and nothing slow runs under the lock.
   A newer link replaces the older.
-- **Limits** (`Throttle`): 5 requests per IP address (IPv6: /64) in 15
+- **Limits** (`Throttle`): 5 requests per IP address (IPv6: /48 since 0.2.0, before: /64) in 15
   minutes, 3 per e-mail address in an hour, whether it is registered or not.
   Wrong links are not limited: guessing one is hopeless (2^384), and a limit
   per address would let others behind a shared address block a valid link.
@@ -453,6 +459,10 @@ Rules (`ValidationException`, `AccessDeniedException`):
 - **The last active administrator** can neither be blocked nor lose the role
   (`users.last_admin`): the site always has someone who can manage it.
 - **Nobody can block themselves** (`users.self_block`).
+- **Blocking ends the user's logins at once** (since 0.2.0; before, each
+  ended at its next request, so one that made none until the account was
+  activated again went on), and voids a forgotten password's link. The
+  command line's `--block` did both already.
 - Only the offered roles can be given (`validation.invalid_role`); the e-mail
   address is unique (`validation.taken`); the password rules are
   `Authenticatable`'s.

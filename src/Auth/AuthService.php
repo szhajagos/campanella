@@ -25,9 +25,11 @@ use Campanella\Security\Throttle;
  *  - the same error message whether the e-mail address or the password is
  *    wrong, and the same running time (a password hash runs even for a
  *    non-existent account);
- *  - login throttling by e-mail address + IP address, and by IP address;
+ *  - login throttling by e-mail address + IP address, by IP address (IPv6: per /48),
+ *    and by account;
  *  - a new session ID and a new CSRF token on login;
- *  - a blocked account cannot log in, and its existing session ends;
+ *  - a blocked account cannot log in (with the same answer as a wrong password), and
+ *    its existing session ends;
  *  - a changed password ends the user's other sessions (since 0.1.0): the
  *    session holds a stamp of the password hash, checked on every request;
  *  - a login lasts at most `session.absolute_timeout` seconds (12 hours by
@@ -104,10 +106,12 @@ final class AuthService
         $email = Identifiable::normalize($email);
         $user = $email === '' ? null : $this->findUserByEmail($email);
         // The account's own address (the database may match accented variants of it), so
-        // variants share one counter; an IPv6 address counts by its /64 network.
+        // variants share one counter. An IPv6 address counts by its /64 network for one
+        // account, by its /48 for all of them together (since 0.2.0; one connection often
+        // has a whole /48, which would otherwise guess 65,536 times as much).
         $address = self::clientKey($request->ip);
         $pairKey = 'login|' . ($user !== null ? (string) $user->get('email') : $email) . '|' . $address;
-        $ipKey = 'login-ip|' . $address;
+        $ipKey = 'login-ip|' . Throttle::network($request->ip, 48);
         // Unknown addresses are counted too, so a locked account cannot be told from a
         // non-existent one (since 0.1.0).
         $accountKey = 'login-account|' . ($user !== null ? 'id:' . $user->id() : 'email:' . $email);
@@ -141,11 +145,10 @@ final class AuthService
         }
 
         $auth = $user->as(Authenticatable::class);
-        if (!$auth->verifyPassword($password)) {
+        // A blocked account gets the same answer as a wrong password (since 0.2.0): a
+        // different one would tell whoever tries that the password is right.
+        if (!$auth->verifyPassword($password) || !$auth->isActive()) {
             return LoginResult::failure(self::GENERIC_ERROR);
-        }
-        if (!$auth->isActive()) {
-            return LoginResult::failure('auth.account_blocked');
         }
 
         if ($auth->needsRehash()) {
@@ -367,13 +370,7 @@ final class AuthService
      */
     public static function clientKey(string $ip): string
     {
-        $ip = Request::normalizeIp($ip);
-        $packed = @inet_pton($ip);
-        if ($packed === false || strlen($packed) !== 16) {
-            return $ip;
-        }
-
-        return (string) inet_ntop(substr($packed, 0, 8) . str_repeat("\0", 8)) . '/64';
+        return Throttle::network($ip, 64);
     }
 
     /** The session's stamp of the user's password (not the hash itself). */

@@ -11,6 +11,7 @@ use Campanella\Access\ActorKind;
 use Campanella\Access\Operation;
 use Campanella\Auth\AuthService;
 use Campanella\Auth\PasswordReset;
+use Campanella\Auth\SessionRegistry;
 use Campanella\Capability\AccountStatus;
 use Campanella\Capability\Authenticatable;
 use Campanella\Capability\Identifiable;
@@ -177,9 +178,13 @@ final class UserService
         $active ? $auth->activate() : $auth->block();
         $this->repository->save($user);
         // A blocked account's forgotten password link must not come back to life if it is
-        // re-activated (since 0.1.4). A changed e-mail address voids it by itself.
+        // re-activated (since 0.1.4). A changed e-mail address voids it by itself. Its
+        // logins end now (since 0.2.0), as on the command line: until then they ended at
+        // their next request, so one that made none before the account was activated
+        // again went on.
         if (!$active && $this->db !== null) {
             PasswordReset::forgetIn($this->db, (int) $user->id());
+            (new SessionRegistry($this->db))->endAll((int) $user->id());
         }
     }
 
