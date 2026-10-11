@@ -20,6 +20,17 @@ Work towards 0.2.0 (the milestone: see the [ROADMAP](ROADMAP.md)), in parts.
   that every row, column and media file survived, the old passwords work, and
   the pages, the admin and the new features work on the old data. In CI on
   MariaDB 10.6 and MySQL 8.0 (the `upgrade` job).
+- **The browser tests** (`tests/browser/run.sh`, Playwright with headless
+  Chromium): a fresh site, a mail catcher and PHP's web server, and what the
+  0.1.x series was checked by hand: logging in and out (the same answer for a
+  wrong address and password, the honeypot, the CSRF token, a new session id,
+  the cookie's flags), the lock-out, the session list, the forgotten password
+  (the link read from the caught e-mail, used once, ending the old sessions),
+  the contact form's protections and notification, the admin's lists and
+  forms, Submissions for administrators only, the System page. Every page is
+  watched for JavaScript errors, Content-Security-Policy violations and
+  missing files. In CI as the `browser` job; described in the new
+  [docs/testing.md](docs/testing.md).
 
 ## [0.1.5] – 2026-10-11
 

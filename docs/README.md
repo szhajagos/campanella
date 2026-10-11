@@ -10,6 +10,7 @@ chapter in the same commit.
 | [HTTP API](http-api/README.md) | The web endpoints: the current HTML routes and the planned JSON API | HTML: done · JSON: draft |
 | [Security](security.md) | What protects a site, the security review of 0.1.0, the known and accepted risks, reporting a vulnerability | Since 0.1.0 |
 | [Deployment](deployment.md) | Running Campanella on a public server: web root, HTTPS and proxies, settings, security headers, permissions, backups, upgrades, a checklist | Since 0.1.0 |
+| [Testing](testing.md) | The automated checks: the tests, the upgrade test, the browser tests; running them locally | Since 0.2.0 |
 | [Changelog](../CHANGELOG.md) | What was added, changed or removed in each version | Ongoing |
 
 Installation and startup are described in the [README](../README.md) in the

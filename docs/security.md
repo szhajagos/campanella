@@ -59,6 +59,11 @@ CHANGELOG's **Security** section names it.
   and headers are checked by symfony/mailer; the log never keeps the text.
 - **Dependencies:** only MIT-compatible ones; `composer audit` runs in CI on
   every push.
+- **Tests of the protections** (since 0.2.0): besides the PHP tests, the
+  browser tests check most of the above in a real browser on every push (the
+  login's answers and limits, the session cookie, the sessions, the forgotten
+  password, the contact form, the Content-Security-Policy, the administrators'
+  pages): see [Testing](testing.md#the-browser-tests).
 
 ## Security review for 0.1.5 (2026-10-11)
 

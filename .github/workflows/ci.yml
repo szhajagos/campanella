@@ -1,8 +1,8 @@
 # Automated checks and releases.
 #
 # - On every push and pull request: PHPStan, the documentation check, the
-#   tests on every supported database (MariaDB 10.6+, MySQL 8.0+), and an upgrade
-#   from 0.1.0 (since 0.2.0).
+#   tests on every supported database (MariaDB 10.6+, MySQL 8.0+), an upgrade
+#   from 0.1.0, and the browser tests (both since 0.2.0).
 # - On a version tag (v*): an installation package including the vendor/ folder,
 #   attached to the GitHub release. Can also be run manually for an existing tag
 #   (Actions → CI → Run workflow, giving the tag).
@@ -185,6 +185,66 @@ jobs:
 
       - name: Upgrade, and check that nothing was lost
         run: bash tests/upgrade/run.sh "$RUNNER_TEMP/campanella-0.1.0"
+
+  browser:
+    # The browser tests (since 0.2.0): tests/browser/run.sh installs a fresh site and
+    # checks, in headless Chromium, the logins, the forgotten password, the sessions,
+    # the contact form's protections and the admin pages. A protection that silently
+    # stops working fails the build.
+    name: Browser tests
+    if: inputs.tag == ''
+    runs-on: ubuntu-latest
+
+    services:
+      db:
+        image: mariadb:11.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: campanella
+          MYSQL_USER: campanella
+          MYSQL_PASSWORD: campanella
+        ports:
+          - 3306:3306
+
+    env:
+      CAMPANELLA_DB_HOST: 127.0.0.1
+      CAMPANELLA_DB_PORT: 3306
+      CAMPANELLA_DB_NAME: campanella
+      CAMPANELLA_DB_USER: campanella
+      CAMPANELLA_DB_PASSWORD: campanella
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_mysql, mbstring, dom, gd, exif, fileinfo
+          coverage: none
+          tools: composer
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: composer install --no-interaction --no-progress
+
+      - name: Playwright and Chromium
+        run: |
+          python -m pip install -r tests/browser/requirements.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Wait for the database
+        run: |
+          for i in $(seq 1 60); do
+            php -r 'new PDO("mysql:host=127.0.0.1;port=3306;dbname=campanella", "campanella", "campanella");' 2>/dev/null && exit 0
+            sleep 2
+          done
+          echo "The database did not start." >&2
+          exit 1
+
+      - name: Browser tests
+        run: bash tests/browser/run.sh
 
   release:
     name: Release package
