@@ -25,13 +25,17 @@ php bin/campanella migrate --prune     # also deletes the data of capabilities r
 
 `install` does the same on an existing installation (`--yes`, `--no-backup`,
 `--prune`); the usual upgrade is still `php bin/campanella install`. The order:
-the missing tables, the additive changes of the definitions, the pending
-migrations, then the additive changes again (a migration may have made one
-possible, e.g. by filling a column).
+the backup (see below), the missing tables and the new schema version, the
+additive changes of the definitions, the pending migrations, then the additive
+changes again (a migration may have made one possible, e.g. by filling a
+column).
 
-Asking and the backup are for what cannot be undone: migrations and
-`--prune`. Additive changes alone lose nothing, so they are applied without
-either.
+Asking is for what cannot be undone: migrations and `--prune`. Additive
+changes alone lose nothing, so they are applied without asking, and without a
+backup, unless the schema version changes. An upgrade to a new schema version
+is always backed up first (since 0.2.0), before anything is written, so the
+backup holds the old version's database and going back to it works (see
+[Upgrading: going back](../upgrading.md#going-back)).
 
 - Without `--yes` the command asks; when it is not run from a terminal (a
   script, a cron job), nothing can be asked, so it stops and says to add
@@ -109,8 +113,8 @@ tables* group: capabilities to add, blocked steps, notes).
 ## From the browser
 
 For web hosts without a command line: **`/admin/upgrade`** (under the admin's
-path) does the same as `migrate`: creates the missing tables, makes a backup,
-applies the definitions, runs the pending migrations, and shows each step and
+path) does the same as `migrate`: makes a backup (before anything changes,
+since 0.2.0), creates the missing tables, applies the definitions, runs the pending migrations, and shows each step and
 its log lines. It is offered whenever there is something to do: an older
 schema, a pending migration, or a change of the definitions.
 
@@ -356,7 +360,7 @@ bash tests/upgrade/run.sh /tmp/campanella-0.1.0       # --offline: no composer i
    stay), the new dependencies are installed, and
    `php bin/campanella install --yes` runs (with its backup).
 3. **The checks** (`verify.php`, with the new code): the schema version, no
-   pending change, a backup made; every old row with its old columns, and every
+   pending change, a backup made that holds the old schema version; every old row with its old columns, and every
    media file, unchanged; the administrator and the editor can log in with their
    old passwords, the blocked user cannot; the front page, the article with its
    image, the contact page, the login page; the admin's pages as the
@@ -381,8 +385,11 @@ php bin/campanella db:backup --plain   # .sql, not compressed
 Campanella's tables (those with the prefix) as an SQL file, written through
 PDO, so it works on any web host. It restores them as they were (`DROP TABLE`,
 `CREATE TABLE`, `INSERT`): import it into the database, e.g. phpMyAdmin >
-Import, or `gunzip < file.sql.gz | mysql <database>`. The last line is
-`-- Campanella backup complete` (`COMPLETE`): a file without it was cut off.
+Import, or `gunzip < file.sql.gz | mysql <database>`. Its first lines name
+the Campanella version that made it and the database's schema version (since
+0.2.0; until then the code's, which before an upgrade is not the database's).
+The last line is `-- Campanella backup complete` (`COMPLETE`): a file without
+it was cut off.
 
 The file contains everything, password hashes too. It is written into
 `var/backups/` (outside the web root, with a `.htaccess` that denies access

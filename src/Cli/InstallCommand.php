@@ -59,18 +59,22 @@ final class InstallCommand implements Command
 
             return 1;
         }
-        foreach ($installer->install() as $table) {
-            $output->success($table);
-        }
-        $output->line();
-        $output->line($t->translate('cli.install.done'));
-
-        // An existing installation: the changes and migrations of the new version.
+        $tables = static function () use ($installer, $output, $t): void {
+            foreach ($installer->install() as $table) {
+                $output->success($table);
+            }
+            $output->line();
+            $output->line($t->translate('cli.install.done'));
+        };
         if (!$existing) {
+            $tables();
+
             return 0;
         }
-        $output->line();
 
+        // An existing installation: the changes and migrations of the new version. The
+        // tables and the schema version are written after the upgrade's backup
+        // (since 0.2.0), so the backup holds the old version's database.
         return (new MigrationRunner(
             $container->get(Migrator::class),
             $container->get(DatabaseBackup::class),
@@ -78,6 +82,11 @@ final class InstallCommand implements Command
             $this->input,
             $output,
             $container->get(SchemaSync::class),
+            $installer->needsUpgrade(),
+            static function () use ($tables, $output): void {
+                $tables();
+                $output->line();
+            },
         ))->run(Args::parse($args));
     }
 }

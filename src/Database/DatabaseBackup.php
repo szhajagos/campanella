@@ -74,6 +74,18 @@ final class DatabaseBackup
         return $path;
     }
 
+    /** The schema version recorded in the database, or null (not installed). */
+    private function schemaVersion(): ?string
+    {
+        try {
+            $value = $this->db->fetchValue('SELECT value FROM {' . Schema\CoreSchema::SYSTEM . "} WHERE name = 'schema_version'");
+        } catch (\PDOException) {
+            return null;
+        }
+
+        return is_scalar($value) && $value !== false ? (string) $value : null;
+    }
+
     /**
      * Writes the SQL of the backup through a function (create() writes it into a file).
      *
@@ -86,11 +98,12 @@ final class DatabaseBackup
         $pdo = $this->db->pdo();
 
         $write(sprintf(
-            "-- Campanella backup\n-- Campanella %s, schema %s, %s\n-- Created %s UTC; tables with the prefix \"%s\"\n"
+            "-- Campanella backup\n-- Made by Campanella %s; the database's schema version: %s; %s\n-- Created %s UTC; tables with the prefix \"%s\"\n"
             . "-- Restore: import this file into the database (e.g. phpMyAdmin > Import, or mysql <database> < file.sql)\n\n"
             . "SET NAMES utf8mb4;\nSET FOREIGN_KEY_CHECKS = 0;\nSET SQL_MODE = 'NO_AUTO_VALUE_ON_ZERO';\nSET time_zone = '+00:00';\n\n",
             Version::CAMPANELLA,
-            Version::SCHEMA,
+            // The database's, not the code's (since 0.2.0): before an upgrade they differ.
+            $this->schemaVersion() ?? '-',
             $this->db->serverVersion(),
             gmdate('Y-m-d H:i:s'),
             $this->db->prefix(),

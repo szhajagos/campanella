@@ -55,11 +55,9 @@ final class MigrateCommand implements Command
 
             return 1;
         }
-        $parsed = Args::parse($args);
-        if (!$parsed->flag('dry-run')) {
-            $installer->install(); // new tables (e.g. of a new capability); existing ones are not touched
-        }
 
+        // New tables (e.g. of a new capability) and the schema version: after the
+        // backup of an upgrade (MigrationRunner), so it holds the old database.
         return (new MigrationRunner(
             $container->get(Migrator::class),
             $container->get(DatabaseBackup::class),
@@ -67,6 +65,10 @@ final class MigrateCommand implements Command
             $this->input,
             $output,
             $container->get(SchemaSync::class),
-        ))->run($parsed);
+            $installer->needsUpgrade(),
+            static function () use ($installer): void {
+                $installer->install();
+            },
+        ))->run(Args::parse($args));
     }
 }

@@ -26,8 +26,8 @@ use Campanella\Security\Throttle;
 use Campanella\View\Presentation;
 
 /**
- * `<admin>/upgrade`: runs the upgrade from the browser (missing tables, then the
- * pending migrations after a backup), for web hosts without a command line.
+ * `<admin>/upgrade`: runs the upgrade from the browser (a backup, then the missing
+ * tables and the pending migrations), for web hosts without a command line.
  *
  * Who may run it: a logged-in user of the System page's roles
  * (AdminAccess::allowsSystem()), or anyone who enters the upgrade key of
@@ -127,7 +127,9 @@ final class UpgradeController implements Controller
         @ignore_user_abort(true);
         @set_time_limit(0);
 
-        $this->installer->install();
+        // The backup first, before anything changes (since 0.2.0; until then the new
+        // tables and the schema version were written first, so restoring the backup
+        // did not bring back the old version's database).
         $file = null;
         if ($request->postString('no_backup') !== '1') {
             try {
@@ -138,6 +140,7 @@ final class UpgradeController implements Controller
             }
         }
 
+        $this->installer->install();
         $log = [];
         try {
             $this->logSync($this->sync->apply(), $log);

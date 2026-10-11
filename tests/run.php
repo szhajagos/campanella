@@ -2802,6 +2802,17 @@ test('Upgrading from the browser: the site waits, an administrator or the key ru
     check($send('GET', '/')->status === 200 && !$installer->needsUpgrade(), 'the site works again');
     check($send('POST', '/admin/upgrade', ['_csrf' => $csrfOf($page), 'key' => $key])->status === 200 && $ran === 1, 'nothing left to run');
 
+    // The backup holds the database as it was before the upgrade (since 0.2.0): the
+    // schema version is written after it, not before.
+    $container->get(Connection::class)->execute("UPDATE {system} SET value = '11' WHERE name = 'schema_version'");
+    check($installer->needsUpgrade() && $send('GET', '/')->status === 503, 'an older schema version: an upgrade needed');
+    $page = $send('GET', '/admin/upgrade');
+    $before = glob($dir . '/campanella-*.sql.gz') ?: [];
+    check($send('POST', '/admin/upgrade', ['_csrf' => $csrfOf($page), 'key' => $key])->status === 200 && !$installer->needsUpgrade(), 'the schema version upgraded');
+    $new = array_values(array_diff(glob($dir . '/campanella-*.sql.gz') ?: [], $before));
+    $newest = count($new) === 1 ? (string) gzdecode((string) file_get_contents($new[0])) : '';
+    check(str_contains($newest, "('schema_version', '11')") && str_contains($newest, "the database's schema version: 11;") && !str_contains($newest, "('schema_version', '" . Version::SCHEMA . "')"), 'the backup holds the old schema version');
+
     // A logged-in administrator needs no key; "without a backup".
     $repository = $container->get(ObjectRepository::class);
     $user = $repository->create('user', ['title' => 'Frissítő', 'email' => 'frissito@example.hu']);
@@ -2815,7 +2826,7 @@ test('Upgrading from the browser: the site waits, an administrator or the key ru
     $page = $send('GET', '/admin/upgrade');
     check($page->status === 200 && str_contains($page->body, 'test:0031_admin') && !str_contains($page->body, 'name="key"') && str_contains($page->body, 'name="no_backup"'), 'an administrator sees the details');
     $done = $send('POST', '/admin/upgrade', ['_csrf' => $csrfOf($page), 'no_backup' => '1']);
-    check($done->status === 200 && $ran === 2 && count(glob($dir . '/*.gz') ?: []) === 1, 'run without a backup');
+    check($done->status === 200 && $ran === 2 && count(glob($dir . '/*.gz') ?: []) === 2, 'run without a backup');
 
     // A failing migration: reported, the site keeps waiting.
     $registry->add($migration('test:0032_fails', function (): void {

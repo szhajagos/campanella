@@ -53,7 +53,11 @@ $installer = $c->get(Installer::class);
 $check($installer->systemValue('schema_version') === Version::SCHEMA, 'schema version: ' . $installer->systemValue('schema_version') . ', expected ' . Version::SCHEMA);
 $check(!$installer->needsUpgrade(), 'an upgrade is still needed');
 $check(!$c->get(SchemaSync::class)->plan()->hasWork(), 'the tables differ from the definitions');
-$check(glob($site . '/var/backups/*.sql*') !== [], 'no backup was made before the upgrade');
+$backups = glob($site . '/var/backups/*.sql*') ?: [];
+$check($backups !== [], 'no backup was made before the upgrade');
+// The backup holds the old version's database (since 0.2.0), so going back to it works.
+$first = $backups === [] ? '' : (string) (str_ends_with($backups[0], '.gz') ? gzdecode((string) file_get_contents($backups[0])) : file_get_contents($backups[0]));
+$check(str_contains($first, "('schema_version', '{$snapshot['schema']}')"), 'the backup does not hold the old schema version (' . $snapshot['schema'] . ')');
 
 // 2. Nothing was lost: every row of every table, with its old columns.
 $prefix = $db->prefix();

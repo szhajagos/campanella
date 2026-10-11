@@ -21,7 +21,10 @@ use Campanella\I18n\Translator;
  *
  * It lists what will happen; for migrations and `--prune` it asks (unless
  * `--yes`) and makes a backup first (unless `--no-backup`). Additive changes
- * alone need neither: they lose nothing.
+ * alone need neither: they lose nothing. An upgrade of the schema version
+ * (`$upgrade`) is backed up even then, so the backup holds the old version's
+ * database (since 0.2.0); `$prepare` (e.g. `Installer::install()`) runs after the
+ * backup, before the changes.
  */
 final class MigrationRunner
 {
@@ -32,6 +35,8 @@ final class MigrationRunner
         private readonly Input $input,
         private readonly Output $output,
         private readonly ?SchemaSync $sync = null,
+        private readonly bool $upgrade = false,
+        private readonly ?\Closure $prepare = null,
     ) {
     }
 
@@ -47,7 +52,10 @@ final class MigrationRunner
         foreach ($plan->notes() as $note) {
             $out->line($note->message->translate($t));
         }
-        if ($pending === [] && !$plan->hasWork()) {
+        if ($pending === [] && !$plan->hasWork() && !$this->upgrade) {
+            if (!$args->flag('dry-run') && $this->prepare !== null) {
+                ($this->prepare)();
+            }
             $this->reportBlocked($plan);
             $out->line($t->translate('cli.migrate.none'));
 
@@ -73,11 +81,13 @@ final class MigrationRunner
         // Asking and a backup: for what cannot be undone (migrations, deleting data).
         $risky = $pending !== [] || $plan->hasPrune();
         $file = null;
-        if ($risky) {
+        if ($risky || $this->upgrade) {
             $backup = !$args->flag('no-backup');
-            $out->line();
-            $out->line($t->translate($backup ? 'cli.migrate.warning' : 'cli.migrate.warning_no_backup'));
-            if (!$args->flag('yes')) {
+            if ($risky) {
+                $out->line();
+                $out->line($t->translate($backup ? 'cli.migrate.warning' : 'cli.migrate.warning_no_backup'));
+            }
+            if ($risky && !$args->flag('yes')) {
                 if (!$this->input->isInteractive()) {
                     $out->error($t->translate('cli.migrate.needs_yes'));
 
@@ -103,6 +113,9 @@ final class MigrationRunner
             }
         }
 
+        if ($this->prepare !== null) {
+            ($this->prepare)();
+        }
         try {
             $this->applySync($prune);
             $results = $this->migrator->run(
