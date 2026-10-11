@@ -165,6 +165,7 @@ return [
         // addresses, e.g. ['info@example.hu']; empty: to the active administrators.
         'notify' => true,
         'notify_to' => [],
+        'notify_per_hour' => 50,       // at most this many e-mails about messages in an hour (the messages are all kept)
         // The messages are deleted after this many days (personal data; since 0.1.5). 0: kept for ever.
         'keep_days' => 180,
         // Additional protections, as for logging in (LoginGuard classes).

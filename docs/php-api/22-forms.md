@@ -21,7 +21,7 @@ the sender's name is its title (`Titled`), the rest is `Submitted`'s.
 
 | Field | Type | |
 |---|---|---|
-| `sender_email` | String (254) | Required; a valid address, stored in lowercase |
+| `sender_email` | String (254) | Required; a valid address; its domain is stored in lowercase |
 | `subject` | String (200) | Optional; control characters (line breaks too) become spaces |
 | `message` | Text | Required; at most `MAX_MESSAGE` (5,000) characters; line breaks stay, other control characters go |
 | `form` | String (64) | Which form it came from (`contact`); lowercase letters, digits, `_` |
@@ -114,22 +114,30 @@ token), as the login page does.
 **Protections**, in this order:
 
 1. **CSRF token** (the session's): another site cannot send it in a visitor's
-   name.
+   name. Without a valid one, nothing that was sent is shown again (another
+   site cannot put its text on this site's page).
 2. **Guards** (`contact.guards`, the same `LoginGuard` classes as for logging
    in; by default the honeypot): a bot that fills in the hidden field is told
    *sent*, and nothing is saved.
-3. **The time the form was shown**, in a hidden field (`_ts`) signed with the
-   session's CSRF token (HMAC-SHA-256), so it cannot be forged or carried to
-   another session; older than a day (`MAX_AGE`), the form has expired.
+3. **The time the form was shown**, in a hidden field (`_ts`) signed
+   (HMAC-SHA-256) with a secret kept only in the session
+   (`ContactForm::SESSION_KEY`), never sent to the browser, so it cannot be
+   forged or carried to another session; older than a day (`MAX_AGE`), the
+   form has expired.
 4. **The fields**: name (at most 100 characters), e-mail address (a valid one),
-   message (at most 5,000) required, subject at most 200; shown again with
-   their errors.
+   message (at most 5,000) required, subject at most 200; a line break counts
+   as one character, as in the browser; shown again with their errors.
 5. **Sent too fast**: sooner than `contact.min_seconds` (3) after the form was
    shown, it is taken for a bot's, and shown again (*please check it, and send
    it again*). The fields are checked first, so a quick human sees what to fix.
-6. **Limits** (`Throttle`): 5 messages per IP address (IPv6: /64) and 3 per
-   sender's e-mail address in an hour. Only messages that would be saved count,
-   not the corrections of a typo.
+6. **Limits** (`Throttle`), in an hour: 5 messages per IP address (IPv6: per
+   /48 network, `networkOf()`: one connection often has a whole /48) and 3
+   per sender's e-mail address (`+tags` ignored, `addressKey()`). Only
+   messages that would be saved count, not the corrections of a typo. There
+   is no limit on the whole site's messages (a few addresses could then close
+   the form for everyone); the notification e-mails have one
+   (`contact.notify_per_hour`, below). (Someone who knows an address can use up its 3
+   messages: see [the accepted risks](../security.md#known-and-accepted-decided-2026-10-08).)
 
 Settings (`config/app.php`, override in `config/local.php`):
 
@@ -145,12 +153,16 @@ Settings (`config/app.php`, override in `config/local.php`):
 | Member | |
 |---|---|
 | `isEnabled(): bool` | |
-| `fields(Request $request): array` | What the form's template needs besides the values: `ts` (the signed time) and `guard_fields`. Starts the session |
+| `fields(Request $request): array` | What the form's template needs besides the values: `ts` (the signed time), `guard_fields`, `keep_days`. Starts the session |
 | `submit(Request $request): ContactResult` | Checks a sending, as above, and saves it (`SubmissionService::submit()`, form `contact`) |
+| `static networkOf(string $ip): string` | The address a limit counts by: IPv4 as it is, IPv6 by its /48 network |
+| `static addressKey(string $email): string` | An e-mail address as a limit counts it: lowercase, without a `+tag` |
 
-Constants: `FORM` (`'contact'`), `TIME_FIELD` (`'_ts'`), `MIN_SECONDS` (3),
-`MAX_AGE` (86400), `MAX_PER_IP` (5), `MAX_PER_ADDRESS` (3), `DECAY_SECONDS`
-(3600), `FIELDS` (field => longest value).
+The constructor: `new ContactForm(SubmissionService, Csrf, Throttle, Session, array $guards = [], bool $enabled = true, int $minSeconds = 3)`.
+
+Constants: `FORM` (`'contact'`), `TIME_FIELD` (`'_ts'`), `SESSION_KEY`,
+`MIN_SECONDS` (3), `MAX_AGE` (86400), `MAX_PER_IP` (5), `MAX_PER_ADDRESS` (3),
+`DECAY_SECONDS` (3600), `FIELDS` (field => longest value).
 
 `Campanella\Webform\ContactResult` · **Public** · `final readonly class`:
 `status` (`SENT`, `IGNORED` (a bot), `INVALID`, `TOO_FAST`, `TOO_MANY`,
@@ -189,6 +201,7 @@ keeping the hidden fields (`csrf_field()`, `_ts`, `guard_fields`).
 |---|---|---|
 | `contact.notify` | `true` | Whether an e-mail goes about each message |
 | `contact.notify_to` | `[]` | The recipients (at most 20); empty: the active administrators. Invalid addresses are left out |
+| `contact.notify_per_hour` | `50` | At most this many messages are e-mailed in an hour, on the whole site; the others are only in the admin (a flood of messages does not become a flood of e-mails) |
 
 The e-mail (`mail/submission.txt.twig`, overridable by a theme) holds the
 sender's name and address, the subject and the message as plain text, and a
@@ -210,9 +223,13 @@ address, whatever the sender wrote), so:
 
 - **It is kept for a limited time:** `contact.keep_days` (180) days after it
   arrived, it is deleted (`SubmissionService::prune()`): after each new
-  message (after the response) and whenever the admin's list is opened, so no
-  scheduled job is needed. `0`: kept until deleted by hand (the System page
-  warns). The list says how long they are kept.
+  message (after the response), and whenever an administrator opens the
+  dashboard or the messages. On a quiet site run
+  `php bin/campanella submissions:prune` from cron (e.g. daily), so the
+  promise the form makes is kept to the day. `0`: kept until deleted by hand
+  (the System page warns). The list says how long they are kept. **Copies in
+  the notification e-mails** are in the recipients' mailboxes: deleting them
+  there is up to the recipients.
 - **The form says what happens to it:** under the form, *We use your message
   and e-mail address only to answer you, and delete them after 180 days*,
   with a link to the privacy notice, if its address is set under *Site
@@ -222,8 +239,17 @@ address, whatever the sender wrote), so:
   wrote to the site is usually based on its legitimate interest (or the
   sender's request), not on consent. This is not legal advice: the privacy
   notice says what applies to the site, and how long messages are kept.
-- **Only what is needed is stored:** no IP address; the e-mail notification's
-  subject and the mail log hold nothing the sender wrote.
+- **Only what is needed is stored:** no IP address with the message. The
+  limits' counters (`Throttle`) hold the IP and e-mail addresses only as a
+  keyed hash (HMAC with a secret of the installation), deleted after their
+  hour at the next purge. (The secret is in the same database: who has a
+  whole dump could still try every IPv4 address.)
+  The e-mail notification's subject and the mail log hold nothing the sender
+  wrote.
+- **The sender's name is the object's title** (`Titled`), which is not a
+  hidden field: code that hands a submission to a template shows it. The
+  built-in templates never get one (only administrators' pages, as plain
+  values).
 - **Only administrators see them** (see above), and can delete any at once.
 
 | Key | Default | |

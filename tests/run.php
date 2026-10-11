@@ -5406,7 +5406,7 @@ test('Submissions: saved from a form, checked; only administrators see them', fu
 
     $one = $service->submit("  Kiss\x07 Anna ", ' Anna@Example.HU ', "Kérdés\r\nfejléc", "Első sor\r\nMásodik sor\x00 <script>x</script>");
     $lens = $one->as(\Campanella\Capability\Submitted::class);
-    check($one->get('title') === 'Kiss  Anna' && $lens->email() === 'anna@example.hu' && $lens->subject() === 'Kérdés fejléc' && $lens->form() === 'contact', json_encode([$one->get('title'), $lens->subject()]));
+    check($one->get('title') === 'Kiss  Anna' && $lens->email() === 'Anna@example.hu' && $lens->subject() === 'Kérdés fejléc' && $lens->form() === 'contact', json_encode([$one->get('title'), $lens->subject()]));
     check($lens->message() === "Első sor\nMásodik sor <script>x</script>" && !$lens->isRead(), 'line breaks kept, control characters gone');
     check($one->sender_email === null && !isset($one->message), 'hidden from templates');
     $two = $service->submit('Nagy Béla', 'bela@example.hu', '', 'Második');
@@ -5521,7 +5521,7 @@ test('Kernel: the contact form, from the page to a saved message', function () u
     $ts = static function (int $ago) use ($storage): string {
         $time = (string) (time() - $ago);
 
-        return $time . '.' . hash_hmac('sha256', 'contact|' . $time, (string) $storage->get('_csrf_token'));
+        return $time . '.' . hash_hmac('sha256', 'contact|' . $time, (string) $storage->get(\Campanella\Webform\ContactForm::SESSION_KEY));
     };
     $count = static fn (): int => (int) $db->fetchValue("SELECT COUNT(*) FROM {objects} WHERE blueprint = 'submission'");
 
@@ -5560,7 +5560,7 @@ test('Kernel: the contact form, from the page to a saved message', function () u
     check($thanks->status === 200 && str_contains($thanks->body, 'Köszönjük, megkaptuk') && !str_contains($thanks->body, 'name="message"'));
     $saved = $kernel->container()->get(\Campanella\Service\SubmissionService::class)->page(Actor::system())->items[0];
     $lens = $saved->as(\Campanella\Capability\Submitted::class);
-    check($saved->get('title') === 'Szabó Péter' && $lens->email() === 'peter@example.hu' && $lens->message() === "Helló!\nMikor vagytok nyitva?" && $lens->form() === 'contact' && !$lens->isRead());
+    check($saved->get('title') === 'Szabó Péter' && $lens->email() === 'Peter@example.hu' && $lens->message() === "Helló!\nMikor vagytok nyitva?" && $lens->form() === 'contact' && !$lens->isRead());
 
     // At most 3 per e-mail address (from any address), 5 per IP address, in an hour.
     $send('POST', '/contact', ['_ts' => $ts(10)] + $fields, [], '10.0.9.2');
@@ -5639,6 +5639,15 @@ test('Kernel: an e-mail about each new message, after the response, with Reply-T
     $kernel->terminate();
     check(count($transport->sent) === 2, 'only the contact form');
     check(\Campanella\Event\Action\MailSubmission::recipientsOf('egy@example.hu') === ['egy@example.hu'] && \Campanella\Event\Action\MailSubmission::recipientsOf(null) === []);
+    // At most contact.notify_per_hour messages are e-mailed (2 here); all are kept.
+    $db->execute('DELETE FROM {throttle}');
+    $kernel = $make(['contact' => ['notify_to' => ['info@example.hu'], 'notify_per_hour' => 2]]);
+    $before = count($transport->sent);
+    foreach ([1, 2, 3] as $i) {
+        $kernel->container()->get(\Campanella\Service\SubmissionService::class)->submit('Valaki ' . $i, "valaki{$i}@example.hu", '', 'Szia');
+    }
+    $kernel->terminate();
+    check(count($transport->sent) - $before === 2 && (int) $db->fetchValue("SELECT COUNT(*) FROM {objects} WHERE blueprint = 'submission'") >= 3, 'the e-mails are capped, the messages kept');
 
     $db->execute("DELETE FROM {objects} WHERE blueprint IN ('submission', 'user')");
     $db->execute('DELETE FROM {mail_log}');
@@ -5671,7 +5680,7 @@ test('Submissions: old ones deleted after contact.keep_days; the privacy note; t
     check($site->privacyUrl() === '/adatkezeles');
 
     // The System page's lines.
-    $form = new \Campanella\Webform\ContactForm($service, new Csrf(new Session(new ArraySessionStorage())), new Throttle($db));
+    $form = new \Campanella\Webform\ContactForm($service, new Csrf(new Session(new ArraySessionStorage())), new Throttle($db), new Session(new ArraySessionStorage()));
     $mailOff = \Campanella\Mail\Mailer::fromConfig([], static fn () => throw new \LogicException(), static fn () => 'x');
     $lines = static function (array $config, $submissions, $site) use ($form, $mailOff): array {
         $out = [];
@@ -5687,7 +5696,7 @@ test('Submissions: old ones deleted after contact.keep_days; the privacy note; t
     $site->save(['name' => 'Teszt', 'privacy_url' => '']);
     $got = $lines(['notify' => false], $forever, $site);
     check($got['admin.system.contact_notify'] === 'Info:admin.system.contact_notify_off' && $got['admin.system.contact_keep'] === 'Warning:admin.system.contact_keep_forever' && $got['admin.system.contact_privacy'] === 'Info:admin.system.contact_privacy_none', json_encode($got));
-    $off = (\Campanella\Webform\ContactCheck::checks([], new \Campanella\Webform\ContactForm($service, new Csrf(new Session(new ArraySessionStorage())), new Throttle($db), enabled: false), $service, $mailOff, $site, new \Campanella\Http\SitePaths()))(null);
+    $off = (\Campanella\Webform\ContactCheck::checks([], new \Campanella\Webform\ContactForm($service, new Csrf(new Session(new ArraySessionStorage())), new Throttle($db), new Session(new ArraySessionStorage()), enabled: false), $service, $mailOff, $site, new \Campanella\Http\SitePaths()))(null);
     check(count($off) === 1 && $off[0]->value === 'admin.system.contact_off');
 
     $db->execute("DELETE FROM {objects} WHERE blueprint = 'submission'");
@@ -5718,6 +5727,88 @@ test('Kernel: the contact form tells what happens to a message; old messages go 
 
     $db->execute("DELETE FROM {objects} WHERE blueprint = 'submission'");
     $db->execute("DELETE FROM {settings} WHERE name LIKE 'site.%'");
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('Review fixes (0.1.5): unforgeable time, limits, line breaks, keyed throttle, sitemap, private error pages', function () use ($db, $newUser): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $storage = new ArraySessionStorage();
+    $make = static function (array $override = []) use ($storage): \Campanella\Core\Kernel {
+        $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+        $c = $kernel->container();
+        $config = $c->get(\Campanella\Core\Config::class);
+        $c->set(\Campanella\Core\Config::class, static fn () => new \Campanella\Core\Config(array_replace_recursive($config->all(), ['site' => ['url' => 'https://pelda.example']], $override)));
+        $c->set(Session::class, static fn () => new Session($storage));
+
+        return $kernel;
+    };
+    $kernel = $make();
+    if ($kernel->container()->get(Connection::class)->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $db->execute('DELETE FROM {throttle}');
+    $db->execute("DELETE FROM {objects} WHERE blueprint = 'submission'");
+    $db->execute("DELETE FROM {settings} WHERE name LIKE 'site.%'");
+    $send = static function (string $method, string $path, array $post = [], string $ip = '10.0.10.1') use (&$kernel, $storage) {
+        $storage->endRequest();
+
+        return $kernel->handle(new Request($method, $path, post: $post, ip: $ip));
+    };
+    $page = $send('GET', '/contact');
+    preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $page->body, $m);
+    $csrf = $m[1];
+    $ts = static function (int $ago) use ($storage): string {
+        $time = (string) (time() - $ago);
+
+        return $time . '.' . hash_hmac('sha256', 'contact|' . $time, (string) $storage->get(\Campanella\Webform\ContactForm::SESSION_KEY));
+    };
+    $fields = ['_csrf' => $csrf, 'website' => '', 'name' => 'Próba', 'email' => 'proba@example.hu', 'subject' => '', 'message' => 'Üzenet'];
+    $count = static fn (): int => (int) $db->fetchValue("SELECT COUNT(*) FROM {objects} WHERE blueprint = 'submission'");
+
+    // The time cannot be signed with what the page shows (the CSRF token).
+    $time = (string) (time() - 60);
+    check($send('POST', '/contact', ['_ts' => $time . '.' . hash_hmac('sha256', 'contact|' . $time, $csrf)] + $fields)->status === 400 && $count() === 0, 'forged with the CSRF token');
+    check(!str_contains($page->body, (string) $storage->get(\Campanella\Webform\ContactForm::SESSION_KEY)), 'the secret is not on the page');
+    // Without a valid CSRF token, nothing sent is shown again.
+    $foreign = $send('POST', '/contact', ['_csrf' => 'rossz', 'message' => 'Hamis üzenet egy másik oldalról'] + $fields);
+    check($foreign->status === 400 && !str_contains($foreign->body, 'Hamis üzenet'), 'not shown again');
+    // A line break counts as one, as in the browser.
+    $long = str_repeat(str_repeat('a', 49) . "\r\n", 100);   // 5,000 in the browser, 5,100 with CRLF
+    check($send('POST', '/contact', ['_ts' => $ts(10), 'message' => $long] + $fields)->status === 303 && $count() === 1, 'CRLF');
+    // +tags count as the same address.
+    $send('POST', '/contact', ['_ts' => $ts(10), 'email' => 'proba+1@example.hu'] + $fields, '10.0.10.2');
+    $send('POST', '/contact', ['_ts' => $ts(10), 'email' => 'Proba+2@Example.hu'] + $fields, '10.0.10.3');
+    check($send('POST', '/contact', ['_ts' => $ts(10), 'email' => 'proba+3@example.hu'] + $fields, '10.0.10.4')->status === 429 && $count() === 3, '+tags');
+
+    $F = \Campanella\Webform\ContactForm::class;
+    check($F::networkOf('2001:db8:1:2::1') === '2001:db8:1::/48' && $F::networkOf('::ffff:192.0.2.1') === '192.0.2.1' && $F::addressKey(' Anna+hirlevel@Example.HU ') === 'anna@example.hu');
+
+    // The throttle keeps only keyed hashes, and forgets expired rows.
+    $hashes = $db->fetchColumn('SELECT key_hash FROM {throttle}');
+    $siteKey = 'contact-ip|' . \Campanella\Webform\ContactForm::networkOf('10.0.10.1');
+    check(!in_array(hash('sha256', $siteKey), $hashes, true) && in_array(hash_hmac('sha256', $siteKey, (string) $db->fetchValue("SELECT value FROM {system} WHERE name = 'throttle_key'")), $hashes, true), 'keyed');
+    $db->execute('UPDATE {throttle} SET reset_at = :t', ['t' => gmdate('Y-m-d H:i:s', time() - 1)]);
+    check($kernel->container()->get(Throttle::class)->purge() === count($hashes) && (int) $db->fetchValue('SELECT COUNT(*) FROM {throttle}') === 0, 'purged');
+
+    // The contact page is in the sitemap only while the form is on.
+    check(str_contains($send('GET', '/sitemap.xml')->body, 'https://pelda.example/contact'));
+    $kernel = $make(['contact' => ['enabled' => false]]);
+    check(!str_contains($send('GET', '/sitemap.xml')->body, '/contact'), 'not when off');
+
+    // An error page of a visitor with a session is not stored by caches either.
+    $kernel = $make();
+    $send('GET', '/contact');
+    $missing = $send('GET', '/nincs-ilyen-oldal');
+    check($missing->status === 404 && ($missing->headers['Cache-Control'] ?? '') === 'private, no-store', json_encode($missing->headers));
+
+    // The command line deletes the old ones.
+    $db->execute("UPDATE {objects} SET created_at = :t WHERE blueprint = 'submission'", ['t' => gmdate('Y-m-d H:i:s', time() - 200 * 86400)]);
+    $out = fopen('php://memory', 'w+');
+    check((new \Campanella\Cli\SubmissionsPruneCommand())->run($kernel->container(), [], new \Campanella\Cli\Output($out, $out)) === 0 && $count() === 0, 'submissions:prune');
+
+    $db->execute('DELETE FROM {throttle}');
     putenv('CAMPANELLA_DB_PREFIX');
 });
 

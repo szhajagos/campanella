@@ -135,7 +135,7 @@ final class Kernel
         } catch (\Throwable $e) {
             return (new SecurityHeaders())->apply($this->failure($e), $request);
         }
-        $response = $this->noindex($this->dispatch($request));
+        $response = $this->personal($this->noindex($this->dispatch($request)));
         try {
             $response = $this->container()->get(SecurityHeaders::class)->apply($response, $request);
         } catch (\Throwable) {
@@ -203,6 +203,22 @@ final class Kernel
     }
 
     /**
+     * With a session (logged in, or a form's CSRF token) the response is personalized:
+     * an intermediate cache (proxy, CDN) must not store it. Error pages too (since 0.1.5:
+     * a theme may show a form, e.g. contact_form(), on every page, error pages included).
+     */
+    private function personal(Response $response): Response
+    {
+        try {
+            return $this->container !== null && $this->container->get(Session::class)->isStarted()
+                ? $response->withHeader('Cache-Control', 'private, no-store')
+                : $response;
+        } catch (\Throwable) {
+            return $response;
+        }
+    }
+
+    /**
      * While search engines are asked not to index the site (Site settings), every
      * response without its own X-Robots-Tag says noindex (since 0.1.1).
      */
@@ -259,13 +275,7 @@ final class Kernel
                 $actor = Actor::anonymous();
             }
 
-            $response = $controller->handle($request, $route, $actor);
-
-            // With a session (logged in, or a form CSRF token) the response is
-            // personalized: an intermediate cache (proxy, CDN) must not store it.
-            return $container->get(Session::class)->isStarted()
-                ? $response->withHeader('Cache-Control', 'private, no-store')
-                : $response;
+            return $controller->handle($request, $route, $actor);
         } catch (HttpException $e) {
             return $this->errorResponse($e->status, $e->getMessage());
         } catch (\Throwable $e) {
@@ -501,6 +511,7 @@ final class Kernel
             $events->listen(FormSubmitted::class, static function (Event $event) use ($c): void {
                 $c->get(Deferred::class)->add(static function () use ($c): void {
                     $c->get(SubmissionService::class)->prune();
+                    $c->get(Throttle::class)->purge();
                 });
             });
             // An e-mail about the contact form's new messages (since 0.1.5; `contact.notify`).
@@ -757,6 +768,7 @@ final class Kernel
                 $c->get(SubmissionService::class),
                 $c->get(Csrf::class),
                 $c->get(Throttle::class),
+                $c->get(Session::class),
                 self::guards((array) $config->get('contact.guards', [])),
                 (bool) $config->get('contact.enabled', true),
                 (int) $config->get('contact.min_seconds', ContactForm::MIN_SECONDS),
@@ -822,8 +834,8 @@ final class Kernel
             return new SiteController(
                 $c->get(SiteSettings::class),
                 $c->get(QueryEngine::class),
-                // The lists, and the contact page (since 0.1.5).
-                [...$router->paths('query'), ...$router->paths('contact')],
+                // The lists, and the contact page while it is on (since 0.1.5).
+                [...$router->paths('query'), ...((bool) $c->get(Config::class)->get('contact.enabled', true) ? $router->paths('contact') : [])],
                 // The admin only at its default path: a path of its own is not revealed here
                 // (the admin pages send noindex themselves).
                 [...($admin->path() === '/admin' ? ['/admin/'] : []), ...$router->paths('auth'), InstallController::PATH],

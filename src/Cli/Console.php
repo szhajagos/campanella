@@ -29,6 +29,7 @@ final class Console
             new MigrateCommand(),
             new DbBackupCommand(),
             new MediaVariantsCommand(),
+            new SubmissionsPruneCommand(),
         ];
         foreach ($commands as $command) {
             $this->commands[$command->name()] = $command;

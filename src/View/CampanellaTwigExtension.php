@@ -316,7 +316,6 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
         );
     }
 
-    /** Hidden field with the CSRF token; it must be put into every POST form. */
     /**
      * The contact form (since 0.1.5), to put on any page: `{{ contact_form() }}`. It is
      * sent to the contact page (paths.contact), which shows the result. '' while the
@@ -327,6 +326,7 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
         return $this->contactForm === null ? '' : ($this->contactForm)();
     }
 
+    /** Hidden field with the CSRF token; it must be put into every POST form. */
     public function csrfField(): string
     {
         if ($this->csrfToken === null) {

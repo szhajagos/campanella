@@ -715,6 +715,8 @@ return [
     'admin.system.media_variants_partly' => 'Copies made for {made} images; {left} are left: press the button again.',
     'cli.media_variants.description' => 'Makes the smaller copies of the images that have none yet (--all: of every image again)',
     'cli.media_variants.done' => '{count} images processed.',
+    'cli.submissions_prune.description' => 'Deletes the contact form\'s messages older than contact.keep_days, and the expired throttling rows',
+    'cli.submissions_prune.done' => '{count} messages deleted (kept for {days} days; 0: for ever).',
 
     // E-mail and events (since 0.1.3)
     'mail.footer' => 'This is an automatic message; replies to it are not read.',

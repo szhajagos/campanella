@@ -10,7 +10,33 @@ backward-incompatible.
 
 ## [Unreleased]
 
-Work towards 0.1.5 (the contact form), in parts.
+## [0.1.5] – 2026-10-11
+
+The contact form: visitors can write to the site, the messages arrive under
+*Submissions* in the admin (for administrators only) and by e-mail, and they
+are deleted after a set time. An independent security review of the changes;
+its findings are fixed.
+
+**Upgrading from 0.1.4:**
+
+1. Upload the new files. No new dependency.
+2. Run `php bin/campanella install`, or open `/admin/upgrade` (schema version
+   12: the `submitted` capability's table; no migration). Until then the site
+   answers 503; logging in works.
+3. The contact form is **on** at `/contact` once the upgrade ran. Link it
+   from the menu (*Menus* in the admin), or put it on a page of your theme
+   with `{{ contact_form() }}`; turn it off with
+   `'contact' => ['enabled' => false]` in `config/local.php`.
+4. For the e-mail about each message, e-mail must be set up; it goes to the
+   administrators, or to `contact.notify_to`.
+5. Give the privacy notice's address under *Site settings → Privacy*, and
+   say there how long messages are kept (`contact.keep_days`, 180 days). On a
+   quiet site, run `php bin/campanella submissions:prune` daily from cron.
+6. **A custom access policy** (one that replaced `DefaultPolicy`) must hide
+   the `submitted` objects itself: only `DefaultPolicy` does it.
+7. The login and other throttling counters start again (their keys are now
+   hashed with a secret of the installation): an account locked by too many
+   wrong passwords at the moment of the upgrade is free again.
 
 ### Added
 
@@ -20,27 +46,28 @@ Work towards 0.1.5 (the contact form), in parts.
   is an object of the new `submission` Blueprint (`Submitted` capability:
   e-mail address, subject, message, form, read time; hidden from templates;
   no IP address stored). New: `Campanella\Capability\Submitted`,
-  `Campanella\Service\SubmissionService`; **schema version 12: run the
-  upgrade**.
+  `Campanella\Service\SubmissionService`; schema version 12.
 - **The contact form** at `/contact` (`paths.contact`), and on any page with
   `{{ contact_form() }}`: name, e-mail address, subject (optional), message.
   Protected by a CSRF token, the honeypot (`contact.guards`), a signed time
   (sent sooner than `contact.min_seconds`, 3 seconds: taken for a bot's),
-  and limits (5 messages per IP address, 3 per e-mail address in an hour).
+  and limits in an hour: 5 messages per IP address (IPv6: per /48), 3 per
+  e-mail address.
   `contact.enabled: false` turns it off. The contact page is in
-  `sitemap.xml`. New: `Campanella\Webform\ContactForm`, `ContactResult`,
-  `SubmissionService::check()`.
-
+  `sitemap.xml` while it is on. New: `Campanella\Webform\ContactForm`,
+  `ContactResult`, `SubmissionService::check()`.
 - **An e-mail about each new message** of the contact form, to the active
   administrators or to `contact.notify_to`; replying to it goes to the
   sender (`Reply-To`). Sent after the response; its subject holds nothing the
-  sender wrote. `contact.notify: false` turns it off. New: the
+  sender wrote; at most `contact.notify_per_hour` (50) an hour on the whole
+  site (the messages are all kept). `contact.notify: false` turns it off. New: the
   `FormSubmitted` event, the `MailSubmission` action, the `submission` mail
   template, `Mailer::send()`'s `$replyTo` and `$replyToName`.
 
 - **Data protection for the contact form's messages:** they are deleted
-  `contact.keep_days` (180) days after they arrived (after a new message and
-  when the admin's list is opened; `0`: kept for ever); the form says what
+  `contact.keep_days` (180) days after they arrived (after a new message,
+  when an administrator opens the dashboard or the messages, and with the new
+  `submissions:prune` command for cron; `0`: kept for ever); the form says what
   happens to a message, and links to the privacy notice, whose address is a
   new Site setting (*Privacy notice*, `privacy_url`); a *Contact form* group
   on the System page. New: `SubmissionService::prune()`, `keepDays()`,
@@ -52,6 +79,14 @@ Work towards 0.1.5 (the contact form), in parts.
 
 ### Security
 
+- **An independent security review** of these changes; its findings are
+  fixed (see [docs/security.md](docs/security.md#security-review-for-015-2026-10-11)).
+- **The throttling counters keep only keyed hashes** (HMAC with a random
+  secret of the installation, instead of a plain SHA-256: the IP and e-mail
+  addresses in their keys could be recovered by trying every address), and
+  expired rows are deleted (`Throttle::purge()`).
+- **A response with a session is never stored by caches**, error pages
+  included (`Cache-Control: private, no-store`).
 - **Administrators-only objects:** `DefaultPolicy` keeps the objects of the
   `submitted` capability (personal data) from editors and visitors, in every
   query and operation (`DefaultPolicy::ADMINISTRATORS_ONLY`, the constructor's

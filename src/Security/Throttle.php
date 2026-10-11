@@ -13,11 +13,24 @@ use DateTimeZone;
 /**
  * Limits attempts per key (e.g. "e-mail address + IP address") within a
  * time window. It stores in the database, so it works across multiple PHP
- * processes and restarts. Only the SHA-256 hash of the key is stored in
- * the database.
+ * processes and restarts.
+ *
+ * Only a keyed hash of the key is stored (HMAC-SHA-256 with a random secret of the
+ * installation, kept in the `system` table; since 0.1.5, before: a plain SHA-256),
+ * so the IP and e-mail addresses in the keys cannot be recovered from the table by
+ * trying every address. Expired rows are deleted now and then (purge()), so nothing
+ * is kept longer than its time window.
  */
 final class Throttle
 {
+    /** The `system` row of the installation's secret. */
+    public const string SECRET = 'throttle_key';
+
+    /** One hit in this many also deletes the expired rows. */
+    public const int PURGE_EVERY = 20;
+
+    private ?string $secret = null;
+
     public function __construct(private readonly Connection $db)
     {
     }
@@ -37,12 +50,12 @@ final class Throttle
      */
     public function hit(string $key, int $decaySeconds): int
     {
-        $hash = self::hash($key);
+        $hash = $this->hash($key);
         $now = self::now();
         $reset = $now->modify("+{$decaySeconds} seconds")->format(FieldType::STORAGE_DATE_FORMAT);
         $nowText = $now->format(FieldType::STORAGE_DATE_FORMAT);
 
-        return $this->db->transactional(function (Connection $db) use ($hash, $reset, $nowText): int {
+        $hits = $this->db->transactional(function (Connection $db) use ($hash, $reset, $nowText): int {
             // The assignments run left to right: `hits` still sees the old `reset_at`.
             $db->execute(
                 'INSERT INTO {throttle} (key_hash, hits, reset_at) VALUES (:k, 1, :reset)
@@ -52,6 +65,22 @@ final class Throttle
 
             return (int) $db->fetchValue('SELECT hits FROM {throttle} WHERE key_hash = :k', ['k' => $hash]);
         });
+        // After the commit, so the deletion holds no lock of the count above.
+        if (random_int(1, self::PURGE_EVERY) === 1 && !$this->db->pdo()->inTransaction()) {
+            $this->purge();
+        }
+
+        return $hits;
+    }
+
+    /**
+     * Deletes the rows whose window has passed (they count for nothing).
+     *
+     * @return int How many were deleted
+     */
+    public function purge(): int
+    {
+        return $this->db->execute('DELETE FROM {throttle} WHERE reset_at <= :now', ['now' => self::now()->format(FieldType::STORAGE_DATE_FORMAT)]);
     }
 
     /** In how many seconds another attempt is allowed (0 if right now). */
@@ -64,7 +93,7 @@ final class Throttle
 
     public function clear(string $key): void
     {
-        $this->db->delete(CoreSchema::THROTTLE, ['key_hash' => self::hash($key)]);
+        $this->db->delete(CoreSchema::THROTTLE, ['key_hash' => $this->hash($key)]);
     }
 
     /** @return array{hits: int, reset_at: DateTimeImmutable}|null Only a row that is still valid. */
@@ -72,7 +101,7 @@ final class Throttle
     {
         $row = $this->db->fetchOne(
             'SELECT hits, reset_at FROM {throttle} WHERE key_hash = :k',
-            ['k' => self::hash($key)],
+            ['k' => $this->hash($key)],
         );
         if ($row === null) {
             return null;
@@ -85,9 +114,26 @@ final class Throttle
         return ['hits' => (int) $row['hits'], 'reset_at' => $resetAt];
     }
 
-    private static function hash(string $key): string
+    private function hash(string $key): string
     {
-        return hash('sha256', $key);
+        return hash_hmac('sha256', $key, $this->secret());
+    }
+
+    /** The installation's secret, made on first use. */
+    private function secret(): string
+    {
+        if ($this->secret !== null) {
+            return $this->secret;
+        }
+        $read = fn (): mixed => $this->db->fetchValue('SELECT value FROM {system} WHERE name = :name', ['name' => self::SECRET]);
+        $secret = $read();
+        if (!is_string($secret) || strlen($secret) < 32) {
+            // Two processes at once: the first one's secret stays (INSERT IGNORE), both read it.
+            $this->db->execute('INSERT IGNORE INTO {system} (name, value) VALUES (:name, :value)', ['name' => self::SECRET, 'value' => bin2hex(random_bytes(32))]);
+            $secret = $read();
+        }
+
+        return $this->secret = is_string($secret) ? $secret : '';
     }
 
     private static function now(): DateTimeImmutable

@@ -124,7 +124,9 @@ use Campanella\Event\UserCreated;
 `Campanella\Event\Action\MailSubmission` · **Public** · since 0.1.5: e-mails
 a form's new message (`FormSubmitted`) to the given addresses, or to the
 active administrators (at most `MAX_RECIPIENTS`, 20), with the `submission`
-template; `Reply-To` is the sender. Sent after the response (`Deferred`). The
+template; `Reply-To` is the sender. Sent after the response (`Deferred`). At
+most `contact.notify_per_hour` (`PER_HOUR`, 50) messages are e-mailed in an
+hour on the whole site; the others are only in the admin. The
 Kernel binds it to the contact form by default (`contact.notify`; see
 [chapter 22](22-forms.md#the-e-mail-notification)); do not bind it to
 `FormSubmitted` again in `events`, or the contact form's messages are mailed

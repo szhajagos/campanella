@@ -83,8 +83,10 @@ final class Submitted extends Capability
     #[\Override]
     public function prepareForSave(): void
     {
-        $email = mb_strtolower(trim($this->email()), 'UTF-8');
-        $this->object->set('sender_email', $email);
+        // Only the domain is lowercased: the part before the @ may, in theory, depend on case.
+        $email = trim($this->email());
+        $at = strrpos($email, '@');
+        $this->object->set('sender_email', $at === false ? $email : substr($email, 0, $at) . mb_strtolower(substr($email, $at), 'UTF-8'));
         $this->object->set('subject', trim((string) preg_replace('/[\x00-\x1F\x7F]+/u', ' ', $this->subject())));
         // Line breaks stay; other control characters go.
         $this->object->set('message', trim((string) preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]+/u', '', str_replace("\r\n", "\n", $this->message()))));

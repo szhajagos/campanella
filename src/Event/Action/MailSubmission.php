@@ -19,6 +19,7 @@ use Campanella\Event\FormSubmitted;
 use Campanella\Mail\Mailer;
 use Campanella\Query\Query;
 use Campanella\Query\QueryEngine;
+use Campanella\Security\Throttle;
 use Campanella\Service\SubmissionService;
 use Campanella\Service\UserService;
 use Campanella\Site\SiteSettings;
@@ -32,12 +33,16 @@ use Campanella\Site\SiteSettings;
  * subject and the message as plain text, and a link to it in the admin; replying to
  * it goes to the sender (`Reply-To`). It is sent after the response (Deferred), so the
  * visitor does not wait for the mail server. Its subject holds nothing the sender
- * wrote: the mail log keeps the subject.
+ * wrote: the mail log keeps the subject. At most `contact.notify_per_hour` (50) messages
+ * are e-mailed in an hour on the whole site; the others are only in the admin.
  */
 final class MailSubmission implements Action
 {
     /** The most recipients of one message. */
     public const int MAX_RECIPIENTS = 20;
+
+    /** The most messages e-mailed in an hour, on the whole site (`contact.notify_per_hour`). */
+    public const int PER_HOUR = 50;
 
     /** @param list<string> $recipients Addresses; empty: the active administrators */
     public function __construct(
@@ -47,6 +52,8 @@ final class MailSubmission implements Action
         private readonly ?SiteSettings $site = null,
         private readonly ?AdminAccess $admin = null,
         private readonly ?Deferred $deferred = null,
+        private readonly ?Throttle $throttle = null,
+        private readonly int $perHour = self::PER_HOUR,
     ) {
     }
 
@@ -60,6 +67,8 @@ final class MailSubmission implements Action
             $container->get(SiteSettings::class),
             $container->get(AdminAccess::class),
             $container->get(Deferred::class),
+            $container->get(Throttle::class),
+            (int) $container->get(Config::class)->get('contact.notify_per_hour', self::PER_HOUR),
         );
     }
 
@@ -89,6 +98,11 @@ final class MailSubmission implements Action
         }
         $submission = $event->submission;
         if (!$submission->has(Submitted::class)) {
+            return;
+        }
+        // A flood of messages must not become a flood of e-mails: past the limit, the
+        // messages are still in the admin, only not e-mailed.
+        if ($this->throttle !== null && $this->throttle->hit('mail-submission', 3600) > max(1, $this->perHour)) {
             return;
         }
         $lens = $submission->as(Submitted::class);

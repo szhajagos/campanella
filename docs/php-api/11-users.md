@@ -282,7 +282,11 @@ In templates, in every POST form: `{{ csrf_field() }}`. The field name is the
 `Campanella\Security\Throttle` · **Public** · container: `Throttle::class`
 
 Attempt throttling per key, with a time window, in the `cc_throttle` table.
-Only the SHA-256 hash of the key is stored.
+Only a keyed hash of the key is stored: HMAC-SHA-256 with a random secret of
+the installation (the `throttle_key` row of the `system` table, made on first
+use; since 0.1.5, before: a plain SHA-256), so the IP and e-mail addresses in
+the keys cannot be recovered by trying every address. Expired rows are
+deleted now and then (one hit in `PURGE_EVERY`, 20), and by `purge()`.
 
 | Method | Description |
 |---|---|
@@ -290,8 +294,11 @@ Only the SHA-256 hash of the key is stored.
 | `hit(string $key, int $decaySeconds): int` | Records an attempt; returns the count |
 | `availableIn(string $key): int` | Seconds until another attempt is allowed |
 | `clear(string $key): void` | |
+| `purge(): int` | Deletes the rows whose window has passed (since 0.1.5) |
 
-Other features (e.g. a future contact form) can use it too.
+Other features (the forgotten password, the contact form) use it too. On the
+upgrade to 0.1.5 the running counters start again (their keys are hashed
+differently).
 
 `Campanella\Security\FileThrottle` · **Public** · since 0.1.0: the same
 methods (`tooManyAttempts()`, `hit()`, `availableIn()`, `clear()`), in a JSON

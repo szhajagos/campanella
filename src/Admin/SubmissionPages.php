@@ -42,6 +42,12 @@ final class SubmissionPages
         return $this->submissions->canView($actor);
     }
 
+    /** Deletes the messages older than contact.keep_days (the dashboard calls it). */
+    public function prune(): int
+    {
+        return $this->submissions->prune();
+    }
+
     /** The unread messages the actor may see (the menu's badge). */
     public function unreadCount(Actor $actor): int
     {

@@ -366,6 +366,10 @@ final class AdminController implements Controller
 
     private function dashboard(Request $request, Actor $actor): Response
     {
+        // The old messages go when an administrator comes by (contact.keep_days; since 0.1.5).
+        if ($this->submissions?->canView($actor) === true) {
+            $this->submissions->prune();
+        }
         $counts = [];
         foreach ($this->blueprints->all() as $name => $blueprint) {
             // The forms' messages: only for those who may see them (since 0.1.5).
@@ -1219,13 +1223,13 @@ final class AdminController implements Controller
         };
     }
 
-    /** A Blueprint managed in the admin as content (users are managed from the command line for now). */
     /** Users and the forms' messages have pages of their own, not the generic lists and forms. */
     private static function ownPages(Blueprint $blueprint): bool
     {
         return isset($blueprint->capabilities['authenticatable']) || isset($blueprint->capabilities['submitted']);
     }
 
+    /** A Blueprint managed in the admin as content, or 404. */
     private function contentBlueprint(string $name): Blueprint
     {
         $blueprint = $this->blueprints->find($name);

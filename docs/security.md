@@ -33,11 +33,14 @@ CHANGELOG's **Security** section names it.
   it), made from the site's set address (never the `Host` header); requests
   limited per address and per e-mail address; the new password ends every
   session.
-- **Contact form** (since 0.1.5): a CSRF token, a honeypot, a signed time
-  (a form sent within 3 seconds is taken for a bot's), 5 messages per IP
-  address and 3 per e-mail address in an hour, length limits; the messages
-  are for administrators only, never shown to templates, and shown in the
-  admin as plain text; the sender's IP address is not stored.
+- **Contact form** (since 0.1.5): a CSRF token, a honeypot, a time signed
+  with a secret only the session knows (a form sent within 3 seconds is taken
+  for a bot's), 5 messages per IP address (IPv6: /48) and 3 per e-mail
+  address in an hour, at most 50 notification e-mails an hour, length limits; the messages are for
+  administrators only, never handed to the site's templates, shown in the
+  admin as plain text, and deleted after 180 days; the sender's IP address is
+  not stored with them. Throttling counters keep IP and e-mail addresses only
+  as keyed hashes, deleted after their time window.
 - **Output:** Twig escapes everything; HTML texts are filtered on every save
   with an allowlist; link URLs and site paths are checked; templates run in a
   sandbox that cannot read hidden fields (password hash, e-mail address,
@@ -56,6 +59,25 @@ CHANGELOG's **Security** section names it.
   and headers are checked by symfony/mailer; the log never keeps the text.
 - **Dependencies:** only MIT-compatible ones; `composer audit` runs in CI on
   every push.
+
+## Security review for 0.1.5 (2026-10-11)
+
+An independent review of the 0.1.5 changes (the contact form, its messages,
+the notification, data protection). It found no way for editors or visitors
+to read the messages, and no stored XSS or e-mail header injection. Fixed
+before the release:
+
+| Severity | Issue | Fix |
+|---|---|---|
+| Medium | The form's time was signed with the CSRF token, which the page shows: a bot could forge an old time | A secret kept only in the session |
+| Medium (privacy) | The throttling counters kept IP and e-mail addresses as plain SHA-256 hashes (recoverable by trying every address), and never deleted the expired ones | A keyed hash (a secret of the installation); expired rows are deleted |
+| Low–medium | Limits only per IP address (IPv6 /64) and per e-mail address: one IPv6 /48 could flood the administrators' mailboxes | At most 50 notification e-mails an hour on the whole site (a limit on the messages themselves would let a few addresses close the form for everyone: the second look at the fixes found this), IPv6 counted per /48, `+tags` of addresses ignored |
+| Low | Old messages were deleted only after a new one or when the list was opened | Also when the dashboard is opened, and a `submissions:prune` command for cron |
+| Low | `sitemap.xml` listed `/contact` while the form was off | Only while it is on |
+| Low | The browser counts a line break as one character, the server counted two; a value was cut before it was checked | Line breaks normalized first; nothing is cut before the check |
+| Low | Error pages of a visitor with a session (e.g. a theme showing `contact_form()` everywhere) had no `Cache-Control: private` | Every response with a session gets it |
+| Info | Without a valid CSRF token, what was sent was shown again: another site could put its text on the contact page | Nothing is shown again then |
+| Info | The sender's e-mail address was lowercased whole | Only its domain |
 
 ## Security review for 0.1.4 (2026-10-10)
 
@@ -133,6 +155,13 @@ reach its database from the review's environment: it runs in CI instead.
   address (with the token) may stay in the history and in the web server's
   log; it works once, for 60 minutes, and only while the account's password
   and address are unchanged.
+- **A contact form sender's address can be used up** (since 0.1.5): 3
+  messages per e-mail address in an hour, so someone who knows an address can
+  keep its owner from writing for an hour. Without it, one address could be
+  used to flood the site. The owner can still write by e-mail.
+- **The contact form's limits per IP address** are per /48 for IPv6, so
+  visitors sharing one (a company, a mobile operator) share the 5 messages an
+  hour.
 - **The installer shows the requirements** (PHP and database versions,
   missing extensions) to anyone before the site is installed: it helps the
   person installing, and there is nothing yet to protect. Once a user exists,

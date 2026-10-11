@@ -298,7 +298,8 @@ An installation older than 0.0.6 is upgraded to 0.0.7 first.
       forgotten password's link works (log out, *Forgot your password?*).
 - [ ] The contact form: a test message arrives (*Submissions*, and by
       e-mail); the privacy notice is linked (*Site settings → Privacy*), and
-      says how long messages are kept (`contact.keep_days`).
+      says how long messages are kept (`contact.keep_days`); on a quiet site,
+      `php bin/campanella submissions:prune` runs daily from cron.
 - [ ] `upgrade.key` is not set (unless an upgrade needs it right now).
 - [ ] Only `var/cache/`, `var/backups/` and `public/media/` are writable by the
       web server; `config/local.php` is not readable by others.

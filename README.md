@@ -1,4 +1,4 @@
-# Campanella 0.1.4
+# Campanella 0.1.5
 
 [![CI](https://github.com/szhajagos/campanella/actions/workflows/ci.yml/badge.svg)](https://github.com/szhajagos/campanella/actions/workflows/ci.yml)
 
@@ -28,6 +28,9 @@ versions (the [CHANGELOG](CHANGELOG.md) always says how).
   can be logged out); a forgotten password by e-mail (since 0.1.4); login
   protection (throttling, a honeypot, the same answer for every failure), and
   a login lasts at most 12 hours.
+- **Contact form** (since 0.1.5): on its own page or on any page, protected
+  against bots and floods; the messages in the admin (administrators only)
+  and by e-mail, deleted after a set time.
 - **For search engines and sharing** (since 0.1.1): the site's name,
   description and address edited in the admin; meta description, canonical
   URL and Open Graph tags on every page; `sitemap.xml` and `robots.txt` made
@@ -191,7 +194,7 @@ On every push, GitHub runs the checks above
 documentation checks, `composer audit` (known vulnerabilities of the
 dependencies), and the tests on MariaDB 10.6 and 11.4, and MySQL 8.0 and 8.4. The results are shown next to the commits and on the Actions tab.
 
-After a version tag (`git tag v0.1.4 && git push --tags`), GitHub builds the
+After a version tag (`git tag v0.1.5 && git push --tags`), GitHub builds the
 installation package and attaches it to the release. For an existing tag it
 can also be started manually: Actions → CI → Run workflow, entering the tag.
 

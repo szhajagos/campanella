@@ -712,6 +712,8 @@ return [
     'admin.system.media_variants_done' => 'Elkészültek a kisebb változatok ({made} kép).',
     'admin.system.media_variants_partly' => '{made} kép változatai elkészültek; még {left} van hátra: nyomd meg újra a gombot.',
     'cli.media_variants.description' => 'Elkészíti azoknak a képeknek a kisebb változatait, amelyeknek még nincsenek (--all: minden képét újra)',
+    'cli.submissions_prune.description' => 'Törli a kapcsolati űrlap contact.keep_days napnál régebbi üzeneteit és a lejárt korlátozási sorokat',
+    'cli.submissions_prune.done' => '{count} üzenet törölve (megőrzés: {days} nap; 0: örökre).',
     'cli.media_variants.done' => '{count} kép feldolgozva.',
 
     // E-mail and events (since 0.1.3)

@@ -183,6 +183,7 @@ from ([chapter 17](17-migrations.md#the-oldest-version-that-can-be-upgraded)).
 | `install` | Creates the tables; on an existing installation also does what `migrate` does (`--yes`, `--no-backup`, `--prune`); `--sql`: only prints the SQL |
 | `migrate` | Applies the definitions' additive changes and runs the pending migrations after a backup; `--dry-run`: only lists them; `--yes`: without asking; `--no-backup`; `--prune`: deletes the data of capabilities removed from Blueprints ([chapter 17](17-migrations.md#running-them)) |
 | `db:backup` | Saves the tables into `var/backups/` as SQL (`.sql.gz`; `--plain`: `.sql`) ([chapter 17](17-migrations.md#backups-databasebackup)) |
+| `submissions:prune` | Deletes the contact form's messages older than `contact.keep_days`, and the expired throttling rows (since 0.1.5; for cron on a quiet site, [chapter 22](22-forms.md#data-protection)) |
 | `media:variants` | Makes the smaller copies of the images that have none yet; `--all`: of every image again (since 0.1.2; [chapter 16](16-media.md#smaller-copies-variants)) |
 | `seed` | Sample content. Can be run repeatedly: whatever already exists by path is not created again |
 | `status` | Version, the system check ([chapter 14](14-system-check.md)), capabilities, Blueprints, object count; reports if the database needs an upgrade. Exits with `1` if a check reports an error |
@@ -226,7 +227,7 @@ module system it will become registrable.
 |---|---|
 | `Console` · **Internal** | `__construct(Kernel $kernel, Output $output = new Output())`, `run(array $argv): int` |
 | `Output` · **Public** | `__construct($stream = STDOUT, $errors = STDERR)`; `line(string $text = '')`, `success(string $text)` (with a ✔ mark), `error(string $text)` (with a ✘ mark, to the error stream) |
-| `InstallCommand`, `SeedCommand`, `StatusCommand`, `HtmlSanitizeCommand`, `SchemaCheckCommand`, `MigrateCommand`, `DbBackupCommand`, `MigrationRunner` · **Internal** | The built-in commands |
+| `InstallCommand`, `SeedCommand`, `StatusCommand`, `HtmlSanitizeCommand`, `SchemaCheckCommand`, `MigrateCommand`, `DbBackupCommand`, `SubmissionsPruneCommand`, `MigrationRunner` · **Internal** | The built-in commands |
 
 ## Helper classes
 
