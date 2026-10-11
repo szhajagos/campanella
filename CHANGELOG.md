@@ -31,6 +31,24 @@ Work towards 0.2.0 (the milestone: see the [ROADMAP](ROADMAP.md)), in parts.
   watched for JavaScript errors, Content-Security-Policy violations and
   missing files. In CI as the `browser` job; described in the new
   [docs/testing.md](docs/testing.md).
+- **The upgrade guide** ([docs/upgrading.md](docs/upgrading.md)): from any
+  0.1.x to 0.2.0 in one document: the steps, the database changes, the new
+  settings, what behaves differently, what a theme or custom code must
+  follow, a checklist, and going back from the backup.
+
+### Fixed
+
+- **The upgrade's backup did not hold the old database.** `install`,
+  `migrate` and the upgrade page created the new tables and wrote the new
+  schema version first, and made the backup only then: restoring it brought
+  back the new schema version with the old code, which then asked for an
+  upgrade again. The backup is now made before anything is written, and an
+  upgrade to a new schema version is always backed up, also when it only
+  adds tables. Found while writing the upgrade guide's "Going back"; the
+  upgrade test now checks it, and going back from 0.2.0 to 0.1.0 was tried
+  by hand.
+- A backup's first lines named the code's schema version; they name the
+  database's now.
 
 ## [0.1.5] – 2026-10-11
 

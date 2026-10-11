@@ -284,6 +284,9 @@ Old backups are not deleted automatically: remove the ones you no longer need.
 4. Read the version's section in the [CHANGELOG](../CHANGELOG.md): extra steps
    are at its top.
 
+From 0.1.x to 0.2.0: the [upgrade guide](upgrading.md) puts every step since
+0.1.0 together, with a checklist and how to go back.
+
 An installation older than 0.0.6 is upgraded to 0.0.7 first.
 
 ## Checklist before going live
