@@ -335,6 +335,40 @@ upgrade page stop with an explanation (`UnsupportedUpgradeException`,
 0.0.7 first, then to the new version. This way the code that read the data of
 old versions can be removed.
 
+## The upgrade test
+
+*Since 0.2.0.* Upgrades are supported from 0.1.0 on, and a test plays one out
+for real (`tests/upgrade/`, in CI on MariaDB 10.6 and MySQL 8.0):
+
+```bash
+git worktree add /tmp/campanella-0.1.0 v0.1.0
+bash tests/upgrade/run.sh /tmp/campanella-0.1.0       # --offline: no composer install; --keep: keep the site
+```
+
+1. **The old version** is installed into a temporary folder from its source
+   (its own dependencies, `composer install`), with its sample content
+   (`seed`) and what a real site has besides: an administrator, an editor, a
+   blocked user, an uploaded image shown in an article (`old-fixture.php`,
+   which uses only what 0.1.0 had). Then a snapshot of every row of every
+   table (but `system`, `migrations` and `throttle`), and of every media file.
+2. **The upgrade:** the current files are copied over the old ones, as one
+   uploads a new version (`config/local.php`, `public/media/` and `var/`
+   stay), the new dependencies are installed, and
+   `php bin/campanella install --yes` runs (with its backup).
+3. **The checks** (`verify.php`, with the new code): the schema version, no
+   pending change, a backup made; every old row with its old columns, and every
+   media file, unchanged; the administrator and the editor can log in with their
+   old passwords, the blocked user cannot; the front page, the article with its
+   image, the contact page, the login page; the admin's pages as the
+   administrator (the profile's session list and the *Submissions* too); the
+   migration's work (the image's use in the article, `core:0008_media_usage`);
+   the smaller copies of the old image made as the System page's button makes
+   them; a contact message for administrators only. Any problem is listed and
+   fails the test.
+
+The database is the tests' (`CAMPANELLA_DB_*`), the tables get the
+`CAMPANELLA_DB_PREFIX` prefix (`upg_` by default), dropped before and after.
+
 ## Backups: DatabaseBackup
 
 `Campanella\Database\DatabaseBackup` · **Public** · `final class` · container: `DatabaseBackup::class`

@@ -1,7 +1,8 @@
 # Automated checks and releases.
 #
-# - On every push and pull request: PHPStan, the documentation check, and the
-#   tests on every supported database (MariaDB 10.6+, MySQL 8.0+).
+# - On every push and pull request: PHPStan, the documentation check, the
+#   tests on every supported database (MariaDB 10.6+, MySQL 8.0+), and an upgrade
+#   from 0.1.0 (since 0.2.0).
 # - On a version tag (v*): an installation package including the vendor/ folder,
 #   attached to the GitHub release. Can also be run manually for an existing tag
 #   (Actions → CI → Run workflow, giving the tag).
@@ -126,6 +127,64 @@ jobs:
           php bin/campanella install
           php bin/campanella seed
           php bin/campanella status
+
+  upgrade:
+    # A real upgrade from the oldest supported version (since 0.2.0): tests/upgrade/run.sh
+    # installs 0.1.0 with content, users and an image, upgrades it to this code, and
+    # checks that nothing was lost and the site works.
+    name: Upgrade from 0.1.0 – ${{ matrix.db }}
+    if: inputs.tag == ''
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        db: ['mariadb:10.6', 'mysql:8.0']
+
+    services:
+      db:
+        image: ${{ matrix.db }}
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: campanella
+          MYSQL_USER: campanella
+          MYSQL_PASSWORD: campanella
+        ports:
+          - 3306:3306
+
+    env:
+      CAMPANELLA_DB_HOST: 127.0.0.1
+      CAMPANELLA_DB_PORT: 3306
+      CAMPANELLA_DB_NAME: campanella
+      CAMPANELLA_DB_USER: campanella
+      CAMPANELLA_DB_PASSWORD: campanella
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # The tags too: the old version is checked out from v0.1.0.
+          fetch-depth: 0
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_mysql, mbstring, dom, gd, exif, fileinfo
+          coverage: none
+          tools: composer
+
+      - name: Wait for the database
+        run: |
+          for i in $(seq 1 60); do
+            php -r 'new PDO("mysql:host=127.0.0.1;port=3306;dbname=campanella", "campanella", "campanella");' 2>/dev/null && exit 0
+            sleep 2
+          done
+          echo "The database did not start." >&2
+          exit 1
+
+      - name: The old version (0.1.0)
+        run: git worktree add "$RUNNER_TEMP/campanella-0.1.0" v0.1.0
+
+      - name: Upgrade, and check that nothing was lost
+        run: bash tests/upgrade/run.sh "$RUNNER_TEMP/campanella-0.1.0"
 
   release:
     name: Release package

@@ -10,6 +10,17 @@ backward-incompatible.
 
 ## [Unreleased]
 
+Work towards 0.2.0 (the milestone: see the [ROADMAP](ROADMAP.md)), in parts.
+
+### Added
+
+- **The upgrade test** (`tests/upgrade/run.sh`): installs 0.1.0 with its
+  sample content, users of every kind and an image shown in an article,
+  upgrades it to the current code as one uploads a new version, and checks
+  that every row, column and media file survived, the old passwords work, and
+  the pages, the admin and the new features work on the old data. In CI on
+  MariaDB 10.6 and MySQL 8.0 (the `upgrade` job).
+
 ## [0.1.5] – 2026-10-11
 
 The contact form: visitors can write to the site, the messages arrive under
