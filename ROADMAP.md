@@ -44,7 +44,52 @@ CHANGELOG entry; small additions may join a step along the way.
 | 0.1.3 ✔ | **Events and e-mail** (released 2026-10-10). The Event / Action foundation (`ObjectPublished`, `UserCreated` …; workflows and a state machine later). Sending e-mail with symfony/mailer: SMTP or PHP's `mail()`, translatable templates, a log, a test e-mail from the System page. |
 | 0.1.4 ✔ | **Forgotten password and sessions** (released 2026-10-10). A password reset by e-mail (a single-use, 60-minute link; the same answer and response time whether the address exists or not); the list of one's sessions on the profile, with "log out everywhere else"; a 12-hour absolute session lifetime. Closed the related accepted risk in [docs/security.md](docs/security.md). |
 | 0.1.5 ✔ | **Webform** (released 2026-10-11). A contact form (honeypot, throttling, CSRF); the submissions are objects, listed in the admin; an e-mail notification about each. Decided on 2026-10-10: its own page at a configurable path (`/contact`) and a `contact_form()` Twig function; fixed fields (name, e-mail address, an optional subject, message); the submissions for administrators only, deleted after a configurable time (180 days by default); no copy to the sender (it would let anyone send mail from the site to any address); the sender's IP address is not stored. In five parts: storage and admin, the form, the notification, data protection, release. |
-| 0.2.0 | **Release:** upgrade guide, and a short security review of the new forms and of e-mail sending. |
+| 0.2.0 | **Release of the milestone**, detailed below. |
+
+#### 0.2.0 in detail (agreed on 2026-10-11)
+
+0.2.0 brings no new feature (search, redirects and the image picker stay in
+0.3.0). It releases what 0.1.1–0.1.5 built as one whole: tested, documented
+and promised for the longer term. In parts, each a commit of its own:
+
+1. **Upgrade test from 0.1.0.** A CI job installs `v0.1.0`, fills it with
+   content, users and images, and upgrades it to the current code (schema 6
+   to 12); it checks that every object, login and image survived. The same as
+   a script to run locally. What it turns up is fixed.
+2. **Browser tests.** A short end-to-end test in CI (Playwright, headless
+   Chromium) of what the 0.1.x series was checked by hand: logging in and out,
+   the forgotten password (with a mail catcher), the session list, the contact
+   form (protections included), the admin's lists and forms, the Submissions,
+   the System page. They serve security first: a protection that silently
+   stops working must fail the build.
+3. **Upgrade guide** (`docs/upgrading.md`): from any 0.1.x to 0.2.0 in one
+   document. The settings that appeared (`paths`, `session.absolute_timeout`,
+   `mail`, `contact`, `auth.password_reset_minutes`), the changes of behaviour
+   (`/belepes` → `/login`, throttling counters restarting, submissions for
+   administrators only), what a theme or custom code must follow (`path()`,
+   `contact_form()`, mail templates, `public/index.php` and `terminate()`, a
+   custom access policy), a checklist, and going back from the backup.
+   Upgrades are supported from 0.1.0; older installations go through 0.0.7
+   first, as before.
+4. **A security review of the whole 0.1.x layer** (sessions, the forgotten
+   password, the contact form, e-mail, work after the response, throttling),
+   looking for what the separate reviews of 0.1.4 and 0.1.5 could not see:
+   their interplay. The dependencies too. `docs/security.md` is brought up to
+   date, and the accepted risks are weighed again.
+5. **Polish and the compatibility promise.** Times in e-mails in the site's
+   time zone (not UTC); the release package checked on a clean host; the
+   **compatibility promise** written down (`docs/compatibility.md`): within
+   0.2.x the **Public** classes and methods of the PHP API, the configuration
+   keys, the template names and their variables, and the Twig functions only
+   grow; anything removed or renamed goes in 0.3.0 at the earliest, marked
+   *Deprecated* in a 0.2.x first. Security fixes come as 0.2.1, 0.2.2 ….
+6. **Release:** the CHANGELOG's summary of the 0.1.x series, "What is new in
+   0.2.0" in the README, the ROADMAP closed, the `v0.2.0` tag and package.
+
+Right after 0.2.0 (as 0.2.1): **a guide for site owners**, in Hungarian and
+in English (`docs/guide/`), for people who run a site but do not develop it:
+installing, the first steps in the admin, content, menus, images, users, the
+contact form, e-mail, the privacy notice, backups and upgrades.
 
 ### 0.3.0 – planned so far
 
