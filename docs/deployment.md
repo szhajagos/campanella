@@ -296,6 +296,9 @@ An installation older than 0.0.6 is upgraded to 0.0.7 first.
 - [ ] `debug` is `false`.
 - [ ] E-mail is set up, and the test e-mail from the System page arrives; the
       forgotten password's link works (log out, *Forgot your password?*).
+- [ ] The contact form: a test message arrives (*Submissions*, and by
+      e-mail); the privacy notice is linked (*Site settings → Privacy*), and
+      says how long messages are kept (`contact.keep_days`).
 - [ ] `upgrade.key` is not set (unless an upgrade needs it right now).
 - [ ] Only `var/cache/`, `var/backups/` and `public/media/` are writable by the
       web server; `config/local.php` is not readable by others.

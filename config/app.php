@@ -165,6 +165,8 @@ return [
         // addresses, e.g. ['info@example.hu']; empty: to the active administrators.
         'notify' => true,
         'notify_to' => [],
+        // The messages are deleted after this many days (personal data; since 0.1.5). 0: kept for ever.
+        'keep_days' => 180,
         // Additional protections, as for logging in (LoginGuard classes).
         'guards' => [
             HoneypotGuard::class,

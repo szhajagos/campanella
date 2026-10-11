@@ -1,7 +1,8 @@
 {#
   The contact form (since 0.1.5), on its own page and from {{ contact_form() }}.
   Variables: values, errors, message (a Message or null), max (field => longest),
-  ts (the signed time it was shown), guard_fields (the guards' hidden fields).
+  ts (the signed time it was shown), guard_fields (the guards' hidden fields),
+  keep_days (how long messages are kept; 0: for ever).
   It is always sent to path('contact'). A theme can override this template.
 #}
 <form method="post" action="{{ path('contact') }}" class="contact-form card card-body shadow-sm" novalidate>
@@ -24,5 +25,10 @@
         <textarea class="form-control{{ invalid ? ' is-invalid' }}" id="contact-message" name="message" rows="7" maxlength="{{ max.message }}" required{% if invalid %} aria-invalid="true" aria-describedby="contact-message-error"{% endif %}>{{ values.message ?? '' }}</textarea>
         {% if invalid %}<div class="invalid-feedback" id="contact-message-error">{{ invalid.key is defined ? t(invalid.key, invalid.params) : t(invalid) }}</div>{% endif %}
     </div>
+    {# What happens to what is sent (since 0.1.5); the notice's address is a Site setting. #}
+    <p class="form-text contact-privacy">
+        {{ keep_days > 0 ? t('contact.privacy', {days: keep_days}) : t('contact.privacy_kept') }}
+        {%- if site.privacy_url %} <a href="{{ site.privacy_url starts with '/' ? url(site.privacy_url) : site.privacy_url }}">{{ t('contact.privacy_link') }}</a>{% endif %}
+    </p>
     <button type="submit" class="btn btn-primary">{{ t('contact.send') }}</button>
 </form>

@@ -48,6 +48,7 @@ final class SettingsPage
             'url' => (string) $values['url'],
             'share_image' => (string) ($values['share_image'] ?? ''),
             'indexing' => (bool) $values['indexing'],
+            'privacy_url' => (string) $values['privacy_url'],
         ];
         $context = [
             'title' => 'settings.title',
@@ -61,7 +62,7 @@ final class SettingsPage
         }
 
         $input = [];
-        foreach (['name', 'slogan', 'description', 'url', 'share_image'] as $key) {
+        foreach (['name', 'slogan', 'description', 'url', 'share_image', 'privacy_url'] as $key) {
             $input[$key] = $request->postString($key);
         }
         $input['indexing'] = $request->postString('indexing') === '1' ? '1' : '0';

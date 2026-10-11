@@ -5645,6 +5645,82 @@ test('Kernel: an e-mail about each new message, after the response, with Reply-T
     putenv('CAMPANELLA_DB_PREFIX');
 });
 
+test('Submissions: old ones deleted after contact.keep_days; the privacy note; the System page', function () use ($repository, $engine, $db): void {
+    $db->execute("DELETE FROM {objects} WHERE blueprint = 'submission'");
+    $service = new \Campanella\Service\SubmissionService($repository, $engine, new DefaultPolicy(), null, 30);
+    $old = $service->submit('Régi', 'regi@example.hu', '', 'Régi üzenet');
+    $recent = $service->submit('Friss', 'friss@example.hu', '', 'Friss üzenet');
+    $db->execute('UPDATE {objects} SET created_at = :t WHERE id = :id', ['t' => gmdate('Y-m-d H:i:s', time() - 31 * 86400), 'id' => $old->id()]);
+    check($service->keepDays() === 30 && $service->prune() === 1, 'one deleted');
+    check($repository->find((int) $old->id()) === null && $repository->find((int) $recent->id()) !== null);
+    $forever = new \Campanella\Service\SubmissionService($repository, $engine, new DefaultPolicy(), null, 0);
+    $db->execute('UPDATE {objects} SET created_at = :t WHERE id = :id', ['t' => gmdate('Y-m-d H:i:s', time() - 400 * 86400), 'id' => $recent->id()]);
+    check($forever->prune() === 0 && $repository->find((int) $recent->id()) !== null, '0: kept for ever');
+
+    // The privacy notice's address: a site path or an http(s) URL only.
+    $S = \Campanella\Site\SiteSettings::class;
+    foreach (['', '/adatkezeles', '/adat?x=1', 'https://example.hu/adatvedelem'] as $ok) {
+        check($S::isPrivacyUrl($ok), $ok);
+    }
+    foreach (['//evil.example', 'javascript:alert(1)', 'data:text/html,x', '/a b', 'https://x.hu/a"b', 'adatkezeles'] as $bad) {
+        check(!$S::isPrivacyUrl($bad), $bad);
+    }
+    $site = new $S(new \Campanella\Settings\Settings($db), ['name' => 'Teszt']);
+    throws(ValidationException::class, fn () => $site->save(['name' => 'Teszt', 'privacy_url' => 'javascript:alert(1)']));
+    $site->save(['name' => 'Teszt', 'privacy_url' => '/adatkezeles']);
+    check($site->privacyUrl() === '/adatkezeles');
+
+    // The System page's lines.
+    $form = new \Campanella\Webform\ContactForm($service, new Csrf(new Session(new ArraySessionStorage())), new Throttle($db));
+    $mailOff = \Campanella\Mail\Mailer::fromConfig([], static fn () => throw new \LogicException(), static fn () => 'x');
+    $lines = static function (array $config, $submissions, $site) use ($form, $mailOff): array {
+        $out = [];
+        foreach ((\Campanella\Webform\ContactCheck::checks($config, $form, $submissions, $mailOff, $site, new \Campanella\Http\SitePaths()))(null) as $r) {
+            $out[$r->label] = $r->status->name . ':' . $r->value;
+        }
+
+        return $out;
+    };
+    $got = $lines([], $service, $site);
+    check($got['admin.system.contact_form'] === 'Ok:/contact' && $got['admin.system.contact_notify'] === 'Warning:admin.system.contact_notify_no_mail'
+        && $got['admin.system.contact_keep'] === 'Ok:30' && $got['admin.system.contact_privacy'] === 'Ok:/adatkezeles' && $got['admin.system.contact_unread'] === 'Info:1', json_encode($got));
+    $site->save(['name' => 'Teszt', 'privacy_url' => '']);
+    $got = $lines(['notify' => false], $forever, $site);
+    check($got['admin.system.contact_notify'] === 'Info:admin.system.contact_notify_off' && $got['admin.system.contact_keep'] === 'Warning:admin.system.contact_keep_forever' && $got['admin.system.contact_privacy'] === 'Info:admin.system.contact_privacy_none', json_encode($got));
+    $off = (\Campanella\Webform\ContactCheck::checks([], new \Campanella\Webform\ContactForm($service, new Csrf(new Session(new ArraySessionStorage())), new Throttle($db), enabled: false), $service, $mailOff, $site, new \Campanella\Http\SitePaths()))(null);
+    check(count($off) === 1 && $off[0]->value === 'admin.system.contact_off');
+
+    $db->execute("DELETE FROM {objects} WHERE blueprint = 'submission'");
+    $db->execute("DELETE FROM {settings} WHERE name LIKE 'site.%'");
+});
+
+test('Kernel: the contact form tells what happens to a message; old messages go after a new one', function () use ($db): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $c = $kernel->container();
+    if ($c->get(Connection::class)->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $c->set(Session::class, static fn () => new Session(new ArraySessionStorage()));
+    $c->get(\Campanella\Site\SiteSettings::class)->save(['name' => 'Teszt webhely', 'privacy_url' => '/adatkezeles']);
+    $page = $kernel->handle(new Request('GET', '/contact'));
+    check(str_contains($page->body, 'csak a válaszhoz használjuk, és 180 nap után töröljük') && str_contains($page->body, '<a href="/adatkezeles">Adatkezelési tájékoztató</a>'), 'the note and the link');
+
+    $service = $c->get(\Campanella\Service\SubmissionService::class);
+    $old = $service->submit('Régi', 'regi@example.hu', '', 'Régi üzenet');
+    $db->execute('UPDATE {objects} SET created_at = :t WHERE id = :id', ['t' => gmdate('Y-m-d H:i:s', time() - 181 * 86400), 'id' => $old->id()]);
+    $new = $service->submit('Új', 'uj@example.hu', '', 'Új üzenet');
+    check($c->get(\Campanella\Core\Deferred::class)->isEmpty() === false);
+    $kernel->terminate();
+    check($service->find(Actor::system(), (int) $old->id()) === null && $service->find(Actor::system(), (int) $new->id()) !== null, 'the old one went after the response');
+
+    $db->execute("DELETE FROM {objects} WHERE blueprint = 'submission'");
+    $db->execute("DELETE FROM {settings} WHERE name LIKE 'site.%'");
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
 echo "\nDocumentation examples\n";
 
 test('New capability as in the docs example (Featured)', function () use ($db, $admin): void {

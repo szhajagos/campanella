@@ -54,6 +54,7 @@ error page can still show the site's name.
 | `url` | string | The site's address, e.g. `https://example.hu` or `https://example.hu/cms`; `''`: not set |
 | `share_image` | ?int | An image object's ID, shown when a page without an image is shared |
 | `indexing` | bool | Whether search engines may index the site (default: yes) |
+| `privacy_url` | string | The privacy notice's address (since 0.1.5): a path of the site (`/adatkezeles`) or an `http(s)` URL; `''`: none. The contact form links to it |
 
 A value saved in the admin wins; one never saved comes from the `site` section
 of the configuration file:
@@ -76,7 +77,8 @@ unchanged.
 | Method | |
 |---|---|
 | `values(): array` | Every value, typed, plus the configuration file's other keys |
-| `name(): string`, `url(): string`, `shareImage(): ?int`, `indexing(): bool` | One value |
+| `name(): string`, `url(): string`, `shareImage(): ?int`, `indexing(): bool`, `privacyUrl(): string` | One value |
+| `SiteSettings::isPrivacyUrl(string $value): bool` | Whether a privacy notice's address is usable: `''`, a safe site path (not `//…`), or an `http(s)` URL without spaces, quotes or backslashes (so never `javascript:`) |
 | `absolute(string $path): ?string` | A site path as an absolute URL on the site's address (`/hirek` → `https://example.hu/hirek`), or null while the address is not set. Characters outside URL syntax (accented letters, spaces, `%`) are percent-encoded |
 | `save(array $input): void` | Validates and saves all keys; throws `ValidationException` (`name`, `slogan`, `description`, `url`, `share_image`) |
 | `rememberUrl(string $url): void` | Saves the address unless one is saved already or set in the configuration file (the browser installer) |

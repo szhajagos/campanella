@@ -2,8 +2,7 @@
 
 Since 0.1.5 the site has a contact form. Its messages are objects, kept in the
 database and read in the admin; only administrators see them. 0.1.5 is built
-in parts: this chapter grows with them (the deletion of old messages comes
-next).
+in parts.
 
 | Class | Namespace | What it does |
 |---|---|---|
@@ -62,7 +61,12 @@ operation is allowed on them. A custom policy decides for itself.
 | `mark(Actor $actor, CampanellaObject $submission, bool $read): void` | Read or unread; `AccessDeniedException` if not allowed |
 | `delete(Actor $actor, CampanellaObject $submission): void` | Deletes it for good; `AccessDeniedException` if not allowed |
 
-Constants: `BLUEPRINT` (`'submission'`), `MAX_NAME` (100), `PER_PAGE` (50).
+| `keepDays(): int` | How long messages are kept (`contact.keep_days`); 0: for ever |
+| `prune(): int` | Deletes the messages older than that (at most `PRUNE_BATCH`, 500, at once); returns how many |
+
+Constants: `BLUEPRINT` (`'submission'`), `MAX_NAME` (100), `KEEP_DAYS` (180),
+`PRUNE_BATCH` (500), `PER_PAGE` (50). The constructor:
+`new SubmissionService($repository, $queries, $policy, ?EventDispatcher $events = null, int $keepDays = 180)`.
 
 ```php
 $submissions = $container->get(SubmissionService::class);
@@ -198,3 +202,45 @@ in the admin anyway.
 How it works: `SubmissionService::submit()` dispatches `FormSubmitted`; the
 Kernel's listener runs `MailSubmission` for the contact form's messages
 ([chapter 21](21-events-and-mail.md#actions)).
+
+## Data protection
+
+*Since 0.1.5 (part 4).* A message holds personal data (a name, an e-mail
+address, whatever the sender wrote), so:
+
+- **It is kept for a limited time:** `contact.keep_days` (180) days after it
+  arrived, it is deleted (`SubmissionService::prune()`): after each new
+  message (after the response) and whenever the admin's list is opened, so no
+  scheduled job is needed. `0`: kept until deleted by hand (the System page
+  warns). The list says how long they are kept.
+- **The form says what happens to it:** under the form, *We use your message
+  and e-mail address only to answer you, and delete them after 180 days*,
+  with a link to the privacy notice, if its address is set under *Site
+  settings → Privacy* (`privacy_url`: a page of the site, e.g.
+  `/adatkezeles`, or a full address). A theme's own `_contact_form` template
+  should keep this note. There is no consent checkbox: answering someone who
+  wrote to the site is usually based on its legitimate interest (or the
+  sender's request), not on consent. This is not legal advice: the privacy
+  notice says what applies to the site, and how long messages are kept.
+- **Only what is needed is stored:** no IP address; the e-mail notification's
+  subject and the mail log hold nothing the sender wrote.
+- **Only administrators see them** (see above), and can delete any at once.
+
+| Key | Default | |
+|---|---|---|
+| `contact.keep_days` | `180` | Days a message is kept; `0`: for ever |
+
+### The System page
+
+`Campanella\Webform\ContactCheck` · **Internal** ·
+`static checks(array $config, ContactForm $form, SubmissionService $submissions, Mailer $mailer, SiteSettings $site, SitePaths $paths): Closure`:
+the *Contact form* group of the System page
+([chapter 14](14-system-check.md)):
+
+| Line | |
+|---|---|
+| Form | Its path; turned off: info |
+| E-mail about messages | To whom; not sent because e-mail is not set up: warning; turned off: info |
+| Messages kept for | The days; for ever: warning |
+| Privacy notice | Its address; none: info |
+| Unread messages | Their number |

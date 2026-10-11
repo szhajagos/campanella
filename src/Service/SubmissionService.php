@@ -31,6 +31,12 @@ final class SubmissionService
     /** The longest sender's name, in characters. */
     public const int MAX_NAME = 100;
 
+    /** How long messages are kept by default, in days (`contact.keep_days`). */
+    public const int KEEP_DAYS = 180;
+
+    /** The most messages deleted at once (the rest go next time). */
+    public const int PRUNE_BATCH = 500;
+
     /** Submissions per page in the admin. */
     public const int PER_PAGE = 50;
 
@@ -39,6 +45,7 @@ final class SubmissionService
         private readonly QueryEngine $queries,
         private readonly AccessPolicy $policy,
         private readonly ?EventDispatcher $events = null,
+        private readonly int $keepDays = self::KEEP_DAYS,
     ) {
     }
 
@@ -103,6 +110,35 @@ final class SubmissionService
     private static function cleanName(string $name): string
     {
         return trim((string) preg_replace('/[\x00-\x1F\x7F]+/u', ' ', $name));
+    }
+
+    /** How long messages are kept, in days; 0: for ever. */
+    public function keepDays(): int
+    {
+        return max(0, $this->keepDays);
+    }
+
+    /**
+     * Deletes the messages older than keepDays() (at most PRUNE_BATCH at once; the rest
+     * the next time). Called after a new message and when the admin's list is opened.
+     *
+     * @return int How many were deleted
+     */
+    public function prune(): int
+    {
+        if ($this->keepDays() === 0) {
+            return 0;
+        }
+        $cutoff = new \DateTimeImmutable('-' . $this->keepDays() . ' days', new \DateTimeZone('UTC'));
+        $old = $this->queries->execute(
+            Query::objects()->blueprint(self::BLUEPRINT)->where('created', '<', $cutoff)->orderBy('created')->limit(self::PRUNE_BATCH),
+            Actor::system(),
+        );
+        foreach ($old as $submission) {
+            $this->repository->delete($submission);
+        }
+
+        return count($old);
     }
 
     /** Whether the actor may see the submissions (by default: administrators). */

@@ -80,6 +80,14 @@
                     </div>
                     {{ _self.error(errors, 'share_image') }}
                 </section>
+
+                <section class="card card-body mb-4">
+                    <h2 class="h6 mb-3">{{ t('settings.group.privacy') }}</h2>
+                    <label for="settings-privacy_url" class="form-label fw-semibold">{{ t('settings.privacy_url') }}</label>
+                    <input type="text" class="form-control{{ _self.invalid(errors, 'privacy_url') }}" id="settings-privacy_url" name="privacy_url" value="{{ form.privacy_url ?? '' }}" maxlength="{{ max.privacy_url }}" placeholder="/adatkezeles" autocomplete="off"{{ _self.described(errors, 'privacy_url') }}>
+                    <div class="form-text" id="settings-privacy_url-help">{{ t('settings.privacy_url_help') }}</div>
+                    {{ _self.error(errors, 'privacy_url') }}
+                </section>
             </div>
         </div>
 

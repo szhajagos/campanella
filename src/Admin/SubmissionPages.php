@@ -69,6 +69,7 @@ final class SubmissionPages
     /** @param Closure(string, string, array<string, mixed>): Response $render */
     private function listing(Request $request, Actor $actor, Closure $render): Response
     {
+        $this->submissions->prune();   // the old ones go (contact.keep_days)
         $unreadOnly = $request->queryString('unread') === '1';
         $page = $request->queryString('page');
         $page = preg_match('/^[1-9]\d{0,5}$/', $page) === 1 ? (int) $page : 1;
@@ -85,6 +86,7 @@ final class SubmissionPages
             'pages' => $result->pageCount(),
             'unread_only' => $unreadOnly,
             'unread' => $this->submissions->unreadCount($actor),
+            'keep_days' => $this->submissions->keepDays(),
         ]);
     }
 

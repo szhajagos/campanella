@@ -31,10 +31,10 @@ final class SiteSettings
     public const string PREFIX = 'site.';
 
     /** The settings edited in the admin. */
-    public const array KEYS = ['name', 'slogan', 'description', 'url', 'share_image', 'indexing'];
+    public const array KEYS = ['name', 'slogan', 'description', 'url', 'share_image', 'indexing', 'privacy_url'];
 
     /** The longest values (characters). */
-    public const array MAX_LENGTH = ['name' => 100, 'slogan' => 200, 'description' => 300, 'url' => 255];
+    public const array MAX_LENGTH = ['name' => 100, 'slogan' => 200, 'description' => 300, 'url' => 255, 'privacy_url' => 255];
 
     /** @var array<string, mixed>|null */
     private ?array $values = null;
@@ -96,6 +96,29 @@ final class SiteSettings
     }
 
     /**
+     * The privacy notice's address (since 0.1.5): a path of the site (`/adatkezeles`) or an
+     * `http(s)` URL; '' if not set. The contact form links to it.
+     */
+    public function privacyUrl(): string
+    {
+        return (string) $this->values()['privacy_url'];
+    }
+
+    /** Whether a privacy notice's address is usable: '', a site path (not `//…`), or an http(s) URL. */
+    public static function isPrivacyUrl(string $value): bool
+    {
+        if ($value === '') {
+            return true;
+        }
+        if (str_starts_with($value, '/')) {
+            return !str_starts_with($value, '//') && \Campanella\Capability\Routable::isSafePath(strtok($value, '?#') ?: '/');
+        }
+
+        return preg_match('#^https?://#i', $value) === 1 && filter_var($value, FILTER_VALIDATE_URL) !== false
+            && preg_match('/[\s<>"\\\\]/', $value) !== 1;
+    }
+
+    /**
      * A path of the site as an absolute URL (`/hirek` → `https://example.hu/hirek`), or null
      * while the site's address is not set. Site paths are stored as they are read
      * (decoded), so their characters outside URL syntax (accented letters, spaces, `%`)
@@ -127,7 +150,7 @@ final class SiteSettings
     {
         $values = [];
         $errors = [];
-        foreach (['name', 'slogan', 'description', 'url', 'share_image'] as $key) {
+        foreach (['name', 'slogan', 'description', 'url', 'share_image', 'privacy_url'] as $key) {
             if (!mb_check_encoding($input[$key] ?? '', 'UTF-8')) {
                 $errors[$key] = new Message('validation.invalid_encoding');
                 $input[$key] = '';
@@ -156,6 +179,11 @@ final class SiteSettings
         }
         $values['share_image'] = $image;
         $values['indexing'] = ($input['indexing'] ?? '1') === '1' ? '1' : '0';
+        $privacy = trim($input['privacy_url'] ?? '');
+        if (mb_strlen($privacy) > self::MAX_LENGTH['privacy_url'] || !self::isPrivacyUrl($privacy)) {
+            $errors['privacy_url'] ??= new Message('settings.invalid_privacy_url');
+        }
+        $values['privacy_url'] = $privacy;
 
         if ($errors !== []) {
             throw new ValidationException($errors);
@@ -284,6 +312,7 @@ final class SiteSettings
             'share_image' => is_int($value) || (is_string($value) && ctype_digit($value)) ? (int) $value : null,
             'indexing' => $value === null ? true : filter_var($value, FILTER_VALIDATE_BOOL),
             'url' => self::normalizeUrl(is_string($value) ? $value : '') ?? '',
+            'privacy_url' => is_string($value) && self::isPrivacyUrl(trim($value)) ? trim($value) : '',
             default => is_scalar($value) ? (string) $value : '',
         };
     }

@@ -7,6 +7,8 @@
         <span class="text-body-secondary small">{{ t('admin.list.total', {count: total}) }}</span>
     </div>
 
+    <p class="small text-body-secondary">{{ keep_days > 0 ? t('submissions.kept', {days: keep_days}) : t('submissions.kept_forever') }}</p>
+
     <ul class="nav nav-pills mb-3">
         <li class="nav-item"><a class="nav-link{{ unread_only ? '' : ' active' }}" href="{{ admin_url('submission') }}"{% if not unread_only %} aria-current="page"{% endif %}>{{ t('submissions.all') }}</a></li>
         <li class="nav-item"><a class="nav-link{{ unread_only ? ' active' : '' }}" href="{{ admin_url('submission') }}?unread=1"{% if unread_only %} aria-current="page"{% endif %}>{{ t('submissions.unread') }} <span class="badge text-bg-secondary">{{ unread }}</span></a></li>

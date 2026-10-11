@@ -97,6 +97,7 @@ use Twig\Environment;
 use Twig\Extension\CoreExtension;
 use Twig\Extension\SandboxExtension;
 use Campanella\View\TemplatePolicy;
+use Campanella\Webform\ContactCheck;
 use Campanella\Webform\ContactForm;
 use Campanella\View\TemplateLoader;
 
@@ -412,6 +413,14 @@ final class Kernel
             $system->add(MediaCheck::checks($c->get(ImageProcessor::class), $c->get(MediaStorage::class), $c->get(MediaService::class)));
             $system->add(SyncCheck::checks($c->get(Installer::class), $c->get(SchemaSync::class)));
             $system->add(MailCheck::checks($c->get(Mailer::class)));
+            $system->add(ContactCheck::checks(
+                (array) $c->get(Config::class)->get('contact', []),
+                $c->get(ContactForm::class),
+                $c->get(SubmissionService::class),
+                $c->get(Mailer::class),
+                $c->get(SiteSettings::class),
+                $c->get(SitePaths::class),
+            ));
             // A wrong `events` setting (since 0.1.3).
             $system->add(static function () use ($c): array {
                 $problems = $c->get(EventDispatcher::class)->problems();
@@ -487,6 +496,12 @@ final class Kernel
                     $c->get(SessionRegistry::class)->endAll((int) $event->user->id());
                 }
                 $c->get(PasswordReset::class)->forget((int) $event->user->id());
+            });
+            // After a new message, the old ones go (`contact.keep_days`; since 0.1.5).
+            $events->listen(FormSubmitted::class, static function (Event $event) use ($c): void {
+                $c->get(Deferred::class)->add(static function () use ($c): void {
+                    $c->get(SubmissionService::class)->prune();
+                });
             });
             // An e-mail about the contact form's new messages (since 0.1.5; `contact.notify`).
             if ((bool) $c->get(Config::class)->get('contact.notify', true)) {
@@ -761,6 +776,7 @@ final class Kernel
             $c->get(QueryEngine::class),
             $c->get(AccessPolicy::class),
             $c->get(EventDispatcher::class),
+            (int) $c->get(Config::class)->get('contact.keep_days', SubmissionService::KEEP_DAYS),
         ));
 
         $c->set('controller.upgrade', static fn (Container $c): Controller => new UpgradeController(

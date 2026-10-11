@@ -38,6 +38,14 @@ Work towards 0.1.5 (the contact form), in parts.
   `FormSubmitted` event, the `MailSubmission` action, the `submission` mail
   template, `Mailer::send()`'s `$replyTo` and `$replyToName`.
 
+- **Data protection for the contact form's messages:** they are deleted
+  `contact.keep_days` (180) days after they arrived (after a new message and
+  when the admin's list is opened; `0`: kept for ever); the form says what
+  happens to a message, and links to the privacy notice, whose address is a
+  new Site setting (*Privacy notice*, `privacy_url`); a *Contact form* group
+  on the System page. New: `SubmissionService::prune()`, `keepDays()`,
+  `SiteSettings::privacyUrl()`.
+
 ### Fixed
 
 - **E-mails' footer:** the site's name and address were on one line.

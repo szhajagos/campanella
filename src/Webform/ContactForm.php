@@ -69,9 +69,10 @@ final class ContactForm
 
     /**
      * What the form's template needs besides the values: the signed time it was shown,
-     * and the guards' fields. Starts the session (for the CSRF token).
+     * the guards' fields, and how long messages are kept. Starts the session (for the
+     * CSRF token).
      *
-     * @return array{ts: string, guard_fields: string}
+     * @return array{ts: string, guard_fields: string, keep_days: int}
      */
     public function fields(Request $request): array
     {
@@ -80,6 +81,8 @@ final class ContactForm
         return [
             'ts' => $time . '.' . $this->sign($request, $time),
             'guard_fields' => implode('', array_map(static fn (LoginGuard $guard): string => $guard->fields(), $this->guards)),
+            // For the privacy note under the form.
+            'keep_days' => $this->submissions->keepDays(),
         ];
     }
 
