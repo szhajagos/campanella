@@ -70,6 +70,14 @@ CHANGELOG entry; small additions may join a step along the way.
   comments of the same subject; ordered by time, not by weight. A
   `Commentable` capability on the commented Blueprints (comments open or
   closed, the count).
+- **Appearance** (2026-10-11): a section of its own in the admin for the
+  site's look: colour and other schemes, each in a light and a dark variant,
+  and the colour mode: following the visitor's system setting (as now,
+  `public/assets/theme.js`), or fixed (e.g. always dark). Whether visitors may
+  switch it themselves, and how that control appears on the site, is decided
+  then, within the concept of the CMS (e.g. as a component of the planned
+  Component / Region / Layout system), not as a one-off button built into the
+  header.
 - **Cache:** object, query and render cache with cache tags and contexts.
 - **JSON API** according to the [HTTP API draft](docs/http-api/README.md).
 - **Media:** storing other files (documents) besides images.
