@@ -49,7 +49,9 @@ foreach ([
 ] as $needed) {
     $check(file_exists($dir . '/' . $needed), "missing: {$needed}");
 }
-$check(is_executable($dir . '/bin/campanella'), 'bin/campanella is not executable');
+// The mode comes from git: a file committed on Windows is not executable unless told so
+// (`git update-index --chmod=+x bin/campanella`).
+$check(is_executable($dir . '/bin/campanella'), 'bin/campanella is not executable (in git: git update-index --chmod=+x bin/campanella)');
 
 // 2. What must not be in it: development files, local settings, uploads, backups, caches,
 // version control, secrets.

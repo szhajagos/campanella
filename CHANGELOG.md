@@ -76,6 +76,9 @@ Work towards 0.2.0 (the milestone: see the [ROADMAP](ROADMAP.md)), in parts.
   by hand.
 - A backup's first lines named the code's schema version; they name the
   database's now.
+- `bin/campanella` was not executable in the release packages (it was
+  committed without the executable bit), so `./bin/campanella` did not run;
+  `php bin/campanella` did. Found by the new package check.
 
 ### Security
 
