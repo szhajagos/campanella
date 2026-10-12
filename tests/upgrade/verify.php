@@ -54,10 +54,15 @@ $check($installer->systemValue('schema_version') === Version::SCHEMA, 'schema ve
 $check(!$installer->needsUpgrade(), 'an upgrade is still needed');
 $check(!$c->get(SchemaSync::class)->plan()->hasWork(), 'the tables differ from the definitions');
 $backups = glob($site . '/var/backups/*.sql*') ?: [];
-$check($backups !== [], 'no backup was made before the upgrade');
-// The backup holds the old version's database (since 0.2.0), so going back to it works.
-$first = $backups === [] ? '' : (string) (str_ends_with($backups[0], '.gz') ? gzdecode((string) file_get_contents($backups[0])) : file_get_contents($backups[0]));
-$check(str_contains($first, "('schema_version', '{$snapshot['schema']}')"), 'the backup does not hold the old schema version (' . $snapshot['schema'] . ')');
+if ($snapshot['schema'] !== Version::SCHEMA) {
+    $check($backups !== [], 'no backup was made before the upgrade');
+    // The backup holds the old version's database (since 0.2.0), so going back to it works.
+    $first = $backups === [] ? '' : (string) (str_ends_with($backups[0], '.gz') ? gzdecode((string) file_get_contents($backups[0])) : file_get_contents($backups[0]));
+    $check(str_contains($first, "('schema_version', '{$snapshot['schema']}')"), 'the backup does not hold the old schema version (' . $snapshot['schema'] . ')');
+} else {
+    // The same schema (e.g. from 0.1.5 to 0.2.0): nothing in the database changes, so nothing to back up.
+    $check($backups === [], 'a backup was made although the database did not change');
+}
 
 // 2. Nothing was lost: every row of every table, with its old columns.
 $prefix = $db->prefix();

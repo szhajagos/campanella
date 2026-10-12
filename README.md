@@ -1,4 +1,4 @@
-# Campanella 0.1.5
+# Campanella 0.2.0
 
 [![CI](https://github.com/szhajagos/campanella/actions/workflows/ci.yml/badge.svg)](https://github.com/szhajagos/campanella/actions/workflows/ci.yml)
 
@@ -6,9 +6,39 @@ A capability-driven CMS. There are no predefined content types: an object's
 behavior is determined by the capabilities attached to it.
 
 0.1.0 was the first milestone: a real website can be run and managed from the
-browser with it; 0.1.1 … lead to 0.2.0, where the site communicates (see the
-[ROADMAP](ROADMAP.md)). It is still 0.x: the code and the PHP API may change between
-versions (the [CHANGELOG](CHANGELOG.md) always says how).
+browser with it. **0.2.0** is the second: the site communicates (e-mail, a
+forgotten password, a contact form, search engines and sharing), and what
+0.2.x keeps is promised: within 0.2.x the Public PHP API, the settings, the
+templates and their variables, and the Twig functions only grow (see the
+[compatibility promise](docs/compatibility.md)). Plans are in the
+[ROADMAP](ROADMAP.md), changes in the [CHANGELOG](CHANGELOG.md).
+
+## What is new in 0.2.0
+
+0.2.0 brings together what 0.1.1–0.1.5 built, and makes it ready to rely on:
+
+- **The site communicates:** search engines and sharing (0.1.1), images for
+  every screen (0.1.2), e-mail and events (0.1.3), the forgotten password and
+  the session list (0.1.4), the contact form (0.1.5).
+- **Upgrading from any 0.1.x in one go**, with a guide
+  ([docs/upgrading.md](docs/upgrading.md)) and a backup that now really holds
+  the old database, so going back works. CI upgrades 0.1.0 to the current code
+  on every push.
+- **Tested in a real browser:** logging in and out, the lock-out, the
+  sessions, the forgotten password, the contact form's protections and the
+  admin, on every push; and the installation package itself, installed from
+  the browser on a PHP with only the required extensions, before every
+  release ([docs/testing.md](docs/testing.md)).
+- **A security review of the whole 0.1.x layer together**: blocking an
+  account ends its logins at once, IPv6 addresses are limited by their /48,
+  a blocked account gets the same answer as a wrong password
+  ([docs/security.md](docs/security.md#security-review-for-020-2026-10-11)).
+- **E-mails show times in the site's time zone.**
+- **The compatibility promise** for 0.2.x
+  ([docs/compatibility.md](docs/compatibility.md)); security fixes come as
+  0.2.1, 0.2.2 …
+
+The details are in the [CHANGELOG](CHANGELOG.md#020--2026-10-12).
 
 ## What it can do
 
@@ -196,10 +226,11 @@ older than 0.0.6 is upgraded to 0.0.7 first, then to the current version.
 On every push, GitHub runs the checks above
 ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)): PHPStan, the
 documentation checks, `composer audit` (known vulnerabilities of the
-dependencies), the tests on MariaDB 10.6 and 11.4, and MySQL 8.0 and 8.4, an upgrade from 0.1.0, the browser tests, and the installation package as a site owner gets it (all three since 0.2.0; see [Testing](docs/testing.md)). The results are shown next to the commits and on the Actions tab.
+dependencies), the tests on MariaDB 10.6 and 11.4, and MySQL 8.0 and 8.4, upgrades from 0.1.0 and 0.1.5, the browser tests, and the installation package as a site owner gets it (all three since 0.2.0; see [Testing](docs/testing.md)). The results are shown next to the commits and on the Actions tab.
 
-After a version tag (`git tag v0.1.5 && git push --tags`), GitHub builds the
-installation package and attaches it to the release. For an existing tag it
+After a version tag (`git tag v0.2.0 && git push --tags`), GitHub builds the
+installation package and, once the package check has passed on it, attaches
+it to the release. For an existing tag it
 can also be started manually: Actions → CI → Run workflow, entering the tag.
 
 ## Architecture (MVC + service layer)
@@ -333,8 +364,8 @@ on its own.
 
 ## Not included yet
 
-A forgotten password by e-mail, a contact form (both planned for 0.2.0), search and redirects, an image
-picker (0.3.0), Component / Region / Layout, cache, multilingual content.
+Search and redirects, an image picker (planned for 0.3.0), Component /
+Region / Layout, cache, multilingual content.
 
 ## Made with AI assistance
 

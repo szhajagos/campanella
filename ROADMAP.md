@@ -3,8 +3,9 @@
 Campanella evolves in small steps: every feature gets its own version, with
 its own tests, documentation and CHANGELOG entry. Since 0.1.0 (the first
 milestone, 2026-10-08) a real website can be run and managed from the
-browser. Each milestone (0.2.0, 0.3.0 …) is reached in small steps
-(0.1.1, 0.1.2 …), each a release of its own.
+browser; since 0.2.0 (the second, 2026-10-12) the site communicates, and what
+0.2.x keeps is [promised](docs/compatibility.md). Each milestone is reached
+in small steps (0.1.1, 0.1.2 …), each a release of its own.
 
 The roadmap is a direction, not a promise: the order may change based on experience.
 Completed changes are listed in the [CHANGELOG](CHANGELOG.md).
@@ -26,70 +27,19 @@ Completed changes are listed in the [CHANGELOG](CHANGELOG.md).
 | 0.1.3 | Events and e-mail: object and user events, actions bound in the configuration (`MailAdministrators`), e-mail with symfony/mailer (SMTP or PHP's own settings, templates, a log, a test e-mail from the System page), Mailpit for development |
 | 0.1.4 | Forgotten password and sessions: a password reset by e-mail (a single-use, 60-minute link; the same answer and response time for every address), where one is logged in on the profile (log out one or every other), a 12-hour absolute login lifetime, configurable paths (`/login`, `/logout`, `/password-reset`), the `MailUser` action, work after the response; an independent security review |
 | 0.1.5 | Contact form: its own page (`/contact`) and `contact_form()`, protected by CSRF, a honeypot, a signed time and limits; the messages as objects for administrators only (*Submissions*), an e-mail about each (`Reply-To`: the sender), deleted after 180 days, a privacy note and link; an independent security review |
-| – | Continuous integration (GitHub Actions): PHPStan, documentation, tests on MariaDB 10.6/11.4 and MySQL 8.0/8.4; installation package with `vendor/` for every version tag |
+| **0.2.0** | **Second milestone: the site communicates** (released 2026-10-12). What 0.1.1–0.1.5 built (search engines and sharing, images, e-mail and events, the forgotten password and sessions, the contact form), released as one whole: an upgrade test from 0.1.0, browser tests, the installation package checked as a site owner gets it, an upgrade guide from any 0.1.x, a security review of the whole 0.1.x layer, e-mail times in the site's time zone, and the compatibility promise for 0.2.x. Agreed in detail on 2026-10-11, in six parts. |
+| – | Continuous integration (GitHub Actions): PHPStan, documentation, tests on MariaDB 10.6/11.4 and MySQL 8.0/8.4, an upgrade from 0.1.0, browser tests, the installation package checked before every release (with `vendor/`, for every version tag) |
 
 ## Next
 
-### 0.2.0 – "The site communicates" (agreed in detail on 2026-10-09)
+### 0.2.1 – a guide for site owners
 
-The site presents itself properly to search engines and social sites, sends
-e-mail, lets users recover their password, and takes messages from visitors.
-Each step below is a release of its own, with tests, documentation and a
-CHANGELOG entry; small additions may join a step along the way.
-
-| Version | Contents |
-|---|---|
-| 0.1.1 ✔ | **Site basics** (released 2026-10-09). Site settings edited in the admin (name, slogan, default meta description, image for social sharing), stored in the database, with the configuration file as fallback. `<meta name="description">` (from the lead, or the site's default), canonical URLs, Open Graph tags; `sitemap.xml` of the public content; `robots.txt` (the admin excluded). |
-| 0.1.2 ✔ | **Images** (released 2026-10-09). Image variants (a thumbnail and sizes for `srcset`), made on upload and re-encoded like the original; tracking where an image is used, so its delete page lists the texts that use it. |
-| 0.1.3 ✔ | **Events and e-mail** (released 2026-10-10). The Event / Action foundation (`ObjectPublished`, `UserCreated` …; workflows and a state machine later). Sending e-mail with symfony/mailer: SMTP or PHP's `mail()`, translatable templates, a log, a test e-mail from the System page. |
-| 0.1.4 ✔ | **Forgotten password and sessions** (released 2026-10-10). A password reset by e-mail (a single-use, 60-minute link; the same answer and response time whether the address exists or not); the list of one's sessions on the profile, with "log out everywhere else"; a 12-hour absolute session lifetime. Closed the related accepted risk in [docs/security.md](docs/security.md). |
-| 0.1.5 ✔ | **Webform** (released 2026-10-11). A contact form (honeypot, throttling, CSRF); the submissions are objects, listed in the admin; an e-mail notification about each. Decided on 2026-10-10: its own page at a configurable path (`/contact`) and a `contact_form()` Twig function; fixed fields (name, e-mail address, an optional subject, message); the submissions for administrators only, deleted after a configurable time (180 days by default); no copy to the sender (it would let anyone send mail from the site to any address); the sender's IP address is not stored. In five parts: storage and admin, the form, the notification, data protection, release. |
-| 0.2.0 | **Release of the milestone**, detailed below. |
-
-#### 0.2.0 in detail (agreed on 2026-10-11)
-
-0.2.0 brings no new feature (search, redirects and the image picker stay in
-0.3.0). It releases what 0.1.1–0.1.5 built as one whole: tested, documented
-and promised for the longer term. In parts, each a commit of its own:
-
-1. **Upgrade test from 0.1.0.** A CI job installs `v0.1.0`, fills it with
-   content, users and images, and upgrades it to the current code (schema 6
-   to 12); it checks that every object, login and image survived. The same as
-   a script to run locally. What it turns up is fixed.
-2. **Browser tests.** A short end-to-end test in CI (Playwright, headless
-   Chromium) of what the 0.1.x series was checked by hand: logging in and out,
-   the forgotten password (with a mail catcher), the session list, the contact
-   form (protections included), the admin's lists and forms, the Submissions,
-   the System page. They serve security first: a protection that silently
-   stops working must fail the build.
-3. **Upgrade guide** (`docs/upgrading.md`): from any 0.1.x to 0.2.0 in one
-   document. The settings that appeared (`paths`, `session.absolute_timeout`,
-   `mail`, `contact`, `auth.password_reset_minutes`), the changes of behaviour
-   (`/belepes` → `/login`, throttling counters restarting, submissions for
-   administrators only), what a theme or custom code must follow (`path()`,
-   `contact_form()`, mail templates, `public/index.php` and `terminate()`, a
-   custom access policy), a checklist, and going back from the backup.
-   Upgrades are supported from 0.1.0; older installations go through 0.0.7
-   first, as before.
-4. **A security review of the whole 0.1.x layer** (sessions, the forgotten
-   password, the contact form, e-mail, work after the response, throttling),
-   looking for what the separate reviews of 0.1.4 and 0.1.5 could not see:
-   their interplay. The dependencies too. `docs/security.md` is brought up to
-   date, and the accepted risks are weighed again.
-5. **Polish and the compatibility promise.** Times in e-mails in the site's
-   time zone (not UTC); the release package checked on a clean host; the
-   **compatibility promise** written down (`docs/compatibility.md`): within
-   0.2.x the **Public** classes and methods of the PHP API, the configuration
-   keys, the template names and their variables, and the Twig functions only
-   grow; anything removed or renamed goes in 0.3.0 at the earliest, marked
-   *Deprecated* in a 0.2.x first. Security fixes come as 0.2.1, 0.2.2 ….
-6. **Release:** the CHANGELOG's summary of the 0.1.x series, "What is new in
-   0.2.0" in the README, the ROADMAP closed, the `v0.2.0` tag and package.
-
-Right after 0.2.0 (as 0.2.1): **a guide for site owners**, in Hungarian and
-in English (`docs/guide/`), for people who run a site but do not develop it:
-installing, the first steps in the admin, content, menus, images, users, the
-contact form, e-mail, the privacy notice, backups and upgrades.
+Right after 0.2.0: **a guide for site owners**, in Hungarian and in English
+(`docs/guide/`), for people who run a site but do not develop it: installing,
+the first steps in the admin, content, menus, images, users, the contact
+form, e-mail, the privacy notice, backups and upgrades. Security fixes of
+0.2.x come as 0.2.1, 0.2.2 … too, keeping the
+[compatibility promise](docs/compatibility.md).
 
 ### 0.3.0 – planned so far
 

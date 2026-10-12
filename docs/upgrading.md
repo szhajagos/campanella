@@ -63,6 +63,9 @@ The requirements did not change: PHP 8.3 or newer, MariaDB 10.6+ or MySQL 8.0+.
      logging in does not work, set an `upgrade.key` of at least 20 characters
      in `config/local.php`, open the page with it, then **remove the key**.
 
+   From 0.1.5 the database does not change (0.2.0 adds no table): the command
+   says there is nothing to do, and the site works at once.
+
    Then run `php bin/campanella schema:check`, or look at the System page: the
    tables must match the definitions.
 

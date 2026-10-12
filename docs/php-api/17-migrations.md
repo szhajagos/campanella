@@ -342,7 +342,7 @@ old versions can be removed.
 ## The upgrade test
 
 *Since 0.2.0.* Upgrades are supported from 0.1.0 on, and a test plays one out
-for real (`tests/upgrade/`, in CI on MariaDB 10.6 and MySQL 8.0):
+for real (`tests/upgrade/`, in CI from 0.1.0 on MariaDB 10.6 and MySQL 8.0, and from 0.1.5, the newest 0.1.x, on MariaDB 11.4):
 
 ```bash
 git worktree add /tmp/campanella-0.1.0 v0.1.0
@@ -360,7 +360,7 @@ bash tests/upgrade/run.sh /tmp/campanella-0.1.0       # --offline: no composer i
    stay), the new dependencies are installed, and
    `php bin/campanella install --yes` runs (with its backup).
 3. **The checks** (`verify.php`, with the new code): the schema version, no
-   pending change, a backup made that holds the old schema version; every old row with its old columns, and every
+   pending change, a backup made that holds the old schema version (none when the schema stays the same); every old row with its old columns, and every
    media file, unchanged; the administrator and the editor can log in with their
    old passwords, the blocked user cannot; the front page, the article with its
    image, the contact page, the login page; the admin's pages as the

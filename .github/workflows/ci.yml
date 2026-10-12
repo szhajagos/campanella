@@ -133,13 +133,17 @@ jobs:
     # A real upgrade from the oldest supported version (since 0.2.0): tests/upgrade/run.sh
     # installs 0.1.0 with content, users and an image, upgrades it to this code, and
     # checks that nothing was lost and the site works.
-    name: Upgrade from 0.1.0 – ${{ matrix.db }}
+    # Since 0.2.0 also from the newest released 0.1.x (the same schema: nothing to do).
+    name: Upgrade from ${{ matrix.from }} – ${{ matrix.db }}
     if: inputs.tag == ''
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        db: ['mariadb:10.6', 'mysql:8.0']
+        include:
+          - { from: 'v0.1.0', db: 'mariadb:10.6' }
+          - { from: 'v0.1.0', db: 'mysql:8.0' }
+          - { from: 'v0.1.5', db: 'mariadb:11.4' }
 
     services:
       db:
@@ -181,11 +185,11 @@ jobs:
           echo "The database did not start." >&2
           exit 1
 
-      - name: The old version (0.1.0)
-        run: git worktree add "$RUNNER_TEMP/campanella-0.1.0" v0.1.0
+      - name: The old version (${{ matrix.from }})
+        run: git worktree add "$RUNNER_TEMP/campanella-old" "${{ matrix.from }}"
 
       - name: Upgrade, and check that nothing was lost
-        run: bash tests/upgrade/run.sh "$RUNNER_TEMP/campanella-0.1.0"
+        run: bash tests/upgrade/run.sh "$RUNNER_TEMP/campanella-old"
 
   browser:
     # The browser tests (since 0.2.0): tests/browser/run.sh installs a fresh site and

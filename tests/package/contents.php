@@ -82,7 +82,7 @@ foreach ($paths as $path) {
 // 3. The dependencies: no development package, and only MIT-compatible licences.
 $installed = json_decode((string) @file_get_contents($dir . '/vendor/composer/installed.json'), true);
 $check(is_array($installed), 'vendor/composer/installed.json is missing');
-$allowed = ['MIT', 'BSD-2-Clause', 'BSD-3-Clause', 'ISC'];
+$allowed = ['MIT', 'BSD-2-Clause', 'BSD-3-Clause', 'ISC', 'Apache-2.0'];   // MIT-compatible (ROADMAP: accepted decisions)
 foreach (is_array($installed) ? ($installed['packages'] ?? $installed) : [] as $package) {
     $name = (string) ($package['name'] ?? '?');
     $licences = (array) ($package['license'] ?? []);

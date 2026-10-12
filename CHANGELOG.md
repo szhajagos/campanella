@@ -10,7 +10,46 @@ backward-incompatible.
 
 ## [Unreleased]
 
-Work towards 0.2.0 (the milestone: see the [ROADMAP](ROADMAP.md)), in parts.
+## [0.2.0] – 2026-10-12
+
+**The second milestone: the site communicates.** 0.2.0 releases what 0.1.1–0.1.5
+built, as one whole, tested, documented and promised for the longer term:
+
+- **For search engines and sharing** (0.1.1): the site's name, description
+  and address edited in the admin; meta description, canonical URL and Open
+  Graph tags on every page; `sitemap.xml` and `robots.txt`.
+- **Images** (0.1.2): smaller copies for every screen (`srcset`), and where
+  each image is used.
+- **Events and e-mail** (0.1.3): e-mail through SMTP or PHP's own settings,
+  with templates and a log; events with actions bound to them.
+- **Forgotten password and sessions** (0.1.4): a single-use link by e-mail;
+  every login listed on the profile and ended from there; a login lasts at
+  most 12 hours.
+- **Contact form** (0.1.5): on its own page or any page, protected against
+  bots and floods; the messages for administrators only, by e-mail too, and
+  deleted after a set time.
+
+What 0.2.0 itself adds is below: no new feature, but an upgrade test from
+0.1.0, browser tests, a check of the installation package, the upgrade guide,
+a security review of the whole 0.1.x layer, e-mail times in the site's time
+zone, and the [compatibility promise](docs/compatibility.md): within 0.2.x
+the Public API, the settings, the templates and their variables, and the Twig
+functions only grow.
+
+**Upgrading from any 0.1.x** (0.1.0 to 0.1.5, in one go): follow
+[docs/upgrading.md](docs/upgrading.md). In short:
+
+1. Make a backup (the database, `public/media/`, `config/local.php`).
+2. Upload the release package (`vendor/` included; it changed in 0.1.3), or
+   `git pull` and `composer install --no-dev`.
+3. Run `php bin/campanella install`, or open `/admin/upgrade`: a backup first,
+   then the new tables (schema 12; 0.2.0 adds none) and, from 0.1.0 or 0.1.1,
+   one migration.
+4. From 0.1.0 or 0.1.1: make the images' smaller copies (System page, or
+   `php bin/campanella media:variants`).
+5. Set what is new: the site's address, e-mail, the privacy notice; check
+   the [list of what behaves differently](docs/upgrading.md#what-behaves-differently)
+   (logging in at `/login`, the contact form on, a blocked account's answer).
 
 ### Added
 
@@ -19,7 +58,8 @@ Work towards 0.2.0 (the milestone: see the [ROADMAP](ROADMAP.md)), in parts.
   upgrades it to the current code as one uploads a new version, and checks
   that every row, column and media file survived, the old passwords work, and
   the pages, the admin and the new features work on the old data. In CI on
-  MariaDB 10.6 and MySQL 8.0 (the `upgrade` job).
+  MariaDB 10.6 and MySQL 8.0, and from 0.1.5 on MariaDB 11.4 (the `upgrade`
+  job); an upgrade with the same schema (0.1.5 to 0.2.0) needs no backup.
 - **The browser tests** (`tests/browser/run.sh`, Playwright with headless
   Chromium): a fresh site, a mail catcher and PHP's web server, and what the
   0.1.x series was checked by hand: logging in and out (the same answer for a

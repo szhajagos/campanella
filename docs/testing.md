@@ -84,7 +84,7 @@ tests/package/check.sh --offline   # vendor/ copied from this folder instead
    (`vendor/`, the `.htaccess` files, Bootstrap and Jodit, the docs);
    nothing that must not be: no tests, no `config/local.php`, no uploads,
    backups, caches, `.env` or version-control folders, no development
-   package; every dependency MIT, BSD or ISC; LF line endings; every PHP
+   package; every dependency MIT, BSD, ISC or Apache-2.0 (MIT-compatible); LF line endings; every PHP
    file's syntax.
 3. **Installing from the browser** (`tests/package/install_flow.py`), as a
    site owner without a command line does: without an install key the page
