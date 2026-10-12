@@ -53,6 +53,11 @@
 /* The main menu: the current item (and the dropdown holding it) in the accent color. */
 .navbar .navbar-nav .nav-link.active { color: var(--cc-accent); }
 .navbar .dropdown-menu { --bs-dropdown-link-active-bg: var(--cc-accent); --bs-dropdown-link-active-color: #fff; }
+/* A long main menu and a logged-in user's links do not fit one line of the narrow column:
+   the user's links wrap below the menu instead of running out of it (since 0.2.1). */
+.navbar-collapse { flex-wrap: wrap; row-gap: .25rem; }
+.site-user { margin-left: auto; }
+.site-user__name { white-space: nowrap; }
 [data-bs-theme="dark"] .navbar .dropdown-menu { --bs-dropdown-link-active-color: #191816; }
 
 h1, h2, h3, .h1, .h2, .h3, .h4, .h5 { line-height: 1.25; }

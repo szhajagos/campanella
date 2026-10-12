@@ -14,9 +14,11 @@ interface, with Campanella's own sample content (which is in Hungarian).
    the installer in the browser.
 2. [First steps](02-first-steps.md): logging in, the admin, the site's
    settings, the System page.
-3. Content: articles, pages, categories, publishing *(coming)*
-4. Menus *(coming)*
-5. Images *(coming)*
+3. [Content](03-content.md): articles, pages, categories, the editor,
+   publishing (later too), deleting.
+4. [Menus](04-menus.md): the main menu's items, drop-downs, the order.
+5. [Images](05-images.md): uploading, alternative text, images in texts,
+   deleting.
 6. Users and your own account *(coming)*
 7. The contact form and privacy *(coming)*
 8. E-mail *(coming)*

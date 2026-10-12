@@ -132,4 +132,5 @@ gomb is látszik. A látogatók ezeket nem látják, és a piszkozatokat sem.
 
 ---
 
-Előző: [1. Telepítés](01-telepites.md) · [Tartalomjegyzék](README.md)
+Előző: [1. Telepítés](01-telepites.md) · Következő: [3. Tartalom](03-tartalom.md) ·
+[Tartalomjegyzék](README.md)

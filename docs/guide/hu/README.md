@@ -14,9 +14,11 @@ felületet mutatják, a Campanella saját példatartalmával.
    böngészős telepítő.
 2. [Első lépések](02-elso-lepesek.md): belépés, az admin felépítése, a
    webhely beállításai, a Rendszer oldal.
-3. Tartalom: cikkek, oldalak, kategóriák, közzététel *(készül)*
-4. Menük *(készül)*
-5. Képek *(készül)*
+3. [Tartalom](03-tartalom.md): cikkek, oldalak, kategóriák, a szövegszerkesztő,
+   közzététel (később is), törlés.
+4. [Menük](04-menuk.md): a főmenü pontjai, lenyíló almenük, sorrend.
+5. [Képek](05-kepek.md): feltöltés, alternatív szöveg, kép a szövegben,
+   törlés.
 6. Felhasználók és a saját fiókod *(készül)*
 7. Kapcsolati űrlap és adatvédelem *(készül)*
 8. E-mail *(készül)*

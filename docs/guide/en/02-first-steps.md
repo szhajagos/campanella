@@ -130,4 +130,5 @@ While you are logged in, the header shows the **Admin** button, your name and
 
 ---
 
-Previous: [1. Installation](01-installation.md) · [Contents](README.md)
+Previous: [1. Installation](01-installation.md) · Next: [3. Content](03-content.md) ·
+[Contents](README.md)

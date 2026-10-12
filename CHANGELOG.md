@@ -19,8 +19,24 @@ Work towards 0.2.1: the guide for site owners, in parts.
   settings file, the installer in the browser, what to do when something
   goes wrong) and the first steps (logging in, the admin, the site settings,
   the System page). The other chapters follow.
+- The guide's chapters on content (articles, pages, categories, the editor,
+  publishing now or later, deleting), menus and images (uploading, the
+  alternative text, images in texts).
 - `tests/guide/screenshots.sh`: makes the guide's screenshots from a fresh
   site in each language, installed from the browser as the guide tells.
+
+### Changed
+
+- **Dates follow the interface language:** the `date` filter's default
+  format is the new `date.format` message (Hungarian `2026. 10. 12. 22:30`,
+  English `12 Oct 2026, 22:30`); until now every site showed the Hungarian
+  format.
+
+### Fixed
+
+- The default theme's header: with a longer main menu, a logged-in user's
+  links (Admin, the name, Log out) ran out of the column on the right; they
+  now wrap below the menu.
 
 ## [0.2.0] – 2026-10-12
 

@@ -652,7 +652,9 @@ final class Kernel
             $twig->addExtension(new SandboxExtension(new TemplatePolicy(), true));
             $core = $twig->getExtension(CoreExtension::class);
             $core->setTimezone((string) $config->get('timezone', 'UTC'));
-            $core->setDateFormat('Y. m. d. H:i');
+            // The interface language's date format (`date.format`; since 0.2.1, before: always Hungarian).
+            $format = $c->get(Translator::class)->translate('date.format');
+            $core->setDateFormat($format !== 'date.format' ? $format : 'Y-m-d H:i');
 
             $twig->addExtension(new CampanellaTwigExtension(
                 static fn (): Presentation => $c->get(Presentation::class),

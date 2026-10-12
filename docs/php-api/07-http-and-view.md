@@ -325,6 +325,8 @@ templates a request uses are read and hashed once per request.
 The extension's other methods (`getFunctions()`, `getFilters()`,
 `getGlobals()`) are meant for Twig.
 
-Dates rendered with the `date` filter use the `timezone` setting and the
-`Y. m. d. H:i` format by default. Templates escape automatically (HTML); in
+Dates rendered with the `date` filter use the `timezone` setting and, by
+default, the interface language's format: the `date.format` message (Hungarian
+`Y. m. d. H:i`, English `j M Y, H:i`; since 0.2.1, before: always the Hungarian
+one). Templates escape automatically (HTML); in
 debug mode an undefined variable raises an error.

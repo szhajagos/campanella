@@ -10,6 +10,8 @@ declare(strict_types=1);
 return [
     // Site frame (templates/base.html.twig)
     'site.nav.label' => 'Main menu',
+    // The format of dates in templates (PHP date(); the |date filter's default).
+    'date.format' => 'j M Y, H:i',
     'site.nav.home' => 'Home',
     'site.nav.news' => 'News',
     'site.nav.categories' => 'Categories',

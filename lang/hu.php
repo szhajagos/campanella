@@ -8,6 +8,8 @@ declare(strict_types=1);
 return [
     // Site frame (templates/base.html.twig)
     'site.nav.label' => 'Főmenü',
+    // A dátumok formátuma a sablonokban (PHP date(); a |date szűrő alapértelmezése).
+    'date.format' => 'Y. m. d. H:i',
     'site.nav.home' => 'Főoldal',
     'site.nav.news' => 'Hírek',
     'site.nav.categories' => 'Kategóriák',
