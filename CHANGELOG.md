@@ -35,6 +35,33 @@ Work towards 0.2.0 (the milestone: see the [ROADMAP](ROADMAP.md)), in parts.
   0.1.x to 0.2.0 in one document: the steps, the database changes, the new
   settings, what behaves differently, what a theme or custom code must
   follow, a checklist, and going back from the backup.
+- **The compatibility promise** ([docs/compatibility.md](docs/compatibility.md)):
+  within 0.2.x the Public PHP API, the configuration keys, the templates'
+  names and variables, the Twig functions, the commands, the site's addresses
+  and the data only grow; anything to be removed is marked **Deprecated** in a
+  0.2.x first and goes in 0.3.0 at the earliest; security fixes come as
+  0.2.1, 0.2.2 …
+- **The package check** (`tests/package/check.sh`, the `package` job in CI):
+  the installation package, built as the release builds it
+  (`tests/package/build.sh`, which the release now uses too), unpacked into
+  an empty folder, its contents checked (nothing of the tests, local settings,
+  uploads or development packages; MIT-compatible licences only; LF line
+  endings; PHP syntax), installed from the browser on a PHP with only the
+  required extensions, and put through the browser tests. A release is
+  published only if it passes.
+- `Mailer::time()` and `Event::summaryWith()` (see Changed).
+
+### Changed
+
+- **Times in e-mails are in the site's time zone** (the `timezone` setting,
+  e.g. `2026-10-12 21:16 CEST`), not UTC: the contact form's notification,
+  the e-mails to users and administrators, the test e-mail, and a scheduled
+  publication's time in the summary. The template variables (`received_at`,
+  `occurred_at`, `sent_at`) stay strings. `Mailer::fromConfig()` and the
+  constructor take the time zone as a new last argument (default `UTC`).
+- `composer.json` requires `ext-ctype` and `ext-session` too, as the System
+  page always did; the README lists the extensions a host needs, with `gd`
+  for uploading images.
 
 ### Fixed
 

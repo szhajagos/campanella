@@ -5643,7 +5643,7 @@ test('Kernel: an e-mail about each new message, after the response, with Reply-T
         $c = $kernel->container();
         $config = $c->get(\Campanella\Core\Config::class);
         $c->set(\Campanella\Core\Config::class, static fn () => new \Campanella\Core\Config(array_replace_recursive($config->all(), ['site' => ['url' => 'https://pelda.example']], $override)));
-        $c->set(\Campanella\Mail\Mailer::class, static fn (\Campanella\Core\Container $c) => new \Campanella\Mail\Mailer($transport, 'noreply@example.hu', static fn () => $c->get(\Twig\Environment::class), static fn () => 'Teszt webhely', $c->get(Connection::class)));
+        $c->set(\Campanella\Mail\Mailer::class, static fn (\Campanella\Core\Container $c) => new \Campanella\Mail\Mailer($transport, 'noreply@example.hu', static fn () => $c->get(\Twig\Environment::class), static fn () => 'Teszt webhely', $c->get(Connection::class), 90, '', null, (string) $c->get(\Campanella\Core\Config::class)->get('timezone', 'UTC')));
 
         return $kernel;
     };
@@ -5674,6 +5674,9 @@ test('Kernel: an e-mail about each new message, after the response, with Reply-T
     check(str_contains((string) $mail->getSubject(), 'Új üzenet a kapcsolati űrlapról') && !str_contains((string) $mail->getSubject(), 'Titkos'), 'a subject without what the sender wrote');
     check(str_contains($text, "Első sor\nMásodik sor") && str_contains($text, 'Tárgy: Titkos tárgy') && str_contains($text, 'https://pelda.example/admin/submission/' . $submission->id()), $text);
     check(!str_contains((string) json_encode($db->fetchAll('SELECT * FROM {mail_log}'), JSON_UNESCAPED_UNICODE), 'Titkos'), 'the log keeps nothing the sender wrote');
+    // The time in the site's time zone (since 0.2.0; the default config: Europe/Budapest), not UTC.
+    $local = $submission->created()->setTimezone(new \DateTimeZone((string) $kernel->container()->get(\Campanella\Core\Config::class)->get('timezone')))->format('Y-m-d H:i T');
+    check(str_contains($text, $local) && !str_contains($text, ' UTC'), 'the time in the site\'s time zone: ' . $local);
 
     // To given addresses; or nobody.
     $kernel = $make(['contact' => ['notify_to' => ['Info@Example.hu', 'nem-cim', 'info@example.hu']]]);
@@ -5703,6 +5706,24 @@ test('Kernel: an e-mail about each new message, after the response, with Reply-T
     $db->execute("DELETE FROM {objects} WHERE blueprint IN ('submission', 'user')");
     $db->execute('DELETE FROM {mail_log}');
     putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('Mailer::time() and event summaries: the site\'s time zone (since 0.2.0)', function () use ($repository): void {
+    $M = \Campanella\Mail\Mailer::class;
+    $twig = static fn () => throw new \LogicException('no template needed');
+    $budapest = new $M(null, 'noreply@example.hu', $twig, static fn () => 'W', null, 90, '', null, 'Europe/Budapest');
+    $utc = new \DateTimeZone('UTC');
+    check($budapest->time(new \DateTimeImmutable('2026-07-01 10:00', $utc)) === '2026-07-01 12:00 CEST', 'summer time');
+    check($budapest->time(new \DateTimeImmutable('2026-12-01 23:30', $utc)) === '2026-12-02 00:30 CET', 'winter time, the next day');
+    check((new $M(null, '', $twig, static fn () => 'W', null, 90, '', null, 'Nincs/Ilyen'))->time(new \DateTimeImmutable('2026-07-01 10:00', $utc)) === '2026-07-01 10:00 UTC', 'an invalid zone: UTC');
+    check($M::fromConfig([], $twig, static fn () => 'W', null, 'Europe/Budapest')->time(new \DateTimeImmutable('2026-07-01 10:00', $utc)) === '2026-07-01 12:00 CEST', 'fromConfig');
+
+    // A scheduled publication's time: summary() in UTC as before, summaryWith() as the reader's.
+    $article = $repository->create('article', ['title' => 'Időzített', 'path' => '/idozitett-' . bin2hex(random_bytes(3))]);
+    $article->as(\Campanella\Capability\Publishable::class)->publish(new \DateTimeImmutable('2030-07-01 10:00', $utc));
+    $event = new \Campanella\Event\ObjectPublished($article);
+    check($event->isScheduled() && $event->summary()->params['at'] === '2030-07-01 10:00 UTC', (string) json_encode($event->summary()->params));
+    check($event->summaryWith($budapest->time(...))->params['at'] === '2030-07-01 12:00 CEST');
 });
 
 test('Submissions: old ones deleted after contact.keep_days; the privacy note; the System page', function () use ($repository, $engine, $db): void {

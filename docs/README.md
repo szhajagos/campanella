@@ -10,6 +10,7 @@ chapter in the same commit.
 | [HTTP API](http-api/README.md) | The web endpoints: the current HTML routes and the planned JSON API | HTML: done · JSON: draft |
 | [Security](security.md) | What protects a site, the security review of 0.1.0, the known and accepted risks, reporting a vulnerability | Since 0.1.0 |
 | [Deployment](deployment.md) | Running Campanella on a public server: web root, HTTPS and proxies, settings, security headers, permissions, backups, upgrades, a checklist | Since 0.1.0 |
+| [Compatibility](compatibility.md) | What stays within 0.2.x (the Public API, the settings, templates and their variables, Twig functions, commands, addresses, data), Deprecated before removed, security fixes | Since 0.2.0 |
 | [Upgrading](upgrading.md) | From any 0.1.x to 0.2.0: the steps, the new settings, what behaves differently, themes and custom code, a checklist, going back | Since 0.2.0 |
 | [Testing](testing.md) | The automated checks: the tests, the upgrade test, the browser tests; running them locally | Since 0.2.0 |
 | [Changelog](../CHANGELOG.md) | What was added, changed or removed in each version | Ongoing |
@@ -25,10 +26,15 @@ Every element of the PHP API is marked with how much you can rely on it:
 |---|---|
 | **Public** | Modules and your own code can safely use it. Changes are announced in the CHANGELOG. |
 | **Internal** | Part of the core; do not build on it directly: it may change without notice. |
+| **Deprecated** | Still works throughout its minor series, but goes in a later one: the CHANGELOG and the chapter say what to use instead (since 0.2.0; none yet). |
 
-Campanella follows [semantic versioning](https://semver.org/). In the 0.x
-versions any release may still bring backward-incompatible changes; these are
-always listed in the **Changed** and **Removed** sections of the CHANGELOG.
+Campanella follows [semantic versioning](https://semver.org/). Within a 0.x
+minor series (from 0.2.0 on: 0.2.0, 0.2.1 …) the Public API, the settings, the
+templates' names and variables and the Twig functions only grow: see the
+[compatibility promise](compatibility.md). A new minor version (0.3.0) may
+bring backward-incompatible changes, after a **Deprecated** notice in the
+series before; they are always listed in the **Changed** and **Removed**
+sections of the CHANGELOG.
 From 1.0 on, the public API can only change in a backward-incompatible way
 with a major version bump.
 
