@@ -51,7 +51,7 @@ folder; putting a site on a public server is described in the
 
 ## Requirements
 
-- PHP 8.3 or newer (`pdo_mysql`, `mbstring`, `json`, `dom`; recommended: `gd` with JPEG, PNG and WebP for images, `exif`, `fileinfo`, `opcache`)
+- PHP 8.3 or newer (`pdo_mysql`, `mbstring`, `json`, `dom`, `ctype`, `session`; `gd` with JPEG, PNG and WebP to upload images; recommended: `exif`, `fileinfo`, `opcache`). Running `composer install` yourself also needs `iconv`; the release package does not. Without `gd` the site works, but images cannot be uploaded (the System page says so). Each release package is installed on a PHP with only these extensions before it is published ([Testing](docs/testing.md#the-release-package)).
 - MariaDB 10.6+ or MySQL 8.0+ (InnoDB, utf8mb4)
 - Composer (to download the dependencies; you can also upload the project to your web host together with the `vendor/` folder)
 
@@ -184,6 +184,7 @@ older than 0.0.6 is upgraded to 0.0.7 first, then to the current version.
 | `php bin/campanella html:sanitize` | Filters the stored HTML texts with the allowlist (`--dry-run`: only lists them) |
 | `composer test` | Tests (on a real database, with a separate `test_` table prefix) |
 | `tests/upgrade/run.sh <0.1.0 source>` | The upgrade test: installs 0.1.0 with content, upgrades it to this code, checks that nothing was lost (since 0.2.0; [details](docs/php-api/17-migrations.md#the-upgrade-test)) |
+| `tests/package/check.sh` | The installation package: built as the release builds it, its contents checked, installed from the browser, the browser tests on it (since 0.2.0; [details](docs/testing.md#the-release-package)) |
 | `tests/browser/run.sh` | The browser tests: a fresh site in headless Chromium, its logins, sessions, forgotten password, contact form and admin, protections first (since 0.2.0; [details](docs/testing.md#the-browser-tests)) |
 | `composer analyse` | PHPStan, level 8, targeting PHP 8.3 |
 | `composer docs:check` | Find undocumented public classes and methods |
@@ -195,7 +196,7 @@ older than 0.0.6 is upgraded to 0.0.7 first, then to the current version.
 On every push, GitHub runs the checks above
 ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)): PHPStan, the
 documentation checks, `composer audit` (known vulnerabilities of the
-dependencies), the tests on MariaDB 10.6 and 11.4, and MySQL 8.0 and 8.4, an upgrade from 0.1.0, and the browser tests (both since 0.2.0; see [Testing](docs/testing.md)). The results are shown next to the commits and on the Actions tab.
+dependencies), the tests on MariaDB 10.6 and 11.4, and MySQL 8.0 and 8.4, an upgrade from 0.1.0, the browser tests, and the installation package as a site owner gets it (all three since 0.2.0; see [Testing](docs/testing.md)). The results are shown next to the commits and on the Actions tab.
 
 After a version tag (`git tag v0.1.5 && git push --tags`), GitHub builds the
 installation package and attaches it to the release. For an existing tag it

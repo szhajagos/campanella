@@ -10,6 +10,7 @@ run locally too.
 | Static analysis and docs | `composer analyse`, `composer docs:check`, `composer docs:links`, `composer lang:check` | Types (PHPStan level 8); every public class and method documented; links; translations |
 | Upgrade test | `tests/upgrade/run.sh <0.1.0 source>` | A real upgrade from 0.1.0: nothing is lost (since 0.2.0; see [The upgrade test](php-api/17-migrations.md#the-upgrade-test)) |
 | Browser tests | `tests/browser/run.sh` | The site in a real browser, its protections first (since 0.2.0; below) |
+| Release package | `tests/package/check.sh` | The installation package as a site owner gets it: its contents, installing it from the browser on a minimal PHP, the browser tests on it (since 0.2.0; below) |
 
 The database of all of them comes from the `CAMPANELLA_DB_*` environment
 variables (`HOST`, `PORT`, `NAME`, `USER`, `PASSWORD`), each with its own table
@@ -62,3 +63,39 @@ site, which is deleted afterwards.
 
 Playwright (Apache-2.0) is a development tool only: it is not part of the
 release package (`/tests` is excluded from it) and not needed to run a site.
+
+## The release package
+
+The zip attached to a GitHub release is what most site owners install. CI
+checks it on every push, built exactly as the release builds it, and a
+release is published only if the check passes (the `package` job).
+
+```bash
+tests/package/check.sh             # needs network for composer install
+tests/package/check.sh --offline   # vendor/ copied from this folder instead
+```
+
+1. **Build** (`tests/package/build.sh <folder>`, which the release uses too):
+   the files git tracks or would track, without those `.gitattributes` marks
+   `export-ignore` (the tests, the CI settings, PHPStan's), plus
+   `composer install --no-dev --optimize-autoloader`; zipped, with its
+   SHA-256. The zip is then unpacked into an empty folder: the clean host.
+2. **Contents** (`tests/package/contents.php`): what a site needs is there
+   (`vendor/`, the `.htaccess` files, Bootstrap and Jodit, the docs);
+   nothing that must not be: no tests, no `config/local.php`, no uploads,
+   backups, caches, `.env` or version-control folders, no development
+   package; every dependency MIT, BSD or ISC; LF line endings; every PHP
+   file's syntax.
+3. **Installing from the browser** (`tests/package/install_flow.py`), as a
+   site owner without a command line does: without an install key the page
+   says how to set one and offers no form; with it, a wrong key is refused,
+   the right one installs the site and logs the administrator in; the System
+   page shows no error; `/install` answers 404 afterwards; logging out and in
+   again works.
+4. **The browser tests** on another copy of the package
+   (`tests/browser/run.sh --site <folder>`).
+
+In CI the PHP has only the extensions Campanella needs (`ctype`, `dom`,
+`json`, `mbstring`, `pdo_mysql`, `session`, `gd`) and what Composer needs:
+none of the recommended ones, as on a bare web host.
+

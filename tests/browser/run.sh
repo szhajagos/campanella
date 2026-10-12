@@ -4,7 +4,7 @@
 # out in a real browser (Playwright, headless Chromium) against a fresh installation.
 # They serve security first: a protection that silently stops working fails the build.
 #
-#   tests/browser/run.sh [--keep] [--headed]
+#   tests/browser/run.sh [--keep] [--headed] [--site <folder>]
 #
 # What it does:
 #   1. copies this folder's files (as `git ls-files` lists them, with vendor/) to a
@@ -20,19 +20,27 @@
 # (`pip install -r tests/browser/requirements.txt`, then
 # `python3 -m playwright install chromium`). Ports: CAMPANELLA_TEST_PORT (8099) and
 # CAMPANELLA_TEST_SMTP_PORT (2599). --keep: the temporary site and the tables are
-# kept (the site's folder is printed). --headed: the browser is shown.
+# kept (the site's folder is printed). --headed: the browser is shown. --site: the
+# site is a copy of that folder (with its own vendor/), e.g. the unpacked release
+# package (tests/package/check.sh), instead of this folder's files.
 
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 KEEP=0
 HEADED=0
-for arg in "$@"; do
-    case "$arg" in
+SOURCE=""
+while [ $# -gt 0 ]; do
+    case "$1" in
         --keep) KEEP=1 ;;
         --headed) HEADED=1 ;;
-        *) echo "Unknown option: $arg" >&2; exit 2 ;;
+        --site) SOURCE="${2:-}"; shift
+            if [ ! -f "$SOURCE/bin/campanella" ] || [ ! -f "$SOURCE/vendor/autoload.php" ]; then
+                echo "--site: not a Campanella folder with vendor/: $SOURCE" >&2; exit 2
+            fi ;;
+        *) echo "Unknown option: $1" >&2; exit 2 ;;
     esac
+    shift
 done
 
 PORT="${CAMPANELLA_TEST_PORT:-8099}"
@@ -90,10 +98,15 @@ wait_for_port() {
 echo "== The site, in $SITE"
 drop_tables
 mkdir -p "$SITE" "$MAILS"
-(cd "$ROOT" && git ls-files -co --exclude-standard -z \
-    | while IFS= read -r -d '' f; do [ -f "$f" ] && [ "$f" != config/local.php ] && printf '%s\0' "$f"; done \
-    | tar --null -T - -cf -) | tar -C "$SITE" -xf -
-cp -a "$ROOT/vendor" "$SITE/vendor"
+if [ -n "$SOURCE" ]; then
+    cp -a "$SOURCE/." "$SITE/"
+    rm -f "$SITE/config/local.php"
+else
+    (cd "$ROOT" && git ls-files -co --exclude-standard -z \
+        | while IFS= read -r -d '' f; do [ -f "$f" ] && [ "$f" != config/local.php ] && printf '%s\0' "$f"; done \
+        | tar --null -T - -cf -) | tar -C "$SITE" -xf -
+    cp -a "$ROOT/vendor" "$SITE/vendor"
+fi
 cat > "$SITE/config/local.php" <<'PHP'
 <?php
 // The browser tests' site: the database and the mail come from the CAMPANELLA_* variables.

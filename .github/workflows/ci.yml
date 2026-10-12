@@ -2,7 +2,8 @@
 #
 # - On every push and pull request: PHPStan, the documentation check, the
 #   tests on every supported database (MariaDB 10.6+, MySQL 8.0+), an upgrade
-#   from 0.1.0, and the browser tests (both since 0.2.0).
+#   from 0.1.0, the browser tests, and the installation package checked as a site
+#   owner gets it (all three since 0.2.0).
 # - On a version tag (v*): an installation package including the vendor/ folder,
 #   attached to the GitHub release. Can also be run manually for an existing tag
 #   (Actions → CI → Run workflow, giving the tag).
@@ -246,10 +247,82 @@ jobs:
       - name: Browser tests
         run: bash tests/browser/run.sh
 
+  package:
+    # The installation package (since 0.2.0), built as the release builds it, unpacked
+    # on a PHP with only the required extensions, checked (contents, licences), installed
+    # from the browser, and put through the browser tests: tests/package/check.sh. A
+    # release is published only if this passes.
+    name: Installation package
+    runs-on: ubuntu-latest
+
+    services:
+      db:
+        image: mariadb:11.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: campanella
+          MYSQL_USER: campanella
+          MYSQL_PASSWORD: campanella
+        ports:
+          - 3306:3306
+
+    env:
+      CAMPANELLA_DB_HOST: 127.0.0.1
+      CAMPANELLA_DB_PORT: 3306
+      CAMPANELLA_DB_NAME: campanella
+      CAMPANELLA_DB_USER: campanella
+      CAMPANELLA_DB_PASSWORD: campanella
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Skipped for tags without the package check
+        id: has
+        run: |
+          if [ -f tests/package/check.sh ]; then echo "check=1" >> "$GITHUB_OUTPUT"; else echo "No package check in this version."; fi
+
+      - uses: shivammathur/setup-php@v2
+        if: steps.has.outputs.check == '1'
+        with:
+          php-version: '8.3'
+          # Only what Campanella needs (README: gd for images), plus what Composer needs
+          # (phar, openssl, iconv): a minimal host, no recommended extension.
+          extensions: none, ctype, dom, json, mbstring, pdo, pdo_mysql, session, gd, iconv, phar, openssl, filter
+          ini-values: memory_limit=128M
+          coverage: none
+          tools: composer
+
+      - uses: actions/setup-python@v5
+        if: steps.has.outputs.check == '1'
+        with:
+          python-version: '3.12'
+
+      - name: Playwright and Chromium
+        if: steps.has.outputs.check == '1'
+        run: |
+          python -m pip install -r tests/browser/requirements.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Wait for the database
+        if: steps.has.outputs.check == '1'
+        run: |
+          for i in $(seq 1 60); do
+            php -r 'new PDO("mysql:host=127.0.0.1;port=3306;dbname=campanella", "campanella", "campanella");' 2>/dev/null && exit 0
+            sleep 2
+          done
+          echo "The database did not start." >&2
+          exit 1
+
+      - name: Build, unpack, check, install from the browser, browser tests
+        if: steps.has.outputs.check == '1'
+        run: bash tests/package/check.sh
+
   release:
     name: Release package
     if: startsWith(github.ref, 'refs/tags/v') || inputs.tag != ''
-    needs: [checks, tests]
+    needs: [checks, tests, package]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -281,6 +354,12 @@ jobs:
       - name: Build the package (with the vendor/ folder)
         run: |
           NAME="campanella-$VERSION"
+          # Since 0.2.0 the same script the package check (above) built and checked with.
+          if [ -f tests/package/build.sh ]; then
+            bash tests/package/build.sh build
+            ls -l build
+            exit 0
+          fi
           mkdir -p build
           # git archive follows the export-ignore rules in .gitattributes.
           git archive --format=tar --prefix="$NAME/" HEAD | tar -x -C build
