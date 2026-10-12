@@ -10,6 +10,18 @@ backward-incompatible.
 
 ## [Unreleased]
 
+Work towards 0.2.1: the guide for site owners, in parts.
+
+### Added
+
+- **The guide for site owners** ([docs/guide/](docs/guide/README.md)), in
+  Hungarian and English, with screenshots: installing (uploading, the
+  settings file, the installer in the browser, what to do when something
+  goes wrong) and the first steps (logging in, the admin, the site settings,
+  the System page). The other chapters follow.
+- `tests/guide/screenshots.sh`: makes the guide's screenshots from a fresh
+  site in each language, installed from the browser as the guide tells.
+
 ## [0.2.0] – 2026-10-12
 
 **The second milestone: the site communicates.** 0.2.0 releases what 0.1.1–0.1.5

@@ -35,11 +35,25 @@ Completed changes are listed in the [CHANGELOG](CHANGELOG.md).
 ### 0.2.1 – a guide for site owners
 
 Right after 0.2.0: **a guide for site owners**, in Hungarian and in English
-(`docs/guide/`), for people who run a site but do not develop it: installing,
-the first steps in the admin, content, menus, images, users, the contact
-form, e-mail, the privacy notice, backups and upgrades. Security fixes of
-0.2.x come as 0.2.1, 0.2.2 … too, keeping the
+(`docs/guide/`), for people who run a site but do not develop it. Security
+fixes of 0.2.x come as 0.2.1, 0.2.2 … too, keeping the
 [compatibility promise](docs/compatibility.md).
+
+Agreed on 2026-10-12: with screenshots, made by a script
+(`tests/guide/screenshots.sh`) from a fresh site in each language, so they can
+be made again whenever the admin's look changes. In four parts, each in both
+languages:
+
+1. **Installation and first steps:** uploading, the settings file, the
+   browser installer; logging in, the admin, the site settings, the System
+   page.
+2. **Content, menus, images:** articles, pages, categories, drafts and
+   publishing (also later), the editor; the main menu; uploading images and
+   using them.
+3. **Users, the contact form, e-mail, privacy:** roles, one's own profile and
+   sessions, the forgotten password; the messages; setting up e-mail; the
+   privacy notice and what is stored.
+4. **Backups, upgrades, troubleshooting**, and the release.
 
 ### 0.3.0 – planned so far
 
@@ -96,6 +110,9 @@ form, e-mail, the privacy notice, backups and upgrades. Security fixes of
     in code"); those created in the admin would be fully editable.
   - New kinds of capabilities stay code (they carry behaviour): they come from
     modules, not from the admin.
+- **Sample content in the site's language** (2026-10-12): the sample content
+  (`seed`) is Hungarian only, its listing pages' paths (`/hirek`) too; an
+  English site gets Hungarian samples.
 - **Multilingual content.**
 - **Trash, audit log.**
 - **Login extensions:** two-factor authentication (e.g. TOTP) as its own

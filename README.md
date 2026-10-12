@@ -74,6 +74,11 @@ The details are in the [CHANGELOG](CHANGELOG.md#020--2026-10-12).
 - **Bilingual interface** (Hungarian and English), Bootstrap 5.3 and the editor
   shipped locally, replaceable themes.
 
+**Running a site?** The [guide for site owners](docs/guide/README.md) (in
+Hungarian and English) explains installing, the admin, content and the rest,
+without programming. *Útmutató az oldal gazdájának:
+[magyarul](docs/guide/hu/README.md).*
+
 The developer documentation (PHP API, HTTP API) is in the [`docs/`](docs/README.md)
 folder; putting a site on a public server is described in the
 [deployment guide](docs/deployment.md), changes are listed in the
