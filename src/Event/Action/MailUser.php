@@ -75,8 +75,8 @@ final class MailUser implements Action
         }
         $this->mailer->send($user->as(Identifiable::class)->email(), self::templateFor($event), [
             'event' => $event->name(),
-            'summary' => $event->summary(),
-            'occurred_at' => $event->occurredAt->format('Y-m-d H:i') . ' UTC',
+            'summary' => $event->summaryWith($this->mailer->time(...)),
+            'occurred_at' => $this->mailer->time($event->occurredAt),   // the site's time zone (since 0.2.0)
             'by_administrator' => $event instanceof PasswordChanged && $event->byAdministrator,
             'by_reset' => $event instanceof PasswordChanged && $event->byReset,
             'login_link' => $this->link('login'),

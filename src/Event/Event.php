@@ -29,6 +29,17 @@ abstract class Event
     /** A short, translatable sentence about what happened (e.g. for an e-mail or a log). */
     abstract public function summary(): Message;
 
+    /**
+     * The summary for a reader (since 0.2.0): any time in it is formatted by `$time`,
+     * e.g. Mailer::time(), in the site's time zone. summary() gives times in UTC.
+     *
+     * @param \Closure(\DateTimeInterface): string $time
+     */
+    public function summaryWith(\Closure $time): Message
+    {
+        return $this->summary();
+    }
+
     /** The event's name for logs and messages: its class's short name (`ObjectPublished`). */
     public function name(): string
     {

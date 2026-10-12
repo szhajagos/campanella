@@ -65,7 +65,26 @@ final class Mailer
         private readonly int $logDays = 90,
         private readonly string $description = '',
         private readonly ?string $configError = null,
+        string $timezone = 'UTC',
     ) {
+        try {
+            $this->timezone = new \DateTimeZone($timezone !== '' ? $timezone : 'UTC');
+        } catch (\Exception) {
+            $this->timezone = new \DateTimeZone('UTC');
+        }
+    }
+
+    /** The time zone of the times in e-mails (the site's `timezone`; since 0.2.0). */
+    private readonly \DateTimeZone $timezone;
+
+    /**
+     * A time as e-mails show it (since 0.2.0): in the site's time zone (the `timezone`
+     * setting), with the zone's abbreviation, e.g. `2026-10-12 21:16 CEST`. Until 0.2.0
+     * the e-mails showed UTC.
+     */
+    public function time(\DateTimeInterface $time): string
+    {
+        return \DateTimeImmutable::createFromInterface($time)->setTimezone($this->timezone)->format('Y-m-d H:i T');
     }
 
     /**
@@ -75,8 +94,9 @@ final class Mailer
      * @param array<mixed> $config
      * @param Closure(): Environment $twig
      * @param Closure(): string $fromName
+     * @param string $timezone The site's time zone, for the times in e-mails (since 0.2.0)
      */
-    public static function fromConfig(array $config, Closure $twig, Closure $fromName, ?Connection $db = null): self
+    public static function fromConfig(array $config, Closure $twig, Closure $fromName, ?Connection $db = null, string $timezone = 'UTC'): self
     {
         $dsn = trim((string) ($config['dsn'] ?? ''));
         $from = trim((string) ($config['from'] ?? ''));
@@ -85,10 +105,10 @@ final class Mailer
         $timeout = max(1, (int) ($config['timeout'] ?? self::TIMEOUT));
         $fromNameFn = $name !== '' ? static fn (): string => $name : $fromName;
         if ($dsn === '' || $from === '') {
-            return new self(null, $from, $twig, $fromNameFn, $db, $days, self::describeDsn($dsn));
+            return new self(null, $from, $twig, $fromNameFn, $db, $days, self::describeDsn($dsn), null, $timezone);
         }
         if (filter_var($from, FILTER_VALIDATE_EMAIL) === false) {
-            return new self(null, $from, $twig, $fromNameFn, $db, $days, self::describeDsn($dsn), 'mail.from is not an e-mail address');
+            return new self(null, $from, $twig, $fromNameFn, $db, $days, self::describeDsn($dsn), 'mail.from is not an e-mail address', $timezone);
         }
         try {
             $transport = Transport::fromDsn($dsn);
@@ -98,10 +118,10 @@ final class Mailer
             }
         } catch (\Throwable $e) {
             // The message may contain the DSN: only its kind is kept.
-            return new self(null, $from, $twig, $fromNameFn, $db, $days, self::describeDsn($dsn), 'mail.dsn is not valid (' . (new \ReflectionClass($e))->getShortName() . ')');
+            return new self(null, $from, $twig, $fromNameFn, $db, $days, self::describeDsn($dsn), 'mail.dsn is not valid (' . (new \ReflectionClass($e))->getShortName() . ')', $timezone);
         }
 
-        return new self($transport, $from, $twig, $fromNameFn, $db, $days, self::describeDsn($dsn));
+        return new self($transport, $from, $twig, $fromNameFn, $db, $days, self::describeDsn($dsn), null, $timezone);
     }
 
     /** Whether e-mails can be sent (a valid `dsn` and `from`). */

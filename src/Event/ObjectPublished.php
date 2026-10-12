@@ -36,8 +36,14 @@ final class ObjectPublished extends ObjectEvent
     #[\Override]
     public function summary(): Message
     {
+        return $this->summaryWith(static fn (\DateTimeInterface $at): string => $at->format('Y-m-d H:i') . ' UTC');
+    }
+
+    #[\Override]
+    public function summaryWith(\Closure $time): Message
+    {
         return $this->isScheduled() && $this->publishedAt !== null
-            ? new Message('event.object_scheduled', ['title' => $this->title(), 'id' => (int) $this->object->id(), 'at' => $this->publishedAt->format('Y-m-d H:i') . ' UTC'])
+            ? new Message('event.object_scheduled', ['title' => $this->title(), 'id' => (int) $this->object->id(), 'at' => $time($this->publishedAt)])
             : parent::summary();
     }
 }

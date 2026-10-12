@@ -536,6 +536,7 @@ final class Kernel
             static fn (): Environment => $c->get(Environment::class),
             static fn (): string => $c->get(SiteSettings::class)->name(),
             $c->get(Connection::class),
+            (string) $c->get(Config::class)->get('timezone', 'UTC'),
         ));
 
         $c->set(ObjectService::class, static function (Container $c): ObjectService {

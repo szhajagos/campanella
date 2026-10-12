@@ -79,7 +79,7 @@ final class MailPages
             return $back;
         }
         $email = $user->as(Identifiable::class)->email();
-        $result = $this->mailer->send($email, 'test', ['sent_at' => gmdate('Y-m-d H:i:s') . ' UTC'], UserService::nameOf($user));
+        $result = $this->mailer->send($email, 'test', ['sent_at' => $this->mailer->time(new \DateTimeImmutable())], UserService::nameOf($user));
         $this->flash->add(
             $result->sent() ? Flash::SUCCESS : Flash::DANGER,
             new Message('mail.test.' . $result->status, ['email' => $email, 'error' => (string) $result->error]),

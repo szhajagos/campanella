@@ -65,8 +65,8 @@ final class MailAdministrators implements Action
         $actor = $event->actor;
         $context = [
             'event' => $event->name(),
-            'summary' => $event->summary(),
-            'occurred_at' => $event->occurredAt->format('Y-m-d H:i') . ' UTC',
+            'summary' => $event->summaryWith($this->mailer->time(...)),
+            'occurred_at' => $this->mailer->time($event->occurredAt),   // the site's time zone (since 0.2.0)
             'actor_name' => $actor?->id !== null ? $this->nameOf($actor) : '',
             'link' => $this->link($event),
         ];

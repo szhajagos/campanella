@@ -38,8 +38,11 @@ the event is about.
 
 Every event has `actor` (`?Actor`: who did it; null for the system),
 `occurredAt` (UTC), `summary(): Message` (a translatable sentence, e.g.
-`event.object_published`: *Published: {title}*) and `name(): string` (the
-class's short name). The object events extend `ObjectEvent`, which adds
+`event.object_published`: *Published: {title}*), `summaryWith(Closure
+$time): Message` (since 0.2.0: the same, with any time in it formatted by
+`$time`, e.g. `$mailer->time(...)`, in the site's time zone; `summary()` gives
+it in UTC: only `ObjectPublished`'s scheduled time has one) and `name():
+string` (the class's short name). The object events extend `ObjectEvent`, which adds
 `title(): string` (the title, or `#<id>`).
 
 `ObjectPublished` happens when an object is published, also for a later
@@ -207,12 +210,13 @@ of that replies are not read).
 
 | Member | |
 |---|---|
-| `static fromConfig(array $config, Closure $twig, Closure $fromName, ?Connection $db = null): self` | From the `mail` settings; `$twig` gives the templates' environment, `$fromName` the sender's name (both lazy) |
+| `static fromConfig(array $config, Closure $twig, Closure $fromName, ?Connection $db = null, string $timezone = 'UTC'): self` | From the `mail` settings; `$twig` gives the templates' environment, `$fromName` the sender's name (both lazy); `$timezone` the site's, for `time()` (since 0.2.0; the Kernel passes the `timezone` setting). The constructor's last argument is the same (`string $timezone = 'UTC'`) |
 | `send(string $to, string $template, array $context = [], string $toName = '', string $replyTo = '', string $replyToName = ''): MailResult` | Renders and sends the template, and logs it. **Never throws** for a failure to send (an invalid address, a broken template, a mail server error): it is the result. `InvalidArgumentException` only for an invalid template name (lowercase letters, digits, `_`) |
 | `isConfigured(): bool` | Whether e-mails can be sent |
 | `configError(): ?string` | Why the settings are not usable, if they are given but wrong |
 | `description(): string` | The transport for people: `smtp://smtp.example.hu:587` (never the user name or password) |
 | `from(): string` | The sender's address |
+| `time(DateTimeInterface $time): string` | A time as e-mails show it (since 0.2.0): in the site's time zone (`timezone`), with the zone's abbreviation, e.g. `2026-10-12 21:16 CEST`. The built-in actions pass their times (`occurred_at`, `received_at`, `sent_at`) to the templates so; until 0.2.0 they were UTC |
 | `log(int $limit = 50): list<array>` | The latest log entries, newest first: `created_at` (UTC), `recipient`, `template`, `subject`, `status`, `error` |
 | `static describeDsn(string $dsn): string` | `smtp://user:pass@host:587?x` → `smtp://host:587` |
 

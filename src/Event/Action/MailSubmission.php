@@ -112,7 +112,7 @@ final class MailSubmission implements Action
             'sender_email' => $lens->email(),
             'subject' => $lens->subject(),
             'message' => $lens->message(),
-            'received_at' => $submission->created()->format('Y-m-d H:i') . ' UTC',
+            'received_at' => $this->mailer->time($submission->created()),   // the site's time zone (since 0.2.0)
             'link' => $this->site !== null && $this->admin !== null
                 ? $this->site->absolute($this->admin->path(SubmissionService::BLUEPRINT . '/' . $submission->id()))
                 : null,
