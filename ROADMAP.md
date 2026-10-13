@@ -32,25 +32,104 @@ Completed changes are listed in the [CHANGELOG](CHANGELOG.md).
 | 0.2.1 | A guide for site owners (released 2026-10-13), in Hungarian and English, with screenshots made by a script (`tests/guide/screenshots.sh`): installing, the admin, content, menus, images, users, the contact form and privacy, e-mail, backups and upgrades, troubleshooting; dates in the interface language. Agreed on 2026-10-12, in four parts. |
 | – | Continuous integration (GitHub Actions): PHPStan, documentation, tests on MariaDB 10.6/11.4 and MySQL 8.0/8.4, an upgrade from 0.1.0, browser tests, the installation package checked before every release (with `vendor/`, for every version tag) |
 
-## Next
+## Next: the road to 1.0
 
-### 0.3.0 – planned so far
+Agreed on 2026-10-13. Campanella becomes a complete CMS before 1.0: content
+types (Blueprints) with their own fields, built in the admin, on a data model
+that also holds translations. **What changes the data model or the Public PHP
+API comes before 1.0**, because from 1.0 on the compatibility promise covers
+all of 1.x; what only builds on it (comments, workflow, an AI assistant) may
+come after.
 
-Fixes of 0.2.x, security fixes first, come as 0.2.2, 0.2.3 … in the
-meantime, keeping the [compatibility promise](docs/compatibility.md).
+As before, each milestone is reached in small steps, each a release of its
+own (0.2.2, 0.2.3 … towards 0.3.0), keeping the
+[compatibility promise](docs/compatibility.md) of 0.2.x; fixes, security fixes
+first, come in between. Each milestone is planned in detail when it starts.
 
-- **Search** with the database's FULLTEXT index (MariaDB / MySQL): simple and
-  fast; a more sophisticated search engine may come later.
-- **Redirects:** an automatic 301 redirect when a path changes, and a list of
-  redirects in the admin.
-- **Image picker** in the editor (choosing an uploaded image).
+### 0.3.0 – the content model in the admin
+
+1. **Field types in code:** text, number, date, yes/no, a choice list, a
+   link, a reference to an image or file, a relation to another object; each
+   with its form element, validation and Twig output.
+2. **Storage.** Fields that are not queried stay in the `data` JSON column.
+   For queryable ones, the proposal (2026-10-13) is a table generated for the
+   Blueprint, like the capabilities' `cap_*` tables, changed through the
+   migrations of 0.0.6 with a backup first; multi-valued ones in
+   `cc_field_values` (see the accepted decisions). Decided when 0.3.0 is
+   planned. **The storage is designed with translations from the start**
+   (which fields are translatable, and where a translation's values live),
+   even though multilingual content itself comes in 0.6.0.
+3. **Blueprints in the admin:** creating and modifying Blueprints; choosing
+   capabilities from the installed ones (adding one is applied to the
+   existing objects too; removing one keeps their data); fields with labels,
+   form order, defaults and editor profile. Blueprints from
+   `config/blueprints.php` appear as protected ("defined in code"); new kinds
+   of capabilities stay code, coming from modules.
+4. **Lists in the admin** filtered and sorted by fields: a simple
+   counterpart of Drupal's Views, on the existing Query.
+5. **Exporting and importing the content model** as files, so a model built
+   on a development machine can be taken to the live site.
+
+Also in 0.3.x, between the steps or after them: **search** with the
+database's FULLTEXT index, **redirects** (an automatic 301 when a path
+changes, and a list in the admin), and an **image picker** in the editor.
+
+### 0.4.0 – building pages and the look
+
+- **Component / Region / Layout / Page:** assembling pages from components,
+  instead of Drupal-style blocks.
+- **Appearance** (2026-10-11): a section of its own in the admin for the
+  site's look: colour and other schemes, each in a light and a dark variant,
+  and the colour mode: following the visitor's system setting (as now,
+  `public/assets/theme.js`), or fixed (e.g. always dark). Whether visitors may
+  switch it themselves, and how that control appears on the site, is decided
+  then, within the Component / Region / Layout system, not as a one-off button
+  built into the header.
+- **Media:** storing other files (documents) besides images.
+- **Sample content in the site's language** (2026-10-12): the sample content
+  (`seed`) is Hungarian only, its listing pages' paths (`/hirek`) too; an
+  English site gets Hungarian samples.
+
+### 0.5.0 – extensibility
+
+- **Modules:** packaging, installing, versions and dependencies; the way new
+  capabilities, field types and components reach a site.
+- **JSON API** according to the [HTTP API draft](docs/http-api/README.md),
+  with a machine-readable description of the Blueprints (JSON Schema).
+- **Cache:** object, query and render cache with cache tags and contexts.
+
+### 0.6.0 – content for the long term
+
+- **Multilingual content** (before 1.0, decided 2026-10-13: it affects how
+  fields are stored): translations of objects, the language in paths, menus
+  and the site settings per language.
+- **Revisions, trash, audit log.**
+
+### 1.0 – ready to rely on
+
+- Performance measured, an accessibility review, a security review (an
+  external one, if possible).
+- The Public PHP API finalised; what was deprecated in 0.x removed.
+- The compatibility promise and the support period for 1.x; the upgrade path
+  from 0.x.
 
 ## Later
 
+- **The project's website** (after 1.0; 2026-10-13), e.g. campanellacms.org:
+  guides for site owners and developers, the API reference, downloads. Run on
+  Campanella itself; the documentation's source stays in this repository
+  (changing with the code, checked by CI), the site loads it from there.
+- **An AI assistant** (2026-10-13), as an optional module, never part of the
+  core and off by default: Campanella connects to an endpoint of the site
+  owner's choice (e.g. an open model run with Ollama, llama.cpp or vLLM
+  through their OpenAI-compatible interface); no model is bundled. It only
+  suggests, a person accepts: alternative texts, descriptions and summaries,
+  translation drafts, a Blueprint drafted from a description, answers from the
+  documentation. It never publishes by itself, and has no more rights than
+  its user (content may carry instructions meant for it). An **MCP server**
+  module on the JSON API could open the site to any assistant the same way.
 - **Workflow** (on the Event / Action foundation of 0.1.3): more operations
   bound to events (e.g. webhooks), a state machine for publishing.
-- **Component / Region / Layout / Page:** assembling pages from components,
-  instead of Drupal-style blocks.
 - **Webform, extended** (after the contact form of 0.1.5): forms as a user
   interface for object operations.
 - **Comments** (2026-10-07), after the Webform and the Event system (they need
@@ -61,42 +140,6 @@ meantime, keeping the [compatibility promise](docs/compatibility.md).
   comments of the same subject; ordered by time, not by weight. A
   `Commentable` capability on the commented Blueprints (comments open or
   closed, the count).
-- **Appearance** (2026-10-11): a section of its own in the admin for the
-  site's look: colour and other schemes, each in a light and a dark variant,
-  and the colour mode: following the visitor's system setting (as now,
-  `public/assets/theme.js`), or fixed (e.g. always dark). Whether visitors may
-  switch it themselves, and how that control appears on the site, is decided
-  then, within the concept of the CMS (e.g. as a component of the planned
-  Component / Region / Layout system), not as a one-off button built into the
-  header.
-- **Cache:** object, query and render cache with cache tags and contexts.
-- **JSON API** according to the [HTTP API draft](docs/http-api/README.md).
-- **Media:** storing other files (documents) besides images.
-- **Blueprints defined in the admin** (until then: `config/blueprints.php`).
-  Every object stays in `objects`; the question is only where a custom field
-  of such a Blueprint is stored. A per-field (or per-Blueprint) setting
-  decides (2026-10-04):
-  - *not queryable*: in the `data` JSON column (as custom fields are now);
-  - *queryable* (filtering, sorting, indexes): in a table of its own. Either a
-    table generated for the Blueprint (its own columns; needs the migration
-    system of 0.0.6, because the admin would change the database schema), or
-    the shared typed value table (`cc_field_values`), which needs no schema
-    change at all. To be decided when the feature is planned.
-  - Order: after the migrations (0.0.6), because every change also affects
-    the existing content.
-  - Operations: creating and modifying Blueprints; choosing capabilities from
-    the installed ones (adding one is applied to the existing objects too;
-    removing one keeps their data); custom fields; labels, form order,
-    defaults, editor profile.
-  - Blueprints from `config/blueprints.php` would appear as protected ("defined
-    in code"); those created in the admin would be fully editable.
-  - New kinds of capabilities stay code (they carry behaviour): they come from
-    modules, not from the admin.
-- **Sample content in the site's language** (2026-10-12): the sample content
-  (`seed`) is Hungarian only, its listing pages' paths (`/hirek`) too; an
-  English site gets Hungarian samples.
-- **Multilingual content.**
-- **Trash, audit log.**
 - **Login extensions:** two-factor authentication (e.g. TOTP) as its own
   capability, inserted between password verification and logging in;
   additional `LoginGuard`s (CAPTCHA).
@@ -139,8 +182,13 @@ meantime, keeping the [compatibility promise](docs/compatibility.md).
   a parent.
 - **E-mail: symfony/mailer** (2026-10-09), MIT licensed; SMTP or PHP's
   `mail()`.
-- **Search: the database's FULLTEXT index** (2026-10-09), in 0.3.0; a more
+- **Search: the database's FULLTEXT index** (2026-10-09), in 0.3.x; a more
   sophisticated search engine only later, if needed.
+- **The road to 1.0** (2026-10-13): the content model in the admin first
+  (0.3.0), then building pages (0.4.0), extensibility (0.5.0), multilingual
+  content and revisions (0.6.0); what changes the data model or the Public
+  PHP API comes before 1.0. The project's website and an AI assistant come
+  after 1.0, the assistant as an optional module only.
 - **Language:** code, documentation, comments, commit messages and
   developer-facing messages are English; the UI is multilingual via the
   translation layer, with Hungarian as a first-class translation (2026-09-30).

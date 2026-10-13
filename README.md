@@ -378,8 +378,10 @@ on its own.
 
 ## Not included yet
 
-Search and redirects, an image picker (planned for 0.3.0), Component /
-Region / Layout, cache, multilingual content.
+Content types and fields built in the admin, search, redirects and an image
+picker (planned for 0.3.0); Component / Region / Layout (0.4.0); modules, the
+JSON API and cache (0.5.0); multilingual content and revisions (0.6.0). The
+road to 1.0 is in the [ROADMAP](ROADMAP.md#next-the-road-to-10).
 
 ## Made with AI assistance
 
