@@ -92,4 +92,5 @@ postafiók).
 ---
 
 Előző: [7. Kapcsolati űrlap és adatvédelem](07-kapcsolati-urlap.md) ·
+Következő: [9. Mentés és frissítés](09-mentes-es-frissites.md) ·
 [Tartalomjegyzék](README.md)

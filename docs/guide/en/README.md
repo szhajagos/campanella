@@ -24,7 +24,9 @@ interface, with Campanella's own sample content (which is in Hungarian).
 7. [The contact form and privacy](07-contact-form.md): the form, the
    messages, the privacy notice, the personal data kept.
 8. [E-mail](08-e-mail.md): setting it up, trying it, the log, common problems.
-9. Backups and upgrades *(coming)*
-10. When something does not work *(coming)*
+9. [Backups and upgrades](09-backups-and-upgrades.md): what to back up and
+   how, restoring, upgrading to a newer version.
+10. [When something does not work](10-troubleshooting.md): common problems,
+    their causes and what to do; where to get help.
 
 [Magyar változat](../hu/README.md)

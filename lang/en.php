@@ -405,7 +405,7 @@ return [
     'upgrade.key' => 'Upgrade key (upgrade.key in config/local.php)',
     'upgrade.no_backup' => 'Without a backup (I have one)',
     'upgrade.run' => 'Back up and upgrade',
-    'upgrade.done' => 'The upgrade is done: {count} migrations applied.',
+    'upgrade.done' => 'The upgrade is done. Migrations applied: {count}.',
     'upgrade.backup_made' => 'The backup made before it: var/backups/{file}',
     'upgrade.restore' => 'The backup made before it: var/backups/{file}. Fix the cause, then run the upgrade again; if needed, restore the backup.',
     'upgrade.backup_failed' => 'The backup could not be made, so nothing was changed. Check that the web server can write {folder}.',

@@ -386,6 +386,37 @@ def mail(page):
     print("--- TEST MAIL ---\n" + last_mail_text())
 
 
+def set_schema_version(version, pending):
+    """As if the files of a newer version had just been uploaded: the database's schema is older."""
+    import subprocess
+    subprocess.run(["php", "-r", r"""
+        $pdo = new PDO("mysql:host=" . (getenv("CAMPANELLA_DB_HOST") ?: "localhost") . ";port=" . (getenv("CAMPANELLA_DB_PORT") ?: 3306) . ";dbname=" . (getenv("CAMPANELLA_DB_NAME") ?: "campanella"),
+            getenv("CAMPANELLA_DB_USER") ?: "campanella", getenv("CAMPANELLA_DB_PASSWORD") ?: "");
+        $prefix = getenv("CAMPANELLA_DB_PREFIX");
+        $pdo->prepare("UPDATE {$prefix}system SET value = ? WHERE name = 'schema_version'")->execute([$argv[1]]);
+        // The last migration pending again too (it can run again), so the page lists one.
+        $pdo->prepare("DELETE FROM {$prefix}migrations WHERE id = ?")->execute([$argv[2]]);
+    """, version, pending], check=True)
+
+
+def upgrading(page, browser):
+    set_schema_version("11", "core:0008_media_usage")
+    visitor = browser.new_context(viewport={"width": 1280, "height": 800})
+    view = visitor.new_page()
+    view.goto(BASE + "/")
+    shot(view, "upgrade-visitor")
+    visitor.close()
+    page.goto(BASE + "/admin/upgrade")
+    # The site lives in a temporary folder here: show a host-like path instead.
+    page.evaluate("""() => document.querySelectorAll('code').forEach(c => {
+        c.textContent = c.textContent.replace(/^.*\\/site\\//, '/home/example/campanella/');
+    })""")
+    shot(page, "upgrade-page", full_page=True)
+    page.locator("form button[type=submit]").last.click()
+    page.wait_for_load_state("load")
+    shot(page, "upgrade-done", full_page=True)
+
+
 def main():
     with sync_playwright() as playwright:
         # The browser's own language (date fields), as a visitor's would be.
@@ -406,6 +437,7 @@ def main():
         users(page, browser)
         contact(page, browser)
         mail(page)
+        upgrading(page, browser)
         browser.close()
     print("%d screenshots (%s): %s" % (len(saved), LANG, ", ".join(saved)))
 

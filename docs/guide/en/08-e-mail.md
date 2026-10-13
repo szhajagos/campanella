@@ -86,5 +86,5 @@ on the recipient's mail (spam folder, a full mailbox).
 
 ---
 
-Previous: [7. The contact form and privacy](07-contact-form.md) ·
-[Contents](README.md)
+Previous: [7. The contact form and privacy](07-contact-form.md) · Next:
+[9. Backups and upgrades](09-backups-and-upgrades.md) · [Contents](README.md)

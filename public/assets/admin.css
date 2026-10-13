@@ -52,3 +52,9 @@
     white-space: pre-wrap;
     overflow-wrap: anywhere;
 }
+
+/* The upgrade's log (since 0.2.1): long lines wrap instead of running out of the box. */
+.admin-log {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}

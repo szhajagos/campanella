@@ -24,7 +24,9 @@ felületet mutatják, a Campanella saját példatartalmával.
 7. [Kapcsolati űrlap és adatvédelem](07-kapcsolati-urlap.md): az űrlap, az
    üzenetek, az adatkezelési tájékoztató, a tárolt személyes adatok.
 8. [E-mail](08-e-mail.md): beállítás, kipróbálás, a napló, gyakori hibák.
-9. Mentés és frissítés *(készül)*
-10. Ha valami nem működik *(készül)*
+9. [Mentés és frissítés](09-mentes-es-frissites.md): mit és hogyan ments,
+   visszaállítás, frissítés újabb verzióra.
+10. [Ha valami nem működik](10-hibaelharitas.md): gyakori jelenségek, okuk
+    és a teendő; hol kérj segítséget.
 
 [English version](../en/README.md)

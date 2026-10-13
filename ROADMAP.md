@@ -4,7 +4,8 @@ Campanella evolves in small steps: every feature gets its own version, with
 its own tests, documentation and CHANGELOG entry. Since 0.1.0 (the first
 milestone, 2026-10-08) a real website can be run and managed from the
 browser; since 0.2.0 (the second, 2026-10-12) the site communicates, and what
-0.2.x keeps is [promised](docs/compatibility.md). Each milestone is reached
+0.2.x keeps is [promised](docs/compatibility.md). Since 0.2.1 site owners have
+a [guide](docs/guide/README.md) of their own. Each milestone is reached
 in small steps (0.1.1, 0.1.2 …), each a release of its own.
 
 The roadmap is a direction, not a promise: the order may change based on experience.
@@ -28,34 +29,15 @@ Completed changes are listed in the [CHANGELOG](CHANGELOG.md).
 | 0.1.4 | Forgotten password and sessions: a password reset by e-mail (a single-use, 60-minute link; the same answer and response time for every address), where one is logged in on the profile (log out one or every other), a 12-hour absolute login lifetime, configurable paths (`/login`, `/logout`, `/password-reset`), the `MailUser` action, work after the response; an independent security review |
 | 0.1.5 | Contact form: its own page (`/contact`) and `contact_form()`, protected by CSRF, a honeypot, a signed time and limits; the messages as objects for administrators only (*Submissions*), an e-mail about each (`Reply-To`: the sender), deleted after 180 days, a privacy note and link; an independent security review |
 | **0.2.0** | **Second milestone: the site communicates** (released 2026-10-12). What 0.1.1–0.1.5 built (search engines and sharing, images, e-mail and events, the forgotten password and sessions, the contact form), released as one whole: an upgrade test from 0.1.0, browser tests, the installation package checked as a site owner gets it, an upgrade guide from any 0.1.x, a security review of the whole 0.1.x layer, e-mail times in the site's time zone, and the compatibility promise for 0.2.x. Agreed in detail on 2026-10-11, in six parts. |
+| 0.2.1 | A guide for site owners (released 2026-10-13), in Hungarian and English, with screenshots made by a script (`tests/guide/screenshots.sh`): installing, the admin, content, menus, images, users, the contact form and privacy, e-mail, backups and upgrades, troubleshooting; dates in the interface language. Agreed on 2026-10-12, in four parts. |
 | – | Continuous integration (GitHub Actions): PHPStan, documentation, tests on MariaDB 10.6/11.4 and MySQL 8.0/8.4, an upgrade from 0.1.0, browser tests, the installation package checked before every release (with `vendor/`, for every version tag) |
 
 ## Next
 
-### 0.2.1 – a guide for site owners
-
-Right after 0.2.0: **a guide for site owners**, in Hungarian and in English
-(`docs/guide/`), for people who run a site but do not develop it. Security
-fixes of 0.2.x come as 0.2.1, 0.2.2 … too, keeping the
-[compatibility promise](docs/compatibility.md).
-
-Agreed on 2026-10-12: with screenshots, made by a script
-(`tests/guide/screenshots.sh`) from a fresh site in each language, so they can
-be made again whenever the admin's look changes. In four parts, each in both
-languages:
-
-1. **Installation and first steps:** uploading, the settings file, the
-   browser installer; logging in, the admin, the site settings, the System
-   page.
-2. **Content, menus, images:** articles, pages, categories, drafts and
-   publishing (also later), the editor; the main menu; uploading images and
-   using them.
-3. **Users, the contact form, e-mail, privacy:** roles, one's own profile and
-   sessions, the forgotten password; the messages; setting up e-mail; the
-   privacy notice and what is stored.
-4. **Backups, upgrades, troubleshooting**, and the release.
-
 ### 0.3.0 – planned so far
+
+Fixes of 0.2.x, security fixes first, come as 0.2.2, 0.2.3 … in the
+meantime, keeping the [compatibility promise](docs/compatibility.md).
 
 - **Search** with the database's FULLTEXT index (MariaDB / MySQL): simple and
   fast; a more sophisticated search engine may come later.

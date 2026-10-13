@@ -10,7 +10,19 @@ backward-incompatible.
 
 ## [Unreleased]
 
-Work towards 0.2.1: the guide for site owners, in parts.
+## [0.2.1] – 2026-10-13
+
+**A guide for site owners.** 0.2.1 adds a guide, in Hungarian and English,
+for people who run a Campanella site but do not develop it, with screenshots
+made by a script from a fresh site in each language. On the way, writing it
+turned up a few small bugs, fixed here; dates now follow the interface
+language.
+
+**Upgrading from 0.2.0:** upload the new files
+([chapter 9 of the guide](docs/guide/en/09-backups-and-upgrades.md)). The
+database does not change, so there is nothing to run. Nothing your site
+relies on changes ([compatibility promise](docs/compatibility.md)), except
+the default date format (see Changed).
 
 ### Added
 
@@ -18,7 +30,7 @@ Work towards 0.2.1: the guide for site owners, in parts.
   Hungarian and English, with screenshots: installing (uploading, the
   settings file, the installer in the browser, what to do when something
   goes wrong) and the first steps (logging in, the admin, the site settings,
-  the System page). The other chapters follow.
+  the System page).
 - The guide's chapters on content (articles, pages, categories, the editor,
   publishing now or later, deleting), menus and images (uploading, the
   alternative text, images in texts).
@@ -27,6 +39,9 @@ Work towards 0.2.1: the guide for site owners, in parts.
   contact form and privacy (the messages, the privacy notice, a table of the
   personal data Campanella keeps), and e-mail (setting it up, the log,
   common problems).
+- The guide's chapters on backups and upgrades (what to back up and how,
+  restoring, upgrading step by step, going back) and on troubleshooting (the
+  common problems, their causes and what to do; where to get help).
 - `tests/guide/screenshots.sh`: makes the guide's screenshots from a fresh
   site in each language, installed from the browser as the guide tells.
 
@@ -46,6 +61,9 @@ Work towards 0.2.1: the guide for site owners, in parts.
 - The default theme's header: with a longer main menu, a logged-in user's
   links (Admin, the name, Log out) ran out of the column on the right; they
   now wrap below the menu.
+- The upgrade page: its log's long lines ran out of the box (now they wrap),
+  and the English result said "1 migrations applied" (now "Migrations
+  applied: 1").
 
 ## [0.2.0] – 2026-10-12
 
