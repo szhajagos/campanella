@@ -87,4 +87,5 @@ törlődnek, és nem állíthatók vissza.
 
 ---
 
-Előző: [4. Menük](04-menuk.md) · [Tartalomjegyzék](README.md)
+Előző: [4. Menük](04-menuk.md) · Következő:
+[6. Felhasználók és a saját fiókod](06-felhasznalok.md) · [Tartalomjegyzék](README.md)

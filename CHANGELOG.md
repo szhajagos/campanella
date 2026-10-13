@@ -22,6 +22,11 @@ Work towards 0.2.1: the guide for site owners, in parts.
 - The guide's chapters on content (articles, pages, categories, the editor,
   publishing now or later, deleting), menus and images (uploading, the
   alternative text, images in texts).
+- The guide's chapters on users and one's own account (roles, new users,
+  blocking, the profile and its logins, the forgotten password), the
+  contact form and privacy (the messages, the privacy notice, a table of the
+  personal data Campanella keeps), and e-mail (setting it up, the log,
+  common problems).
 - `tests/guide/screenshots.sh`: makes the guide's screenshots from a fresh
   site in each language, installed from the browser as the guide tells.
 
@@ -34,6 +39,10 @@ Work towards 0.2.1: the guide for site owners, in parts.
 
 ### Fixed
 
+- The System page's last e-mail and the E-mail log showed their times in UTC;
+  now in the site's time zone, as the e-mails themselves since 0.2.0.
+- The English profile's password button said "Changing my password"; now
+  "Change my password".
 - The default theme's header: with a longer main menu, a logged-in user's
   links (Admin, the name, Log out) ran out of the column on the right; they
   now wrap below the menu.

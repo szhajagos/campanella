@@ -37,7 +37,7 @@
                 <tbody>
                     {% for entry in entries %}
                         <tr>
-                            <td class="small text-nowrap">{{ entry.created_at }} UTC</td>
+                            <td class="small text-nowrap">{{ date(entry.created_at, 'UTC')|date }}</td>
                             <td class="small text-break">{{ entry.recipient }}</td>
                             <td class="small">
                                 {{ entry.subject ?: '–' }}

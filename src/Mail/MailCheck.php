@@ -36,7 +36,8 @@ final class MailCheck
                 $last = null; // before the upgrade that creates the log
             }
             if ($last !== null) {
-                $value = $last['created_at'] . ' UTC · ' . $last['recipient'];
+                // In the site's time zone, as in the e-mails (since 0.2.1).
+                $value = $mailer->time(new \DateTimeImmutable($last['created_at'], new \DateTimeZone('UTC'))) . ' · ' . $last['recipient'];
                 $results[] = $last['status'] === MailResult::SENT
                     ? new CheckResult($g, 'admin.system.mail_last', CheckStatus::Ok, $value)
                     : new CheckResult($g, 'admin.system.mail_last', $last['status'] === MailResult::FAILED ? CheckStatus::Warning : CheckStatus::Info, $value,

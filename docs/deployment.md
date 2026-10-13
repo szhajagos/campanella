@@ -142,7 +142,7 @@ host.
 
 Since 0.1.3 the site can send e-mail: since 0.1.4 the forgotten password's
 link (offered only while e-mail is set up and the site's address is set),
-soon the contact form. Set it up in `config/local.php`, with the details of your host's mail
+since 0.1.5 the e-mails about the contact form's messages. Set it up in `config/local.php`, with the details of your host's mail
 server:
 
 ```php

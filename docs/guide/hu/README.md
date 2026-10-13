@@ -19,9 +19,11 @@ felületet mutatják, a Campanella saját példatartalmával.
 4. [Menük](04-menuk.md): a főmenü pontjai, lenyíló almenük, sorrend.
 5. [Képek](05-kepek.md): feltöltés, alternatív szöveg, kép a szövegben,
    törlés.
-6. Felhasználók és a saját fiókod *(készül)*
-7. Kapcsolati űrlap és adatvédelem *(készül)*
-8. E-mail *(készül)*
+6. [Felhasználók és a saját fiókod](06-felhasznalok.md): szerepkörök, új
+   felhasználó, letiltás, profil, belépések, elfelejtett jelszó.
+7. [Kapcsolati űrlap és adatvédelem](07-kapcsolati-urlap.md): az űrlap, az
+   üzenetek, az adatkezelési tájékoztató, a tárolt személyes adatok.
+8. [E-mail](08-e-mail.md): beállítás, kipróbálás, a napló, gyakori hibák.
 9. Mentés és frissítés *(készül)*
 10. Ha valami nem működik *(készül)*
 

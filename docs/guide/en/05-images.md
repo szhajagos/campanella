@@ -85,4 +85,5 @@ restored.
 
 ---
 
-Previous: [4. Menus](04-menus.md) · [Contents](README.md)
+Previous: [4. Menus](04-menus.md) · Next:
+[6. Users and your own account](06-users.md) · [Contents](README.md)

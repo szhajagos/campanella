@@ -582,7 +582,7 @@ return [
     'users.profile' => 'My profile',
     'users.profile_data' => 'My data',
     'users.email_by_admin' => 'The e-mail address is changed by an administrator.',
-    'users.change_password' => 'Changing my password',
+    'users.change_password' => 'Change my password',
     'users.current_password' => 'Current password',
     'users.change_password_help' => 'You stay logged in here; your other sessions (e.g. on another device) end.',
     'users.wrong_password' => 'The current password is wrong.',

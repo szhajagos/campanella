@@ -30,6 +30,16 @@ TEXT = {
         "image": "Balatoni naplemente",
         "alt": "Naplemente a Balaton fölött, vitorlásokkal",
         "menu_item": "Nyitvatartás",
+        "editor_name": "Szabó Péter",
+        "editor_email": "peter@pelda.hu",
+        "editor_password": "Peter-jelszava-2026",
+        "privacy_title": "Adatkezelési tájékoztató",
+        "privacy_path": "/adatkezeles",
+        "privacy_body": "Ez a tájékoztató leírja, milyen személyes adatokat kezelünk, és miért.",
+        "visitor_name": "Nagy Eszter",
+        "visitor_email": "eszter@pelda.hu",
+        "visitor_subject": "Csoportos látogatás",
+        "visitor_message": "Jó napot!\nHúszfős csoporttal jönnénk szeptemberben. Van lehetőség tárlatvezetésre?\n\nKöszönettel:\nEszter",
     },
     "en": {
         "file": "sunset-over-the-lake.jpg",
@@ -40,6 +50,16 @@ TEXT = {
         "image": "Sunset over the lake",
         "alt": "Sunset over a lake, with sailing boats",
         "menu_item": "Opening hours",
+        "editor_name": "Peter Brown",
+        "editor_email": "peter@example.com",
+        "editor_password": "Peters-password-2026",
+        "privacy_title": "Privacy notice",
+        "privacy_path": "/privacy",
+        "privacy_body": "This notice describes what personal data we handle, and why.",
+        "visitor_name": "Emma Jones",
+        "visitor_email": "emma@example.com",
+        "visitor_subject": "A group visit",
+        "visitor_message": "Hello,\nWe would come with a group of twenty in September. Is a guided tour possible?\n\nBest regards,\nEmma",
     },
 }[LANG]
 
@@ -248,6 +268,124 @@ def menus(page):
     shot(page, "site-menu")
 
 
+MAILS = os.environ.get("CAMPANELLA_GUIDE_MAILS", "")
+
+
+def last_mail_text():
+    """The text of the newest caught e-mail (printed for the guide's author)."""
+    import email
+    import email.policy
+    names = sorted(f for f in os.listdir(MAILS) if f.endswith(".eml"))
+    if not names:
+        return ""
+    with open(os.path.join(MAILS, names[-1]), "rb") as file:
+        message = email.message_from_binary_file(file, policy=email.policy.default)
+    body = message.get_body(preferencelist=("plain",))
+    return "Subject: %s\n%s" % (message["Subject"], body.get_content() if body else "")
+
+
+def users(page, browser):
+    # A new editor.
+    page.goto(BASE + "/admin/user/new")
+    page.fill("#user-name", TEXT["editor_name"])
+    page.fill("#user-email", TEXT["editor_email"])
+    page.fill("#user-password", TEXT["editor_password"])
+    page.fill("#user-password_again", TEXT["editor_password"])
+    page.check("#user-role-editor")
+    shot(page, "user-form", full_page=True)
+    page.locator("form.admin-form button[type=submit]").first.click()
+    page.wait_for_load_state("load")
+    page.goto(BASE + "/admin/user")
+    shot(page, "user-list")
+    page.locator("table tbody a", has_text=TEXT["editor_name"]).first.click()
+    page.wait_for_load_state("load")
+    shot(page, "user-edit", full_page=True)
+
+    # The profile, with a second login (a phone).
+    phone = browser.new_context(user_agent="Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36",
+                                viewport={"width": 400, "height": 800})
+    other = phone.new_page()
+    other.goto(BASE + "/login")
+    other.fill("#email", ADMIN["email"])
+    other.fill("#password", ADMIN["password"])
+    other.click("form[action$='/login'] button[type=submit]")
+    other.wait_for_load_state("load")
+    page.goto(BASE + "/admin/profile")
+    shot(page, "profile", full_page=True)
+    phone.close()
+
+    # The forgotten password, as the editor (logged out).
+    visitor = browser.new_context(viewport={"width": 1280, "height": 800})
+    reset = visitor.new_page()
+    reset.goto(BASE + "/password-reset")
+    reset.fill("#email", TEXT["editor_email"])
+    shot(reset, "reset-request")
+    reset.click("form button[type=submit]")
+    reset.wait_for_load_state("load")
+    shot(reset, "reset-sent")
+    time.sleep(2)
+    text = last_mail_text()
+    print("--- RESET MAIL ---\n" + text)
+    import re
+    link = re.search(r"https?://\S+/password-reset\?token=[0-9a-f]+", text)
+    if link:
+        reset.goto(link.group(0))
+        shot(reset, "reset-new")
+    visitor.close()
+
+
+def contact(page, browser):
+    # The privacy notice: a page, and the site setting pointing to it.
+    page.goto(BASE + "/admin/page/new")
+    page.fill("#field-title", TEXT["privacy_title"])
+    page.locator(".jodit-wysiwyg").first.click()
+    page.keyboard.type(TEXT["privacy_body"])
+    page.fill("#field-path", TEXT["privacy_path"])
+    page.locator("form.admin-form button[name=_publish]").click()
+    page.wait_for_load_state("load")
+    page.goto(BASE + "/admin/system/settings")
+    page.fill("input[name=privacy_url]", TEXT["privacy_path"])
+    shot(page, "settings-privacy", element="input[name=privacy_url] >> xpath=ancestor::*[contains(@class, 'card')][1]")
+    page.locator("form button[type=submit]").last.click()
+    page.wait_for_load_state("load")
+
+    # A visitor writes.
+    visitor = browser.new_context(viewport={"width": 1280, "height": 900})
+    form = visitor.new_page()
+    form.goto(BASE + "/contact")
+    form.fill("#contact-name", TEXT["visitor_name"])
+    form.fill("#contact-email", TEXT["visitor_email"])
+    form.fill("#contact-subject", TEXT["visitor_subject"])
+    form.fill("#contact-message", TEXT["visitor_message"].replace("\\n", "\n"))
+    time.sleep(3.5)
+    shot(form, "contact-form", full_page=True)
+    form.click("form button[type=submit]")
+    form.wait_for_load_state("load")
+    shot(form, "contact-sent")
+    visitor.close()
+    time.sleep(2)
+    print("--- CONTACT MAIL ---\n" + last_mail_text())
+
+    # The administrator reads it.
+    page.goto(BASE + "/admin/submission")
+    shot(page, "submissions")
+    page.locator("table tbody a").first.click()
+    page.wait_for_load_state("load")
+    shot(page, "submission", full_page=True)
+
+
+def mail(page):
+    # The test e-mail: from the E-mail page (or the System page); back on the System page.
+    page.goto(BASE + "/admin/system/mail")
+    page.locator("form[action$='/mail-test'] button[type=submit]").click()
+    page.wait_for_load_state("load")
+    shot(page, "mail-test-sent")
+    time.sleep(1)
+    page.goto(BASE + "/admin/system/mail")
+    shot(page, "mail-log")
+    print("--- TEST MAIL ---\n" + last_mail_text())
+
+
 def main():
     with sync_playwright() as playwright:
         # The browser's own language (date fields), as a visitor's would be.
@@ -265,6 +403,9 @@ def main():
         images(page)
         image_in_text(page, article_url)
         menus(page)
+        users(page, browser)
+        contact(page, browser)
+        mail(page)
         browser.close()
     print("%d screenshots (%s): %s" % (len(saved), LANG, ", ".join(saved)))
 
