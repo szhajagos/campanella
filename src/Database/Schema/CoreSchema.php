@@ -99,6 +99,8 @@ final class CoreSchema
                     new Column('value_text', ColumnType::Text, nullable: true),
                     new Column('value_int', ColumnType::Integer, nullable: true),
                     new Column('value_datetime', ColumnType::DateTime, nullable: true),
+                    // Decimal fields (since 0.2.2, schema version 13).
+                    new Column('value_decimal', ColumnType::Decimal, nullable: true),
                 ],
                 primaryKey: ['id'],
                 indexes: [
@@ -106,6 +108,7 @@ final class CoreSchema
                     'idx_string' => ['field', 'value_string', 'object_id'],
                     'idx_int' => ['field', 'value_int', 'object_id'],
                     'idx_datetime' => ['field', 'value_datetime', 'object_id'],
+                    'idx_decimal' => ['field', 'value_decimal', 'object_id'],
                 ],
                 uniques: ['uniq_value' => ['object_id', 'field', 'delta']],
                 foreignKeys: [new ForeignKey('object_id', self::OBJECTS)],

@@ -19,8 +19,13 @@ use Campanella\Model\CampanellaObject;
 use Campanella\Security\Csrf;
 use Campanella\Tree\TreeBuilder;
 use Campanella\Tree\TreeNode;
+use Campanella\Model\Field;
+use Campanella\Model\FieldType;
 use Closure;
+use Twig\Environment;
 use Twig\Extension\AbstractExtension;
+use Twig\Extension\CoreExtension;
+use Twig\Markup;
 use Twig\Extension\GlobalsInterface;
 use Twig\TwigFilter;
 use Twig\TwigFunction;
@@ -46,6 +51,8 @@ use Twig\TwigFunction;
  *   {{ image_url(image, 640) }}         an image's address, or of its smallest copy at least 640 wide
  *   {{ image_srcset(image) }}           an image's srcset ('' without copies)
  *   {{ 1572864|file_size }}             a size in bytes, readable: 1.5 MB (in the current language)
+ *   {% for f in object_fields(item) %}  the object's own (Blueprint) fields with a value, shown by type:
+ *                                       name, label, type and html (safe to print; since 0.2.2)
  */
 final class CampanellaTwigExtension extends AbstractExtension implements GlobalsInterface
 {
@@ -105,6 +112,7 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
             new TwigFunction('menu', $this->menu(...)),
             new TwigFunction('image_url', $this->imageUrl(...)),
             new TwigFunction('image_srcset', $this->imageSrcset(...)),
+            new TwigFunction('object_fields', $this->objectFields(...), ['needs_environment' => true]),
         ];
     }
 
@@ -194,6 +202,73 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
     public function translate(string $key, array $params = []): string
     {
         return $this->translator === null ? $key : ($this->translator)()->translate($key, $params);
+    }
+
+    /**
+     * The object's own fields (those of its Blueprint, not of its capabilities) that have
+     * a value and are not hidden, in their order, each shown by its type as safe HTML:
+     * texts escaped (line breaks kept), formatted text as filtered on save, numbers and
+     * dates in the current language and the site's time zone, a choice by its label,
+     * e-mail and web addresses as links. Since 0.2.2.
+     *
+     * @return list<array{name: string, label: string, type: string, html: Markup}>
+     */
+    public function objectFields(Environment $env, CampanellaObject $object): array
+    {
+        $capabilityFields = [];
+        foreach ($object->capabilities() as $definition) {
+            $capabilityFields += $definition->fields;
+        }
+        $fields = [];
+        foreach (array_diff_key($object->fields(), $capabilityFields) as $name => $field) {
+            $value = $object->get($name);
+            if ($field->hidden || $field->isEmpty($value)) {
+                continue;
+            }
+            $parts = array_map(fn (mixed $item): string => $this->fieldHtml($env, $field, $item), $field->isMultiple() ? (array) $value : [$value]);
+            $fields[] = [
+                'name' => $name,
+                'label' => $field->label !== '' ? $field->label : $name,
+                'type' => $field->type->value,
+                'html' => new Markup(implode(', ', $parts), 'UTF-8'),
+            ];
+        }
+
+        return $fields;
+    }
+
+    private function fieldHtml(Environment $env, Field $field, mixed $value): string
+    {
+        $e = static fn (string $text): string => htmlspecialchars($text, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8');
+        $core = $env->getExtension(CoreExtension::class);
+        $text = is_scalar($value) || $value instanceof \Stringable ? (string) $value : '';
+
+        return match ($field->type) {
+            FieldType::Text => nl2br($e($text), false),
+            FieldType::Html => $text,
+            FieldType::Boolean => $e($this->translate($value ? 'field.yes' : 'field.no')),
+            FieldType::Integer => $e(number_format((int) $value, 0, '', "\u{a0}")),
+            FieldType::Decimal => $e($this->decimal($text)),
+            FieldType::Date => $value instanceof \DateTimeInterface ? $e($value->format($this->translate('date.format_day'))) : '',
+            FieldType::DateTime => $value instanceof \DateTimeInterface
+                ? $e(\DateTimeImmutable::createFromInterface($value)->setTimezone($core->getTimezone())->format($core->getDateFormat()[0]))
+                : '',
+            FieldType::Choice => $e($this->translate($field->choiceLabel($text) ?? $text)),
+            FieldType::Email => sprintf('<a href="mailto:%s">%s</a>', $e($text), $e($text)),
+            FieldType::Url => Field::isWebAddress($text) ? sprintf('<a href="%s">%s</a>', $e($text), $e($text)) : $e($text),
+            default => $e($text),
+        };
+    }
+
+    /** A decimal number in the current language: `1 234,50` (Hungarian), `1 234.50` (English). */
+    private function decimal(string $number): string
+    {
+        $negative = str_starts_with($number, '-');
+        [$whole, $fraction] = explode('.', ltrim($number, '-') . '.');
+        // Groups of three digits from the right.
+        $grouped = implode("\u{a0}", array_reverse(array_map(strrev(...), str_split(strrev($whole), 3))));
+
+        return ($negative ? '-' : '') . $grouped . ($fraction !== '' ? $this->translate('format.decimal_point') . $fraction : '');
     }
 
     /**

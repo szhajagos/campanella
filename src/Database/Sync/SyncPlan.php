@@ -36,6 +36,12 @@ final readonly class SyncPlan
         return $this->ofKind(SyncStepKind::Note);
     }
 
+    /** Whether a step moves data between the JSON data and a table (since 0.2.2). */
+    public function hasMove(): bool
+    {
+        return $this->ofKind(SyncStepKind::MoveData) !== [];
+    }
+
     public function hasPrune(): bool
     {
         return $this->ofKind(SyncStepKind::PruneCapability) !== [];

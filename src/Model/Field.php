@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Campanella\Model;
 
+use Campanella\I18n\Message;
+
 /**
  * The definition of a field. A field is either provided by a capability
  * (e.g. Titled provides `title`) or added by a Blueprint as a custom field.
@@ -19,6 +21,11 @@ namespace Campanella\Model;
  * always a list: a limit (e.g. `3`) or `Field::UNLIMITED`. A queryable
  * (Table) multi-valued field lives in the shared `field_values` table, a
  * Data one in the `data` JSON column as a list.
+ *
+ * Since 0.2.2: `translatable` marks a field whose value may differ per
+ * language (stored, without effect until multilingual content, see
+ * docs/translations.md); `choices` are the keys and labels of a Choice field;
+ * `scale` is the number of digits after the decimal point of a Decimal field.
  */
 final readonly class Field
 {
@@ -28,10 +35,13 @@ final readonly class Field
     /**
      * A queryable multi-valued String field is stored in a VARCHAR(255) column of
      * `field_values`, so its length can be at most this (checked when the capability
-     * is registered; a Blueprint's own fields are stored in data and have no limit).
+     * is registered, and for a Blueprint's own queryable fields).
      */
     public const int MAX_MULTI_STRING_LENGTH = 255;
 
+    /**
+     * @param array<string, string> $choices A Choice field's keys and labels (a message key or text)
+     */
     public function __construct(
         public string $name,
         public FieldType $type,
@@ -44,9 +54,30 @@ final readonly class Field
         public string $label = '',
         public bool $hidden = false,
         public int $cardinality = 1,
+        public bool $translatable = false,
+        public array $choices = [],
+        public int $scale = 2,
     ) {
         if (preg_match('/^[a-z][a-z0-9_]{0,62}$/', $name) !== 1) {
             throw new \InvalidArgumentException("Invalid field name: {$name}");
+        }
+        if ($type === FieldType::Choice) {
+            if ($choices === []) {
+                throw new \InvalidArgumentException("Field {$name}: a Choice field needs its choices.");
+            }
+            foreach ($choices as $key => $label) {
+                if (preg_match('/^[A-Za-z0-9_.-]{1,64}$/', (string) $key) !== 1 || strlen((string) $key) > $length || $label === '') {
+                    throw new \InvalidArgumentException("Field {$name}: invalid choice '{$key}' (a key of letters, digits, _ . -, and a label).");
+                }
+            }
+        } elseif ($choices !== []) {
+            throw new \InvalidArgumentException("Field {$name}: only a Choice field has choices.");
+        }
+        if ($type === FieldType::Html && $cardinality !== 1) {
+            throw new \InvalidArgumentException("Field {$name}: an Html field is single-valued.");
+        }
+        if ($scale < 0 || $scale > FieldType::DECIMAL_SCALE) {
+            throw new \InvalidArgumentException(sprintf('Field %s: the scale must be between 0 and %d.', $name, FieldType::DECIMAL_SCALE));
         }
         if ($storage === FieldStorage::Data && ($indexed || $unique)) {
             throw new \InvalidArgumentException(
@@ -68,17 +99,16 @@ final readonly class Field
     /** The same field, but stored in the data (JSON) column. */
     public function asData(): self
     {
-        return new self(
-            name: $this->name,
-            type: $this->type,
-            storage: FieldStorage::Data,
-            required: $this->required,
-            default: $this->default,
-            length: $this->length,
-            label: $this->label,
-            hidden: $this->hidden,
-            cardinality: $this->cardinality,
-        );
+        return $this->copy(storage: FieldStorage::Data, indexed: false, unique: false);
+    }
+
+    /**
+     * The same field as a queryable one (FieldStorage::Table), e.g. a Blueprint's own
+     * field listed under its `queryable` key. Since 0.2.2.
+     */
+    public function asTable(): self
+    {
+        return $this->copy(storage: FieldStorage::Table);
     }
 
     /**
@@ -104,18 +134,30 @@ final readonly class Field
             ));
         }
 
+        return $this->copy(cardinality: $cardinality);
+    }
+
+    private function copy(
+        ?FieldStorage $storage = null,
+        ?bool $indexed = null,
+        ?bool $unique = null,
+        ?int $cardinality = null,
+    ): self {
         return new self(
             name: $this->name,
             type: $this->type,
-            storage: $this->storage,
+            storage: $storage ?? $this->storage,
             required: $this->required,
             default: $this->default,
-            indexed: $this->indexed,
-            unique: $this->unique,
+            indexed: $indexed ?? $this->indexed,
+            unique: $unique ?? $this->unique,
             length: $this->length,
             label: $this->label,
             hidden: $this->hidden,
-            cardinality: $cardinality,
+            cardinality: $cardinality ?? $this->cardinality,
+            translatable: $this->translatable,
+            choices: $this->choices,
+            scale: $this->scale,
         );
     }
 
@@ -147,7 +189,7 @@ final readonly class Field
     public function cast(mixed $value): mixed
     {
         if (!$this->isMultiple()) {
-            return $this->type->cast($value);
+            return $this->castOne($value);
         }
         if ($value === null) {
             return [];
@@ -163,10 +205,88 @@ final readonly class Field
             if ($item === null || $item === '') {
                 continue;
             }
-            $items[] = $this->type->cast($item);
+            $items[] = $this->castOne($item);
         }
 
         return $items;
+    }
+
+    /** One value of the field's type; a Decimal is rounded to the field's scale (half away from zero). */
+    private function castOne(mixed $value): mixed
+    {
+        $value = $this->type->cast($value);
+        if ($this->type === FieldType::Decimal && is_string($value)) {
+            return self::round($value, $this->scale);
+        }
+
+        return $value;
+    }
+
+    /** A canonical numeric string rounded to `$scale` digits after the point, padded with zeros. */
+    private static function round(string $number, int $scale): string
+    {
+        $negative = str_starts_with($number, '-');
+        [$whole, $fraction] = explode('.', ltrim($number, '-') . '.');
+        $fraction = str_pad($fraction, $scale + 1, '0');
+        $digits = $whole . substr($fraction, 0, $scale);
+        if ((int) $fraction[$scale] >= 5) {
+            // Add one to the last kept digit, carrying to the left.
+            $i = strlen($digits) - 1;
+            while ($i >= 0 && $digits[$i] === '9') {
+                $digits[$i] = '0';
+                $i--;
+            }
+            $digits = $i < 0 ? '1' . $digits : substr_replace($digits, (string) ((int) $digits[$i] + 1), $i, 1);
+        }
+        $whole = ltrim(substr($digits, 0, strlen($digits) - $scale), '0');
+        $result = ($whole === '' ? '0' : $whole) . ($scale > 0 ? '.' . substr($digits, -$scale) : '');
+
+        return $negative && trim($result, '0.') !== '' ? '-' . $result : $result;
+    }
+
+    /**
+     * Whether a value of the field is invalid for its type (since 0.2.2): an e-mail
+     * address or web address that is not one, a choice that is not offered, a number
+     * too large for its column. Empty values are not checked here (see `required`).
+     */
+    public function invalid(mixed $value): ?Message
+    {
+        foreach ($this->isMultiple() ? (array) $value : [$value] as $item) {
+            if ($this->isEmpty($item)) {
+                continue;
+            }
+            $text = is_scalar($item) || $item instanceof \Stringable ? (string) $item : '';
+            $problem = match ($this->type) {
+                FieldType::Email => filter_var($text, FILTER_VALIDATE_EMAIL) === false ? new Message('validation.invalid_email') : null,
+                FieldType::Url => self::isWebAddress($text) ? null : new Message('validation.invalid_web_address'),
+                FieldType::Choice => array_key_exists($text, $this->choices) ? null : new Message('validation.invalid_choice'),
+                FieldType::Decimal => strlen(explode('.', ltrim($text, '-'))[0]) > FieldType::DECIMAL_DIGITS
+                    ? new Message('validation.number_too_large', ['digits' => FieldType::DECIMAL_DIGITS])
+                    : null,
+                default => null,
+            };
+            if ($problem !== null) {
+                return $problem;
+            }
+        }
+
+        return null;
+    }
+
+    /** An `http://` or `https://` address with a host, without spaces or control characters. Since 0.2.2. */
+    public static function isWebAddress(string $url): bool
+    {
+        return preg_match('#^https?://#i', $url) === 1
+            && preg_match('/[\x00-\x20\x7f\\\\]/', $url) !== 1
+            && (string) (parse_url($url, PHP_URL_HOST) ?? '') !== '';
+    }
+
+    /** The label of a Choice field's key (a message key or text), or null for a key not offered. Since 0.2.2. */
+    public function choiceLabel(string $key): ?string
+    {
+        $label = $this->choices[$key] ?? null;
+
+        return is_string($label) ? $label : null;
     }
 
     /**
@@ -194,7 +314,7 @@ final readonly class Field
      */
     public function hasTooLongItem(mixed $value): bool
     {
-        if (!$this->isMultiple() || $this->type !== FieldType::String || !is_array($value)) {
+        if (!$this->isMultiple() || $this->type->columnType() !== \Campanella\Database\Schema\ColumnType::String || !is_array($value)) {
             return false;
         }
         foreach ($value as $item) {
@@ -209,7 +329,7 @@ final readonly class Field
     /** For a single-valued String field: whether the value is longer than the field's length. */
     public function isTooLong(mixed $value): bool
     {
-        return !$this->isMultiple() && $this->type === FieldType::String && is_string($value)
+        return !$this->isMultiple() && $this->type->columnType() === \Campanella\Database\Schema\ColumnType::String && is_string($value)
             && mb_strlen($value, 'UTF-8') > $this->length;
     }
 

@@ -94,28 +94,49 @@ new Field(
     label: 'field.published_at',
     hidden: false,                 // true: not available from templates as {{ object.field }}
     cardinality: 1,                // number of values: 1, a limit (e.g. 3) or Field::UNLIMITED (since 0.0.4)
+    translatable: false,           // the value may differ per language (since 0.2.2; no effect yet)
+    choices: [],                   // a Choice field's keys and labels (since 0.2.2)
+    scale: 2,                      // a Decimal field's digits after the point, 0–6 (since 0.2.2)
 );
 ```
+
+**`translatable`** (since 0.2.2) marks a field whose value may differ per
+language (a title, a text, a path), as opposed to one that is the same in
+every language (a date, a price). It is stored with the definition but has no
+effect until multilingual content (0.6.0); the design is in
+[Translations](../translations.md).
+
+**`choices`** (since 0.2.2): the keys and labels of a `Choice` field, e.g.
+`['talk' => 'event.kind.talk', 'walk' => 'Séta']`; a label is a message key
+(translated) or text. The key is stored. Keys are letters, digits, `_`, `.`
+and `-`, at most 64 characters (and not longer than `length`). A Choice field
+must have choices; no other field may.
 
 | Method | Description |
 |---|---|
 | `asData(): self` | The same field with `FieldStorage::Data` storage (without index and uniqueness) |
+| `asTable(): self` | The same field with `FieldStorage::Table` storage (a Blueprint's `queryable` own field; since 0.2.2) |
 | `withCardinality(int $cardinality): self` | The same field with a lower value limit; used by a Blueprint to narrow a capability field (see below) |
 | `isQueryable(): bool` | True if `FieldStorage::Table`, i.e. it can be filtered on (and, if single-valued, sorted on) |
 | `isMultiple(): bool` | True if the cardinality is not 1 |
 | `isUnlimited(): bool` | True for `Field::UNLIMITED` |
 | `usesValueTable(): bool` | A multi-valued `Table` field: its values live in the `field_values` table |
-| `cast(mixed $value): mixed` | Uniform PHP value; for a multi-valued field always a list (see below) |
+| `cast(mixed $value): mixed` | Uniform PHP value; for a multi-valued field always a list (see below); a Decimal rounded to `scale` (half away from zero) |
 | `toStorage(mixed $value): mixed` | Storable form; for a multi-valued field a list of the items' storable forms |
 | `fromStorage(mixed $value): mixed` | Back to a PHP value |
 | `exceedsCardinality(mixed $value): bool` | Whether a list has more values than the limit |
 | `hasTooLongItem(mixed $value): bool` | For a multi-valued `String`: whether an item is longer than `length` |
 | `isTooLong(mixed $value): bool` | For a single-valued `String`: whether the value is longer than `length` (checked on save since 0.0.4, `validation.value_too_long`) |
 | `isEmpty(mixed $value): bool` | `null`, empty string or empty list; the required-field check uses this |
+| `invalid(mixed $value): ?Message` | Whether a (non-empty) value is invalid for the type, checked on save (since 0.2.2): `validation.invalid_email`, `validation.invalid_web_address`, `validation.invalid_choice`, `validation.number_too_large`; null if it is fine |
+| `static isWebAddress(string $url): bool` | An `http://` or `https://` address with a host, without whitespace, control characters or backslashes (a `Url` field's check; since 0.2.2) |
+| `choiceLabel(string $key): ?string` | A Choice field's label for a key (a message key or text), or null for a key not offered (since 0.2.2) |
 
 The constructor throws `InvalidArgumentException` for an invalid name, if a
-field with `Data` storage would be indexed or unique, and for the invalid
-multi-valued combinations listed below.
+field with `Data` storage would be indexed or unique, for the invalid
+multi-valued combinations listed below, for missing or invalid `choices`
+(or choices on another type), a multi-valued `Html` field, and a `scale`
+outside 0–6.
 
 ### Multi-valued fields
 
@@ -181,7 +202,22 @@ In templates the value is a list as well:
 | `Integer` | `int` | `INT` |
 | `Boolean` | `bool` | `TINYINT(1)` |
 | `DateTime` | `DateTimeImmutable` (UTC) | `DATETIME` |
+| `Decimal` | numeric `string`, e.g. `'1234.50'` (since 0.2.2) | `DECIMAL(20,6)` |
+| `Date` | `CalendarDate` (since 0.2.2) | `DATE` |
+| `Email` | `string`, checked as an e-mail address (since 0.2.2) | `VARCHAR(length)` |
+| `Url` | `string`, an `http(s)://` address (since 0.2.2) | `VARCHAR(length)` |
+| `Choice` | `string`: one of the field's `choices` keys (since 0.2.2) | `VARCHAR(length)` |
+| `Html` | `string`: formatted text, filtered by the HtmlSanitizer on save, like a formatted Textual body (since 0.2.2) | `MEDIUMTEXT` |
 
+A **Decimal** is a string, so no precision is lost: `cast()` accepts an
+integer, a float, or text with a comma or a point as the decimal point and
+spaces between the digits (`'1 234,5'`), and gives `'1234.5'`; the field
+rounds it to its `scale` (`'1234.50'`). At most 14 digits before the point
+(`FieldType::DECIMAL_DIGITS`) and 6 after it (`DECIMAL_SCALE`). Text that is
+not a number throws `InvalidArgumentException`.
+
+A **Date** is a calendar day without a time and time zone: a `CalendarDate`
+(see below). A **DateTime** is an instant, shown in the site's time zone.
 A list of values is a multi-valued field (`cardinality`), e.g. a multi-valued
 `String`. The former `StringList` type (a JSON array in a column, deprecated
 in 0.0.6) was removed in 0.1.0.
@@ -192,10 +228,31 @@ in 0.0.6) was removed in 0.1.0.
 | `toStorage(mixed $value): string\|int\|null` | A form that can be written to the database or JSON; date: `Y-m-d H:i:s` UTC |
 | `fromStorage(mixed $value): mixed` | Back to a PHP value |
 | `columnType(): ColumnType` | The matching column type |
-| `valueColumn(): string` | The `field_values` column holding the values of a multi-valued field of this type: `value_string`, `value_text`, `value_int` (Integer, Boolean) or `value_datetime` |
+| `valueColumn(): string` | The `field_values` column holding the values of a multi-valued field of this type: `value_string` (String, Email, Url, Choice), `value_text` (Text, Html), `value_int` (Integer, Boolean), `value_datetime` (DateTime, Date) or `value_decimal` (Decimal, since 0.2.2) |
 
 The `STORAGE_DATE_FORMAT` constant (`'Y-m-d H:i:s'`) is the format of stored
 dates.
+
+## CalendarDate
+
+`Campanella\Model\CalendarDate` · **Public** · `final class extends DateTimeImmutable` (since 0.2.2)
+
+The value of a `Date` field: a day of the calendar (a birthday, the day of an
+event). It is a `DateTimeImmutable` at midnight, so `format()`, comparisons and
+Twig's `date` filter work as usual, but `setTimezone()` does nothing: 24
+October is 24 October in every time zone, also where Twig converts dates to
+the site's time zone. Printed as text, it is `2026-10-24`.
+
+| Member | Description |
+|---|---|
+| `__construct(string $date)` | From `Y-m-d` (anything after the tenth character, e.g. a time, is ignored); `InvalidArgumentException` for an invalid date (`2026-02-30`) |
+| `static of(DateTimeInterface $moment, ?DateTimeZone $timezone = null): self` | The day of a moment, as seen in the time zone (e.g. the site's) |
+| `setTimezone(DateTimeZone $timezone): static` | Returns the same date |
+| `FORMAT` | `'Y-m-d'`: the storage form and the value of `<input type="date">` |
+
+```twig
+{{ object.event_day|date('Y. m. d.') }}   {# or the language's: date(t('date.format_day')) #}
+```
 
 ## FieldStorage
 
@@ -203,12 +260,14 @@ dates.
 
 | Case | Where the value lives | Filterable, sortable |
 |---|---|---|
-| `Table` | In the capability's own table (`cc_cap_<name>`); a multi-valued field in the shared `cc_field_values` table | yes (multi-valued: filterable only) |
+| `Table` | In the capability's own table (`cc_cap_<name>`), or for a Blueprint's own queryable field in the Blueprint's table (`cc_bp_<name>`, since 0.2.2); a multi-valued field in the shared `cc_field_values` table | yes (multi-valued: filterable only) |
 | `Data` | In the object's `data` JSON column (a multi-valued field as a list) | no |
 
 **Rule:** whatever needs to be filtered or sorted on is `Table`. Everything
-else can go into `Data`. If a `Data` field later needs to be filtered on after
-all, it has to be promoted to a capability field.
+else can go into `Data`. A Blueprint's own field is `Data` unless the
+Blueprint lists it under `queryable` (since 0.2.2; see below); making it
+queryable later moves its values (SchemaSync,
+[chapter 17](17-migrations.md#applying-the-definitions-schemasync)).
 
 ## Blueprint
 
@@ -224,6 +283,8 @@ return [
         'fields' => [
             new Field('lead', FieldType::Text, label: 'field.lead'),
         ],
+        // Optional (since 0.2.2): own fields to filter and sort on.
+        // 'queryable' => ['lead'],
         // Optional (since 0.0.4): narrow the value limit of a capability's multi-valued field.
         // 'cardinality' => ['phones' => 2],
         // Optional (since 0.0.5): initial values of a new object, and the admin editor's profile.
@@ -240,7 +301,7 @@ menu item's `'tree_scope' => 'menu'` ([chapter 18](18-trees.md#separate-trees-tr
 |---|---|
 | `$name`, `$label` | Name (`^[a-z][a-z0-9_]{0,62}$`) and label |
 | `$capabilities` | `array<string, CapabilityDefinition>`, completed with the dependencies |
-| `$fields` | Only the Blueprint's own fields; always stored as `FieldStorage::Data` |
+| `$fields` | Only the Blueprint's own fields: `FieldStorage::Data`, or `FieldStorage::Table` for those under `queryable` (since 0.2.2; until then always Data) |
 | `$relations` | Only the Blueprint's own relations (`array<string, Relation>`) |
 | `$lists` | Lists shown on the object's page ([chapter 10](10-relations.md#lists-on-the-objects-page)) |
 | `$narrowed` | The capability fields whose cardinality this Blueprint narrows (`array<string, Field>`) |
@@ -251,9 +312,31 @@ menu item's `'tree_scope' => 'menu'` ([chapter 18](18-trees.md#separate-trees-tr
 | `allFields()` | The capability fields (narrowed where configured) and the own fields together |
 | `narrow(array $fields): array` | Applies the narrowed cardinalities to the given field definitions |
 | `allRelations()` | The capability relations and the own relations together |
+| `tableName(): string` | `bp_<name>`: the Blueprint's own table, without the prefix (since 0.2.2) |
+| `tableFields(): array<string, Field>` | The own single-valued queryable fields: the table's columns (since 0.2.2) |
+| `valueTableFields(): array<string, Field>` | The own multi-valued queryable fields, in `field_values` (since 0.2.2) |
+| `hasTable(): bool`, `table(): ?Table` | Whether it has a table, and its schema (since 0.2.2) |
 
 Dependencies need not be listed: because of `Routable`, the `page` Blueprint
 automatically gets `Titled` too.
+
+**Queryable own fields** (since 0.2.2, `'queryable' => ['price', 'tags']`):
+the single-valued ones become columns of the Blueprint's own table
+`cc_bp_<name>`, shaped like a capability's table (`object_id`, a column per
+field, the fields' `indexed` and `unique` indexes, deleted with the object);
+the multi-valued ones live in `field_values`. They can be filtered on, and the
+single-valued ones sorted on ([chapter 4](04-query.md#fields-in-a-query)). The
+rest stay in the JSON data. Limits: at most 40 single-valued queryable fields
+(`BlueprintRegistry::MAX_TABLE_FIELDS`, MySQL's row size), a queryable text
+column of at most 255 characters (`Field::MAX_MULTI_STRING_LENGTH`; longer
+texts are `Text`), a queryable field name of at most 59 characters, and a
+Blueprint name of at most 40 characters (`MAX_TABLE_NAME`) if it has a table.
+**A field name means one kind of value:** several Blueprints may have an own
+field of the same name only with the same type and cardinality (queryable in
+some of them only is fine).
+
+The table, its columns and its indexes are created by `install`, `migrate`
+or the upgrade page like any other definition's.
 
 **Narrowing the cardinality** (`'cardinality' => ['phones' => 2]`): the field
 must be a multi-valued field of one of the Blueprint's capabilities, and the new
@@ -276,13 +359,17 @@ not have.
 | `relation(string $name): ?Relation` | A relation definition by name, whether provided by a capability or a Blueprint |
 | `all(): array<string, Blueprint>` | All of them |
 | `treeScopes(): list<string>` | The `tree_scope` relations of the Blueprints, each once (since 0.0.7) |
+| `queryableOwners(string $field): list<Blueprint>` | The Blueprints that have the field as an own queryable field (since 0.2.2) |
+| `ownField(string $name): ?Field` | A Blueprint's own field by name, whichever Blueprint defines it (since 0.2.2) |
 
 `RESERVED_NAMES` (since 0.0.5): `system`, `media` and `upgrade` (since
 0.0.6) cannot be Blueprint names, because the admin uses them as its own paths.
 
 `define()` throws `CapabilityException` for an invalid or reserved name, an unknown
 capability, if the name of an own field or relation collides with a field
-or relation of a capability, for an invalid `cardinality` entry, and for a
+or relation of a capability, for a `queryable` entry that is not an own field
+or breaks the limits above, for an own field defined with another type or
+cardinality in another Blueprint, for an invalid `cardinality` entry, and for a
 `tree_scope` that is not a required single relation of a Hierarchical
 Blueprint.
 

@@ -14,9 +14,11 @@ use Campanella\Database\Schema\SchemaComparator;
 use Campanella\Database\Schema\SchemaDifference;
 use Campanella\Database\Schema\SchemaReader;
 use Campanella\Database\Schema\Table;
+use Campanella\Model\BlueprintRegistry;
 
 /**
- * Creates the core and capability tables.
+ * Creates the core and capability tables, and the Blueprints' own tables
+ * (`bp_<name>`, since 0.2.2, when the BlueprintRegistry is given).
  *
  * Can be run repeatedly (CREATE TABLE IF NOT EXISTS), so the table of a
  * newly registered capability is created this way too. differences() compares
@@ -29,6 +31,7 @@ final class Installer
         private readonly Connection $db,
         private readonly CapabilityRegistry $capabilities,
         private readonly ?Migrator $migrator = null,
+        private readonly ?BlueprintRegistry $blueprints = null,
     ) {
     }
 
@@ -38,6 +41,12 @@ final class Installer
         $tables = CoreSchema::tables();
         foreach ($this->capabilities->all() as $definition) {
             $table = $definition->table();
+            if ($table !== null) {
+                $tables[] = $table;
+            }
+        }
+        foreach ($this->blueprints?->all() ?? [] as $blueprint) {
+            $table = $blueprint->table();
             if ($table !== null) {
                 $tables[] = $table;
             }

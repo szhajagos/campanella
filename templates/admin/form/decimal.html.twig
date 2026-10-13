@@ -1,0 +1,3 @@
+{# A decimal number (since 0.2.2): text, so a comma works as the decimal point too. #}
+<input type="text" inputmode="decimal" class="form-control{{ invalid }}" id="{{ input_id }}" name="{{ field.inputName }}" value="{{ value }}"
+    {%- if field.required and not field.multiple %} required{% endif %}{% if field.disabled %} disabled{% endif %}>

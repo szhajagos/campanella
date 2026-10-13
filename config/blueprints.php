@@ -27,7 +27,15 @@ use Campanella\Relation\Relation;
  *
  * Dependencies need not be listed: Routable brings Titled along with it.
  * Custom fields under 'fields' are stored in the data (JSON) column, so
- * they cannot be filtered or sorted on.
+ * they cannot be filtered or sorted on, except those listed under
+ * 'queryable' (since 0.2.2): they get a column in the Blueprint's own table
+ * (bp_<name>), e.g.
+ *
+ *   'fields' => [new Field('price', FieldType::Decimal), new Field('day', FieldType::Date)],
+ *   'queryable' => ['price', 'day'],
+ *
+ * Field types: String, Text, Integer, Boolean, DateTime, and since 0.2.2
+ * Decimal, Date, Email, Url, Choice (with 'choices') and Html (formatted text).
  *
  * 'relations': the Blueprint's own relations to other objects.
  * 'lists':     lists shown on the object's own page (label + Query).

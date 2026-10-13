@@ -1,0 +1,4 @@
+{# A web address, http:// or https:// (since 0.2.2). #}
+<input type="url" class="form-control{{ invalid }}" id="{{ input_id }}" name="{{ field.inputName }}" value="{{ value }}" placeholder="https://"
+    {%- for attr, attr_value in field.attributes %} {{ attr }}="{{ attr_value }}"{% endfor %}
+    {%- if field.required and not field.multiple %} required{% endif %}{% if field.disabled %} disabled{% endif %}>

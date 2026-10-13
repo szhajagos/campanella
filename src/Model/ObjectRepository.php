@@ -27,6 +27,7 @@ use PDOException;
  *   objects              – identity + the data (JSON) column
  *   object_capabilities  – which capabilities it has
  *   cap_<name>           – the capabilities' queryable single-valued fields
+ *   bp_<name>            – a Blueprint's own queryable single-valued fields (since 0.2.2)
  *   field_values         – the values of the queryable multi-valued fields
  *   relationships        – relationships to other objects
  *   media_usage          – the uploaded files a text shows (since 0.1.2)
@@ -150,12 +151,36 @@ final class ObjectRepository
             }
         }
 
+        // The Blueprints' own tables (since 0.2.2): one query per Blueprint with a table.
+        /** @var array<string, Blueprint> $blueprintsInvolved */
+        $blueprintsInvolved = [];
+        foreach ($rows as $row) {
+            $blueprint = $this->blueprints->find((string) $row['blueprint']);
+            if ($blueprint !== null) {
+                $blueprintsInvolved[$blueprint->name] = $blueprint;
+            }
+        }
+        /** @var array<int, array<string, mixed>> $ownValues object ID => its row in its Blueprint's table */
+        $ownValues = [];
+        foreach ($blueprintsInvolved as $blueprint) {
+            if (!$blueprint->hasTable()) {
+                continue;
+            }
+            $sql = sprintf('SELECT * FROM {%s} WHERE object_id IN (%s)', $blueprint->tableName(), $in);
+            foreach ($this->db->fetchAll($sql, $params) as $row) {
+                $ownValues[(int) $row['object_id']] = $row;
+            }
+        }
+
         // Multi-valued queryable fields: for all objects being loaded, in a single query, ordered.
         /** @var array<int, array<string, list<mixed>>> $multiValues */
         $multiValues = [];
         $multiFields = [];
         foreach ($involved as $definition) {
             $multiFields += $definition->valueTableFields();
+        }
+        foreach ($blueprintsInvolved as $blueprint) {
+            $multiFields += $blueprint->valueTableFields();
         }
         if ($multiFields !== []) {
             $sql = "SELECT * FROM {field_values} WHERE object_id IN ({$in}) ORDER BY object_id, field, delta, id";
@@ -190,6 +215,7 @@ final class ObjectRepository
                 $tableValues,
                 $relatedIds[$id] ?? [],
                 $multiValues[$id] ?? [],
+                $ownValues[$id] ?? null,
             );
         }
 
@@ -243,9 +269,19 @@ final class ObjectRepository
 
             foreach ($object->capabilities() as $definition) {
                 if ($definition->hasTable()) {
-                    $this->writeCapabilityRow($db, $definition, $id, $object);
+                    $this->writeRow($db, $definition->tableName(), $definition->tableFields(), $id, $object, $definition->name);
                 }
                 foreach ($definition->valueTableFields() as $name => $field) {
+                    $this->writeFieldValues($db, $field, $id, $object->get($name));
+                }
+            }
+            // The Blueprint's own queryable fields (since 0.2.2).
+            $blueprint = $this->blueprints->find($object->blueprint());
+            if ($blueprint !== null) {
+                if ($blueprint->hasTable()) {
+                    $this->writeRow($db, $blueprint->tableName(), $blueprint->tableFields(), $id, $object, $blueprint->name);
+                }
+                foreach ($blueprint->valueTableFields() as $name => $field) {
                     $this->writeFieldValues($db, $field, $id, $object->get($name));
                 }
             }
@@ -325,17 +361,18 @@ final class ObjectRepository
         }
     }
 
-    private function writeCapabilityRow(
-        Connection $db,
-        CapabilityDefinition $definition,
-        int $id,
-        CampanellaObject $object,
-    ): void {
+    /**
+     * Inserts or updates the object's row in a table of single-valued queryable fields
+     * (a capability's, or since 0.2.2 a Blueprint's own).
+     *
+     * @param array<string, Field> $fields
+     */
+    private function writeRow(Connection $db, string $table, array $fields, int $id, CampanellaObject $object, string $owner): void
+    {
         $row = [];
-        foreach ($definition->tableFields() as $name => $field) {
+        foreach ($fields as $name => $field) {
             $row[$name] = $field->type->toStorage($object->get($name));
         }
-        $table = $definition->tableName();
 
         try {
             $exists = $db->fetchValue(sprintf('SELECT 1 FROM {%s} WHERE object_id = :id', $table), ['id' => $id]);
@@ -349,35 +386,56 @@ final class ObjectRepository
                 throw $e;
             }
             $errors = [];
-            foreach ($definition->tableFields() as $name => $field) {
+            foreach ($fields as $name => $field) {
                 if ($field->unique) {
                     $errors[$name] = new Message('validation.taken', ['value' => (string) $row[$name]]);
                 }
             }
-            throw new ValidationException($errors ?: [$definition->name => 'validation.unique_conflict']);
+            throw new ValidationException($errors ?: [$owner => 'validation.unique_conflict']);
         }
     }
 
     /**
-     * Filters the body of a text in `html` format (HtmlSanitizer). A text that cannot
-     * be filtered (too long, too many tags, invalid UTF-8) is not changed but
-     * reported as a validation error.
+     * Filters the body of a text in `html` format, and every Html field (since 0.2.2),
+     * with the HtmlSanitizer. A text that cannot be filtered (too long, too many tags,
+     * invalid UTF-8) is not changed but reported as a validation error.
      *
      * @return array<string, Message> field name => message
      */
     private function sanitizeHtml(CampanellaObject $object): array
     {
-        if (!$object->has(Textual::class) || $object->as(Textual::class)->format() !== TextFormat::Html) {
-            return [];
+        $errors = [];
+        if ($object->has(Textual::class) && $object->as(Textual::class)->format() === TextFormat::Html) {
+            $body = $object->as(Textual::class)->body();
+            $problem = $this->html->problem($body);
+            if ($problem !== null) {
+                $errors['body'] = $problem;
+            } else {
+                $object->set('body', $this->html->sanitize($body));
+            }
         }
-        $body = $object->as(Textual::class)->body();
-        $problem = $this->html->problem($body);
-        if ($problem !== null) {
-            return ['body' => $problem];
+        foreach ($object->fields() as $name => $field) {
+            if ($field->type !== FieldType::Html) {
+                continue;
+            }
+            $values = $field->isMultiple() ? (array) $object->get($name) : [$object->get($name)];
+            $clean = [];
+            foreach ($values as $value) {
+                if (!is_string($value) || $value === '') {
+                    $clean[] = $value;
+                    continue;
+                }
+                $problem = $this->html->problem($value);
+                if ($problem !== null) {
+                    $errors[$name] = $problem;
+                    continue 2;
+                }
+                $clean[] = $this->html->sanitize($value);
+            }
+            $object->set($name, $field->isMultiple() ? $clean : $clean[0]);
         }
-        $object->set('body', $this->html->sanitize($body));
 
-        return [];
+        return $errors;
     }
 
     /** @param array<string, Message> $errors Errors found before (e.g. by sanitizeHtml()) */
@@ -391,6 +449,8 @@ final class ObjectRepository
                 $errors[$name] = new Message('validation.too_many_values', ['max' => $field->cardinality]);
             } elseif ($field->hasTooLongItem($value) || $field->isTooLong($value)) {
                 $errors[$name] = new Message('validation.value_too_long', ['max' => $field->length]);
+            } elseif (($invalid = $field->invalid($value)) !== null) {
+                $errors[$name] = $invalid;
             }
         }
         foreach ($object->capabilities() as $definition) {
@@ -474,6 +534,7 @@ final class ObjectRepository
      * @param array<string, array<int, array<string, mixed>>> $tableValues
      * @param array<string, list<int>> $relatedIds
      * @param array<string, list<mixed>> $multiValues field name => stored values, in order
+     * @param array<string, mixed>|null $ownRow The object's row in its Blueprint's own table
      */
     private function hydrate(
         array $row,
@@ -481,6 +542,7 @@ final class ObjectRepository
         array $tableValues,
         array $relatedIds,
         array $multiValues,
+        ?array $ownRow = null,
     ): CampanellaObject
     {
         $id = (int) $row['id'];
@@ -512,12 +574,20 @@ final class ObjectRepository
                 continue;
             }
             if ($field->isMultiple()) {
-                $values[$name] = $field->fromStorage($multiValues[$name] ?? []);
+                // (From the data: a field that has just become queryable, before SchemaSync moved it.)
+                $values[$name] = $field->fromStorage($multiValues[$name] ?? $data[$name] ?? []);
                 continue;
             }
             $owner = $this->capabilities->fieldOwner($name);
-            if ($owner !== null && isset($tableValues[$owner->name][$id])) {
-                $values[$name] = $field->fromStorage($tableValues[$owner->name][$id][$name] ?? null);
+            if ($owner !== null) {
+                if (isset($tableValues[$owner->name][$id])) {
+                    $values[$name] = $field->fromStorage($tableValues[$owner->name][$id][$name] ?? null);
+                }
+            } elseif ($ownRow !== null && array_key_exists($name, $ownRow)) {
+                $values[$name] = $field->fromStorage($ownRow[$name]);
+            } elseif (array_key_exists($name, $data)) {
+                // A field that has just become queryable, before its data was moved (SchemaSync).
+                $values[$name] = $field->fromStorage($data[$name]);
             }
         }
 

@@ -79,6 +79,8 @@ writing a migration (the ROADMAP's "done when" of 0.0.6):
 | … with a required field without a default, or a unique field (one default for many objects) | **Blocked** |
 | A capability removed from a Blueprint | Its objects keep it and its data (a note on the System page and in `migrate`); with `--prune` the data is deleted (its table rows, multi-valued values, keys in the JSON data) and they lose it |
 | Objects of a Blueprint that is not defined any more | A note; kept as they are |
+| A Blueprint's own field made **queryable** (its `queryable` key; since 0.2.2) | Its table or column is created; the values move from the objects' JSON data into it (or `field_values`), and leave the JSON. The JSON value wins over an older one in the table. A required field without a value and without a default for an object that has no row yet: **Blocked** |
+| … made **not queryable** again | The values in its column (or `field_values`) are copied back into the JSON data of the objects that do not have it there; the column and its values stay (nothing is deleted) |
 | A renamed field, a changed type, a removed field | Nothing: a migration (the schema comparison lists them) |
 
 A Blocked step fails the `migrate` run (exit code `1`) after the rest is
@@ -97,18 +99,21 @@ answers 503 (needs upgrade) instead of 500, until the upgrade has run.
 
 `SyncPlan` · `final readonly class`: `steps` (`list<SyncStep>`), `hasWork(): bool`
 (anything that changes the database), `work()`, `blocked()`, `notes()`,
-`hasPrune(): bool`.
+`hasPrune(): bool`, `hasMove(): bool` (a step moves data; since 0.2.2).
+
+Moving data counts as risky like pruning: `migrate` asks and makes a backup
+first, and the upgrade page backs up as always.
 
 `SyncStep` · `final readonly class`: `kind` (`SyncStepKind`), `message` (a
 `Message`: `sync.*` in the language files), `isWork(): bool`; `run()` is called
 by `apply()`.
 
 `SyncStepKind` (enum): `CreateTable`, `AddColumn`, `AddIndex`,
-`AddCapability`, `PruneCapability`, `Blocked`, `Note`.
+`AddCapability`, `PruneCapability`, `MoveData` (since 0.2.2), `Blocked`, `Note`.
 
 `Campanella\Database\Sync\SyncCheck` · **Internal**: `static checks(Installer $installer, SchemaSync $sync): Closure`,
 the System page's lines about the objects' capabilities (in the *Database
-tables* group: capabilities to add, blocked steps, notes).
+tables* group: capabilities to add, data to move, blocked steps, notes).
 
 ## From the browser
 

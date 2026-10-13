@@ -1,0 +1,10 @@
+{# The object's own (Blueprint) fields with a value, by type (since 0.2.2). The lead is shown above the text. #}
+{% set own_fields = object_fields(object)|filter(f => f.name != 'lead') %}
+{% if own_fields is not empty %}
+    <dl class="object-fields row">
+        {% for field in own_fields %}
+            <dt class="col-sm-4 object-fields__label">{{ t(field.label) }}</dt>
+            <dd class="col-sm-8 object-fields__value object-fields__value--{{ field.type }}">{{ field.html }}</dd>
+        {% endfor %}
+    </dl>
+{% endif %}

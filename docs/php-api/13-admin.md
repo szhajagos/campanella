@@ -166,6 +166,12 @@ and `inputId()`.
 | Integer | `integer`: number input (the `INT` range) |
 | Boolean | `boolean`: checkbox; in a multi-valued field a yes/no select per value |
 | DateTime | `datetime`: date and time in the site time zone (`timezone` setting), stored in UTC |
+| Decimal | `decimal`: text input for numbers (`inputmode="decimal"`); a comma works as the decimal point, spaces between digits are ignored (since 0.2.2) |
+| Date | `date`: a date input, no time and no time zone (since 0.2.2) |
+| Email | `email`: e-mail input with `maxlength` (since 0.2.2) |
+| Url | `url`: web address input with `maxlength` (since 0.2.2) |
+| Choice | `choice`: drop-down of the field's choices (labels translated) with "none" (since 0.2.2) |
+| Html | `html`: the HTML editor, a shorter box than the body's (since 0.2.2) |
 | `One` relation | `select`: drop-down with "none" |
 | `Many` relation | `checkboxes`: one checkbox per possible target |
 
@@ -178,8 +184,9 @@ and `inputId()`.
   Blueprints and capabilities that the user may see, ordered by title. Only
   offered targets can be added or removed: a current target that was not
   offered is kept, and a posted ID that was not offered is ignored.
-- **HTML text:** a `body` in `html` format is edited with the HTML editor (see
-  below); it is filtered on save like any HTML text.
+- **HTML text:** a `body` in `html` format, and an `Html` field (since 0.2.2),
+  is edited with the HTML editor (see below); it is filtered on save like any
+  HTML text. The `editor` key sets an Html field's toolbar profile too.
 - **Path:** may be left empty (Routable makes it from the title). A path that
   a fixed route, the admin or a public folder (`/assets`, `/themes`) already
   uses is rejected (`validation.path_reserved`).

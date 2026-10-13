@@ -321,6 +321,7 @@ templates a request uses are read and hashed once per request.
 | `{{ object\|body }}` | `body(CampanellaObject $object)` | The HTML of the Textual body: escaped and split into paragraphs for the `plain` format; as stored for the `html` format, which is filtered on save ([chapter 15](15-html.md)); since 0.1.2 its images of this site get `srcset`, `sizes`, their size and lazy loading ([chapter 16](16-media.md#smaller-copies-variants)) |
 | `{{ image_url(image, 640) }}` | `imageUrl(CampanellaObject $image, ?int $width = null)` | An image object's address, or of its smallest copy at least `$width` wide (since 0.1.2) |
 | `{{ image_srcset(image) }}` | `imageSrcset(CampanellaObject $image)` | An image object's `srcset`; `''` without copies (since 0.1.2) |
+| `{% for f in object_fields(item) %}` | `objectFields(Environment $env, CampanellaObject $object)` | The object's own (Blueprint) fields that have a value and are not hidden, each as `name`, `label`, `type` and `html` (safe to print): texts escaped with their line breaks, formatted (`Html`) text as filtered on save, numbers and dates in the current language (`format.decimal_point`, `date.format_day`) and the site's time zone, a choice by its translated label, `yes`/`no` (`field.yes`, `field.no`), e-mail and web addresses as links (since 0.2.2). `object/full.html.twig` shows them (`object/_fields.html.twig`, without `lead`, which is shown above the text) |
 
 The extension's other methods (`getFunctions()`, `getFilters()`,
 `getGlobals()`) are meant for Twig.

@@ -118,7 +118,7 @@ final class QueryCompiler
 
     private function compileField(FieldCondition $condition): string
     {
-        $multi = isset(Query::BASE_FIELDS[$condition->field]) ? null : $this->capabilities->field($condition->field);
+        $multi = isset(Query::BASE_FIELDS[$condition->field]) ? null : $this->definition($condition->field);
         if ($multi !== null && $multi->usesValueTable()) {
             return $this->compileMultiField($condition, $multi);
         }
@@ -183,7 +183,11 @@ final class QueryCompiler
             $this->param($field->name),
             $match,
         );
-        if ($operator === Operator::NotEquals || $operator === Operator::NotIn) {
+        if (($operator === Operator::NotEquals || $operator === Operator::NotIn) && $this->capabilities->fieldOwner($field->name) === null) {
+            // A Blueprint's own field (since 0.2.2): the object is of a Blueprint that has it.
+            $names = array_map(fn ($b): string => $this->param($b->name), $this->blueprints?->queryableOwners($field->name) ?? []);
+            $sql = sprintf('(o.`blueprint` IN (%s) AND %s)', $names === [] ? 'NULL' : implode(', ', $names), $sql);
+        } elseif ($operator === Operator::NotEquals || $operator === Operator::NotIn) {
             $owner = $this->capabilities->fieldOwner($field->name)
                 ?? throw new QueryException("Unknown field: {$field->name}");
             $sql = sprintf(
@@ -242,8 +246,10 @@ final class QueryCompiler
             return 'o.' . Connection::quoteIdentifier(Query::BASE_FIELDS[$field]);
         }
 
-        $owner = $this->capabilities->fieldOwner($field)
-            ?? throw new QueryException("Unknown or non-queryable field: {$field}");
+        $owner = $this->capabilities->fieldOwner($field);
+        if ($owner === null) {
+            return $this->ownColumn($field, $forOrdering);
+        }
         $definition = $owner->fields[$field];
 
         if ($definition->isMultiple() && $forOrdering) {
@@ -253,12 +259,7 @@ final class QueryCompiler
         }
 
         if ($definition->storage === FieldStorage::Data) {
-            throw new QueryException(sprintf(
-                "Field '%s' lives in the data (JSON) column, so it cannot be %s. "
-                . 'If this is needed, the field must be promoted to a column in its own table.',
-                $field,
-                $forOrdering ? 'sorted on' : 'filtered on',
-            ));
+            throw $this->notQueryable($field, $forOrdering);
         }
 
         $alias = 'c_' . $owner->name;
@@ -272,13 +273,64 @@ final class QueryCompiler
         return $alias . '.' . Connection::quoteIdentifier($field);
     }
 
+    /**
+     * A Blueprint's own queryable field (since 0.2.2): its column in the Blueprint's
+     * table; if several Blueprints have it, the one of the object's Blueprint
+     * (an object is of one Blueprint, so at most one of the columns has a row).
+     */
+    private function ownColumn(string $field, bool $forOrdering): string
+    {
+        $own = $this->blueprints?->ownField($field) ?? throw new QueryException("Unknown or non-queryable field: {$field}");
+        if ($own->isMultiple() && $forOrdering) {
+            throw new QueryException("Field '{$field}' is multi-valued, so it cannot be sorted on.");
+        }
+        $owners = $this->blueprints->queryableOwners($field);
+        if ($owners === []) {
+            throw $this->notQueryable($field, $forOrdering);
+        }
+        $columns = [];
+        foreach ($owners as $blueprint) {
+            $alias = 'b_' . $blueprint->name;
+            $this->joins['bp:' . $blueprint->name] ??= sprintf(
+                ' LEFT JOIN {%s} %s ON %s.`object_id` = o.`id`',
+                $blueprint->tableName(),
+                $alias,
+                $alias,
+            );
+            $columns[] = $alias . '.' . Connection::quoteIdentifier($field);
+        }
+
+        return count($columns) === 1 ? $columns[0] : 'COALESCE(' . implode(', ', $columns) . ')';
+    }
+
+    private function notQueryable(string $field, bool $forOrdering): QueryException
+    {
+        return new QueryException(sprintf(
+            "Field '%s' lives in the data (JSON) column, so it cannot be %s. "
+            . "If this is needed, make it queryable (a Blueprint's 'queryable' key, or a capability's table field).",
+            $field,
+            $forOrdering ? 'sorted on' : 'filtered on',
+        ));
+    }
+
+    /**
+     * The definition of a capability's field or a Blueprint's own field (since 0.2.2; the
+     * queryable one if a Blueprint has it as queryable), or null.
+     */
+    private function definition(string $field): ?Field
+    {
+        return $this->capabilities->field($field)
+            ?? ($this->blueprints?->queryableOwners($field)[0] ?? null)?->fields[$field]
+            ?? $this->blueprints?->ownField($field);
+    }
+
     private function fieldType(string $field): FieldType
     {
         return match ($field) {
             'id' => FieldType::Integer,
             'created', 'updated' => FieldType::DateTime,
             'uuid', 'blueprint' => FieldType::String,
-            default => ($this->capabilities->field($field) ?? throw new QueryException("Unknown field: {$field}"))->type,
+            default => ($this->definition($field) ?? throw new QueryException("Unknown field: {$field}"))->type,
         };
     }
 

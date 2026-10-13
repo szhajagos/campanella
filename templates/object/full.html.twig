@@ -8,5 +8,6 @@
         <p class="lead">{{ object.lead }}</p>
     {% endif %}
     <div class="body">{{ object|body }}</div>
+    {{ include('object/_fields.html.twig') }}
     {{ include('object/_relations.html.twig') }}
 </article>

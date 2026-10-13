@@ -4,14 +4,11 @@ declare(strict_types=1);
 
 namespace Campanella\Capability;
 
-use Campanella\Database\Schema\Column;
 use Campanella\Database\Schema\ColumnType;
-use Campanella\Database\Schema\CoreSchema;
-use Campanella\Database\Schema\ForeignKey;
+use Campanella\Database\Schema\FieldTable;
 use Campanella\Database\Schema\Table;
 use Campanella\Model\Field;
 use Campanella\Model\FieldStorage;
-use Campanella\Model\FieldType;
 use Campanella\Relation\Relation;
 use ReflectionClass;
 
@@ -53,7 +50,7 @@ final readonly class CapabilityDefinition
 
         $fields = [];
         foreach ($class::fields() as $field) {
-            if ($field->usesValueTable() && $field->type === FieldType::String
+            if ($field->usesValueTable() && $field->type->columnType() === ColumnType::String
                 && $field->length > Field::MAX_MULTI_STRING_LENGTH) {
                 throw new CapabilityException(sprintf(
                     '%s: the queryable multi-valued String field %s can be at most %d characters long.',
@@ -115,34 +112,6 @@ final readonly class CapabilityDefinition
     /** The schema of the capability's table, derived from its fields. */
     public function table(): ?Table
     {
-        if (!$this->hasTable()) {
-            return null;
-        }
-
-        $columns = [new Column('object_id', ColumnType::Id)];
-        $indexes = [];
-        $uniques = [];
-        foreach ($this->tableFields() as $field) {
-            $columns[] = new Column(
-                name: $field->name,
-                type: $field->type->columnType(),
-                nullable: !$field->required,
-                length: $field->length,
-            );
-            if ($field->unique) {
-                $uniques['uniq_' . $field->name] = [$field->name];
-            } elseif ($field->indexed) {
-                $indexes['idx_' . $field->name] = [$field->name];
-            }
-        }
-
-        return new Table(
-            name: $this->tableName(),
-            columns: $columns,
-            primaryKey: ['object_id'],
-            indexes: $indexes,
-            uniques: $uniques,
-            foreignKeys: [new ForeignKey('object_id', CoreSchema::OBJECTS)],
-        );
+        return $this->hasTable() ? FieldTable::build($this->tableName(), $this->tableFields()) : null;
     }
 }

@@ -602,6 +602,7 @@ final class Kernel
             $c->get(Connection::class),
             $c->get(CapabilityRegistry::class),
             $c->get(Migrator::class),
+            $c->get(BlueprintRegistry::class),
         ));
         $c->set(SchemaSync::class, static fn (Container $c): SchemaSync => new SchemaSync(
             $c->get(Connection::class),

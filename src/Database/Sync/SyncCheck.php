@@ -31,7 +31,7 @@ final class SyncCheck
             $results = [];
             foreach ($plan->steps as $step) {
                 $status = match ($step->kind) {
-                    SyncStepKind::AddCapability => CheckStatus::Warning,
+                    SyncStepKind::AddCapability, SyncStepKind::MoveData => CheckStatus::Warning,
                     SyncStepKind::Blocked => CheckStatus::Error,
                     SyncStepKind::Note => CheckStatus::Info,
                     default => null, // schema steps: already listed as differences

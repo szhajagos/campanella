@@ -5884,6 +5884,258 @@ test('Review fixes (0.1.5): unforgeable time, limits, line breaks, keyed throttl
     putenv('CAMPANELLA_DB_PREFIX');
 });
 
+echo "\nThe content model: field types and queryable own fields (0.2.2)\n";
+
+test('Field types: decimal, date, e-mail, web address, choice, formatted text', function (): void {
+    $price = new Field('price', FieldType::Decimal);
+    check($price->cast('1 234,5') === '1234.50' && $price->cast(3) === '3.00' && $price->cast('-0.004') === '0.00', (string) $price->cast('1 234,5'));
+    check($price->cast('2.345') === '2.35' && $price->cast('-2.345') === '-2.35' && $price->cast('9.999') === '10.00' && $price->cast(0.1 + 0.2) === '0.30', (string) $price->cast('9.999'));
+    check((new Field('n', FieldType::Decimal, scale: 0))->cast('2.5') === '3' && (new Field('n', FieldType::Decimal, scale: 6))->cast('.5') === '0.500000');
+    throws(\InvalidArgumentException::class, static fn () => $price->cast('12a'));
+    throws(\InvalidArgumentException::class, static fn () => $price->cast('1e5'));
+    check($price->invalid('123456789012345.00') instanceof Message && $price->invalid('12345678901234.99') === null, 'at most 14 digits before the point');
+    throws(\InvalidArgumentException::class, static fn () => new Field('n', FieldType::Decimal, scale: 7));
+
+    $day = new Field('day', FieldType::Date);
+    $value = $day->cast('2026-10-13');
+    check($value instanceof \Campanella\Model\CalendarDate && (string) $value === '2026-10-13', get_debug_type($value));
+    check($value->setTimezone(new DateTimeZone('America/New_York'))->format('Y-m-d') === '2026-10-13', 'a date does not move west of UTC');
+    check($day->toStorage($value) === '2026-10-13' && (string) $day->fromStorage('2026-10-13 00:00:00') === '2026-10-13', 'storage, also from a DATETIME column');
+    check((string) \Campanella\Model\CalendarDate::of(new DateTimeImmutable('2026-10-13 23:30:00', new DateTimeZone('UTC')), new DateTimeZone('Europe/Budapest')) === '2026-10-14', 'the day of a moment in a time zone');
+    throws(\InvalidArgumentException::class, static fn () => $day->cast('2026-02-30'));
+
+    $email = new Field('contact', FieldType::Email);
+    check($email->invalid('nem-cim') instanceof Message && $email->invalid('info@example.com') === null && $email->invalid('') === null);
+    $site = new Field('site', FieldType::Url);
+    check($site->invalid('javascript:alert(1)') instanceof Message && $site->invalid('/oldal') instanceof Message && $site->invalid('https://example.com/a?b=1') === null);
+    check($site->invalid('https://exa mple.com') instanceof Message, 'no spaces');
+
+    $color = new Field('color', FieldType::Choice, choices: ['red' => 'Piros', 'blue' => 'Kék']);
+    check($color->invalid('green') instanceof Message && $color->invalid('red') === null && $color->choiceLabel('blue') === 'Kék');
+    throws(\InvalidArgumentException::class, static fn () => new Field('c', FieldType::Choice));
+    throws(\InvalidArgumentException::class, static fn () => new Field('c', FieldType::String, choices: ['a' => 'A']));
+    throws(\InvalidArgumentException::class, static fn () => new Field('c', FieldType::Choice, choices: ['a b' => 'A']));
+    throws(\InvalidArgumentException::class, static fn () => new Field('h', FieldType::Html, cardinality: 2));
+
+    check((new Field('t', FieldType::String, translatable: true))->asData()->translatable, 'translatable is kept by the copies');
+    check($color->asTable()->choices === $color->choices && (new Field('m', FieldType::String, storage: FieldStorage::Data, cardinality: 3))->asTable()->usesValueTable());
+    check(FieldType::Email->columnType() === \Campanella\Database\Schema\ColumnType::String && FieldType::Html->columnType() === \Campanella\Database\Schema\ColumnType::Text
+        && FieldType::Decimal->valueColumn() === 'value_decimal' && FieldType::Date->valueColumn() === 'value_datetime');
+});
+
+test('Blueprint: queryable own fields, checked', function (): void {
+    $capabilities = new CapabilityRegistry([Titled::class, Textual::class]);
+    $registry = new BlueprintRegistry($capabilities, [
+        'product' => ['capabilities' => [Titled::class], 'fields' => [new Field('price', FieldType::Decimal), new Field('note', FieldType::Text)], 'queryable' => ['price']],
+    ]);
+    $product = $registry->get('product');
+    check($product->fields['price']->storage === FieldStorage::Table && $product->fields['note']->storage === FieldStorage::Data);
+    check($product->tableName() === 'bp_product' && array_keys($product->tableFields()) === ['price'] && $product->table()?->columns[1]->type === \Campanella\Database\Schema\ColumnType::Decimal);
+    check(array_map(static fn ($b) => $b->name, $registry->queryableOwners('price')) === ['product'] && $registry->queryableOwners('note') === []);
+
+    throws(CapabilityException::class, static fn () => $registry->define('x', ['capabilities' => [Titled::class], 'fields' => [new Field('a', FieldType::String)], 'queryable' => ['b']]));
+    throws(CapabilityException::class, static fn () => $registry->define('offer', ['capabilities' => [Titled::class], 'fields' => [new Field('price', FieldType::Integer)]]));
+    throws(CapabilityException::class, static fn () => $registry->define('y', ['capabilities' => [Titled::class], 'fields' => [new Field('code', FieldType::String, length: 300)], 'queryable' => ['code']]));
+    $many = [];
+    for ($i = 0; $i <= BlueprintRegistry::MAX_TABLE_FIELDS; $i++) {
+        $many[] = new Field('f' . $i, FieldType::Integer);
+    }
+    throws(CapabilityException::class, static fn () => $registry->define('z', ['capabilities' => [Titled::class], 'fields' => $many, 'queryable' => array_map(static fn (Field $f) => $f->name, $many)]));
+    // The same field name in two Blueprints: the same type; queryable in one only is fine.
+    $registry->define('offer', ['capabilities' => [Titled::class], 'fields' => [new Field('price', FieldType::Decimal)]]);
+    check(count($registry->queryableOwners('price')) === 1);
+});
+
+test('Queryable own fields: stored in bp_<name>, loaded, filtered and sorted', function () use ($schemaDb, $dropSchema): void {
+    $dropSchema();
+    $capabilities = new CapabilityRegistry([Titled::class]);
+    $registry = new BlueprintRegistry($capabilities, [
+        'product' => [
+            'capabilities' => [Titled::class],
+            'fields' => [
+                new Field('price', FieldType::Decimal, indexed: true),
+                new Field('released', FieldType::Date),
+                new Field('color', FieldType::Choice, choices: ['red' => 'Piros', 'blue' => 'Kék']),
+                new Field('tags', FieldType::String, length: 32, cardinality: Field::UNLIMITED),
+                new Field('summary', FieldType::Html),
+                new Field('note', FieldType::Text),
+            ],
+            'queryable' => ['price', 'released', 'color', 'tags'],
+        ],
+        'offer' => ['capabilities' => [Titled::class], 'fields' => [new Field('price', FieldType::Decimal)], 'queryable' => ['price']],
+        'plain' => ['capabilities' => [Titled::class]],
+    ]);
+    $installer = new Installer($schemaDb, $capabilities, null, $registry);
+    $installer->install();
+    check($installer->differences() === [], 'the tables match');
+    $info = (new \Campanella\Database\Schema\SchemaReader($schemaDb))->read('bp_product');
+    check($info !== null && $info->column('price')?->type === \Campanella\Database\Schema\ColumnType::Decimal && $info->column('released')?->type === \Campanella\Database\Schema\ColumnType::Date && $info->hasIndex('idx_price'), 'bp_product');
+    check($info->column('tags') === null && $info->column('note') === null, 'multi-valued and data fields have no column');
+
+    $repository = new ObjectRepository($schemaDb, $capabilities, $registry);
+    $engine = new QueryEngine($schemaDb, new QueryCompiler($capabilities, $registry), $repository, $capabilities, new DefaultPolicy());
+    $make = static function (string $blueprint, array $values) use ($repository): int {
+        $object = $repository->create($blueprint, $values);
+        $repository->save($object);
+
+        return (int) $object->id();
+    };
+    $a = $make('product', ['title' => 'A', 'price' => '19,90', 'released' => '2026-10-01', 'color' => 'red', 'tags' => ['új', 'akció'], 'summary' => '<p onclick="x()">Jó <script>alert(1)</script>termék</p>', 'note' => 'belső']);
+    $b = $make('product', ['title' => 'B', 'price' => '5', 'released' => '2025-01-15', 'color' => 'blue', 'tags' => ['régi']]);
+    $c = $make('offer', ['title' => 'C', 'price' => '12.5']);
+    $make('plain', ['title' => 'D']);
+
+    $loaded = $repository->find($a);
+    check($loaded?->get('price') === '19.90' && (string) $loaded->get('released') === '2026-10-01' && $loaded->get('tags') === ['új', 'akció'] && $loaded->get('note') === 'belső', json_encode($loaded?->values()));
+    check($loaded->get('summary') === '<p>Jó termék</p>', 'the Html field is filtered on save: ' . $loaded->get('summary'));
+    $row = $schemaDb->fetchOne('SELECT * FROM {bp_product} WHERE object_id = :id', ['id' => $a]);
+    check($row !== null && $row['price'] === '19.900000' && $row['released'] === '2026-10-01' && $row['color'] === 'red', json_encode($row));
+    $data = json_decode((string) $schemaDb->fetchValue('SELECT data FROM {objects} WHERE id = :id', ['id' => $a]), true);
+    check(is_array($data) && !isset($data['price']) && !isset($data['tags']) && isset($data['note']) && isset($data['summary']), 'only the data fields in the JSON: ' . json_encode($data));
+    check((int) $schemaDb->fetchValue("SELECT COUNT(*) FROM {field_values} WHERE field = 'tags'") === 3, 'the tags in field_values');
+
+    $ids = static fn (Query $q): array => array_map(static fn ($o): int => (int) $o->id(), $engine->execute($q, Actor::system())->items);
+    check($ids(Query::objects()->blueprint('product')->where('price', '>', '10')) === [$a], 'filtered by a decimal');
+    check($ids(Query::objects()->blueprint('product')->orderBy('released')) === [$b, $a], 'sorted by a date');
+    check($ids(Query::objects()->where('price', '>=', 5)->orderBy('price', 'DESC')) === [$a, $c, $b], 'across two Blueprints (COALESCE)');
+    check($ids(Query::objects()->where('released', '=', new \Campanella\Model\CalendarDate('2025-01-15'))) === [$b]);
+    check($ids(Query::objects()->where('color', 'IN', ['blue'])) === [$b] && $ids(Query::objects()->where('tags', '=', 'akció')) === [$a]);
+    check($ids(Query::objects()->where('tags', '!=', 'akció')->orderBy('id')) === [$b], 'not equal: only the objects of a Blueprint that has the field');
+    check($engine->count(Query::objects()->where('price', 'IS NULL'), Actor::system()) === 1, 'the plain object has no price');
+    throws(QueryException::class, static fn () => $ids(Query::objects()->where('note', '=', 'x')));
+    throws(QueryException::class, static fn () => $ids(Query::objects()->orderBy('tags')));
+
+    // Validation of the types; deleting removes the row.
+    $bad = $repository->create('product', ['title' => 'E', 'color' => 'green']);
+    try {
+        $repository->save($bad);
+        check(false, 'an invalid choice was saved');
+    } catch (ValidationException $e) {
+        check(isset($e->errors['color']), json_encode(array_keys($e->errors)));
+    }
+    $repository->delete($repository->find($b) ?? throw new RuntimeException());
+    check($schemaDb->fetchValue('SELECT COUNT(*) FROM {bp_product} WHERE object_id = :id', ['id' => $b]) == 0, 'deleted with the object');
+    $dropSchema();
+});
+
+test('SchemaSync: an own field made queryable moves its values, and back', function () use ($schemaDb, $dropSchema): void {
+    $dropSchema();
+    $capabilities = new CapabilityRegistry([Titled::class]);
+    $fields = [new Field('lead', FieldType::Text), new Field('score', FieldType::Integer, required: true, default: 1), new Field('labels', FieldType::String, cardinality: 5)];
+    $setup = static function (array $queryable) use ($schemaDb, $capabilities, $fields): array {
+        $registry = new BlueprintRegistry($capabilities, ['item' => ['capabilities' => [Titled::class], 'fields' => $fields, 'queryable' => $queryable]]);
+        $installer = new Installer($schemaDb, $capabilities, null, $registry);
+
+        return [new \Campanella\Database\Sync\SchemaSync($schemaDb, $installer, $capabilities, $registry), new ObjectRepository($schemaDb, $capabilities, $registry), $installer, $registry];
+    };
+    $kinds = static fn (\Campanella\Database\Sync\SyncPlan $plan): array => array_map(static fn ($s): string => $s->kind->value . ':' . $s->message->key, $plan->steps);
+
+    [, $repository, $installer] = $setup([]);
+    $installer->install();
+    $first = $repository->create('item', ['title' => 'Első', 'lead' => 'bevezető', 'score' => 7, 'labels' => ['a', 'b']]);
+    $repository->save($first);
+    $second = $repository->create('item', ['title' => 'Második']);
+    $repository->save($second);
+
+    // Made queryable: the table is created, the values move out of the JSON.
+    [$sync, $repository, $installer, $registry] = $setup(['score', 'labels']);
+    $plan = $sync->plan();
+    check($kinds($plan) === ['create_table:sync.create_table', 'move_data:sync.move_to_table'] && $plan->hasMove(), implode(', ', $kinds($plan)));
+    check($plan->steps[1]->message->params['count'] === 2 && $plan->steps[1]->message->params['fields'] === 'score, labels', json_encode($plan->steps[1]->message->params));
+    $installer->install(); // the table only (as a new column would be): the values are still read from the data
+    $early = $repository->find((int) $first->id());
+    check($early?->get('score') === 7 && $early->get('labels') === ['a', 'b'], 'read from the data until moved');
+    $sync->apply();
+    check(!$sync->plan()->hasWork(), 'done once: ' . implode(', ', $kinds($sync->plan())));
+    $row = $schemaDb->fetchOne('SELECT score FROM {bp_item} WHERE object_id = :id', ['id' => $first->id()]);
+    check($row !== null && (int) $row['score'] === 7, json_encode($row));
+    $data = json_decode((string) $schemaDb->fetchValue('SELECT data FROM {objects} WHERE id = :id', ['id' => $first->id()]), true);
+    check(is_array($data) && $data === ['lead' => 'bevezető'], 'left the JSON: ' . json_encode($data));
+    check((int) $schemaDb->fetchValue('SELECT score FROM {bp_item} WHERE object_id = :id', ['id' => $second->id()]) === 1, 'the second one, with its default');
+    $loaded = $repository->find((int) $first->id());
+    check($loaded?->get('score') === 7 && $loaded->get('labels') === ['a', 'b'] && $loaded->get('lead') === 'bevezető', json_encode($loaded?->values()));
+    $engine = new QueryEngine($schemaDb, new QueryCompiler($capabilities, $registry), $repository, $capabilities, new DefaultPolicy());
+    check($engine->count(Query::objects()->where('score', '>', 5), Actor::system()) === 1, 'queryable now');
+
+    // Not queryable again: copied back into the JSON; the column keeps its values.
+    $loaded->set('score', 9);
+    $repository->save($loaded);
+    [$sync, $repository] = $setup([]);
+    $plan = $sync->plan();
+    check($kinds($plan) === ['move_data:sync.move_to_data'] && $plan->steps[0]->message->params['fields'] === 'score, labels', implode(', ', $kinds($plan)) . ' ' . json_encode($plan->steps[0]->message->params));
+    $sync->apply();
+    check(!$sync->plan()->hasWork(), 'done once');
+    $back = $repository->find((int) $first->id());
+    check($back?->get('score') === 9 && $back->get('labels') === ['a', 'b'] && $back->get('lead') === 'bevezető', json_encode($back?->values()));
+    check((int) $schemaDb->fetchValue('SELECT score FROM {bp_item} WHERE object_id = :id', ['id' => $first->id()]) === 9, 'nothing is deleted');
+
+    // And queryable once more: the JSON (edited meanwhile) wins over the old column.
+    $back->set('score', 11);
+    $repository->save($back);
+    [$sync, $repository] = $setup(['score']);
+    $sync->apply();
+    check($repository->find((int) $first->id())?->get('score') === 11, 'the newer value');
+    $dropSchema();
+});
+
+test('Admin form and site: the new types', function () use ($engine): void {
+    $capabilities = new CapabilityRegistry([Titled::class]);
+    $registry = new BlueprintRegistry($capabilities, ['event' => ['capabilities' => [Titled::class], 'fields' => [
+        new Field('fee', FieldType::Decimal, label: 'Díj'),
+        new Field('day', FieldType::Date),
+        new Field('kind', FieldType::Choice, choices: ['talk' => 'Előadás', 'walk' => 'Séta']),
+        new Field('contact', FieldType::Email),
+        new Field('site', FieldType::Url),
+        new Field('details', FieldType::Html),
+        new Field('open', FieldType::Boolean),
+        new Field('memo', FieldType::Text),
+    ]]]);
+    $repository = new ObjectRepository(Connection::fromConfig(['prefix' => 'unused_'] + Config::load(dirname(__DIR__) . '/config')->get('database')), $capabilities, $registry);
+    $event = $repository->create('event', ['title' => 'Nyílt nap', 'fee' => '1500', 'day' => '2026-10-24', 'kind' => 'walk', 'contact' => 'info@example.com', 'site' => 'https://example.com/?a=1&b=2', 'details' => '<p>Részletek</p>', 'open' => true, 'memo' => "Első sor\n<második>"]);
+
+    $form = new ObjectForm($engine, Translator::fromDirectory(dirname(__DIR__) . '/lang', 'hu'), 'Europe/Budapest');
+    $fields = [];
+    foreach ($form->build($event, Actor::system()) as $field) {
+        $fields[$field->name] = $field;
+    }
+    check($fields['fee']->widget === 'decimal' && $fields['fee']->value === '1500.00' && $fields['day']->widget === 'date' && $fields['day']->value === '2026-10-24', $fields['day']->value);
+    check($fields['kind']->widget === 'choice' && $fields['kind']->options[1] === ['value' => 'walk', 'label' => 'Séta'] && $fields['contact']->widget === 'email' && $fields['site']->widget === 'url');
+    check($fields['details']->widget === 'html' && ($fields['details']->attributes['rows'] ?? 0) === 8, 'an Html field gets the editor');
+    $read = $form->read($event, ['f' => ['title' => 'X', 'fee' => '2 000,5', 'day' => '2026-11-01', 'kind' => 'talk', 'contact' => ' a@b.hu ', 'site' => '', 'details' => '<p>Új</p>', 'memo' => '']], Actor::system());
+    check($read['errors'] === [] && $read['values']['fee'] === '2000.50' && (string) $read['values']['day'] === '2026-11-01' && $read['values']['contact'] === 'a@b.hu', json_encode($read['values']));
+    $wrong = $form->read($event, ['f' => ['fee' => '12x', 'day' => '2026-13-01']], Actor::system());
+    check(($wrong['errors']['fee'] ?? null)?->key === 'validation.invalid_number' && ($wrong['errors']['day'] ?? null)?->key === 'validation.invalid_date', json_encode(array_keys($wrong['errors'])));
+
+    $translator = Translator::fromDirectory(dirname(__DIR__) . '/lang', 'hu');
+    $extension = new \Campanella\View\CampanellaTwigExtension(static fn () => throw new LogicException(), static fn (): string => '', translator: static fn (): Translator => $translator);
+    $twig = new \Twig\Environment(new \Twig\Loader\ArrayLoader([]));
+    $twig->getExtension(\Twig\Extension\CoreExtension::class)->setTimezone('Europe/Budapest');
+    $shown = [];
+    foreach ($extension->objectFields($twig, $event) as $field) {
+        $shown[$field['name']] = (string) $field['html'];
+    }
+    check(!isset($shown['title']), 'only the own fields');
+    check($shown['fee'] === "1\u{a0}500,00" && $shown['day'] === '2026. 10. 24.' && $shown['kind'] === 'Séta' && $shown['open'] === 'igen', json_encode($shown, JSON_UNESCAPED_UNICODE));
+    check($shown['contact'] === '<a href="mailto:info@example.com">info@example.com</a>' && $shown['site'] === '<a href="https://example.com/?a=1&amp;b=2">https://example.com/?a=1&amp;b=2</a>', $shown['site']);
+    check($shown['memo'] === "Első sor<br>\n&lt;második&gt;" && $shown['details'] === '<p>Részletek</p>', $shown['memo']);
+
+    // The widgets render (with the real templates, in the sandbox).
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $env = $kernel->container()->get(\Twig\Environment::class);
+    foreach ($fields as $field) {
+        if ($field->kind !== 'field') {
+            continue;
+        }
+        $html = $env->render('@core/admin/form/_row.html.twig', ['field' => $field]);
+        check(str_contains($html, 'name="f[' . $field->name . ']"'), $field->widget . ': ' . $html);
+    }
+    $choice = $env->render('@core/admin/form/_row.html.twig', ['field' => $fields['kind']]);
+    check(str_contains($choice, '<option value="walk" selected>Séta</option>'), $choice);
+    check(str_contains($env->render('@core/admin/form/_row.html.twig', ['field' => $fields['day']]), 'type="date"'), 'a date input');
+    $page = $env->render('@core/object/_fields.html.twig', ['object' => $event]);
+    check(str_contains($page, '<dt class="col-sm-4 object-fields__label">Díj</dt>') && str_contains($page, 'Séta') && !str_contains($page, 'Nyílt nap'), $page);
+});
+
 echo "\nDocumentation examples\n";
 
 test('New capability as in the docs example (Featured)', function () use ($db, $admin): void {

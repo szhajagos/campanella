@@ -12,6 +12,8 @@ enum SyncStepKind: string
     case AddIndex = 'add_index';
     case AddCapability = 'add_capability';
     case PruneCapability = 'prune_capability';
+    /** A Blueprint's own field became queryable, or stopped being: its values are moved (since 0.2.2). */
+    case MoveData = 'move_data';
     /** Cannot be done automatically: a migration is needed. */
     case Blocked = 'blocked';
     /** Only reported (e.g. data kept for a capability removed from a Blueprint). */

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Campanella\Model;
 
 use Campanella\Capability\CapabilityDefinition;
+use Campanella\Database\Schema\FieldTable;
+use Campanella\Database\Schema\Table;
 use Campanella\Query\Query;
 use Campanella\Relation\Relation;
 use Closure;
@@ -16,12 +18,18 @@ use Closure;
  * versioned in git. The Blueprint defines which capabilities a new object
  * is created with, which custom fields and relations it has, and which
  * lists belong to the object's page.
+ *
+ * Its own fields live in the `data` JSON column, except those listed under its
+ * `queryable` key (since 0.2.2): the single-valued ones get a column in the
+ * Blueprint's own table, `bp_<name>`, shaped like a capability's table; the
+ * multi-valued ones live in `field_values`. They can be filtered and sorted on.
  */
 final readonly class Blueprint
 {
     /**
      * @param array<string, CapabilityDefinition> $capabilities Resolved, including dependencies.
-     * @param array<string, Field> $fields Only the Blueprint's own (custom) fields.
+     * @param array<string, Field> $fields Only the Blueprint's own (custom) fields: FieldStorage::Data,
+     *        or FieldStorage::Table for the queryable ones (since 0.2.2).
      * @param array<string, Relation> $relations Only the Blueprint's own relations.
      * @param array<string, array{label?: string, query: Closure(CampanellaObject): Query}> $lists
      *        Lists shown on the object's own page: a label and a function that builds
@@ -84,6 +92,43 @@ final readonly class Blueprint
         }
 
         return $fields;
+    }
+
+    /** The name of the Blueprint's own table (without prefix): `bp_<name>`. Since 0.2.2. */
+    public function tableName(): string
+    {
+        return 'bp_' . $this->name;
+    }
+
+    /**
+     * The own single-valued queryable fields: the columns of the Blueprint's table. Since 0.2.2.
+     *
+     * @return array<string, Field>
+     */
+    public function tableFields(): array
+    {
+        return array_filter($this->fields, static fn (Field $f): bool => $f->storage === FieldStorage::Table && !$f->isMultiple());
+    }
+
+    /**
+     * The own multi-valued queryable fields (in `field_values`). Since 0.2.2.
+     *
+     * @return array<string, Field>
+     */
+    public function valueTableFields(): array
+    {
+        return array_filter($this->fields, static fn (Field $f): bool => $f->usesValueTable());
+    }
+
+    public function hasTable(): bool
+    {
+        return $this->tableFields() !== [];
+    }
+
+    /** The schema of the Blueprint's own table, or null if it has no single-valued queryable field. Since 0.2.2. */
+    public function table(): ?Table
+    {
+        return $this->hasTable() ? FieldTable::build($this->tableName(), $this->tableFields()) : null;
     }
 
     /** @return array<string, Relation> The capability relations and the own relations together. */

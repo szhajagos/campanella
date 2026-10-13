@@ -14,6 +14,7 @@ use Campanella\Capability\Textual;
 use Campanella\Html\HtmlSanitizer;
 use Campanella\I18n\Message;
 use Campanella\I18n\Translator;
+use Campanella\Model\CalendarDate;
 use Campanella\Model\CampanellaObject;
 use Campanella\Model\Field;
 use Campanella\Model\FieldType;
@@ -102,7 +103,8 @@ final class ObjectForm
                 ? $this->present($field, $object->get($name))
                 : $this->presentInput($field, $input['f'][$name] ?? null);
             $textual = $name === 'body' && $object->has(Textual::class);
-            $htmlBody = $textual && $object->as(Textual::class)->format() === TextFormat::Html;
+            // The formatted main text, or an Html field (since 0.2.2): the editor.
+            $htmlBody = ($textual && $object->as(Textual::class)->format() === TextFormat::Html) || $field->type === FieldType::Html;
             $profile = in_array($editors[$name] ?? null, self::EDITOR_PROFILES, true) ? (string) $editors[$name] : self::EDITOR_PROFILES[0];
 
             $form[] = new FormField(
@@ -114,6 +116,7 @@ final class ObjectForm
                 multiple: $field->isMultiple(),
                 max: $field->isMultiple() && !$field->isUnlimited() ? $field->cardinality : null,
                 value: $value,
+                options: $field->type === FieldType::Choice ? $this->choiceOptions($field) : [],
                 error: isset($errors[$name]) ? $errors[$name]->translate($this->translator) : null,
                 help: match (true) {
                     $htmlBody => 'admin.form.html_help',
@@ -125,12 +128,12 @@ final class ObjectForm
                 attributes: match (true) {
                     // The editor gets its toolbar profile and the filter's allowlist.
                     $htmlBody => [
-                        'rows' => 18,
+                        'rows' => $textual ? 18 : 8,
                         'editor' => $profile,
                         'allow_tags' => $this->editorAllowlist(),
                         'external_images' => $this->html->allowsExternalImages() ? 1 : 0,
                     ],
-                    $field->type === FieldType::String => ['maxlength' => $field->length],
+                    in_array($field->type, [FieldType::String, FieldType::Email, FieldType::Url], true) => ['maxlength' => $field->length],
                     // The main text (Textual body) gets a tall box, other texts a shorter one; a saved
                     // plain body can be converted to a formatted one (AdminController's convert-html).
                     $field->type === FieldType::Text => ['rows' => $name === 'body' ? 14 : 4] + ($textual && !$object->isNew() ? ['convertible' => 1] : []),
@@ -257,7 +260,28 @@ final class ObjectForm
             FieldType::Integer => 'integer',
             FieldType::Boolean => 'boolean',
             FieldType::DateTime => 'datetime',
+            FieldType::Decimal => 'decimal',
+            FieldType::Date => 'date',
+            FieldType::Email => 'email',
+            FieldType::Url => 'url',
+            FieldType::Choice => 'choice',
+            FieldType::Html => 'html',
         };
+    }
+
+    /**
+     * A Choice field's options, its labels translated (a label is a message key or text).
+     *
+     * @return list<array{value: string, label: string}>
+     */
+    private function choiceOptions(Field $field): array
+    {
+        $options = [];
+        foreach ($field->choices as $key => $label) {
+            $options[] = ['value' => (string) $key, 'label' => $this->translator->translate((string) $label)];
+        }
+
+        return $options;
     }
 
     /** @return string|list<string> The object's value as form text. */
@@ -274,6 +298,7 @@ final class ObjectForm
     {
         return match (true) {
             $value === null => '',
+            $value instanceof CalendarDate => (string) $value,
             $value instanceof DateTimeInterface => DateTimeImmutable::createFromInterface($value)
                 ->setTimezone($this->timezone)->format(self::LOCAL_DATETIME),
             is_bool($value) => $value ? '1' : '',
@@ -308,8 +333,13 @@ final class ObjectForm
         $text = is_scalar($raw) ? (string) $raw : '';
 
         return match ($field->type) {
-            FieldType::String => trim($text),
-            FieldType::Text => str_replace("\r\n", "\n", $text),
+            FieldType::String, FieldType::Email, FieldType::Url, FieldType::Choice => trim($text),
+            FieldType::Text, FieldType::Html => str_replace("\r\n", "\n", $text),
+            FieldType::Decimal => $this->parseDecimal($field, trim($text)),
+            FieldType::Date => match (true) {
+                trim($text) === '' => null,
+                default => self::parseDay(trim($text)),
+            },
             FieldType::Integer => match (true) {
                 trim($text) === '' => null,
                 preg_match('/^-?\d{1,10}$/', trim($text)) === 1
@@ -345,6 +375,29 @@ final class ObjectForm
     public function timezone(): string
     {
         return $this->timezone->getName();
+    }
+
+    /** @throws \UnexpectedValueException */
+    private function parseDecimal(Field $field, string $text): ?string
+    {
+        if ($text === '') {
+            return null;
+        }
+        try {
+            return (string) $field->cast($text);
+        } catch (\InvalidArgumentException) {
+            throw new \UnexpectedValueException('validation.invalid_number');
+        }
+    }
+
+    /** @throws \UnexpectedValueException */
+    private static function parseDay(string $text): CalendarDate
+    {
+        try {
+            return new CalendarDate($text);
+        } catch (\InvalidArgumentException) {
+            throw new \UnexpectedValueException('validation.invalid_date');
+        }
     }
 
     private function parseDate(string $text): ?DateTimeImmutable

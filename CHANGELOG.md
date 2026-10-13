@@ -10,6 +10,53 @@ backward-incompatible.
 
 ## [Unreleased]
 
+## [0.2.2] – 2026-10-13
+
+**Fields to filter and sort on, and new field types.** The first step towards
+0.3.0, the content model in the admin: a Blueprint's own fields can now be
+queryable, stored in a table of the Blueprint's own, and there are six new
+field types. The storage of translations (0.6.0) was designed at the same
+time, so the new tables will not have to be rebuilt.
+
+**Upgrading from 0.2.1:** upload the new files, then run the upgrade
+(`/admin/upgrade`, or `php bin/campanella migrate`): it adds a column to the
+`field_values` table (schema version 13). Nothing else changes for an
+existing site.
+
+### Added
+
+- **Queryable own fields:** a Blueprint's `queryable` key lists own fields to
+  filter and sort on. The single-valued ones get a column in the Blueprint's
+  own table, `bp_<name>` (shaped like a capability's table); the multi-valued
+  ones live in `field_values`. Queries use them by name; a field several
+  Blueprints have is queried across all of them. Until now, every own field
+  lived in the JSON data
+  ([PHP API](docs/php-api/02-objects.md#blueprint)).
+- **Moving the values** when an own field becomes queryable, or stops being:
+  the upgrade (SchemaSync) moves them from the JSON data into the table, or
+  copies them back; `migrate` asks and backs up first. Nothing is deleted.
+- **New field types:** `Decimal` (a numeric string, with a `scale`),
+  `Date` (a `CalendarDate`: a day without a time zone, which does not move
+  to the day before west of UTC), `Email`, `Url` (an `http(s)://` address),
+  `Choice` (one of the field's `choices`) and `Html` (formatted text, filtered
+  on save like a formatted body). Each is checked on save and has its own
+  form element in the admin.
+- `Field`'s `translatable` flag (no effect until multilingual content) and
+  [the design of translations](docs/translations.md): the original and a
+  translation layer, without changing any existing table.
+- `object_fields()` in templates: an object's own fields with a value, shown
+  by type; the default full page of an object lists them after its text.
+- `ColumnType::Decimal` and `ColumnType::Date`; the `value_decimal` column of
+  `field_values`.
+
+### Changed
+
+- The `object/full.html.twig` template shows the object's own fields
+  (except `lead`, shown above the text as before) after its text. A theme
+  with its own copy of the template is not affected.
+- `FieldType` has six new cases: code of one's own that `match`es every case
+  of it should handle them too (or have a `default`).
+
 ## [0.2.1] – 2026-10-13
 
 **A guide for site owners.** 0.2.1 adds a guide, in Hungarian and English,

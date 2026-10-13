@@ -18,6 +18,8 @@ enum ColumnType
     case DateTime;  // DATETIME, always UTC
     case Uuid;      // CHAR(36)
     case Json;      // JSON (on MariaDB: LONGTEXT + JSON_VALID check)
+    case Decimal;   // DECIMAL(20,6) (since 0.2.2)
+    case Date;      // DATE, a calendar day without a time zone (since 0.2.2)
 
     public function sql(int $length): string
     {
@@ -30,6 +32,8 @@ enum ColumnType
             self::DateTime => 'DATETIME',
             self::Uuid => 'CHAR(36)',
             self::Json => 'JSON',
+            self::Decimal => 'DECIMAL(20,6)',
+            self::Date => 'DATE',
         };
     }
 }

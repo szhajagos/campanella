@@ -25,8 +25,20 @@ final class BlueprintRegistry
     /** @var array<string, Relation> The Blueprints' own relations, by name. */
     private array $blueprintRelations = [];
 
+    /** @var array<string, Field> The Blueprints' own fields, by name (the first definition; the others match it). */
+    private array $ownFields = [];
+
     /**
-     * @param array<string, array{label?: string, capabilities: list<class-string<Capability>|string>, fields?: list<Field>, relations?: list<Relation>, cardinality?: array<string, mixed>, form_order?: list<string>, defaults?: array<string, mixed>, editor?: array<string, string>, tree_scope?: string, lists?: array<string, array{label?: string, query: Closure(CampanellaObject): Query}>}> $config
+     * The most single-valued queryable own fields of a Blueprint (since 0.2.2): its table's row
+     * must stay within MySQL's row size limit.
+     */
+    public const int MAX_TABLE_FIELDS = 40;
+
+    /** The longest name of a Blueprint with a table (`bp_<name>`, its keys' names fit in 64 characters). */
+    public const int MAX_TABLE_NAME = 40;
+
+    /**
+     * @param array<string, array{label?: string, capabilities: list<class-string<Capability>|string>, fields?: list<Field>, queryable?: list<string>, relations?: list<Relation>, cardinality?: array<string, mixed>, form_order?: list<string>, defaults?: array<string, mixed>, editor?: array<string, string>, tree_scope?: string, lists?: array<string, array{label?: string, query: Closure(CampanellaObject): Query}>}> $config
      */
     public function __construct(private readonly CapabilityRegistry $capabilities, array $config = [])
     {
@@ -36,7 +48,7 @@ final class BlueprintRegistry
     }
 
     /**
-     * @param array{label?: string, capabilities: list<class-string<Capability>|string>, fields?: list<Field>, relations?: list<Relation>, cardinality?: array<string, mixed>, form_order?: list<string>, defaults?: array<string, mixed>, editor?: array<string, string>, tree_scope?: string, lists?: array<string, array{label?: string, query: Closure(CampanellaObject): Query}>} $definition
+     * @param array{label?: string, capabilities: list<class-string<Capability>|string>, fields?: list<Field>, queryable?: list<string>, relations?: list<Relation>, cardinality?: array<string, mixed>, form_order?: list<string>, defaults?: array<string, mixed>, editor?: array<string, string>, tree_scope?: string, lists?: array<string, array{label?: string, query: Closure(CampanellaObject): Query}>} $definition
      */
     public function define(string $name, array $definition): Blueprint
     {
@@ -49,6 +61,9 @@ final class BlueprintRegistry
 
         $capabilities = $this->capabilities->resolve($definition['capabilities']);
 
+        // Own fields live in the data column, except the queryable ones (since 0.2.2): a column
+        // in the Blueprint's own table, or the field_values table if multi-valued.
+        $queryable = array_map(strval(...), $definition['queryable'] ?? []);
         $fields = [];
         foreach ($definition['fields'] ?? [] as $field) {
             if ($this->capabilities->fieldOwner($field->name) !== null
@@ -57,10 +72,9 @@ final class BlueprintRegistry
                     "Blueprint '{$name}': field '{$field->name}' conflicts with a capability field.",
                 );
             }
-            // Custom fields live in the data column. If they ever need to be filtered on,
-            // they must be promoted to capability fields (columns in their own table).
-            $fields[$field->name] = $field->asData();
+            $fields[$field->name] = in_array($field->name, $queryable, true) ? $field->asTable() : $field->asData();
         }
+        $this->checkQueryable($name, $queryable, $fields);
 
         // Narrowing the cardinality of capability fields, e.g. 'cardinality' => ['phones' => 2].
         $narrowed = [];
@@ -89,6 +103,9 @@ final class BlueprintRegistry
         }
         foreach ($relations as $relationName => $relation) {
             $this->blueprintRelations[$relationName] = $relation;
+        }
+        foreach ($fields as $fieldName => $field) {
+            $this->ownFields[$fieldName] ??= $field;
         }
 
         return $this->blueprints[$name] = new Blueprint(
@@ -129,6 +146,64 @@ final class BlueprintRegistry
         }
 
         return $scope;
+    }
+
+    /**
+     * The `queryable` own fields: known, not too many, short enough names and texts;
+     * a field name used by several Blueprints means one kind of value (the same type
+     * and cardinality), so a query on it means the same everywhere.
+     *
+     * @param list<string> $queryable
+     * @param array<string, Field> $fields The Blueprint's own fields.
+     */
+    private function checkQueryable(string $blueprint, array $queryable, array $fields): void
+    {
+        foreach ($queryable as $fieldName) {
+            if (!isset($fields[$fieldName])) {
+                throw new CapabilityException("Blueprint '{$blueprint}': unknown field in 'queryable': {$fieldName}");
+            }
+        }
+        foreach ($fields as $field) {
+            $other = $this->ownFields[$field->name] ?? null;
+            if ($other !== null && ($other->type !== $field->type || $other->cardinality !== $field->cardinality)) {
+                throw new CapabilityException("Blueprint '{$blueprint}': field '{$field->name}' is defined with another type or cardinality in another Blueprint.");
+            }
+            if ($field->storage !== FieldStorage::Table) {
+                continue;
+            }
+            if (strlen($field->name) > 59) {
+                throw new CapabilityException("Blueprint '{$blueprint}': the queryable field name '{$field->name}' is too long (at most 59 characters).");
+            }
+            if ($field->type->columnType() === \Campanella\Database\Schema\ColumnType::String && $field->length > Field::MAX_MULTI_STRING_LENGTH) {
+                throw new CapabilityException(sprintf("Blueprint '%s': the queryable field '%s' can be at most %d characters long (use a Text field for longer texts).", $blueprint, $field->name, Field::MAX_MULTI_STRING_LENGTH));
+            }
+        }
+        $columns = array_filter($fields, static fn (Field $f): bool => $f->storage === FieldStorage::Table && !$f->isMultiple());
+        if (count($columns) > self::MAX_TABLE_FIELDS) {
+            throw new CapabilityException(sprintf("Blueprint '%s': at most %d single-valued queryable fields.", $blueprint, self::MAX_TABLE_FIELDS));
+        }
+        if ($columns !== [] && strlen($blueprint) > self::MAX_TABLE_NAME) {
+            throw new CapabilityException(sprintf("Blueprint '%s': a Blueprint with queryable fields can have a name of at most %d characters.", $blueprint, self::MAX_TABLE_NAME));
+        }
+    }
+
+    /**
+     * The Blueprints that have the field as an own queryable field, in definition order. Since 0.2.2.
+     *
+     * @return list<Blueprint>
+     */
+    public function queryableOwners(string $field): array
+    {
+        return array_values(array_filter(
+            $this->blueprints,
+            static fn (Blueprint $b): bool => ($b->fields[$field] ?? null)?->storage === FieldStorage::Table,
+        ));
+    }
+
+    /** A Blueprint's own field by name (whichever Blueprint defines it; they all match), or null. Since 0.2.2. */
+    public function ownField(string $name): ?Field
+    {
+        return $this->ownFields[$name] ?? null;
     }
 
     /**

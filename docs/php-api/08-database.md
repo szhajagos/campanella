@@ -73,14 +73,18 @@ $db->fetchValue('SELECT COUNT(*) FROM {objects} WHERE blueprint = :b', ['b' => '
 
 The schema does not live in SQL files but in PHP objects: the core tables are
 defined in `CoreSchema`, the capability tables in the
-`CapabilityDefinition::table()` method.
+`CapabilityDefinition::table()` method, a Blueprint's own table in
+`Blueprint::table()` (since 0.2.2). Both are built by `FieldTable::build(string
+$name, array $fields): Table` (**Internal**): `object_id` as the primary key
+(cascading on the object's deletion), a column per single-valued queryable
+field, and its `indexed` / `unique` index.
 
 | Class | Description |
 |---|---|
 | `Table(string $name, list<Column> $columns, list<string> $primaryKey, array $indexes = [], array $uniques = [], list<ForeignKey> $foreignKeys = [])` | Indexes and unique indexes: `name => columns` |
 | `Column(string $name, ColumnType $type, bool $nullable = false, string\|int\|null $default = null, bool $autoIncrement = false, int $length = 255)` | |
 | `ForeignKey(string $column, string $referencedTable, string $referencedColumn = 'id', bool $cascadeDelete = true)` | |
-| `ColumnType` (enum) | `Id`, `Integer`, `Boolean`, `String`, `Text`, `DateTime`, `Uuid`, `Json`; `sql(int $length): string` returns the SQL type |
+| `ColumnType` (enum) | `Id`, `Integer`, `Boolean`, `String`, `Text`, `DateTime`, `Uuid`, `Json`, `Decimal` (`DECIMAL(20,6)`) and `Date` (`DATE`) (both since 0.2.2); `sql(int $length): string` returns the SQL type |
 
 ### SchemaBuilder
 
@@ -179,12 +183,13 @@ fills it).
 | `cc_object_capabilities` | `object_id`, `capability` (together the PK) | Which object has which capabilities |
 | `cc_relationships` | `id`, `source_id`, `type`, `target_id`, `weight`; unique: (`source_id`, `type`, `target_id`) | Relations; cascade on deletion of either side (since 0.0.2) |
 | `cc_throttle` | `key_hash` (PK), `hits`, `reset_at` | Login throttling (since 0.0.3) |
-| `cc_field_values` | `id`, `object_id`, `field`, `delta` (order), `value_string`, `value_text`, `value_int`, `value_datetime`; unique key on (`object_id`, `field`, `delta`); covering indexes (`field`, value, `object_id`) for `value_string`, `value_int` and `value_datetime` (`value_text` is not indexed) | The values of the multi-valued queryable fields, one row per value; only the column matching the field's type is filled; cascade on deletion of the object (since 0.0.4, schema version 4) |
+| `cc_field_values` | `id`, `object_id`, `field`, `delta` (order), `value_string`, `value_text`, `value_int`, `value_datetime`, `value_decimal` (since 0.2.2, schema version 13); unique key on (`object_id`, `field`, `delta`); covering indexes (`field`, value, `object_id`) for `value_string`, `value_int`, `value_datetime` and `value_decimal` (`value_text` is not indexed) | The values of the multi-valued queryable fields, one row per value; only the column matching the field's type is filled; cascade on deletion of the object (since 0.0.4, schema version 4) |
 | `cc_migrations` | `id` (PK), `description`, `applied_at`, `duration_ms` | The migrations that have run ([chapter 17](17-migrations.md); since 0.0.6, schema version 6) |
 | `cc_settings` | `name` (PK), `value`, `updated_at` | The settings edited in the admin, e.g. `site.name` ([chapter 20](20-site.md); since 0.1.1, schema version 7) |
 | `cc_mail_log` | `id`, `created_at` (indexed), `recipient`, `template`, `subject`, `status`, `error` | The e-mails sent or tried, never their text; kept for `mail.log_days` days ([chapter 21](21-events-and-mail.md#the-log); since 0.1.3, schema version 9) |
 | `cc_media_usage` | `object_id`, `media_id` (together the PK); index (`media_id`, `object_id`) | Which text shows which uploaded file; cascade on deletion of either ([chapter 16](16-media.md#where-an-image-is-used); since 0.1.2, schema version 8) |
 | `cc_cap_<name>` | `object_id` (PK) + the capability's single-valued `Table` fields | One table per capability (a capability with only multi-valued or `Data` fields has none) |
+| `cc_bp_<name>` | `object_id` (PK) + the Blueprint's own single-valued queryable fields | One table per Blueprint that has such fields (its `queryable` key; since 0.2.2) |
 
 On MariaDB the `JSON` type is an alias of `LONGTEXT` with a built-in
 `JSON_VALID` check; on MySQL it is native JSON. Campanella only stores JSON and
@@ -196,8 +201,8 @@ never queries into it, so the difference does not matter.
 
 | Method | Description |
 |---|---|
-| `tables(): list<Table>` | The tables of the core and of all registered capabilities |
-| `__construct(Connection $db, CapabilityRegistry $capabilities, ?Migrator $migrator = null)` | |
+| `tables(): list<Table>` | The tables of the core, of all registered capabilities, and (with the BlueprintRegistry, since 0.2.2) the Blueprints' own tables |
+| `__construct(Connection $db, CapabilityRegistry $capabilities, ?Migrator $migrator = null, ?BlueprintRegistry $blueprints = null)` | The container gives the BlueprintRegistry; without it, the Blueprints' tables are not known |
 | `install(): list<string>` | Creates the missing tables and writes the `schema_version` value; on a fresh installation records every known migration as applied ([chapter 17](17-migrations.md)). Can be run repeatedly |
 | `sql(): string` | The complete DDL, e.g. for phpMyAdmin |
 | `differences(): list<SchemaDifference>` | The definitions against the database (empty if they match); every table with the prefix is checked (since 0.0.6) |

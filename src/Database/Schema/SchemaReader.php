@@ -142,6 +142,9 @@ final class SchemaReader
             $dataType === 'varchar' => ColumnType::String,
             $dataType === 'mediumtext' => ColumnType::Text,
             $dataType === 'datetime' => ColumnType::DateTime,
+            // Only the precision Campanella creates (since 0.2.2); another one is reported as different.
+            $dataType === 'decimal' && str_starts_with($columnType, 'decimal(20,6)') => ColumnType::Decimal,
+            $dataType === 'date' => ColumnType::Date,
             $dataType === 'char' && $length === 36 => ColumnType::Uuid,
             // MariaDB stores JSON as longtext (with a JSON_VALID check).
             $dataType === 'json', $dataType === 'longtext' => ColumnType::Json,

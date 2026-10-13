@@ -68,9 +68,22 @@ Used by `QueryEngine` and `QueryCompiler`:
 (`title`, `path`, `status`, `published_at`…). The compiler adds the necessary
 `LEFT JOIN` automatically.
 
-**Not usable:** `FieldStorage::Data` fields (e.g. `body`, `lead`). These raise
-a `QueryException` with a message saying the field has to be promoted to an
-own-table column.
+**A Blueprint's own queryable fields** (since 0.2.2; its `queryable` key,
+[chapter 2](02-objects.md#blueprint)): by name too, joined from the
+Blueprint's table (`bp_<name>`). If several Blueprints have the field, every
+table is joined and the value is that of the object's own Blueprint
+(`COALESCE`), so `Query::objects()->where('price', '<', 100)` covers products
+and offers alike; an object of a Blueprint without the field has no value
+(`IS NULL`). Values are given as the field's type takes them: a Decimal as a
+number or numeric text, a Date as a `CalendarDate` or `'Y-m-d'`.
+
+```php
+Query::objects()->blueprint('event')->where('day', '>=', CalendarDate::of(new DateTimeImmutable()))->orderBy('day');
+```
+
+**Not usable:** `FieldStorage::Data` fields (e.g. `body`, or an own field not
+listed as queryable). These raise a `QueryException` saying the field has to
+be made queryable.
 
 ### Multi-valued fields
 
@@ -81,7 +94,7 @@ can be filtered on; the condition becomes an `EXISTS` subquery on the
 | Operator | Matches if |
 |---|---|
 | `=`, `<`, `<=`, `>`, `>=`, `LIKE`, `IN` | at least one value matches |
-| `!=`, `NOT IN` | the object has the field (its capability), and no value matches; an empty list counts as "no value matches" |
+| `!=`, `NOT IN` | the object has the field (its capability, or for an own field its Blueprint), and no value matches; an empty list counts as "no value matches" |
 | `IS NULL` | the field has no value at all (also true for objects without the field, as for a single-valued field) |
 | `IS NOT NULL` | the field has at least one value |
 
