@@ -48,31 +48,65 @@ first, come in between. Each milestone is planned in detail when it starts.
 
 ### 0.3.0 – the content model in the admin
 
-1. **Field types in code:** text, number, date, yes/no, a choice list, a
-   link, a reference to an image or file, a relation to another object; each
-   with its form element, validation and Twig output.
-2. **Storage.** Fields that are not queried stay in the `data` JSON column.
-   For queryable ones, the proposal (2026-10-13) is a table generated for the
-   Blueprint, like the capabilities' `cap_*` tables, changed through the
-   migrations of 0.0.6 with a backup first; multi-valued ones in
-   `cc_field_values` (see the accepted decisions). Decided when 0.3.0 is
-   planned. **The storage is designed with translations from the start**
-   (which fields are translatable, and where a translation's values live),
-   even though multilingual content itself comes in 0.6.0.
-3. **Blueprints in the admin:** creating and modifying Blueprints; choosing
-   capabilities from the installed ones (adding one is applied to the
-   existing objects too; removing one keeps their data); fields with labels,
-   form order, defaults and editor profile. Blueprints from
-   `config/blueprints.php` appear as protected ("defined in code"); new kinds
-   of capabilities stay code, coming from modules.
-4. **Lists in the admin** filtered and sorted by fields: a simple
-   counterpart of Drupal's Views, on the existing Query.
-5. **Exporting and importing the content model** as files, so a model built
-   on a development machine can be taken to the live site.
+Agreed in detail on 2026-10-13. Every step keeps the 0.2.x
+[compatibility promise](docs/compatibility.md): it only adds tables, columns,
+classes and settings; nothing existing is rewritten.
 
-Also in 0.3.x, between the steps or after them: **search** with the
-database's FULLTEXT index, **redirects** (an automatic 301 when a path
-changes, and a list in the admin), and an **image picker** in the editor.
+**Storage of a Blueprint's own fields.** Fields that are not queried stay in
+the `data` JSON column. Single-valued queryable ones get a column in a table
+generated for the Blueprint, `bp_<name>`, shaped exactly like the
+capabilities' `cap_*` tables (`object_id` as the primary key): the
+Blueprint's own fields behave as an anonymous capability, so the Query engine,
+the schema comparison and the migrations work on them unchanged.
+Multi-valued queryable ones live in `field_values`, as now. The admin never
+writes SQL: a field becomes a definition, and the existing machinery
+(SchemaSync, migrations) changes the schema, with a backup first. Guards: the
+field name's strict pattern, no collision with the capabilities' fields, at
+most 40 queryable fields per Blueprint (the row size limit of MySQL),
+administrators only.
+
+**Translations: a base and a translation layer** (designed now, built in
+0.6.0). The existing rows stay the content in its original language; the
+translations of translatable fields go into tables of their own,
+`cap_<name>_t` and `bp_<name>_t` keyed by `(object_id, language)`, and those
+of `data` fields into `object_translations`. A query in another language joins
+the translation and falls back to the original. The existing tables never
+change, a site in one language pays nothing, and a value that is not
+translated lives in one place only. Relations (e.g. categories) are shared by
+every language. From 0.2.2 on, a `Field` carries a `translatable` flag
+(stored, and set in the admin, but without effect until 0.6.0).
+
+**Blueprints made in the admin** are stored in the database (a `blueprints`
+table, the definition as JSON, loaded but never queried). Exporting and
+importing them as files serves taking a model from one site to another; the
+web server never writes the configuration. The Blueprints of
+`config/blueprints.php` appear as protected ("defined in code").
+
+**Field types:** the existing ones (string, text, integer, yes/no, date and
+time), and new ones: decimal, date (without time and time zone), a choice list
+(the key is stored; the labels per language), e-mail address, web address,
+formatted text (through the HTML filter and the editor). An image, a file or
+another object is not a field but a relation (as decided on 2026-09-29),
+chosen with a picker in the admin.
+
+**Changing a field later:** its label, help, required flag, default, order
+and choices at any time; its machine name never; queryable or not, and single
+or multi-valued, by moving its data automatically (backup first); its type
+only in a widening direction (integer → decimal, string → text, date → date
+and time), otherwise a new field. Deleting a field first shows how many
+objects have a value, backs up, then deletes. A Blueprint can be deleted only
+without objects. A capability added to a Blueprint applies to its existing
+objects too; a removed one keeps their data.
+
+| Step | Contents |
+|---|---|
+| **0.2.2** | Field types and queryable own fields in code: the new types, the `bp_*` tables, the `translatable` flag, the design of the translation layer documented. From here on, `config/blueprints.php` can give a Blueprint fields to filter and sort on. |
+| **0.2.3** | Blueprints in the admin: creating them, choosing capabilities, adding fields, the schema changed with a backup first. |
+| **0.2.4** | Changing and deleting fields, moving their data. |
+| **0.2.5** | Lists in the admin, filtered and sorted by fields: a simple counterpart of Drupal's Views, on the existing Query. |
+| **0.2.6** | Exporting and importing the content model as files; an import first lists what it would change. |
+| **0.2.7** | Search with the database's FULLTEXT index, redirects (an automatic 301 when a path changes, and a list in the admin), an image picker in the editor (split in two if large). |
+| **0.3.0** | The milestone: a security review, the upgrade test, a chapter of the guide on one's own content types, the compatibility promise for 0.3.x. |
 
 ### 0.4.0 – building pages and the look
 
@@ -189,6 +223,11 @@ changes, and a list in the admin), and an **image picker** in the editor.
   content and revisions (0.6.0); what changes the data model or the Public
   PHP API comes before 1.0. The project's website and an AI assistant come
   after 1.0, the assistant as an optional module only.
+- **The content model** (2026-10-13): a Blueprint's own queryable fields in a
+  generated `bp_<name>` table, shaped like the `cap_*` tables; translations as
+  a layer over the original (`*_t` tables, `object_translations`), never by
+  changing the existing tables; Blueprints made in the admin stored in the
+  database, carried between sites by export and import (see 0.3.0 above).
 - **Language:** code, documentation, comments, commit messages and
   developer-facing messages are English; the UI is multilingual via the
   translation layer, with Hungarian as a first-class translation (2026-09-30).
