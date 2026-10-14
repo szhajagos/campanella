@@ -81,6 +81,9 @@ writing a migration (the ROADMAP's "done when" of 0.0.6):
 | Objects of a Blueprint that is not defined any more | A note; kept as they are |
 | A Blueprint's own field made **queryable** (its `queryable` key; since 0.2.2) | Its table or column is created; the values move from the objects' JSON data into it (or `field_values`), and leave the JSON. The JSON value wins over an older one in the table. A required field without a value and without a default for an object that has no row yet: **Blocked** |
 | … made **not queryable** again | The values in its column (or `field_values`) are copied back into the JSON data of the objects that do not have it there; the column and its values stay (nothing is deleted) |
+| A queryable own field with **one value ↔ several** (since 0.2.4) | Its values move between the Blueprint table's column and `field_values`: one value becomes the only one of several; of several, the first stays. The source is emptied (the rows deleted, the column made NULL-able and emptied). In the JSON data a list becomes its first item when read |
+| A queryable own field's **type widened** (since 0.2.4) | The column changes: whole number → decimal, text → long text, date → date and time, a longer (or, if every value fits, shorter) text. Several values move into the new type's column of `field_values`. Any other change, or a long text with an index: **Blocked** |
+| A queryable own field made **required** (since 0.2.4) | The column becomes NOT NULL; the empty values get the field's default first. Without a default, while there are empty values: **Blocked** |
 | A renamed field, a changed type, a removed field | Nothing: a migration (the schema comparison lists them) |
 
 A Blocked step fails the `migrate` run (exit code `1`) after the rest is
@@ -99,17 +102,19 @@ answers 503 (needs upgrade) instead of 500, until the upgrade has run.
 
 `SyncPlan` · `final readonly class`: `steps` (`list<SyncStep>`), `hasWork(): bool`
 (anything that changes the database), `work()`, `blocked()`, `notes()`,
-`hasPrune(): bool`, `hasMove(): bool` (a step moves data; since 0.2.2).
+`hasPrune(): bool`, `hasMove(): bool` (a step moves data; since 0.2.2),
+`changesData(): bool` (a step moves, converts, fills or deletes data; since 0.2.4).
 
-Moving data counts as risky like pruning: `migrate` asks and makes a backup
-first, and the upgrade page backs up as always.
+Changing data (`changesData()`) counts as risky like pruning: `migrate` asks
+and makes a backup first, and the upgrade page backs up as always.
 
 `SyncStep` · `final readonly class`: `kind` (`SyncStepKind`), `message` (a
 `Message`: `sync.*` in the language files), `isWork(): bool`; `run()` is called
 by `apply()`.
 
 `SyncStepKind` (enum): `CreateTable`, `AddColumn`, `AddIndex`,
-`AddCapability`, `PruneCapability`, `MoveData` (since 0.2.2), `Blocked`, `Note`.
+`ChangeColumn` (since 0.2.4), `AddCapability`, `PruneCapability`, `MoveData`
+(since 0.2.2), `Blocked`, `Note`.
 
 `Campanella\Database\Sync\SyncCheck` · **Internal**: `static checks(Installer $installer, SchemaSync $sync): Closure`,
 the System page's lines about the objects' capabilities (in the *Database

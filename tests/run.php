@@ -6282,6 +6282,81 @@ test('Kernel: a Blueprint made in the admin, its fields, relations and objects',
     putenv('CAMPANELLA_DB_PREFIX');
 });
 
+echo "\nChanging fields (0.2.4)\n";
+
+test('SchemaSync: a field\'s type, column and number of values change, its values follow', function () use ($schemaDb, $dropSchema): void {
+    $dropSchema();
+    $capabilities = new CapabilityRegistry([Titled::class]);
+    $setup = static function (array $fields, array $queryable) use ($schemaDb, $capabilities): array {
+        $registry = new BlueprintRegistry($capabilities, ['item' => ['capabilities' => [Titled::class], 'fields' => $fields, 'queryable' => $queryable]]);
+        $installer = new Installer($schemaDb, $capabilities, null, $registry);
+
+        return [new \Campanella\Database\Sync\SchemaSync($schemaDb, $installer, $capabilities, $registry), new ObjectRepository($schemaDb, $capabilities, $registry), $installer];
+    };
+    $kinds = static function (\Campanella\Database\Sync\SyncPlan $plan): array {
+        $kinds = array_map(static fn ($s): string => $s->kind->value . ':' . $s->message->key, $plan->steps);
+        sort($kinds);
+
+        return $kinds;
+    };
+
+    $v1 = [
+        new Field('score', FieldType::Integer), new Field('code', FieldType::String, length: 20), new Field('memo', FieldType::String),
+        new Field('day', FieldType::Date), new Field('tags', FieldType::String, cardinality: 5), new Field('size', FieldType::Integer),
+        new Field('nums', FieldType::Integer, cardinality: Field::UNLIMITED), new Field('level', FieldType::Integer),
+        new Field('words', FieldType::String, cardinality: 3),
+    ];
+    [, $repository, $installer] = $setup($v1, ['score', 'code', 'memo', 'day', 'tags', 'size', 'nums', 'level']);
+    $installer->install();
+    $first = $repository->create('item', ['title' => 'Első', 'score' => 7, 'code' => 'ABC', 'memo' => 'jegyzet', 'day' => '2026-10-24', 'tags' => ['a', 'b'], 'size' => 3, 'nums' => [1, 2], 'level' => 4, 'words' => ['x', 'y']]);
+    $repository->save($first);
+    $second = $repository->create('item', ['title' => 'Második', 'code' => 'HOSSZABB-KOD']);
+    $repository->save($second);
+    $id = (int) $first->id();
+
+    // Widened types, a longer text, one value ↔ several, decimals for several values, required with a default.
+    $v2 = [
+        new Field('score', FieldType::Decimal), new Field('code', FieldType::String, length: 100), new Field('memo', FieldType::Text),
+        new Field('day', FieldType::DateTime), new Field('tags', FieldType::String), new Field('size', FieldType::Integer, cardinality: 4),
+        new Field('nums', FieldType::Decimal, cardinality: Field::UNLIMITED), new Field('level', FieldType::Integer, required: true, default: 1),
+        new Field('words', FieldType::String),
+    ];
+    [$sync, $repository, $installer] = $setup($v2, ['score', 'code', 'memo', 'day', 'tags', 'size', 'nums', 'level']);
+    $plan = $sync->plan();
+    check($kinds($plan) === [
+        'add_column:sync.add_column', 'change_column:sync.change_column', 'change_column:sync.change_column', 'change_column:sync.change_column',
+        'change_column:sync.change_column', 'change_column:sync.change_column', 'move_data:sync.convert_values', 'move_data:sync.move_to_table',
+    ], implode(', ', $kinds($plan)));
+    check($plan->changesData(), 'with a backup');
+    $sync->apply();
+    check(!$sync->plan()->hasWork(), 'done once: ' . implode(', ', $kinds($sync->plan())));
+    check($installer->differences() !== [] && array_map(static fn ($d) => $d->kind->value . ' ' . $d->name, $installer->differences()) === ['extra_column size'], 'only the old column of size stays: ' . implode(', ', array_map(static fn ($d) => $d->kind->value . ' ' . $d->name, $installer->differences())));
+    $loaded = $repository->find($id);
+    check($loaded?->get('score') === '7.00' && $loaded->get('code') === 'ABC' && $loaded->get('memo') === 'jegyzet', json_encode($loaded?->values()));
+    check($loaded->get('day') instanceof DateTimeImmutable && $loaded->get('day')->format('Y-m-d H:i') === '2026-10-24 00:00', 'a date became a date and time');
+    check($loaded->get('tags') === 'a' && $loaded->get('size') === [3] && $loaded->get('nums') === ['1.00', '2.00'] && $loaded->get('level') === 4 && $loaded->get('words') === 'x', json_encode($loaded->values()));
+    check($repository->find((int) $second->id())?->get('level') === 1, 'the empty value got the default');
+    check((int) $schemaDb->fetchValue("SELECT COUNT(*) FROM {field_values} WHERE field = 'tags'") === 0 && $schemaDb->fetchValue('SELECT size FROM {bp_item} WHERE object_id = :id', ['id' => $id]) === null, 'the sources were emptied');
+
+    // And back: several values to one column; a shorter text that does not fit; an unknown change.
+    [$sync] = $setup([...$v2, new Field('extra', FieldType::String)], ['score', 'code', 'memo', 'day', 'tags', 'size', 'nums', 'level']);
+    check(!$sync->plan()->hasWork(), 'nothing new');
+    $v3 = array_map(static fn (Field $f): Field => match ($f->name) {
+        'code' => new Field('code', FieldType::String, length: 5),
+        'memo' => new Field('memo', FieldType::Integer),
+        default => $f,
+    }, $v2);
+    [$sync] = $setup($v3, ['score', 'code', 'memo', 'day', 'tags', 'size', 'nums', 'level']);
+    check($kinds($sync->plan()) === ['blocked:sync.blocked_change', 'blocked:sync.blocked_shorter'], implode(', ', $kinds($sync->plan())));
+
+    $back = array_map(static fn (Field $f): Field => $f->name === 'size' ? new Field('size', FieldType::Integer) : $f, $v2);
+    [$sync, $repository] = $setup($back, ['score', 'code', 'memo', 'day', 'tags', 'size', 'nums', 'level']);
+    check($kinds($sync->plan()) === ['move_data:sync.move_to_table'], implode(', ', $kinds($sync->plan())));
+    $sync->apply();
+    check($repository->find($id)?->get('size') === 3 && (int) $schemaDb->fetchValue("SELECT COUNT(*) FROM {field_values} WHERE field = 'size'") === 0, 'several values back to one column');
+    $dropSchema();
+});
+
 echo "\nDocumentation examples\n";
 
 test('New capability as in the docs example (Featured)', function () use ($db, $admin): void {

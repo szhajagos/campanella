@@ -10,6 +10,24 @@ backward-incompatible.
 
 ## [Unreleased]
 
+Work towards 0.2.4: changing and deleting fields in the admin, in parts.
+
+### Added
+
+- **The SchemaSync follows a changed own field** of a Blueprint: a widened
+  type (whole number → decimal, text → long text, date → date and time, a
+  longer text) changes its column; a field made required gets its default
+  in the empty values first; a queryable field with one value that gets
+  several, or the other way round, has its values moved between the column
+  and `field_values`; several values of a widened type move into its column
+  of `field_values`. Anything else is Blocked. `migrate` backs up first
+  (`SyncPlan::changesData()`).
+
+### Fixed
+
+- A field of the JSON data that had several values and has one now is read
+  as its first value (it threw an error).
+
 ## [0.2.3] – 2026-10-14
 
 **Blueprints made in the admin.** The second step towards 0.3.0: an

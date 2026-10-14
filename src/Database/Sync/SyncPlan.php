@@ -42,6 +42,15 @@ final readonly class SyncPlan
         return $this->ofKind(SyncStepKind::MoveData) !== [];
     }
 
+    /**
+     * Whether a step changes data beyond adding: moves it, changes a column's type or fills
+     * it, or deletes it (since 0.2.4). These are done after a backup.
+     */
+    public function changesData(): bool
+    {
+        return $this->hasMove() || $this->hasPrune() || $this->ofKind(SyncStepKind::ChangeColumn) !== [];
+    }
+
     public function hasPrune(): bool
     {
         return $this->ofKind(SyncStepKind::PruneCapability) !== [];

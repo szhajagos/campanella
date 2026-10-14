@@ -591,7 +591,7 @@ final class BlueprintEditor
         }
 
         // A backup first, if the database changes and there is data to lose.
-        if ($plan->hasWork() && ($this->objectCount($name) > 0 || $plan->hasMove())) {
+        if ($plan->hasWork() && ($this->objectCount($name) > 0 || $plan->changesData())) {
             try {
                 $file = $this->backup->create();
                 $this->flash->add(Flash::INFO, new Message('blueprints.backup_made', ['file' => basename($file)]));

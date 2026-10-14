@@ -79,7 +79,7 @@ final class MigrationRunner
         }
 
         // Asking and a backup: for what cannot be undone (migrations, deleting or moving data).
-        $risky = $pending !== [] || $plan->hasPrune() || $plan->hasMove();
+        $risky = $pending !== [] || $plan->changesData();
         $file = null;
         if ($risky || $this->upgrade) {
             $backup = !$args->flag('no-backup');

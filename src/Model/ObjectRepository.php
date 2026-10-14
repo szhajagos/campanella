@@ -569,7 +569,9 @@ final class ObjectRepository
         foreach ($fields as $name => $field) {
             if ($field->storage === FieldStorage::Data) {
                 if (array_key_exists($name, $data)) {
-                    $values[$name] = $field->fromStorage($data[$name]);
+                    // A field that had several values and has one now (since 0.2.4): its first.
+                    $raw = !$field->isMultiple() && is_array($data[$name]) ? ($data[$name][0] ?? null) : $data[$name];
+                    $values[$name] = $field->fromStorage($raw);
                 }
                 continue;
             }

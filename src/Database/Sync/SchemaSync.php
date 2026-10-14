@@ -10,6 +10,7 @@ use Campanella\Capability\CapabilityRegistry;
 use Campanella\Database\Connection;
 use Campanella\Database\Installer;
 use Campanella\Database\Schema\Column;
+use Campanella\Database\Schema\ColumnType;
 use Campanella\Database\Schema\CoreSchema;
 use Campanella\Database\Schema\DifferenceKind;
 use Campanella\Database\Schema\SchemaBuilder;
@@ -22,6 +23,7 @@ use Campanella\Model\BlueprintRegistry;
 use Campanella\Model\Field;
 use Campanella\Model\FieldStorage;
 use Campanella\Tree\TreeKeeper;
+use Closure;
 
 /**
  * Applies the additive changes of the definitions to an existing database,
@@ -56,8 +58,12 @@ final class SchemaSync
     ) {
     }
 
+    /** @var array<string, true> "table.column" whose change has a step already (plan()) */
+    private array $changedColumns = [];
+
     public function plan(bool $prune = false): SyncPlan
     {
+        $this->changedColumns = [];
         $builder = new SchemaBuilder($this->db);
         $definitions = [];
         foreach ($this->installer->tables() as $table) {
@@ -127,8 +133,96 @@ final class SchemaSync
                 },
             ),
             DifferenceKind::MissingColumn => $this->columnStep($difference, $table, $builder),
+            DifferenceKind::ColumnType, DifferenceKind::ColumnNullable => str_starts_with($t, 'bp_') ? $this->columnChangeStep($difference, $table, $builder) : null,
             default => null, // reported by schema:check; a migration decides
         };
+    }
+
+    /**
+     * A changed column of a Blueprint's own table (since 0.2.4): a field's type widened
+     * (whole number → decimal, text → long text, date → date and time, a longer text),
+     * a field made required (the empty values get its default) or not required. Anything
+     * else, a shorter text that does not fit, a required field without a default with
+     * empty values, or a long text with an index: Blocked.
+     */
+    private function columnChangeStep(SchemaDifference $difference, Table $table, SchemaBuilder $builder): ?SyncStep
+    {
+        $name = (string) $difference->name;
+        if (isset($this->changedColumns[$table->name . '.' . $name])) {
+            return null;
+        }
+        $this->changedColumns[$table->name . '.' . $name] = true;
+        $params = ['table' => $table->name, 'column' => $name];
+        $info = (new SchemaReader($this->db))->read($table->name);
+        $found = $info?->column($name);
+        $column = null;
+        foreach ($table->columns as $candidate) {
+            if ($candidate->name === $name) {
+                $column = $candidate;
+            }
+        }
+        $field = $this->fieldOfColumn($table->name, $name);
+        if ($info === null || $found === null || $column === null || $field === null) {
+            return new SyncStep(SyncStepKind::Blocked, new Message('sync.blocked_change', $params));
+        }
+        $db = $this->db;
+        $quoted = Connection::quoteIdentifier($name);
+
+        if ($found->type !== $column->type || ($column->type === ColumnType::String && $found->length !== $column->length)) {
+            $widening = match (true) {
+                $found->type === $column->type => true, // a String's length: checked below
+                $found->type === ColumnType::Integer && $column->type === ColumnType::Decimal,
+                $found->type === ColumnType::String && $column->type === ColumnType::Text,
+                $found->type === ColumnType::Date && $column->type === ColumnType::DateTime => true,
+                default => false,
+            };
+            $indexed = array_filter($info->indexes + $info->uniques, static fn (array $columns): bool => in_array($name, $columns, true)) !== [];
+            if (!$widening || ($column->type === ColumnType::Text && $indexed)) {
+                return new SyncStep(SyncStepKind::Blocked, new Message('sync.blocked_change', $params));
+            }
+            if ($column->type === ColumnType::String && $found->length !== null && $column->length < $found->length) {
+                $longest = (int) $db->fetchValue(sprintf('SELECT COALESCE(MAX(CHAR_LENGTH(%s)), 0) FROM %s', $quoted, $db->table($table->name)));
+                if ($longest > $column->length) {
+                    return new SyncStep(SyncStepKind::Blocked, new Message('sync.blocked_shorter', $params + ['length' => $column->length, 'longest' => $longest]));
+                }
+            }
+        }
+
+        // NOT NULL: the empty values get the field's default first.
+        $fill = null;
+        if (!$column->nullable) {
+            $empty = (int) $db->fetchValue(sprintf('SELECT COUNT(*) FROM %s WHERE %s IS NULL', $db->table($table->name), $quoted));
+            if ($empty > 0) {
+                $blueprint = $this->blueprintOfTable($table->name);
+                $default = $blueprint !== null && array_key_exists($name, $blueprint->defaults) ? $blueprint->defaults[$name] : $field->default;
+                if ($default === null) {
+                    return new SyncStep(SyncStepKind::Blocked, new Message('sync.blocked_required_change', $params + ['count' => $empty]));
+                }
+                $fill = $field->type->toStorage($field->cast($default));
+            }
+        }
+
+        return new SyncStep(
+            SyncStepKind::ChangeColumn,
+            new Message('sync.change_column', $params + ['type' => $column->type->sql($column->length) . ($column->nullable ? '' : ' NOT NULL')]),
+            static function () use ($db, $builder, $table, $column, $quoted, $fill): void {
+                if ($fill !== null) {
+                    $db->execute(sprintf('UPDATE %s SET %s = :value WHERE %s IS NULL', $db->table($table->name), $quoted, $quoted), ['value' => $fill]);
+                }
+                $db->execute(sprintf('ALTER TABLE %s MODIFY COLUMN %s', $db->table($table->name), $builder->columnSql($column)));
+            },
+        );
+    }
+
+    private function blueprintOfTable(string $table): ?Blueprint
+    {
+        foreach ($this->blueprints->all() as $blueprint) {
+            if ($blueprint->tableName() === $table) {
+                return $blueprint;
+            }
+        }
+
+        return null;
     }
 
     private function columnStep(SchemaDifference $difference, Table $table, SchemaBuilder $builder): SyncStep
@@ -361,12 +455,22 @@ final class SchemaSync
     }
 
     /**
-     * Moving the values of a Blueprint's own fields whose storage changed (since 0.2.2).
+     * Moving the values of a Blueprint's own fields whose storage changed (since 0.2.2;
+     * one or several values, and a changed type of several values, since 0.2.4).
      *
-     * To the table: the objects whose JSON data still holds a queryable field. The JSON
-     * value wins (it is the newer one: the field was edited there), and leaves the JSON.
-     * Back to the data: the values in the table's column (or `field_values`) of a field
-     * that is not queryable any more, for the objects whose JSON does not have it.
+     * A value can be in three places: the JSON data, the Blueprint table's column, or
+     * `field_values` (rows). The field's definition says where it belongs:
+     *
+     * - **into the table** (a queryable field): from the JSON (it wins: it is where the
+     *   field was edited), else from the rows (a field that had several values: the
+     *   first) or the column (a field that had one: it becomes the only value). The
+     *   sources are emptied: the JSON key removed, the rows deleted, a column that may
+     *   be NULL set to NULL.
+     * - **back into the JSON** (not queryable any more): for the objects whose JSON does
+     *   not have it, from the rows, else the column; nothing is deleted.
+     * - **several values of a changed type:** rows whose value is in another column of
+     *   `field_values` than the type's (e.g. whole numbers that became decimals) move
+     *   into the right one.
      *
      * @param array<string, true> $blockedTables
      * @return list<SyncStep>
@@ -374,68 +478,71 @@ final class SchemaSync
     private function moveSteps(string $name, Blueprint $blueprint, array $blockedTables): array
     {
         $steps = [];
-        $reader = new SchemaReader($this->db);
-        $tableInfo = $reader->read($blueprint->tableName());
+        $tableInfo = (new SchemaReader($this->db))->read($blueprint->tableName());
+        $hasColumn = static fn (string $field): bool => $tableInfo?->column($field) !== null;
 
-        // To the table.
+        // Into the table.
         $queryable = $blueprint->tableFields() + $blueprint->valueTableFields();
         $candidates = $queryable === [] ? [] : $this->objectsWithDataKeys($name, array_keys($queryable));
-        if ($candidates !== []) {
-            if ($blueprint->hasTable() && isset($blockedTables[$blueprint->tableName()])) {
-                $steps[] = new SyncStep(SyncStepKind::Blocked, new Message('sync.blocked_move_table', ['blueprint' => $name, 'count' => count($candidates), 'table' => $blueprint->tableName()]));
-            } else {
-                $existing = [];
-                if ($tableInfo !== null) {
-                    [$in, $params] = self::inList(array_keys($candidates));
-                    foreach ($this->db->fetchAll(sprintf('SELECT object_id FROM %s WHERE object_id IN (%s)', $this->db->table($blueprint->tableName()), $in), $params) as $row) {
-                        $existing[(int) $row['object_id']] = true;
-                    }
-                }
-                foreach ($blueprint->tableFields() as $field) {
-                    if (!$field->required) {
-                        continue;
-                    }
-                    $default = array_key_exists($field->name, $blueprint->defaults) ? $blueprint->defaults[$field->name] : $field->default;
-                    foreach ($candidates as $id => $data) {
-                        if (!isset($existing[$id]) && ($data[$field->name] ?? null) === null && $default === null) {
-                            return [new SyncStep(SyncStepKind::Blocked, new Message('sync.blocked_move', ['blueprint' => $name, 'field' => $field->name, 'count' => count($candidates)]))];
-                        }
-                    }
-                }
-                $fields = implode(', ', array_keys(array_filter($queryable, static function (Field $f) use ($candidates): bool {
-                    foreach ($candidates as $data) {
-                        if (array_key_exists($f->name, $data)) {
-                            return true;
-                        }
-                    }
-
-                    return false;
-                })));
-                $steps[] = new SyncStep(
-                    SyncStepKind::MoveData,
-                    new Message('sync.move_to_table', ['blueprint' => $name, 'count' => count($candidates), 'fields' => $fields]),
-                    fn () => $this->moveToTable($blueprint, array_keys($candidates)),
-                );
+        $sources = []; // object ID => true, for those with a value to move from the rows or the column
+        foreach ($blueprint->tableFields() as $field) {
+            foreach ($this->objectsWithRows($name, $field->name) as $id) {
+                $sources[$id] = true;
             }
         }
+        foreach ($blueprint->valueTableFields() as $field) {
+            if ($hasColumn($field->name)) {
+                foreach ($this->objectsWithColumnOnly($blueprint, $field->name) as $id) {
+                    $sources[$id] = true;
+                }
+            }
+        }
+        $ids = array_keys($candidates + $sources);
+        sort($ids);
+        if ($ids !== []) {
+            if ($blueprint->hasTable() && isset($blockedTables[$blueprint->tableName()])) {
+                return [new SyncStep(SyncStepKind::Blocked, new Message('sync.blocked_move_table', ['blueprint' => $name, 'count' => count($ids), 'table' => $blueprint->tableName()]))];
+            }
+            $existing = [];
+            if ($tableInfo !== null) {
+                [$in, $params] = self::inList($ids);
+                foreach ($this->db->fetchAll(sprintf('SELECT object_id FROM %s WHERE object_id IN (%s)', $this->db->table($blueprint->tableName()), $in), $params) as $row) {
+                    $existing[(int) $row['object_id']] = true;
+                }
+            }
+            $data = $this->dataOf($ids);
+            foreach ($blueprint->tableFields() as $field) {
+                $default = array_key_exists($field->name, $blueprint->defaults) ? $blueprint->defaults[$field->name] : $field->default;
+                if (!$field->required || $default !== null) {
+                    continue;
+                }
+                foreach ($ids as $id) {
+                    if (!isset($existing[$id]) && ($data[$id][$field->name] ?? null) === null && !isset($sources[$id])) {
+                        return [new SyncStep(SyncStepKind::Blocked, new Message('sync.blocked_move', ['blueprint' => $name, 'field' => $field->name, 'count' => count($ids)]))];
+                    }
+                }
+            }
+            $steps[] = new SyncStep(
+                SyncStepKind::MoveData,
+                new Message('sync.move_to_table', ['blueprint' => $name, 'count' => count($ids), 'fields' => implode(', ', array_keys($queryable))]),
+                fn () => $this->moveToTable($blueprint, $ids, $hasColumn),
+            );
+        }
 
-        // Back to the data.
+        // Back into the JSON.
         $back = [];
         foreach ($blueprint->fields as $field) {
             if ($field->storage !== FieldStorage::Data) {
                 continue;
             }
-            $sql = $field->isMultiple()
-                ? 'SELECT fv.object_id AS id FROM {field_values} fv JOIN {objects} o ON o.id = fv.object_id WHERE o.blueprint = :b AND fv.field = :f GROUP BY fv.object_id'
-                : ($tableInfo?->column($field->name) !== null
-                    ? sprintf('SELECT t.object_id AS id FROM %s t JOIN {objects} o ON o.id = t.object_id WHERE o.blueprint = :b AND t.%s IS NOT NULL', $this->db->table($blueprint->tableName()), Connection::quoteIdentifier($field->name))
-                    : null);
-            if ($sql === null) {
-                continue;
+            $ids = $this->objectsWithRows($name, $field->name);
+            if ($hasColumn($field->name)) {
+                $ids = array_merge($ids, array_map(static fn (array $r): int => (int) $r['id'], $this->db->fetchAll(
+                    sprintf('SELECT t.object_id AS id FROM %s t JOIN {objects} o ON o.id = t.object_id WHERE o.blueprint = :b AND t.%s IS NOT NULL', $this->db->table($blueprint->tableName()), Connection::quoteIdentifier($field->name)),
+                    ['b' => $name],
+                )));
             }
-            $params = ['b' => $name] + ($field->isMultiple() ? ['f' => $field->name] : []);
-            $ids = array_map(static fn (array $r): int => (int) $r['id'], $this->db->fetchAll($sql, $params));
-            foreach ($ids === [] ? [] : $this->dataOf($ids) as $id => $data) {
+            foreach ($ids === [] ? [] : $this->dataOf(array_values(array_unique($ids))) as $id => $data) {
                 if (!array_key_exists($field->name, $data)) {
                     $back[$field->name][] = $id;
                 }
@@ -446,11 +553,54 @@ final class SchemaSync
             $steps[] = new SyncStep(
                 SyncStepKind::MoveData,
                 new Message('sync.move_to_data', ['blueprint' => $name, 'count' => $count, 'fields' => implode(', ', array_keys($back))]),
-                fn () => $this->moveToData($blueprint, $back),
+                fn () => $this->moveToData($blueprint, $back, $hasColumn),
             );
         }
 
+        // Several values whose type changed: into the type's column of field_values.
+        foreach ($blueprint->valueTableFields() as $field) {
+            $column = $field->type->valueColumn();
+            $others = array_diff(self::VALUE_COLUMNS, [$column]);
+            $count = (int) $this->db->fetchValue(sprintf(
+                'SELECT COUNT(*) FROM {field_values} fv JOIN {objects} o ON o.id = fv.object_id WHERE o.blueprint = :b AND fv.field = :f AND fv.%s IS NULL AND (%s)',
+                Connection::quoteIdentifier($column),
+                implode(' OR ', array_map(static fn (string $c): string => 'fv.' . Connection::quoteIdentifier($c) . ' IS NOT NULL', $others)),
+            ), ['b' => $name, 'f' => $field->name]);
+            if ($count > 0) {
+                $steps[] = new SyncStep(
+                    SyncStepKind::MoveData,
+                    new Message('sync.convert_values', ['blueprint' => $name, 'field' => $field->name, 'count' => $count]),
+                    fn () => $this->convertValues($name, $field),
+                );
+            }
+        }
+
         return $steps;
+    }
+
+    /** The columns of field_values that hold values. */
+    private const array VALUE_COLUMNS = ['value_string', 'value_text', 'value_int', 'value_datetime', 'value_decimal'];
+
+    /** @return list<int> The Blueprint's objects with rows of the field in field_values. */
+    private function objectsWithRows(string $blueprint, string $field): array
+    {
+        return array_map(static fn (array $r): int => (int) $r['id'], $this->db->fetchAll(
+            'SELECT DISTINCT fv.object_id AS id FROM {field_values} fv JOIN {objects} o ON o.id = fv.object_id WHERE o.blueprint = :b AND fv.field = :f',
+            ['b' => $blueprint, 'f' => $field],
+        ));
+    }
+
+    /** @return list<int> The objects with a value in the field's column but no rows of it in field_values. */
+    private function objectsWithColumnOnly(Blueprint $blueprint, string $field): array
+    {
+        return array_map(static fn (array $r): int => (int) $r['id'], $this->db->fetchAll(
+            sprintf(
+                'SELECT t.object_id AS id FROM %s t WHERE t.%2$s IS NOT NULL AND NOT EXISTS (SELECT 1 FROM {field_values} fv WHERE fv.object_id = t.object_id AND fv.field = :f)',
+                $this->db->table($blueprint->tableName()),
+                Connection::quoteIdentifier($field),
+            ),
+            ['f' => $field],
+        ));
     }
 
     /**
@@ -496,23 +646,77 @@ final class SchemaSync
         return $data;
     }
 
-    /** @param list<int> $ids */
-    private function moveToTable(Blueprint $blueprint, array $ids): void
+    /**
+     * The values of the field in field_values, by object, in order (whichever value column holds them).
+     *
+     * @param list<int> $ids
+     * @return array<int, list<mixed>>
+     */
+    private function rowsOf(string $field, array $ids): array
+    {
+        [$in, $params] = self::inList($ids);
+        $values = [];
+        $rows = $this->db->fetchAll("SELECT * FROM {field_values} WHERE field = :f AND object_id IN ({$in}) ORDER BY object_id, delta, id", $params + ['f' => $field]);
+        foreach ($rows as $row) {
+            foreach (self::VALUE_COLUMNS as $column) {
+                if ($row[$column] !== null) {
+                    $values[(int) $row['object_id']][] = $row[$column];
+                    break;
+                }
+            }
+        }
+
+        return $values;
+    }
+
+    /**
+     * @param list<int> $ids
+     * @param Closure(string): bool $hasColumn Whether the Blueprint's table has a column of that name
+     */
+    private function moveToTable(Blueprint $blueprint, array $ids, Closure $hasColumn): void
     {
         $single = $blueprint->tableFields();
         $multi = $blueprint->valueTableFields();
         $keys = array_keys($single + $multi);
-        $this->db->transactional(function (Connection $db) use ($blueprint, $ids, $single, $multi, $keys): void {
+        // A column whose values become several (rows): it may be NULL from now on, so it can be emptied.
+        foreach (array_keys($multi) as $name) {
+            $info = $hasColumn($name) ? (new SchemaReader($this->db))->read($blueprint->tableName())?->column($name) : null;
+            if ($info !== null && !$info->nullable) {
+                $this->db->execute(sprintf('ALTER TABLE %s MODIFY COLUMN %s %s NULL', $this->db->table($blueprint->tableName()), Connection::quoteIdentifier($name), $info->rawType));
+            }
+        }
+        $this->db->transactional(function (Connection $db) use ($blueprint, $ids, $single, $multi, $keys, $hasColumn): void {
+            $rows = [];
+            foreach (array_keys($single) as $name) {
+                $rows[$name] = $this->rowsOf($name, $ids);
+            }
+            $columns = [];
+            foreach (array_keys($multi) as $name) {
+                if ($hasColumn($name)) {
+                    [$in, $params] = self::inList($ids);
+                    foreach ($db->fetchAll(sprintf('SELECT object_id, %s AS v FROM {%s} WHERE object_id IN (%s)', Connection::quoteIdentifier($name), $blueprint->tableName(), $in), $params) as $row) {
+                        $columns[$name][(int) $row['object_id']] = $row['v'];
+                    }
+                }
+            }
             foreach ($this->dataOf($ids) as $id => $data) {
                 if ($single !== []) {
                     $exists = $db->fetchValue(sprintf('SELECT 1 FROM {%s} WHERE object_id = :id', $blueprint->tableName()), ['id' => $id]) !== null;
                     $row = [];
                     foreach ($single as $name => $field) {
-                        if (array_key_exists($name, $data)) {
-                            $row[$name] = $field->type->toStorage($field->cast($data[$name]));
+                        $value = match (true) {
+                            array_key_exists($name, $data) => is_array($data[$name]) ? ($data[$name][0] ?? null) : $data[$name],
+                            isset($rows[$name][$id]) => $rows[$name][$id][0],
+                            default => false,
+                        };
+                        if ($value !== false) {
+                            $row[$name] = $field->type->toStorage($field->cast($value));
                         } elseif (!$exists) {
                             $default = array_key_exists($name, $blueprint->defaults) ? $blueprint->defaults[$name] : $field->default;
                             $row[$name] = $field->type->toStorage($field->cast($default));
+                        }
+                        if (isset($rows[$name][$id])) {
+                            $db->delete(CoreSchema::FIELD_VALUES, ['object_id' => $id, 'field' => $name]);
                         }
                     }
                     if (!$exists) {
@@ -522,49 +726,80 @@ final class SchemaSync
                     }
                 }
                 foreach ($multi as $name => $field) {
-                    if (!array_key_exists($name, $data)) {
+                    $value = match (true) {
+                        array_key_exists($name, $data) => $data[$name],
+                        isset($columns[$name][$id]) && $db->fetchValue('SELECT 1 FROM {field_values} WHERE object_id = :id AND field = :f', ['id' => $id, 'f' => $name]) === null => [$columns[$name][$id]],
+                        default => false,
+                    };
+                    if ($value === false) {
                         continue;
                     }
                     $db->delete(CoreSchema::FIELD_VALUES, ['object_id' => $id, 'field' => $name]);
-                    foreach ((array) $field->toStorage($data[$name]) as $delta => $item) {
+                    foreach ((array) $field->toStorage($value) as $delta => $item) {
                         $db->insert(CoreSchema::FIELD_VALUES, ['object_id' => $id, 'field' => $name, 'delta' => $delta, $field->type->valueColumn() => $item]);
+                    }
+                    if (isset($columns[$name][$id])) {
+                        $db->update($blueprint->tableName(), [$name => null], ['object_id' => $id]);
                     }
                 }
                 $rest = array_diff_key($data, array_flip($keys));
-                $db->update(CoreSchema::OBJECTS, ['data' => json_encode($rest === [] ? new \stdClass() : $rest, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)], ['id' => $id]);
+                if (count($rest) !== count($data)) {
+                    $db->update(CoreSchema::OBJECTS, ['data' => json_encode($rest === [] ? new \stdClass() : $rest, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)], ['id' => $id]);
+                }
             }
         });
     }
 
-    /** @param array<string, list<int>> $fields field name => the objects whose value goes back into the data */
-    private function moveToData(Blueprint $blueprint, array $fields): void
+    /**
+     * @param array<string, list<int>> $fields field name => the objects whose value goes back into the data
+     * @param Closure(string): bool $hasColumn
+     */
+    private function moveToData(Blueprint $blueprint, array $fields, Closure $hasColumn): void
     {
-        $this->db->transactional(function (Connection $db) use ($blueprint, $fields): void {
+        $this->db->transactional(function (Connection $db) use ($blueprint, $fields, $hasColumn): void {
             $all = array_values(array_unique(array_merge(...array_values($fields))));
             $data = $this->dataOf($all);
             foreach ($fields as $name => $ids) {
                 $field = $blueprint->fields[$name];
-                [$in, $params] = self::inList($ids);
-                if ($field->isMultiple()) {
-                    $column = Connection::quoteIdentifier($field->type->valueColumn());
-                    $rows = $db->fetchAll("SELECT object_id, {$column} AS v FROM {field_values} WHERE field = :f AND object_id IN ({$in}) ORDER BY object_id, delta, id", $params + ['f' => $name]);
-                    $values = [];
-                    foreach ($rows as $row) {
-                        $values[(int) $row['object_id']][] = $row['v'];
-                    }
-                } else {
-                    $rows = $db->fetchAll(sprintf('SELECT object_id, %s AS v FROM {%s} WHERE object_id IN (%s)', Connection::quoteIdentifier($name), $blueprint->tableName(), $in), $params);
-                    $values = [];
-                    foreach ($rows as $row) {
-                        $values[(int) $row['object_id']] = $row['v'];
+                $rows = $this->rowsOf($name, $ids);
+                $column = [];
+                if ($hasColumn($name)) {
+                    [$in, $params] = self::inList($ids);
+                    foreach ($db->fetchAll(sprintf('SELECT object_id, %s AS v FROM {%s} WHERE object_id IN (%s)', Connection::quoteIdentifier($name), $blueprint->tableName(), $in), $params) as $row) {
+                        if ($row['v'] !== null) {
+                            $column[(int) $row['object_id']] = $row['v'];
+                        }
                     }
                 }
-                foreach ($values as $id => $value) {
-                    $data[$id][$name] = $field->toStorage($field->fromStorage($value));
+                foreach ($ids as $id) {
+                    $values = $rows[$id] ?? (isset($column[$id]) ? [$column[$id]] : null);
+                    if ($values !== null) {
+                        $data[$id][$name] = $field->toStorage($field->isMultiple() ? $values : $values[0]);
+                    }
                 }
             }
             foreach ($data as $id => $values) {
                 $db->update(CoreSchema::OBJECTS, ['data' => json_encode($values === [] ? new \stdClass() : $values, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)], ['id' => $id]);
+            }
+        });
+    }
+
+    /** Several values of a changed type: each row's value into the type's column of field_values. */
+    private function convertValues(string $blueprint, Field $field): void
+    {
+        $column = $field->type->valueColumn();
+        $this->db->transactional(function (Connection $db) use ($blueprint, $field, $column): void {
+            $rows = $db->fetchAll(
+                sprintf('SELECT fv.* FROM {field_values} fv JOIN {objects} o ON o.id = fv.object_id WHERE o.blueprint = :b AND fv.field = :f AND fv.%s IS NULL', Connection::quoteIdentifier($column)),
+                ['b' => $blueprint, 'f' => $field->name],
+            );
+            foreach ($rows as $row) {
+                foreach (self::VALUE_COLUMNS as $other) {
+                    if ($other !== $column && $row[$other] !== null) {
+                        $db->update(CoreSchema::FIELD_VALUES, [$column => $field->type->toStorage($field->type->cast($row[$other]))] + array_fill_keys(self::VALUE_COLUMNS, null), ['id' => (int) $row['id']]);
+                        break;
+                    }
+                }
             }
         });
     }
