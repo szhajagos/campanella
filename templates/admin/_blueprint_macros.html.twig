@@ -1,0 +1,15 @@
+{# Small helpers of the Blueprint editor's forms (since 0.2.3). #}
+{% macro error(errors, name) %}{% if errors[name] ?? null %}<div class="invalid-feedback d-block" id="bp-{{ name }}-error">{{ t(errors[name].key, errors[name].params) }}</div>{% endif %}{% endmacro %}
+{% macro invalid(errors, name) %}{{ (errors[name] ?? null) ? ' is-invalid' }}{% endmacro %}
+{% macro capabilities(capabilities, chosen) %}
+    {% for capability in capabilities %}
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="capabilities[]" value="{{ capability.name }}" id="bp-cap-{{ capability.name }}"
+                {{- capability.name in chosen or capability.required ? ' checked' }}{{ capability.required ? ' disabled' }}>
+            <label class="form-check-label" for="bp-cap-{{ capability.name }}">
+                {{ t(capability.label) }} <code class="small">{{ capability.name }}</code>
+                <span class="d-block small text-body-secondary">{{ t('capability.' ~ capability.name ~ '.description') }}{% if capability.requires %} {{ t('blueprints.requires', {names: capability.requires|join(', ')}) }}{% endif %}</span>
+            </label>
+        </div>
+    {% endfor %}
+{% endmacro %}

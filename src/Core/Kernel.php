@@ -38,6 +38,7 @@ use Campanella\Access\DefaultPolicy;
 use Campanella\Http\Flash;
 use Campanella\Controller\AdminController;
 use Campanella\Admin\AdminAccess;
+use Campanella\Admin\BlueprintEditor;
 use Campanella\Admin\Form\ObjectForm;
 use Campanella\Capability\CapabilityRegistry;
 use Campanella\Auth\AuthService;
@@ -70,6 +71,7 @@ use Campanella\Http\Session;
 use Campanella\I18n\Translator;
 use Campanella\Menu\MenuBuilder;
 use Campanella\Model\BlueprintRegistry;
+use Campanella\Model\BlueprintStore;
 use Campanella\Model\ObjectRepository;
 use Campanella\Query\QueryCompiler;
 use Campanella\Query\QueryEngine;
@@ -314,10 +316,18 @@ final class Kernel
             $c->get(Config::class)->get('capabilities', []),
         ));
 
-        $c->set(BlueprintRegistry::class, static fn (Container $c): BlueprintRegistry => new BlueprintRegistry(
-            $c->get(CapabilityRegistry::class),
-            require $root . '/config/blueprints.php',
-        ));
+        $c->set(BlueprintRegistry::class, static function (Container $c) use ($root): BlueprintRegistry {
+            $registry = new BlueprintRegistry($c->get(CapabilityRegistry::class), require $root . '/config/blueprints.php');
+            // The Blueprints made in the admin (since 0.2.3), after those of the file.
+            try {
+                $registry->loadStored($c->get(BlueprintStore::class)->load());
+            } catch (\PDOException $e) {
+                // The database cannot be reached (yet): the pages that need it say so.
+            }
+
+            return $registry;
+        });
+        $c->set(BlueprintStore::class, static fn (Container $c): BlueprintStore => new BlueprintStore($c->get(Connection::class)));
 
         // The settings edited in the admin (since 0.1.1), over the configuration file's.
         $c->set(Settings::class, static fn (Container $c): Settings => new Settings($c->get(Connection::class)));
@@ -762,6 +772,20 @@ final class Kernel
             new MailPages($c->get(Mailer::class), $c->get(ObjectRepository::class), $c->get(Throttle::class), $c->get(Csrf::class), $c->get(Flash::class), $c->get(AdminAccess::class)),
             $c->get(SitePaths::class),
             new SubmissionPages($c->get(SubmissionService::class), $c->get(Csrf::class), $c->get(Flash::class), $c->get(AdminAccess::class)),
+            new BlueprintEditor(
+                $c->get(BlueprintRegistry::class),
+                $c->get(CapabilityRegistry::class),
+                $c->get(BlueprintStore::class),
+                $c->get(Connection::class),
+                static fn (): array => require $root . '/config/blueprints.php',
+                $c->get(Installer::class),
+                $c->get(Migrator::class),
+                $c->get(DatabaseBackup::class),
+                $c->get(Csrf::class),
+                $c->get(Flash::class),
+                $c->get(AdminAccess::class),
+                $c->get(Translator::class),
+            ),
         ));
 
         // The contact form (since 0.1.5).

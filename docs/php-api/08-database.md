@@ -174,7 +174,7 @@ fills it).
 `Campanella\Database\Schema\CoreSchema` · **Public**
 
 `static tables(): list<Table>`, plus constants for the table names: `OBJECTS`,
-`OBJECT_CAPABILITIES`, `SYSTEM`, `RELATIONSHIPS`, `THROTTLE`, `FIELD_VALUES`, `MIGRATIONS`, `SETTINGS`, `MEDIA_USAGE`, `MAIL_LOG`.
+`OBJECT_CAPABILITIES`, `SYSTEM`, `RELATIONSHIPS`, `THROTTLE`, `FIELD_VALUES`, `MIGRATIONS`, `SETTINGS`, `MEDIA_USAGE`, `MAIL_LOG`, `SESSIONS`, `PASSWORD_RESETS`, `BLUEPRINTS` (since 0.2.3).
 
 | Table | Columns | Purpose |
 |---|---|---|
@@ -188,6 +188,7 @@ fills it).
 | `cc_settings` | `name` (PK), `value`, `updated_at` | The settings edited in the admin, e.g. `site.name` ([chapter 20](20-site.md); since 0.1.1, schema version 7) |
 | `cc_mail_log` | `id`, `created_at` (indexed), `recipient`, `template`, `subject`, `status`, `error` | The e-mails sent or tried, never their text; kept for `mail.log_days` days ([chapter 21](21-events-and-mail.md#the-log); since 0.1.3, schema version 9) |
 | `cc_media_usage` | `object_id`, `media_id` (together the PK); index (`media_id`, `object_id`) | Which text shows which uploaded file; cascade on deletion of either ([chapter 16](16-media.md#where-an-image-is-used); since 0.1.2, schema version 8) |
+| `cc_blueprints` | `name` (PK), `definition` (JSON), `created_at`, `updated_at` | The Blueprints made in the admin ([chapter 2](02-objects.md#blueprints-made-in-the-admin); since 0.2.3, schema version 14) |
 | `cc_cap_<name>` | `object_id` (PK) + the capability's single-valued `Table` fields | One table per capability (a capability with only multi-valued or `Data` fields has none) |
 | `cc_bp_<name>` | `object_id` (PK) + the Blueprint's own single-valued queryable fields | One table per Blueprint that has such fields (its `queryable` key; since 0.2.2) |
 

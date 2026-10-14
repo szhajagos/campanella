@@ -373,6 +373,69 @@ cardinality in another Blueprint, for an invalid `cardinality` entry, and for a
 `tree_scope` that is not a required single relation of a Hierarchical
 Blueprint.
 
+## Blueprints made in the admin
+
+*Since 0.2.3.* Besides those of `config/blueprints.php`, Blueprints can be made
+in the admin ([chapter 13](13-admin.md#making-blueprints-blueprinteditor)).
+Their definitions live in the database; the container's BlueprintRegistry
+defines them after those of the file.
+
+### BlueprintStore
+
+`Campanella\Model\BlueprintStore` · **Public** · container: `BlueprintStore::class`
+
+| Method | Description |
+|---|---|
+| `load(): array<string, array>` | Every stored definition by name, in name order; none before the `blueprints` table exists (not installed or not upgraded) |
+| `find(string $name): ?array` | One definition |
+| `save(string $name, array $definition): void` | Creates or replaces it |
+| `delete(string $name): void` | |
+
+The definition is JSON in the `cc_blueprints` table, loaded but never queried.
+
+### BlueprintDefinition
+
+`Campanella\Model\BlueprintDefinition` · **Public** · `final class`
+
+The stored form, and its conversion to what `BlueprintRegistry::define()`
+takes. The same form will be the content model's export (0.2.6):
+
+```json
+{
+  "version": 1,
+  "label": "Esemény",
+  "capabilities": ["titled", "textual", "routable", "publishable"],
+  "fields": [
+    {"name": "nap", "type": "date", "label": "Nap", "required": true, "queryable": true,
+     "cardinality": 1, "translatable": false, "length": 255, "scale": 2, "choices": {}, "default": null}
+  ],
+  "relations": [
+    {"name": "kep", "label": "Kép", "targets": ["image"], "many": false, "required": false}
+  ]
+}
+```
+
+| Member | Description |
+|---|---|
+| `static toRegistry(array $stored): array` | The definition for `define()`: `titled` always added, the own fields with `queryable`, the relations, the form's order (title, own fields, body, own relations), and with `textual` the `html` format and the editor; `InvalidArgumentException` for anything not valid |
+| `static field(array $item): Field` / `static fieldArray(Field $field): array` | A field from its stored form, checked (type, name, at most 100 values or unlimited, length 1–255, choices, a default valid for the field), and back |
+| `static relation(array $item): Relation` / `static relationArray(Relation $relation): array` | A relation to the objects of the listed Blueprints, one or several, required, and back |
+| `static name(mixed $name): string` | A machine name: `^[a-z][a-z0-9_]{0,39}$`; `InvalidArgumentException` otherwise |
+| `SYSTEM_CAPABILITIES` | The capabilities such a Blueprint cannot have: `identifiable`, `authenticatable`, `media_file`, `submitted`, `keyed`, `link` |
+| `REQUIRED_CAPABILITY`, `MAX_LABEL`, `MAX_FIELDS`, `VERSION` | `titled`; 100 characters; 60 fields and relations; 1 |
+
+Everything read from the database is checked again: a definition that does not
+pass (e.g. changed by hand) is not loaded.
+
+### On the registry
+
+| Member | Description |
+|---|---|
+| `loadStored(array $stored): void` | Defines the stored Blueprints; one that does not pass, or has the name of one of the file's, is left out |
+| `isEditable(string $name): bool` | Made in the admin (so it can be edited there) |
+| `storedErrors(): array<string, string>` | The stored ones left out, with the reason (shown on the Blueprints page) |
+| `RESERVED_FIELD_NAMES` | `id`, `uuid`, `blueprint`, `created`, `updated`, `object_id`: no own field may have these names (any Blueprint's, since 0.2.3) |
+
 ## Known limitation (0.0.1)
 
 An object's capability list is stored per object (`cc_object_capabilities`).

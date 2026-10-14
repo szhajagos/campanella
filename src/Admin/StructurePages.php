@@ -19,7 +19,8 @@ use Campanella\Relation\Relation;
  * The read-only overview of the site's structure for administrators (since 0.1.0):
  * the Blueprints (/admin/system/blueprints) and the capabilities
  * (/admin/system/capabilities), as plain arrays for the templates. Nothing can be
- * changed here: Blueprints are defined in config/blueprints.php, capabilities in code.
+ * changed here: Blueprints are defined in config/blueprints.php or made in the admin
+ * (BlueprintEditor, since 0.2.3), capabilities in code.
  */
 final class StructurePages
 {
@@ -32,7 +33,7 @@ final class StructurePages
     }
 
     /**
-     * @return list<array{name: string, label: string, count: int, list_path: ?string, capabilities: list<string>,
+     * @return list<array{name: string, label: string, editable: bool, count: int, list_path: ?string, capabilities: list<string>,
      *     fields: list<array<string, mixed>>, relations: list<array<string, mixed>>, tree_scope: ?string, lists: list<string>}>
      */
     public function blueprints(): array
@@ -43,6 +44,7 @@ final class StructurePages
             $rows[] = [
                 'name' => $name,
                 'label' => $blueprint->label,
+                'editable' => $this->blueprints->isEditable($name),
                 'count' => $this->queries->count(Query::objects()->blueprint($name), Actor::system()),
                 'list_path' => $this->access->path($user ? 'user' : $name),
                 'capabilities' => array_keys($blueprint->capabilities),

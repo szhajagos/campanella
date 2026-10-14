@@ -1,0 +1,34 @@
+{% extends '@core/admin/base.html.twig' %}
+{% import '@core/admin/_blueprint_macros.html.twig' as m %}
+
+{% block content %}
+    <p class="small mb-1"><a href="{{ admin_url('system/blueprints') }}">{{ t('structure.blueprints') }}</a></p>
+    <h1 class="h3 mb-2">{{ t('blueprints.new') }}</h1>
+    <p class="text-body-secondary mb-4">{{ t('blueprints.new_intro') }}</p>
+
+    {% if alert ?? null %}<div class="alert alert-danger" role="alert">{{ t(alert) }}</div>{% endif %}
+    {% if alert_text ?? null %}<div class="alert alert-danger" role="alert">{{ alert_text }}</div>{% endif %}
+
+    <form method="post" action="{{ admin_url('system/blueprints/new') }}" class="admin-form" novalidate>
+        {{ csrf_field() }}
+        <section class="card card-body mb-4">
+            <div class="mb-3">
+                <label for="bp-label" class="form-label fw-semibold">{{ t('blueprints.label') }} <span class="text-danger" aria-hidden="true">*</span></label>
+                <input type="text" class="form-control{{ m.invalid(errors, 'label') }}" id="bp-label" name="label" value="{{ form.label }}" required maxlength="100">
+                <div class="form-text">{{ t('blueprints.label_help') }}</div>
+                {{ m.error(errors, 'label') }}
+            </div>
+            <div class="mb-0">
+                <label for="bp-name" class="form-label fw-semibold">{{ t('blueprints.name') }} <span class="text-danger" aria-hidden="true">*</span></label>
+                <input type="text" class="form-control font-monospace{{ m.invalid(errors, 'name') }}" id="bp-name" name="name" value="{{ form.name }}" required maxlength="40" pattern="[a-z][a-z0-9_]*" autocomplete="off">
+                <div class="form-text">{{ t('blueprints.name_help') }}</div>
+                {{ m.error(errors, 'name') }}
+            </div>
+        </section>
+        <section class="card card-body mb-4">
+            <h2 class="h6 mb-3">{{ t('structure.capabilities') }}</h2>
+            {{ m.capabilities(capabilities, form.capabilities) }}
+        </section>
+        <button type="submit" class="btn btn-primary">{{ t('blueprints.create') }}</button>
+    </form>
+{% endblock %}

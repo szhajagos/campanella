@@ -1,0 +1,90 @@
+{% extends '@core/admin/base.html.twig' %}
+{% import '@core/admin/_blueprint_macros.html.twig' as m %}
+
+{% block content %}
+    <p class="small mb-1"><a href="{{ admin_url('system/blueprints') }}">{{ t('structure.blueprints') }}</a> › <a href="{{ admin_url('system/blueprints/' ~ blueprint.name) }}">{{ blueprint.label }}</a></p>
+    <h1 class="h3 mb-2">{{ field ? form.label : t('blueprints.field_new') }}</h1>
+    <p class="text-body-secondary mb-4">{{ t(field ? 'blueprints.field_edit_intro' : 'blueprints.field_new_intro') }}</p>
+
+    {% if alert_text ?? null %}<div class="alert alert-danger" role="alert">{{ alert_text }}</div>{% endif %}
+
+    <form method="post" action="{{ admin_url('system/blueprints/' ~ blueprint.name ~ '/fields/' ~ (field ?: 'new')) }}" class="admin-form" novalidate>
+        {{ csrf_field() }}
+        <section class="card card-body mb-4">
+            <div class="mb-3">
+                <label for="bp-label" class="form-label fw-semibold">{{ t('blueprints.label') }} <span class="text-danger" aria-hidden="true">*</span></label>
+                <input type="text" class="form-control{{ m.invalid(errors, 'label') }}" id="bp-label" name="label" value="{{ form.label }}" required maxlength="100">
+                {{ m.error(errors, 'label') }}
+            </div>
+            <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                    <label for="bp-name" class="form-label fw-semibold">{{ t('blueprints.name') }} <span class="text-danger" aria-hidden="true">*</span></label>
+                    <input type="text" class="form-control font-monospace{{ m.invalid(errors, 'name') }}" id="bp-name" name="name" value="{{ form.name }}" maxlength="40" autocomplete="off"{{ field ? ' disabled' : ' required' }}>
+                    <div class="form-text">{{ t(field ? 'blueprints.locked_help' : 'blueprints.field_name_help') }}</div>
+                    {{ m.error(errors, 'name') }}
+                </div>
+                <div class="col-md-6">
+                    <label for="bp-type" class="form-label fw-semibold">{{ t('blueprints.type') }}</label>
+                    <select class="form-select{{ m.invalid(errors, 'type') }}" id="bp-type" name="type"{{ field ? ' disabled' }}>
+                        {% for type in types %}<option value="{{ type }}"{{ type == form.type ? ' selected' }}>{{ t('field_type.' ~ type) }}</option>{% endfor %}
+                    </select>
+                    {{ m.error(errors, 'type') }}
+                </div>
+            </div>
+            <div class="mb-3">
+                <label for="bp-choices" class="form-label fw-semibold">{{ t('blueprints.choices') }}</label>
+                <textarea class="form-control font-monospace{{ m.invalid(errors, 'choices') }}" id="bp-choices" name="choices" rows="4">{{ form.choices }}</textarea>
+                <div class="form-text">{{ t('blueprints.choices_help') }}</div>
+                {{ m.error(errors, 'choices') }}
+            </div>
+            <div class="row g-3 mb-3">
+                <div class="col-md-4">
+                    <label for="bp-length" class="form-label fw-semibold">{{ t('blueprints.length') }}</label>
+                    <input type="number" class="form-control{{ m.invalid(errors, 'length') }}" id="bp-length" name="length" value="{{ form.length }}" min="1" max="255"{{ field ? ' disabled' }}>
+                    <div class="form-text">{{ t('blueprints.length_help') }}</div>
+                    {{ m.error(errors, 'length') }}
+                </div>
+                <div class="col-md-4">
+                    <label for="bp-scale" class="form-label fw-semibold">{{ t('blueprints.scale') }}</label>
+                    <input type="number" class="form-control{{ m.invalid(errors, 'scale') }}" id="bp-scale" name="scale" value="{{ form.scale }}" min="0" max="6">
+                    <div class="form-text">{{ t('blueprints.scale_help') }}</div>
+                    {{ m.error(errors, 'scale') }}
+                </div>
+                <div class="col-md-4">
+                    <label for="bp-default" class="form-label fw-semibold">{{ t('blueprints.default') }}</label>
+                    <input type="text" class="form-control{{ m.invalid(errors, 'default') }}" id="bp-default" name="default" value="{{ form.default }}">
+                    <div class="form-text">{{ t('blueprints.default_help') }}</div>
+                    {{ m.error(errors, 'default') }}
+                </div>
+            </div>
+        </section>
+        <section class="card card-body mb-4">
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="bp-required" name="required" value="1"{{ form.required ? ' checked' }}>
+                <label class="form-check-label" for="bp-required">{{ t('blueprints.required') }}</label>
+            </div>
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="bp-queryable" name="queryable" value="1"{{ form.queryable ? ' checked' }}{{ field ? ' disabled' }}>
+                <label class="form-check-label" for="bp-queryable">{{ t('blueprints.queryable') }}
+                    <span class="d-block small text-body-secondary">{{ t('blueprints.queryable_help') }}</span></label>
+            </div>
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="bp-multiple" name="multiple" value="1"{{ form.multiple ? ' checked' }}{{ field ? ' disabled' }}>
+                <label class="form-check-label" for="bp-multiple">{{ t('blueprints.multiple') }}</label>
+            </div>
+            <div class="mb-3 ms-4 col-sm-6 col-lg-3">
+                <label for="bp-max" class="form-label small">{{ t('blueprints.max') }}</label>
+                <input type="number" class="form-control form-control-sm{{ m.invalid(errors, 'max') }}" id="bp-max" name="max" value="{{ form.max }}" min="2" max="100"{{ field ? ' disabled' }}>
+                {{ m.error(errors, 'max') }}
+            </div>
+            <div class="form-check mb-0">
+                <input class="form-check-input" type="checkbox" id="bp-translatable" name="translatable" value="1"{{ form.translatable ? ' checked' }}>
+                <label class="form-check-label" for="bp-translatable">{{ t('blueprints.translatable') }}
+                    <span class="d-block small text-body-secondary">{{ t('blueprints.translatable_help') }}</span></label>
+            </div>
+            {% if field %}<p class="small text-body-secondary mt-3 mb-0">{{ t('blueprints.locked_fields') }}</p>{% endif %}
+        </section>
+        <button type="submit" class="btn btn-primary">{{ t(field ? 'admin.form.save' : 'blueprints.field_add') }}</button>
+        <a class="btn btn-link" href="{{ admin_url('system/blueprints/' ~ blueprint.name) }}">{{ t('blueprints.back') }}</a>
+    </form>
+{% endblock %}

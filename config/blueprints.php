@@ -37,6 +37,9 @@ use Campanella\Relation\Relation;
  * Field types: String, Text, Integer, Boolean, DateTime, and since 0.2.2
  * Decimal, Date, Email, Url, Choice (with 'choices') and Html (formatted text).
  *
+ * Blueprints can also be made in the admin (System → Blueprints, since 0.2.3);
+ * those are stored in the database, and the names used here cannot be taken there.
+ *
  * 'relations': the Blueprint's own relations to other objects.
  * 'lists':     lists shown on the object's own page (label + Query).
  * 'form_order': the order of fields and relations in the admin form; the ones

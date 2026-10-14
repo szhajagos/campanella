@@ -1,0 +1,117 @@
+{% extends '@core/admin/base.html.twig' %}
+{% import '@core/admin/_blueprint_macros.html.twig' as m %}
+
+{% block content %}
+    <p class="small mb-1"><a href="{{ admin_url('system/blueprints') }}">{{ t('structure.blueprints') }}</a></p>
+    <div class="d-flex flex-wrap align-items-baseline gap-2 mb-2">
+        <h1 class="h3 mb-0">{{ blueprint.label }}</h1>
+        <code class="small">{{ blueprint.name }}</code>
+        <a class="small ms-auto" href="{{ url(blueprint.list_path) }}">{{ t('structure.objects', {count: blueprint.count}) }}</a>
+    </div>
+    <p class="text-body-secondary mb-4">{{ t('blueprints.edit_intro') }}</p>
+
+    {% if alert_text ?? null %}<div class="alert alert-danger" role="alert">{{ alert_text }}</div>{% endif %}
+
+    <section class="card mb-4">
+        <div class="card-header d-flex align-items-baseline gap-2">
+            <h2 class="h6 mb-0 me-auto">{{ t('blueprints.fields') }}</h2>
+            <a class="btn btn-outline-primary btn-sm" href="{{ admin_url('system/blueprints/' ~ blueprint.name ~ '/fields/new') }}">{{ t('blueprints.field_new') }}</a>
+        </div>
+        {% if fields %}
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead><tr>
+                        <th scope="col">{{ t('blueprints.label') }}</th><th scope="col">{{ t('blueprints.name') }}</th><th scope="col">{{ t('blueprints.type') }}</th>
+                        <th scope="col">{{ t('blueprints.properties') }}</th><th scope="col"><span class="visually-hidden">{{ t('blueprints.order') }}</span></th>
+                    </tr></thead>
+                    <tbody>
+                        {% for field in fields %}
+                            <tr>
+                                <td><a href="{{ admin_url('system/blueprints/' ~ blueprint.name ~ '/fields/' ~ field.name) }}">{{ field.label }}</a></td>
+                                <td><code>{{ field.name }}</code></td>
+                                <td>{{ t('field_type.' ~ field.type) }}</td>
+                                <td class="small">
+                                    {% if field.required %}<span class="badge text-bg-light border">{{ t('blueprints.required') }}</span>{% endif %}
+                                    {% if field.queryable %}<span class="badge text-bg-light border">{{ t('blueprints.queryable') }}</span>{% endif %}
+                                    {% if field.multiple %}<span class="badge text-bg-light border">{{ t('blueprints.multiple') }}</span>{% endif %}
+                                    {% if field.translatable %}<span class="badge text-bg-light border">{{ t('blueprints.translatable') }}</span>{% endif %}
+                                </td>
+                                <td class="text-end text-nowrap">
+                                    {% set first = loop.first %}{% set last = loop.last %}
+                                    {% for move in ['move-up', 'move-down'] %}
+                                        {% if (move == 'move-up' and not first) or (move == 'move-down' and not last) %}
+                                            <form method="post" action="{{ admin_url('system/blueprints/' ~ blueprint.name ~ '/fields/' ~ field.name ~ '/' ~ move) }}" class="d-inline">
+                                                {{ csrf_field() }}
+                                                <button type="submit" class="btn btn-sm btn-outline-secondary" title="{{ t('admin.form.' ~ (move == 'move-up' ? 'move_up' : 'move_down')) }}" aria-label="{{ field.label }}: {{ t('admin.form.' ~ (move == 'move-up' ? 'move_up' : 'move_down')) }}">{{ move == 'move-up' ? '↑' : '↓' }}</button>
+                                            </form>
+                                        {% endif %}
+                                    {% endfor %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="card-body text-body-secondary">{{ t('blueprints.no_fields') }}</div>
+        {% endif %}
+    </section>
+
+    <section class="card mb-4">
+        <div class="card-header d-flex align-items-baseline gap-2">
+            <h2 class="h6 mb-0 me-auto">{{ t('structure.relations') }}</h2>
+            <a class="btn btn-outline-primary btn-sm" href="{{ admin_url('system/blueprints/' ~ blueprint.name ~ '/relations/new') }}">{{ t('blueprints.relation_new') }}</a>
+        </div>
+        {% if relations %}
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead><tr><th scope="col">{{ t('blueprints.label') }}</th><th scope="col">{{ t('blueprints.name') }}</th><th scope="col">{{ t('blueprints.target') }}</th><th scope="col">{{ t('blueprints.properties') }}</th></tr></thead>
+                    <tbody>
+                        {% for relation in relations %}
+                            <tr>
+                                <td><a href="{{ admin_url('system/blueprints/' ~ blueprint.name ~ '/relations/' ~ relation.name) }}">{{ relation.label }}</a></td>
+                                <td><code>{{ relation.name }}</code></td>
+                                <td>{% for target in relation.targets %}<code class="me-1">{{ target }}</code>{% endfor %}</td>
+                                <td class="small">
+                                    <span class="badge text-bg-light border">{{ t(relation.many ? 'blueprints.many' : 'blueprints.one') }}</span>
+                                    {% if relation.required %}<span class="badge text-bg-light border">{{ t('blueprints.required') }}</span>{% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="card-body text-body-secondary">{{ t('blueprints.no_relations') }}</div>
+        {% endif %}
+    </section>
+
+    <form method="post" action="{{ admin_url('system/blueprints/' ~ blueprint.name) }}" class="admin-form" novalidate>
+        {{ csrf_field() }}
+        <section class="card card-body mb-4">
+            <h2 class="h6 mb-3">{{ t('blueprints.basics') }}</h2>
+            <div class="mb-3">
+                <label for="bp-label" class="form-label fw-semibold">{{ t('blueprints.label') }} <span class="text-danger" aria-hidden="true">*</span></label>
+                <input type="text" class="form-control{{ m.invalid(errors, 'label') }}" id="bp-label" name="label" value="{{ form.label }}" required maxlength="100">
+                {{ m.error(errors, 'label') }}
+            </div>
+            <h3 class="h6 mt-2 mb-2">{{ t('structure.capabilities') }}</h3>
+            <p class="small text-body-secondary">{{ t('blueprints.capabilities_help') }}</p>
+            {{ m.capabilities(capabilities, form.capabilities) }}
+            <div class="mt-3"><button type="submit" class="btn btn-primary">{{ t('admin.form.save') }}</button></div>
+        </section>
+    </form>
+
+    <section class="card card-body border-danger-subtle mb-4">
+        <h2 class="h6">{{ t('blueprints.delete') }}</h2>
+        {% if blueprint.count > 0 %}
+            <p class="mb-0 small text-body-secondary">{{ t('blueprints.delete_has_objects') }}</p>
+        {% else %}
+            <form method="post" action="{{ admin_url('system/blueprints/' ~ blueprint.name ~ '/delete') }}">
+                {{ csrf_field() }}
+                <p class="small text-body-secondary">{{ t('blueprints.delete_help') }}</p>
+                <button type="submit" class="btn btn-outline-danger btn-sm">{{ t('blueprints.delete') }}</button>
+            </form>
+        {% endif %}
+    </section>
+{% endblock %}

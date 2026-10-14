@@ -346,22 +346,56 @@ has it, else the name).
 (`SubmissionPages`), for administrators: see [chapter 22](22-forms.md#in-the-admin).
 Like users, the `submission` Blueprint is not in the generic lists and forms.
 
-## Blueprints and capabilities (read-only)
+## Blueprints and capabilities
 
 *Since 0.1.0.* `Campanella\Admin\StructurePages` · **Internal**: for those who
 may open the System page (`admin.system_roles`), listed under it in the sidebar.
-Nothing can be changed here: Blueprints are defined in `config/blueprints.php`,
-capabilities in code.
+Capabilities are code; Blueprints come from `config/blueprints.php` (shown
+here, marked "defined in code") or are made here (since 0.2.3, see below).
 
 | Page | Contents |
 |---|---|
-| `/admin/system/blueprints` | Each Blueprint: its capabilities (with the dependencies), its own fields (type, storage, properties), its relations (what they can point to, one or many, required, and which capability brings them), `tree_scope`, the lists on its page, the number of objects with a link to its list |
+| `/admin/system/blueprints` | Each Blueprint: its capabilities (with the dependencies), its own fields (type, storage, properties), its relations (what they can point to, one or many, required, and which capability brings them), `tree_scope`, the lists on its page, the number of objects with a link to its list; "New Blueprint", and "Edit" for those made here; a stored definition that could not be loaded, with the reason |
 | `/admin/system/capabilities` | Each capability: a short explanation (`capability.<name>.description` in the language files; a custom capability may add its own), class, table, what it builds on, its query scopes, its fields and relations, and the Blueprints that use it |
 
-`blueprints(): list<array>` and `capabilities(): list<array>` give the plain
-arrays the templates (`admin/blueprints.html.twig`,
-`admin/capabilities.html.twig`) show. A first step towards Blueprints defined
-in the admin (see the ROADMAP).
+`blueprints(): list<array>` (with `editable` since 0.2.3) and
+`capabilities(): list<array>` give the plain arrays the templates
+(`admin/blueprints.html.twig`, `admin/capabilities.html.twig`) show.
+
+### Making Blueprints: BlueprintEditor
+
+*Since 0.2.3.* `Campanella\Admin\BlueprintEditor` · **Internal**, for the
+same roles. Its definitions are stored in the database
+([BlueprintStore](02-objects.md#blueprints-made-in-the-admin)).
+
+| Page | What it does |
+|---|---|
+| `/admin/system/blueprints/new` | A new Blueprint: its name (`label`), machine name (lowercase letters, digits, `_`, at most 40; never changed later; not a name in use, reserved, or of existing objects) and capabilities |
+| `/admin/system/blueprints/<name>` | Its fields and relations (with links to them, and ↑/↓ for the fields' order), its name and capabilities (POST saves them), deleting it |
+| `…/fields/new`, `…/fields/<field>` | A new field: label, machine name, type, choices (one per line: `key \| label`, or a label whose key is made from it), length, decimals, default, required, queryable ("filter and sort by it": a column), several values (at most N, or any), translatable. An existing field: its label, choices (added or relabelled; a key cannot be removed), default, decimals, translatable, and required unless it has a column |
+| `…/fields/<field>/move-up`, `/move-down` | POST: the order (the form's order follows it) |
+| `…/relations/new`, `…/relations/<relation>` | A relation to the objects of one Blueprint (not users or forms' messages): one or several targets, required; later its label and required flag |
+| `…/delete` | POST: deletes a Blueprint without objects (and its empty table), unless another Blueprint's relation points to it |
+
+Every change is checked by defining all the Blueprints again with it (those of
+the file and the stored ones): a field or relation name taken by a capability,
+by the Blueprint, or with another type in another Blueprint is refused there.
+Then the SchemaSync is planned: a **blocked** step of the Blueprint stops the
+change (e.g. a required queryable field without a default while the Blueprint
+has objects — the form asks for a default first). If the database changes and
+the Blueprint has objects, **a backup** is made first (`var/backups/`, reported
+on the next page); then the definition is saved and the SchemaSync applied. If
+applying fails, the old definition is put back. While an upgrade is pending,
+nothing is changed (run it first).
+
+Every Blueprint made here has `titled` (lists and choices show the title), never
+`identifiable`, `authenticatable`, `media_file`, `submitted`, `keyed` or `link`
+(`BlueprintDefinition::SYSTEM_CAPABILITIES`). With `textual`, new objects get a
+formatted (HTML) body. The form shows the title, the own fields, the body and
+the own relations, in this order.
+
+Not yet (0.2.4): changing a field's type, column, number of values or length,
+making a queryable field required, deleting fields and relations.
 
 ## One-time messages: Flash
 

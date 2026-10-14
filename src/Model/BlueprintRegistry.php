@@ -34,6 +34,18 @@ final class BlueprintRegistry
      */
     public const int MAX_TABLE_FIELDS = 40;
 
+    /**
+     * Names an own field cannot have (since 0.2.3): the base fields every object has
+     * (Query::BASE_FIELDS) and the key column of a Blueprint's table.
+     */
+    public const array RESERVED_FIELD_NAMES = ['id', 'uuid', 'blueprint', 'created', 'updated', 'object_id'];
+
+    /** @var array<string, true> The Blueprints defined from the database (made in the admin; since 0.2.3). */
+    private array $editable = [];
+
+    /** @var array<string, string> Stored Blueprints that could not be defined: name => the reason. */
+    private array $storedErrors = [];
+
     /** The longest name of a Blueprint with a table (`bp_<name>`, its keys' names fit in 64 characters). */
     public const int MAX_TABLE_NAME = 40;
 
@@ -71,6 +83,9 @@ final class BlueprintRegistry
                 throw new CapabilityException(
                     "Blueprint '{$name}': field '{$field->name}' conflicts with a capability field.",
                 );
+            }
+            if (in_array($field->name, self::RESERVED_FIELD_NAMES, true)) {
+                throw new CapabilityException("Blueprint '{$name}': the field name '{$field->name}' is reserved.");
             }
             $fields[$field->name] = in_array($field->name, $queryable, true) ? $field->asTable() : $field->asData();
         }
@@ -256,6 +271,48 @@ final class BlueprintRegistry
         foreach ($relation->targetCapabilities as $capability) {
             $this->capabilities->get($capability); // throws for an unknown capability
         }
+    }
+
+    /**
+     * Defines the Blueprints made in the admin, from their stored form (BlueprintStore;
+     * since 0.2.3). One that does not pass its checks, or whose name a Blueprint of
+     * config/blueprints.php already has, is left out; storedErrors() says why.
+     *
+     * @param array<string, array<string, mixed>> $stored name => stored definition
+     */
+    public function loadStored(array $stored): void
+    {
+        foreach ($stored as $name => $definition) {
+            $name = (string) $name;
+            if (isset($this->blueprints[$name])) {
+                $this->storedErrors[$name] = 'A Blueprint of config/blueprints.php has this name.';
+                continue;
+            }
+            try {
+                BlueprintDefinition::name($name);
+                $this->define($name, BlueprintDefinition::toRegistry($definition));
+                $this->editable[$name] = true;
+            } catch (CapabilityException | \InvalidArgumentException $e) {
+                unset($this->blueprints[$name]);
+                $this->storedErrors[$name] = $e->getMessage();
+            }
+        }
+    }
+
+    /** Whether the Blueprint was made in the admin (stored), so it can be edited there. Since 0.2.3. */
+    public function isEditable(string $name): bool
+    {
+        return isset($this->editable[$name]);
+    }
+
+    /**
+     * The stored Blueprints that could not be defined, with the reason. Since 0.2.3.
+     *
+     * @return array<string, string>
+     */
+    public function storedErrors(): array
+    {
+        return $this->storedErrors;
     }
 
     public function get(string $name): Blueprint

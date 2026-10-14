@@ -6136,6 +6136,149 @@ test('Admin form and site: the new types', function () use ($engine): void {
     check(str_contains($page, '<dt class="col-sm-4 object-fields__label">Díj</dt>') && str_contains($page, 'Séta') && !str_contains($page, 'Nyílt nap'), $page);
 });
 
+echo "\nBlueprints made in the admin (0.2.3)\n";
+
+test('BlueprintDefinition: the stored form, checked', function (): void {
+    $stored = ['version' => 1, 'label' => 'Esemény', 'capabilities' => ['textual', 'routable'], 'fields' => [
+        ['name' => 'nap', 'type' => 'date', 'label' => 'Nap', 'required' => true, 'queryable' => true],
+        ['name' => 'fajta', 'type' => 'choice', 'label' => 'Fajta', 'choices' => ['eloadas' => 'Előadás'], 'default' => 'eloadas'],
+    ], 'relations' => [['name' => 'kep', 'label' => 'Kép', 'targets' => ['image']]]];
+    $definition = \Campanella\Model\BlueprintDefinition::toRegistry($stored);
+    check($definition['capabilities'] === ['titled', 'textual', 'routable'] && $definition['queryable'] === ['nap'], json_encode($definition['capabilities']));
+    check($definition['form_order'] === ['title', 'nap', 'fajta', 'body', 'kep'] && $definition['defaults'] === ['format' => 'html']);
+    check($definition['fields'][1]->default === 'eloadas' && !$definition['relations'][0]->isMany() && $definition['relations'][0]->targetBlueprints === ['image']);
+    $field = \Campanella\Model\BlueprintDefinition::field(['name' => 'ar', 'type' => 'decimal', 'label' => 'Ár', 'scale' => 0, 'default' => '1500']);
+    check(\Campanella\Model\BlueprintDefinition::fieldArray($field) === ['name' => 'ar', 'type' => 'decimal', 'label' => 'Ár', 'required' => false, 'queryable' => false, 'cardinality' => 1, 'translatable' => false, 'length' => 255, 'scale' => 0, 'choices' => [], 'default' => '1500'], json_encode(\Campanella\Model\BlueprintDefinition::fieldArray($field)));
+
+    $bad = static fn (array $change): bool => (static function () use ($stored, $change): bool {
+        try {
+            \Campanella\Model\BlueprintDefinition::toRegistry(array_replace_recursive($stored, $change));
+        } catch (InvalidArgumentException) {
+            return true;
+        }
+
+        return false;
+    })();
+    check($bad(['capabilities' => ['authenticatable']]), 'no system capability');
+    check($bad(['fields' => [['type' => 'nope']]]) && $bad(['fields' => [['name' => 'Nap']]]) && $bad(['fields' => [['name' => 'created']]]), 'type and name');
+    check($bad(['fields' => [1 => ['name' => 'nap']]]) && $bad(['relations' => [['targets' => ['Kép']]]]) && $bad(['label' => '']), 'duplicate names, an invalid target, an empty label');
+    check($bad(['relations' => [['name' => 'nap']]]), 'a relation with a field\'s name');
+    check($bad(['fields' => [1 => ['default' => 'nincs']]]) && $bad(['fields' => [0 => ['length' => 300]]]), 'a default not among the choices, a length over 255');
+
+    $registry = new BlueprintRegistry(new CapabilityRegistry([Titled::class, Textual::class, Routable::class]), ['page' => ['capabilities' => [Titled::class]]]);
+    $registry->loadStored(['esemeny' => $stored + ['relations' => []], 'page' => $stored, 'hibas' => ['capabilities' => ['authenticatable']]]);
+    check($registry->isEditable('esemeny') && !$registry->isEditable('page') && $registry->find('hibas') === null, 'loaded, the rest left out');
+    check(array_keys($registry->storedErrors()) === ['page', 'hibas'], json_encode($registry->storedErrors()));
+    throws(CapabilityException::class, static fn () => $registry->define('x', ['capabilities' => [Titled::class], 'fields' => [new Field('updated', FieldType::String)]]));
+});
+
+test('Kernel: a Blueprint made in the admin, its fields, relations and objects', function () use ($newUser): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = null;
+    $storage = new ArraySessionStorage();
+    $boot = static function () use (&$kernel, $storage) {
+        // A new Kernel for each request, as a new page load: the Blueprints are read again.
+        $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+        $kernel->container()->set(Session::class, static fn () => new Session($storage));
+
+        return $kernel->container();
+    };
+    $container = $boot();
+    if ($container->get(Connection::class)->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $db = $container->get(Connection::class);
+    $backups = dirname(__DIR__) . '/var/backups';
+    $before = glob($backups . '/campanella-*') ?: [];
+    $send = function (string $method, string $path, array $post = []) use (&$kernel, $storage, $boot) {
+        $storage->endRequest();
+        $boot();
+
+        return $kernel->handle(new Request($method, $path, post: $post));
+    };
+    $csrf = static fn ($response): string => preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $response->body, $m) === 1 ? $m[1] : '';
+    $auth = $container->get(AuthService::class);
+
+    $auth->login(new Request('GET', '/'), $newUser('bp-szerk@example.hu', 'blueprint-jelszo-1', ['editor']));
+    check($send('GET', '/admin/system/blueprints/new')->status === 403, 'not for editors');
+    $boot()->get(AuthService::class)->login(new Request('GET', '/'), $newUser('bp-admin@example.hu', 'blueprint-jelszo-1', ['administrator']));
+
+    $overview = $send('GET', '/admin/system/blueprints');
+    check($overview->status === 200 && str_contains($overview->body, 'Új Blueprint') && str_contains($overview->body, 'kódban megadott'), 'the overview');
+    check($send('GET', '/admin/system/blueprints/article')->status === 404, 'a Blueprint of the file cannot be edited');
+    $page = $send('GET', '/admin/system/blueprints/new');
+    $token = $csrf($page);
+    check($page->status === 200 && $token !== '' && str_contains($page->body, 'value="titled"') && !str_contains($page->body, 'value="authenticatable"'), 'the form offers the content capabilities');
+    check($send('POST', '/admin/system/blueprints/new', ['_csrf' => 'x', 'name' => 'esemeny', 'label' => 'Esemény'])->status === 400, 'CSRF');
+    check($send('POST', '/admin/system/blueprints/new', ['_csrf' => $token, 'name' => 'article', 'label' => 'Cikk'])->status === 422, 'a name taken');
+    check($send('POST', '/admin/system/blueprints/new', ['_csrf' => $token, 'name' => 'Esemény', 'label' => 'Esemény'])->status === 422, 'an invalid name');
+    $created = $send('POST', '/admin/system/blueprints/new', ['_csrf' => $token, 'name' => 'esemeny', 'label' => 'Esemény', 'capabilities' => ['textual', 'routable', 'publishable', 'authenticatable']]);
+    check($created->status === 303 && ($created->headers['Location'] ?? '') === '/admin/system/blueprints/esemeny', (string) $created->status);
+    $registry = $boot()->get(BlueprintRegistry::class);
+    check($registry->isEditable('esemeny') && array_keys($registry->get('esemeny')->capabilities) === ['titled', 'textual', 'routable', 'publishable'], json_encode(array_keys($registry->get('esemeny')->capabilities)));
+
+    $field = static fn (array $post) => $send('POST', '/admin/system/blueprints/esemeny/fields/new', ['_csrf' => $token] + $post + ['required' => '', 'queryable' => '', 'multiple' => '', 'max' => '', 'length' => '255', 'scale' => '2', 'choices' => '', 'default' => '']);
+    check($field(['name' => 'nap', 'label' => 'Nap', 'type' => 'date', 'required' => '1', 'queryable' => '1'])->status === 303, 'a date field');
+    check($field(['name' => 'ar', 'label' => 'Ár', 'type' => 'decimal', 'queryable' => '1', 'scale' => '0'])->status === 303, 'a decimal field');
+    check($field(['name' => 'fajta', 'label' => 'Fajta', 'type' => 'choice', 'choices' => "eloadas | Előadás\nSéta"])->status === 303, 'a choice field');
+    check($field(['name' => 'nap', 'label' => 'Megint', 'type' => 'string'])->status === 422 && $field(['name' => 'title', 'label' => 'Cím', 'type' => 'string'])->status === 422, 'names taken');
+    check($field(['name' => 'rossz', 'label' => 'Rossz', 'type' => 'choice', 'choices' => ''])->status === 422, 'a choice field without choices');
+    $relation = $send('POST', '/admin/system/blueprints/esemeny/relations/new', ['_csrf' => $token, 'name' => 'kep', 'label' => 'Kép', 'target' => 'image', 'many' => '', 'required' => '']);
+    check($relation->status === 303, (string) $relation->status);
+    check($send('POST', '/admin/system/blueprints/esemeny/relations/new', ['_csrf' => $token, 'name' => 'tag', 'label' => 'Tag', 'target' => 'user'])->status === 422, 'users are not a target');
+
+    $info = (new \Campanella\Database\Schema\SchemaReader($db))->read('bp_esemeny');
+    check($info !== null && $info->column('nap')?->type === \Campanella\Database\Schema\ColumnType::Date && !$info->column('nap')->nullable && $info->column('ar') !== null && $info->column('fajta') === null, 'the table and its columns');
+    $stored = $boot()->get(\Campanella\Model\BlueprintStore::class)->find('esemeny');
+    check(($stored['fields'][2]['choices'] ?? null) === ['eloadas' => 'Előadás', 'seta' => 'Séta'], json_encode($stored['fields'][2] ?? null, JSON_UNESCAPED_UNICODE));
+
+    // Objects of it: the admin's form, the list, the site.
+    $form = $send('GET', '/admin/esemeny/new');
+    check($form->status === 200 && str_contains($form->body, 'type="date"') && str_contains($form->body, '<option value="seta"') && str_contains($form->body, 'name="r[kep]"'), 'the generic form');
+    $repository = $boot()->get(ObjectRepository::class);
+    $event = $repository->create('esemeny', ['title' => 'Nyílt nap', 'path' => '/nyilt-nap', 'nap' => '2026-10-24', 'ar' => '1500', 'fajta' => 'seta', 'status' => PublishStatus::Published]);
+    $repository->save($event);
+    check($send('GET', '/admin/esemeny')->status === 200, 'the list');
+    $public = $send('GET', '/nyilt-nap');
+    check($public->status === 200 && str_contains($public->body, 'Séta') && str_contains($public->body, '2026. 10. 24.') && str_contains($public->body, "1\u{a0}500"), 'the page shows its fields');
+
+    // With objects: a required queryable field needs a default; adding a column backs up first.
+    check($field(['name' => 'hely', 'label' => 'Hely', 'type' => 'string', 'required' => '1', 'queryable' => '1'])->status === 422, 'needs a default');
+    $added = $field(['name' => 'hely', 'label' => 'Hely', 'type' => 'string', 'required' => '1', 'queryable' => '1', 'default' => 'Budapest']);
+    check($added->status === 303, (string) $added->status);
+    check((string) $db->fetchValue('SELECT hely FROM {bp_esemeny} WHERE object_id = :id', ['id' => $event->id()]) === 'Budapest', 'the existing object got the default');
+    $made = array_diff(glob($backups . '/campanella-*') ?: [], $before);
+    check(count($made) === 1, 'one backup: ' . count($made));
+    $edit = $send('GET', '/admin/system/blueprints/esemeny');
+    check(str_contains($edit->body, 'Előtte mentés készült') && str_contains($edit->body, 'Hely'), 'the backup is reported');
+
+    // The safe changes: label, order; the type stays.
+    check($send('POST', '/admin/system/blueprints/esemeny/fields/ar', ['_csrf' => $token, 'label' => 'Ár (Ft)', 'type' => 'string', 'scale' => '0', 'default' => '', 'choices' => ''])->status === 303);
+    check($send('POST', '/admin/system/blueprints/esemeny/fields/ar/move-up', ['_csrf' => $token])->status === 303);
+    $fields = $boot()->get(BlueprintRegistry::class)->get('esemeny')->fields;
+    check(array_keys($fields) === ['ar', 'nap', 'fajta', 'hely'] && $fields['ar']->label === 'Ár (Ft)' && $fields['ar']->type === FieldType::Decimal, json_encode(array_keys($fields)));
+    check($send('POST', '/admin/system/blueprints/esemeny/fields/fajta', ['_csrf' => $token, 'label' => 'Fajta', 'choices' => 'eloadas | Előadás', 'scale' => '2', 'default' => ''])->status === 422, 'a choice in use stays');
+
+    // Deleting: only without objects; the empty table goes too.
+    $send('POST', '/admin/system/blueprints/esemeny/delete', ['_csrf' => $token]);
+    check($boot()->get(BlueprintRegistry::class)->find('esemeny') !== null, 'not with objects');
+    $boot()->get(ObjectRepository::class)->delete($event);
+    $deleted = $send('POST', '/admin/system/blueprints/esemeny/delete', ['_csrf' => $token]);
+    check($deleted->status === 303 && $boot()->get(BlueprintRegistry::class)->find('esemeny') === null && !(new \Campanella\Database\Schema\SchemaReader($db))->tableExists('bp_esemeny'), 'deleted');
+
+    // A definition changed by hand that does not pass is not loaded, and the overview says so.
+    $boot()->get(\Campanella\Model\BlueprintStore::class)->save('kezi', ['label' => 'Kézi', 'capabilities' => ['authenticatable']]);
+    check(str_contains($send('GET', '/admin/system/blueprints')->body, 'A(z) „kezi”') || str_contains($send('GET', '/admin/system/blueprints')->body, '„kezi”'), 'reported');
+    $boot()->get(\Campanella\Model\BlueprintStore::class)->delete('kezi');
+
+    foreach ($made as $file) {
+        @unlink($file);
+    }
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
 echo "\nDocumentation examples\n";
 
 test('New capability as in the docs example (Featured)', function () use ($db, $admin): void {

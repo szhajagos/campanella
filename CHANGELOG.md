@@ -10,6 +10,45 @@ backward-incompatible.
 
 ## [Unreleased]
 
+## [0.2.3] – 2026-10-14
+
+**Blueprints made in the admin.** The second step towards 0.3.0: an
+administrator can now make a new kind of content in the browser, with its
+capabilities, fields and relations, without touching `config/blueprints.php`.
+Its objects are edited, listed and shown like any other.
+
+**Upgrading from 0.2.2:** upload the new files, then run the upgrade
+(`/admin/upgrade`, or `php bin/campanella migrate`): it adds the `blueprints`
+table (schema version 14). Nothing else changes for an existing site.
+
+### Added
+
+- **Making Blueprints** under System → Blueprints → New Blueprint: a name, a
+  machine name and capabilities (the content ones; never those of users,
+  images, forms' messages or menus). On its page: fields (every type of 0.2.2;
+  required, filter and sort by it, several values, translatable, choices,
+  length, decimals, default), relations to another Blueprint's objects (one
+  or several, required), the fields' order, its name and capabilities, and
+  deleting it while it has no objects
+  ([PHP API](docs/php-api/13-admin.md#making-blueprints-blueprinteditor)).
+- Every change is checked by defining all the Blueprints again; when the
+  database changes and the Blueprint has objects, **a backup is made first**;
+  if applying the change fails, the old definition is put back. A required
+  field that can be filtered on asks for a default when there are objects
+  already.
+- The definitions are stored in the new `blueprints` table as JSON
+  (`BlueprintStore`, `BlueprintDefinition`: the format the content model's
+  export will use). A stored definition that does not pass the checks is not
+  loaded, and the Blueprints page says why.
+- The Blueprints page marks which ones are defined in code and which were made
+  in the admin.
+
+### Changed
+
+- No Blueprint's own field may be called `id`, `uuid`, `blueprint`,
+  `created`, `updated` or `object_id` (they were never usable: the first five
+  are every object's base fields, the last the key of the Blueprint's table).
+
 ## [0.2.2] – 2026-10-13
 
 **Fields to filter and sort on, and new field types.** The first step towards

@@ -1,4 +1,4 @@
-# Campanella 0.2.2
+# Campanella 0.2.3
 
 [![CI](https://github.com/szhajagos/campanella/actions/workflows/ci.yml/badge.svg)](https://github.com/szhajagos/campanella/actions/workflows/ci.yml)
 
@@ -13,24 +13,23 @@ templates and their variables, and the Twig functions only grow (see the
 [compatibility promise](docs/compatibility.md)). Plans are in the
 [ROADMAP](ROADMAP.md), changes in the [CHANGELOG](CHANGELOG.md).
 
-## What is new in 0.2.2
+## What is new since 0.2.0
 
-**Fields to filter and sort on:** a Blueprint's own fields listed under its
-`queryable` key get a column in the Blueprint's own table, so lists can be
-filtered and ordered by them (a price, a date, a category of one's own). Six
-new field types: decimal, date, e-mail address, web address, a choice list and
-formatted text. And the design of [translations](docs/translations.md). It is
-the first step towards 0.3.0, content types built in the admin
-([ROADMAP](ROADMAP.md#030--the-content-model-in-the-admin)).
+The steps towards 0.3.0, content types built in the admin
+([ROADMAP](ROADMAP.md#030--the-content-model-in-the-admin)):
 
-## What was new in 0.2.1
-
-**A guide for site owners**, in Hungarian and English, with screenshots
-([docs/guide/](docs/guide/README.md)): installing, the admin, content, menus,
-images, users, the contact form and privacy, e-mail, backups and upgrades,
-and what to do when something does not work. It is written for people who run
-a site but do not develop it. Dates now follow the interface language, and a
-few small display bugs are fixed (see the [CHANGELOG](CHANGELOG.md)).
+- **0.2.3 – Blueprints made in the admin:** an administrator can make a new
+  kind of content in the browser (System → Blueprints → New Blueprint), with
+  its capabilities, fields and relations; the database is changed at once,
+  with a backup first if there are objects already. Its objects are edited,
+  listed and shown like any other.
+- **0.2.2 – Fields to filter and sort on:** a Blueprint's own fields can get a
+  column of their own, so lists can be filtered and ordered by them; six new
+  field types (decimal, date, e-mail address, web address, a choice list,
+  formatted text); the design of [translations](docs/translations.md).
+- **0.2.1 – A guide for site owners**, in Hungarian and English, with
+  screenshots ([docs/guide/](docs/guide/README.md)), for people who run a site
+  but do not develop it.
 
 ## What was new in 0.2.0
 

@@ -1,8 +1,15 @@
 {% extends '@core/admin/base.html.twig' %}
 
 {% block content %}
-    <h1 class="h3 mb-2">{{ t('structure.blueprints') }}</h1>
+    <div class="d-flex flex-wrap align-items-baseline gap-2 mb-2">
+        <h1 class="h3 mb-0 me-auto">{{ t('structure.blueprints') }}</h1>
+        {% if can_edit ?? false %}<a class="btn btn-primary btn-sm" href="{{ admin_url('system/blueprints/new') }}">{{ t('blueprints.new') }}</a>{% endif %}
+    </div>
     <p class="text-body-secondary mb-4">{{ t('structure.blueprints_intro') }}</p>
+
+    {% for name, reason in stored_errors ?? {} %}
+        <div class="alert alert-danger" role="alert">{{ t('blueprints.not_loaded', {name: name, reason: reason}) }}</div>
+    {% endfor %}
 
     <nav class="mb-4 small" aria-label="{{ t('structure.blueprints') }}">
         {% for blueprint in blueprints %}<a class="me-3" href="#bp-{{ blueprint.name }}">{{ t(blueprint.label) }}</a>{% endfor %}
@@ -13,7 +20,13 @@
             <div class="card-header d-flex flex-wrap align-items-baseline gap-2">
                 <h2 class="h5 mb-0 me-2" id="bp-{{ blueprint.name }}-title">{{ t(blueprint.label) }}</h2>
                 <code class="small">{{ blueprint.name }}</code>
+                {% if blueprint.editable %}
+                    <span class="badge text-bg-primary-subtle border">{{ t('blueprints.made_in_admin') }}</span>
+                {% else %}
+                    <span class="badge text-bg-light border" title="{{ t('blueprints.in_code_help') }}">{{ t('blueprints.in_code') }}</span>
+                {% endif %}
                 <a class="small ms-auto" href="{{ url(blueprint.list_path) }}">{{ t('structure.objects', {count: blueprint.count}) }}</a>
+                {% if blueprint.editable and (can_edit ?? false) %}<a class="btn btn-outline-primary btn-sm" href="{{ admin_url('system/blueprints/' ~ blueprint.name) }}">{{ t('blueprints.edit_link') }}</a>{% endif %}
             </div>
             <div class="card-body">
                 <h3 class="h6">{{ t('structure.capabilities') }}</h3>

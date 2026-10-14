@@ -22,6 +22,7 @@ final class CoreSchema
     public const string MAIL_LOG = 'mail_log';
     public const string SESSIONS = 'sessions';
     public const string PASSWORD_RESETS = 'password_resets';
+    public const string BLUEPRINTS = 'blueprints';
 
     /** @return list<Table> */
     public static function tables(): array
@@ -206,6 +207,18 @@ final class CoreSchema
                 indexes: ['idx_user' => ['user_id'], 'idx_expires' => ['expires_at']],
                 uniques: ['uniq_selector' => ['selector']],
                 foreignKeys: [new ForeignKey('user_id', self::OBJECTS)],
+            ),
+            // The Blueprints made in the admin (since 0.2.3, schema version 14): the definition
+            // as JSON, loaded but never queried (Campanella\Model\BlueprintStore).
+            new Table(
+                name: self::BLUEPRINTS,
+                columns: [
+                    new Column('name', ColumnType::String, length: 64),
+                    new Column('definition', ColumnType::Json),
+                    new Column('created_at', ColumnType::DateTime),
+                    new Column('updated_at', ColumnType::DateTime),
+                ],
+                primaryKey: ['name'],
             ),
             // Throttling of attempts (e.g. login). The SHA-256 hash of the key.
             new Table(
