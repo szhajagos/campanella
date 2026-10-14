@@ -20,13 +20,19 @@ use InvalidArgumentException;
  *   "capabilities": ["titled", "textual", "routable", "publishable"],
  *   "fields": [
  *     {"name": "day", "type": "date", "label": "Nap", "required": true, "queryable": true,
- *      "cardinality": 1, "translatable": false, "length": 255, "scale": 2, "choices": {}, "default": null}
+ *      "cardinality": 1, "translatable": false, "length": 255, "scale": 2, "choices": [], "default": null},
+ *     {"name": "fajta", "type": "choice", "label": "Fajta",
+ *      "choices": [{"key": "eloadas", "label": "Előadás"}, {"key": "seta", "label": "Séta"}]}
  *   ],
  *   "relations": [
  *     {"name": "photo", "label": "Kép", "targets": ["image"], "many": false, "required": false}
  *   ]
  * }
  * ```
+ *
+ * The choices are a list of key–label pairs, not an object: MySQL stores a JSON
+ * object with its keys sorted, which would lose their order (0.2.3 wrote an
+ * object; it is still read).
  *
  * Everything read from the database is checked again here: a definition that
  * does not pass is not loaded (it may have been changed by hand).
@@ -122,8 +128,20 @@ final class BlueprintDefinition
             throw new InvalidArgumentException("Field {$name}: the length is 1 to 255.");
         }
         $choices = [];
-        foreach (is_array($item['choices'] ?? null) ? $item['choices'] : [] as $key => $label) {
-            $choices[(string) $key] = self::label($label);
+        $stored = is_array($item['choices'] ?? null) ? $item['choices'] : [];
+        foreach ($stored as $key => $choice) {
+            if (array_is_list($stored)) {
+                // [{"key": …, "label": …}, …]
+                if (!is_array($choice) || !is_scalar($choice['key'] ?? null)) {
+                    throw new InvalidArgumentException("Field {$name}: a choice is a key and a label.");
+                }
+                $key = $choice['key'];
+                $choice = $choice['label'] ?? null;
+            }
+            if (array_key_exists((string) $key, $choices)) {
+                throw new InvalidArgumentException("Field {$name}: the choice '{$key}' is given twice.");
+            }
+            $choices[(string) $key] = self::label($choice);
         }
         $default = $item['default'] ?? null;
         if ($default !== null && !is_scalar($default)) {
@@ -186,7 +204,11 @@ final class BlueprintDefinition
             'translatable' => $field->translatable,
             'length' => $field->length,
             'scale' => $field->scale,
-            'choices' => $field->choices,
+            'choices' => array_map(
+                static fn (string|int $key, string $label): array => ['key' => (string) $key, 'label' => $label],
+                array_keys($field->choices),
+                array_values($field->choices),
+            ),
             'default' => $field->default === null ? null : $field->type->toStorage($field->default),
         ];
     }

@@ -6141,13 +6141,15 @@ echo "\nBlueprints made in the admin (0.2.3)\n";
 test('BlueprintDefinition: the stored form, checked', function (): void {
     $stored = ['version' => 1, 'label' => 'Esemény', 'capabilities' => ['textual', 'routable'], 'fields' => [
         ['name' => 'nap', 'type' => 'date', 'label' => 'Nap', 'required' => true, 'queryable' => true],
-        ['name' => 'fajta', 'type' => 'choice', 'label' => 'Fajta', 'choices' => ['eloadas' => 'Előadás'], 'default' => 'eloadas'],
+        ['name' => 'fajta', 'type' => 'choice', 'label' => 'Fajta', 'choices' => [['key' => 'eloadas', 'label' => 'Előadás']], 'default' => 'eloadas'],
     ], 'relations' => [['name' => 'kep', 'label' => 'Kép', 'targets' => ['image']]]];
     $definition = \Campanella\Model\BlueprintDefinition::toRegistry($stored);
     check($definition['capabilities'] === ['titled', 'textual', 'routable'] && $definition['queryable'] === ['nap'], json_encode($definition['capabilities']));
     check($definition['form_order'] === ['title', 'nap', 'fajta', 'body', 'kep'] && $definition['defaults'] === ['format' => 'html']);
     check($definition['fields'][1]->default === 'eloadas' && !$definition['relations'][0]->isMany() && $definition['relations'][0]->targetBlueprints === ['image']);
     $field = \Campanella\Model\BlueprintDefinition::field(['name' => 'ar', 'type' => 'decimal', 'label' => 'Ár', 'scale' => 0, 'default' => '1500']);
+    $legacy = \Campanella\Model\BlueprintDefinition::field(['name' => 'f', 'type' => 'choice', 'label' => 'F', 'choices' => ['b' => 'B', 'a' => 'A']]);
+    check($legacy->choices === ['b' => 'B', 'a' => 'A'] && \Campanella\Model\BlueprintDefinition::fieldArray($legacy)['choices'] === [['key' => 'b', 'label' => 'B'], ['key' => 'a', 'label' => 'A']], 'the form 0.2.3 wrote is read');
     check(\Campanella\Model\BlueprintDefinition::fieldArray($field) === ['name' => 'ar', 'type' => 'decimal', 'label' => 'Ár', 'required' => false, 'queryable' => false, 'cardinality' => 1, 'translatable' => false, 'length' => 255, 'scale' => 0, 'choices' => [], 'default' => '1500'], json_encode(\Campanella\Model\BlueprintDefinition::fieldArray($field)));
 
     $bad = static fn (array $change): bool => (static function () use ($stored, $change): bool {
@@ -6232,7 +6234,8 @@ test('Kernel: a Blueprint made in the admin, its fields, relations and objects',
     $info = (new \Campanella\Database\Schema\SchemaReader($db))->read('bp_esemeny');
     check($info !== null && $info->column('nap')?->type === \Campanella\Database\Schema\ColumnType::Date && !$info->column('nap')->nullable && $info->column('ar') !== null && $info->column('fajta') === null, 'the table and its columns');
     $stored = $boot()->get(\Campanella\Model\BlueprintStore::class)->find('esemeny');
-    check(($stored['fields'][2]['choices'] ?? null) === ['eloadas' => 'Előadás', 'seta' => 'Séta'], json_encode($stored['fields'][2] ?? null, JSON_UNESCAPED_UNICODE));
+    check(($stored['fields'][2]['choices'] ?? null) === [['key' => 'eloadas', 'label' => 'Előadás'], ['key' => 'seta', 'label' => 'Séta']], json_encode($stored['fields'][2] ?? null, JSON_UNESCAPED_UNICODE));
+    check(array_keys($boot()->get(BlueprintRegistry::class)->get('esemeny')->fields['fajta']->choices) === ['eloadas', 'seta'], 'in their order (MySQL sorts the keys of a JSON object)');
 
     // Objects of it: the admin's form, the list, the site.
     $form = $send('GET', '/admin/esemeny/new');

@@ -407,7 +407,9 @@ takes. The same form will be the content model's export (0.2.6):
   "capabilities": ["titled", "textual", "routable", "publishable"],
   "fields": [
     {"name": "nap", "type": "date", "label": "Nap", "required": true, "queryable": true,
-     "cardinality": 1, "translatable": false, "length": 255, "scale": 2, "choices": {}, "default": null}
+     "cardinality": 1, "translatable": false, "length": 255, "scale": 2, "choices": [], "default": null},
+    {"name": "fajta", "type": "choice", "label": "Fajta",
+     "choices": [{"key": "eloadas", "label": "Előadás"}, {"key": "seta", "label": "Séta"}]}
   ],
   "relations": [
     {"name": "kep", "label": "Kép", "targets": ["image"], "many": false, "required": false}
@@ -423,6 +425,9 @@ takes. The same form will be the content model's export (0.2.6):
 | `static name(mixed $name): string` | A machine name: `^[a-z][a-z0-9_]{0,39}$`; `InvalidArgumentException` otherwise |
 | `SYSTEM_CAPABILITIES` | The capabilities such a Blueprint cannot have: `identifiable`, `authenticatable`, `media_file`, `submitted`, `keyed`, `link` |
 | `REQUIRED_CAPABILITY`, `MAX_LABEL`, `MAX_FIELDS`, `VERSION` | `titled`; 100 characters; 60 fields and relations; 1 |
+
+The choices are a list of key–label pairs, not a JSON object: MySQL stores an
+object with its keys sorted, so their order would be lost.
 
 Everything read from the database is checked again: a definition that does not
 pass (e.g. changed by hand) is not loaded.
