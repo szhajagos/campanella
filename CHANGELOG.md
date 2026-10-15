@@ -10,7 +10,17 @@ backward-incompatible.
 
 ## [Unreleased]
 
-Work towards 0.2.4: changing and deleting fields in the admin, in parts.
+## [0.2.4] – 2026-10-15
+
+**Changing and deleting fields in the admin.** The third step towards 0.3.0:
+a Blueprint made in the admin can now be reshaped after it has content. A
+field's type can be widened, it can get or lose its column, one value can
+become several or the other way round, it can be made required, and fields
+and relations can be deleted. Every change that touches data is done after a
+backup, and what cannot be done safely is refused with the reason.
+
+**Upgrading from 0.2.3:** upload the new files. The database does not change
+(schema version 14), so there is nothing to run.
 
 ### Added
 
@@ -28,6 +38,11 @@ Work towards 0.2.4: changing and deleting fields in the admin, in parts.
   length, and making it required (the empty values get its default; without
   one, the form says why not). Applied at once, with a backup first if the
   Blueprint has objects.
+- **Deleting a field or a relation in the admin**, after ticking a
+  confirmation: the page says how many objects have a value (or how many
+  links there are); a backup is made first; then its column (or the
+  Blueprint's table, if nothing else is left), its rows in `field_values` and
+  its key in the objects' JSON data, or the relation's links, are deleted.
 
 ### Fixed
 

@@ -32,16 +32,16 @@ use Closure;
 /**
  * Blueprints made in the admin (since 0.2.3), under /admin/system/blueprints, for
  * the system roles: creating one, its label and capabilities, adding fields and
- * relations, the safe changes of a field (label, required for a field without a
- * column, choices added, default), their order, deleting a Blueprint without
- * objects.
+ * relations, changing a field (since 0.2.4: everything but its name, its type
+ * only to a wider one), their order, deleting fields and relations (since 0.2.4)
+ * and a Blueprint without objects.
  *
  * A change is checked by defining every Blueprint again with it (config/blueprints.php
  * and the stored ones); then, if the database must change and the Blueprint has
  * objects, a backup is made; then the definition is saved and the SchemaSync applies
- * it (new table, column, capability). If applying fails, the old definition is put
- * back. The type, the column and the number of values of a field, and deleting
- * fields and relations, come in 0.2.4.
+ * it (new table, column, capability, a changed column, moved values). If applying
+ * fails, the old definition is put back. A deleted field's or relation's values are
+ * deleted after its definition is saved, with a backup first.
  */
 final class BlueprintEditor
 {
@@ -110,6 +110,10 @@ final class BlueprintEditor
             count($rest) === 2 && $rest[0] === 'fields' && isset($blueprint->fields[$rest[1]]) => $this->field($request, $blueprint, $blueprint->fields[$rest[1]], $render),
             count($rest) === 3 && $rest[0] === 'fields' && isset($blueprint->fields[$rest[1]]) && in_array($rest[2], ['move-up', 'move-down'], true)
                 => $this->move($request, $blueprint, $rest[1], $rest[2] === 'move-up' ? -1 : 1),
+            count($rest) === 3 && $rest[0] === 'fields' && isset($blueprint->fields[$rest[1]]) && $rest[2] === 'delete'
+                => $this->deleteField($request, $blueprint, $blueprint->fields[$rest[1]]),
+            count($rest) === 3 && $rest[0] === 'relations' && isset($blueprint->relations[$rest[1]]) && $rest[2] === 'delete'
+                => $this->deleteRelation($request, $blueprint, $blueprint->relations[$rest[1]]),
             $rest === ['relations', 'new'] => $this->relation($request, $blueprint, null, $render),
             count($rest) === 2 && $rest[0] === 'relations' && isset($blueprint->relations[$rest[1]]) => $this->relation($request, $blueprint, $blueprint->relations[$rest[1]], $render),
             default => throw HttpException::notFound(),
@@ -265,6 +269,7 @@ final class BlueprintEditor
             'alert_text' => $alert,
             'types' => $field === null ? self::TYPES : self::typesFor($field),
             'multiple_before' => $field?->isMultiple() ?? false,
+            'value_count' => $field === null ? 0 : count($this->objectsWithValue($blueprint, $field)),
         ]);
 
         return $request->isPost() ? self::status($response, 422) : $response;
@@ -541,9 +546,182 @@ final class BlueprintEditor
             'errors' => $errors,
             'alert_text' => $alert,
             'targets' => $targets,
+            'link_count' => $relation === null ? 0 : $this->linkCount($blueprint, $relation),
         ]);
 
         return $request->isPost() ? self::status($response, 422) : $response;
+    }
+
+    /**
+     * POST: deletes a field (since 0.2.4), confirmed: a backup first if any object has
+     * a value, then the definition without it, then its values (its column, its rows in
+     * field_values, its key in the JSON data; the table itself if nothing else is left).
+     */
+    private function deleteField(Request $request, Blueprint $blueprint, Field $field): Response
+    {
+        if (!$request->isPost()) {
+            throw new HttpException(405, 'error.method_not_allowed');
+        }
+        $back = Response::redirect($request->basePath . $this->access->path('system/blueprints/' . $blueprint->name . '/fields/' . $field->name), 303);
+        if (!$this->csrf->isValid($request)) {
+            $this->flash->add(Flash::DANGER, 'auth.form_expired');
+
+            return $back;
+        }
+        if ($request->postString('confirm') !== '1') {
+            $this->flash->add(Flash::DANGER, 'blueprints.delete_confirm_needed');
+
+            return $back;
+        }
+        $error = $this->backupIf($this->objectsWithValue($blueprint, $field) !== []);
+        if ($error === null) {
+            $stored = $this->stored($blueprint->name);
+            $fields = array_values(array_filter($stored['fields'], static fn (array $item): bool => ($item['name'] ?? null) !== $field->name));
+            $error = $this->commit($blueprint->name, ['fields' => $fields] + $stored);
+        }
+        if ($error !== null) {
+            $this->flash->add(Flash::DANGER, $error);
+
+            return $back;
+        }
+        try {
+            $this->purgeField($blueprint, $field);
+        } catch (\Throwable $e) {
+            error_log('Campanella: the values of the deleted field ' . $blueprint->name . '.' . $field->name . ' could not be deleted: ' . $e);
+            $this->flash->add(Flash::WARNING, new Message('blueprints.purge_failed', ['error' => $e->getMessage()]));
+        }
+        $this->flash->add(Flash::SUCCESS, new Message('blueprints.field_deleted', ['label' => $field->label]));
+
+        return $this->redirect($request, $blueprint->name);
+    }
+
+    /** POST: deletes a relation (since 0.2.4), confirmed: a backup first if it has links, then the links of the Blueprint's objects. */
+    private function deleteRelation(Request $request, Blueprint $blueprint, Relation $relation): Response
+    {
+        if (!$request->isPost()) {
+            throw new HttpException(405, 'error.method_not_allowed');
+        }
+        $back = Response::redirect($request->basePath . $this->access->path('system/blueprints/' . $blueprint->name . '/relations/' . $relation->name), 303);
+        if (!$this->csrf->isValid($request)) {
+            $this->flash->add(Flash::DANGER, 'auth.form_expired');
+
+            return $back;
+        }
+        if ($request->postString('confirm') !== '1') {
+            $this->flash->add(Flash::DANGER, 'blueprints.delete_confirm_needed');
+
+            return $back;
+        }
+        $error = $this->backupIf($this->linkCount($blueprint, $relation) > 0);
+        if ($error === null) {
+            $stored = $this->stored($blueprint->name);
+            $relations = array_values(array_filter($stored['relations'], static fn (array $item): bool => ($item['name'] ?? null) !== $relation->name));
+            $error = $this->commit($blueprint->name, ['relations' => $relations] + $stored);
+        }
+        if ($error !== null) {
+            $this->flash->add(Flash::DANGER, $error);
+
+            return $back;
+        }
+        $this->db->execute(
+            'DELETE r FROM {relationships} r JOIN {objects} o ON o.id = r.source_id WHERE o.blueprint = :b AND r.type = :t',
+            ['b' => $blueprint->name, 't' => $relation->name],
+        );
+        $this->flash->add(Flash::SUCCESS, new Message('blueprints.relation_deleted', ['label' => $relation->label]));
+
+        return $this->redirect($request, $blueprint->name);
+    }
+
+    /** A backup if there is something to lose; the reason it failed, or null. */
+    private function backupIf(bool $needed): ?string
+    {
+        if (!$needed) {
+            return null;
+        }
+        try {
+            $file = $this->backup->create();
+            $this->flash->add(Flash::INFO, new Message('blueprints.backup_made', ['file' => basename($file)]));
+        } catch (\RuntimeException $e) {
+            return $this->translator->translate('blueprints.backup_failed', ['error' => $e->getMessage()]);
+        }
+
+        return null;
+    }
+
+    /**
+     * The Blueprint's objects that have a value of the field, wherever it is stored.
+     *
+     * @return array<int, true>
+     */
+    private function objectsWithValue(Blueprint $blueprint, Field $field): array
+    {
+        $ids = [];
+        $info = (new SchemaReader($this->db))->read($blueprint->tableName());
+        if ($info?->column($field->name) !== null) {
+            foreach ($this->db->fetchColumn(sprintf('SELECT object_id FROM %s WHERE %s IS NOT NULL', $this->db->table($blueprint->tableName()), Connection::quoteIdentifier($field->name))) as $id) {
+                $ids[(int) $id] = true;
+            }
+        }
+        foreach ($this->db->fetchColumn('SELECT DISTINCT fv.object_id FROM {field_values} fv JOIN {objects} o ON o.id = fv.object_id WHERE o.blueprint = :b AND fv.field = :f', ['b' => $blueprint->name, 'f' => $field->name]) as $id) {
+            $ids[(int) $id] = true;
+        }
+        foreach ($this->objectsWithDataKey($blueprint->name, $field->name) as $id => $data) {
+            if (!$field->isEmpty($data[$field->name])) {
+                $ids[$id] = true;
+            }
+        }
+
+        return $ids;
+    }
+
+    /**
+     * The Blueprint's objects whose JSON data has the key.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function objectsWithDataKey(string $blueprint, string $key): array
+    {
+        $found = [];
+        $rows = $this->db->fetchAll('SELECT id, data FROM {objects} WHERE blueprint = :b AND data LIKE :k', ['b' => $blueprint, 'k' => '%"' . $key . '":%']);
+        foreach ($rows as $row) {
+            $data = json_decode((string) $row['data'], true);
+            if (is_array($data) && array_key_exists($key, $data)) {
+                $found[(int) $row['id']] = $data;
+            }
+        }
+
+        return $found;
+    }
+
+    /** Deletes a deleted field's values: its column (and the table, if nothing else is left), its rows, its JSON key. */
+    private function purgeField(Blueprint $blueprint, Field $field): void
+    {
+        $table = $blueprint->tableName();
+        $info = (new SchemaReader($this->db))->read($table);
+        if ($info?->column($field->name) !== null) {
+            if (array_keys($info->columns) === ['object_id', $field->name]) {
+                $this->db->execute('DROP TABLE ' . $this->db->table($table));
+            } else {
+                $this->db->execute((new \Campanella\Database\Schema\SchemaBuilder($this->db))->dropColumnSql($table, $field->name));
+            }
+        }
+        $this->db->execute(
+            'DELETE fv FROM {field_values} fv JOIN {objects} o ON o.id = fv.object_id WHERE o.blueprint = :b AND fv.field = :f',
+            ['b' => $blueprint->name, 'f' => $field->name],
+        );
+        foreach ($this->objectsWithDataKey($blueprint->name, $field->name) as $id => $data) {
+            unset($data[$field->name]);
+            $this->db->update('objects', ['data' => json_encode($data === [] ? new \stdClass() : $data, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)], ['id' => $id]);
+        }
+    }
+
+    /** The links of the Blueprint's objects through the relation. */
+    private function linkCount(Blueprint $blueprint, Relation $relation): int
+    {
+        return (int) $this->db->fetchValue(
+            'SELECT COUNT(*) FROM {relationships} r JOIN {objects} o ON o.id = r.source_id WHERE o.blueprint = :b AND r.type = :t',
+            ['b' => $blueprint->name, 't' => $relation->name],
+        );
     }
 
     /** POST: deletes a Blueprint that has no objects (its empty table too). */

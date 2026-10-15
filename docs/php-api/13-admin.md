@@ -375,6 +375,7 @@ same roles. Its definitions are stored in the database
 | `…/fields/new`, `…/fields/<field>` | A new field: label, machine name, type, choices (one per line: `key \| label`, or a label whose key is made from it), length, decimals, default, required, queryable ("filter and sort by it": a column), several values (at most N, or any), translatable. An existing field (since 0.2.4): everything but its machine name; its type only to a wider one (`WIDER_TYPES`: whole number → decimal, text → long text, date → date and time, an e-mail or web address or a choice → text); a choice key in use cannot be removed; several values becoming one must be confirmed (only the first of each object stays) |
 | `…/fields/<field>/move-up`, `/move-down` | POST: the order (the form's order follows it) |
 | `…/relations/new`, `…/relations/<relation>` | A relation to the objects of one Blueprint (not users or forms' messages): one or several targets, required; later its label and required flag |
+| `…/fields/<field>/delete`, `…/relations/<relation>/delete` | POST, with the `confirm` box ticked (since 0.2.4): deletes a field or relation. Its page says how many objects have a value (how many links there are); a backup is made first if any; then the definition is saved without it, and its values are deleted: the column (the Blueprint's table, if nothing else is left), its rows in `field_values`, its key in the JSON data; or the relation's links from the Blueprint's objects |
 | `…/delete` | POST: deletes a Blueprint without objects (and its empty table), unless another Blueprint's relation points to it |
 
 Every change is checked by defining all the Blueprints again with it (those of
@@ -399,8 +400,7 @@ column, moves the values between the JSON data, the column and `field_values`,
 or fills a field made required with its default
 ([chapter 17](17-migrations.md#applying-the-definitions-schemasync)); what it
 refuses (a shorter text that does not fit, a required field without a default
-while there are empty values) is shown on the form. Not yet: deleting fields
-and relations.
+while there are empty values) is shown on the form.
 
 ## One-time messages: Flash
 

@@ -95,4 +95,18 @@
         <button type="submit" class="btn btn-primary">{{ t(field ? 'admin.form.save' : 'blueprints.field_add') }}</button>
         <a class="btn btn-link" href="{{ admin_url('system/blueprints/' ~ blueprint.name) }}">{{ t('blueprints.back') }}</a>
     </form>
+    {% if field %}
+        <section class="card card-body border-danger-subtle mt-5 mb-4">
+            <h2 class="h6">{{ t('blueprints.field_delete') }}</h2>
+            <form method="post" action="{{ admin_url('system/blueprints/' ~ blueprint.name ~ '/fields/' ~ field ~ '/delete') }}">
+                {{ csrf_field() }}
+                <p class="small text-body-secondary">{{ t('blueprints.field_delete_help', {count: value_count}) }}</p>
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="bp-delete-confirm" name="confirm" value="1">
+                    <label class="form-check-label" for="bp-delete-confirm">{{ t('blueprints.delete_confirm_label') }}</label>
+                </div>
+                <button type="submit" class="btn btn-outline-danger btn-sm">{{ t('blueprints.field_delete') }}</button>
+            </form>
+        </section>
+    {% endif %}
 {% endblock %}

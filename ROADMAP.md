@@ -32,6 +32,7 @@ Completed changes are listed in the [CHANGELOG](CHANGELOG.md).
 | 0.2.1 | A guide for site owners (released 2026-10-13), in Hungarian and English, with screenshots made by a script (`tests/guide/screenshots.sh`): installing, the admin, content, menus, images, users, the contact form and privacy, e-mail, backups and upgrades, troubleshooting; dates in the interface language. Agreed on 2026-10-12, in four parts. |
 | 0.2.2 | Fields to filter and sort on (released 2026-10-13): a Blueprint's `queryable` own fields in its `bp_<name>` table, their values moved by the upgrade when that changes; the field types Decimal, Date, Email, Url, Choice and Html; the `translatable` flag and the design of translations; `object_fields()` in templates. The first step of 0.3.0. |
 | 0.2.3 | Blueprints made in the admin (released 2026-10-14): a new kind of content with its capabilities, fields and relations, stored in the `blueprints` table, applied at once with a backup first. The second step of 0.3.0. |
+| 0.2.4 | Changing and deleting fields in the admin (released 2026-10-15): a widened type, the column, one or several values, required, deleting fields and relations; the SchemaSync follows each change, with a backup first. The third step of 0.3.0. |
 | – | Continuous integration (GitHub Actions): PHPStan, documentation, tests on MariaDB 10.6/11.4 and MySQL 8.0/8.4, an upgrade from 0.1.0, browser tests, the installation package checked before every release (with `vendor/`, for every version tag) |
 
 ## Next: the road to 1.0
@@ -104,7 +105,7 @@ objects too; a removed one keeps their data.
 |---|---|
 | **0.2.2** ✔ | Released 2026-10-13. Field types and queryable own fields in code: the new types, the `bp_*` tables, the `translatable` flag, the [design of the translation layer](docs/translations.md). From here on, `config/blueprints.php` can give a Blueprint fields to filter and sort on; when one becomes queryable or stops being, the upgrade moves its values (brought forward from 0.2.4). |
 | **0.2.3** ✔ | Released 2026-10-14. Blueprints in the admin: creating them, choosing capabilities, adding fields and relations, their order, the safe changes of a field, deleting a Blueprint without objects; the schema changed with a backup first. |
-| **0.2.4** | Changing and deleting fields and relations in the admin: the type (widening), the column, the number of values, making a queryable field required, deleting (moving the data between the JSON and the table already works since 0.2.2). |
+| **0.2.4** ✔ | Released 2026-10-15. Changing and deleting fields and relations in the admin: the type (widening), the column, the number of values, making a queryable field required, deleting; a backup before every change that touches data. |
 | **0.2.5** | Lists in the admin, filtered and sorted by fields: a simple counterpart of Drupal's Views, on the existing Query. |
 | **0.2.6** | Exporting and importing the content model as files; an import first lists what it would change. |
 | **0.2.7** | Search with the database's FULLTEXT index, redirects (an automatic 301 when a path changes, and a list in the admin), an image picker in the editor (split in two if large). |

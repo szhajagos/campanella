@@ -1,4 +1,4 @@
-# Campanella 0.2.3
+# Campanella 0.2.4
 
 [![CI](https://github.com/szhajagos/campanella/actions/workflows/ci.yml/badge.svg)](https://github.com/szhajagos/campanella/actions/workflows/ci.yml)
 
@@ -18,6 +18,9 @@ templates and their variables, and the Twig functions only grow (see the
 The steps towards 0.3.0, content types built in the admin
 ([ROADMAP](ROADMAP.md#030--the-content-model-in-the-admin)):
 
+- **0.2.4 – Changing and deleting fields in the admin:** a field's type
+  widened, its column, one or several values, required; fields and relations
+  deleted; always with a backup first when data is touched.
 - **0.2.3 – Blueprints made in the admin:** an administrator can make a new
   kind of content in the browser (System → Blueprints → New Blueprint), with
   its capabilities, fields and relations; the database is changed at once,

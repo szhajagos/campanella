@@ -6419,8 +6419,32 @@ test('Kernel: changing a field of a Blueprint made in the admin (0.2.4)', functi
     check($field('cimkek', ['label' => 'Címkék', 'type' => 'string', 'queryable' => '1', 'confirm' => '1'])->status === 303);
     check($boot()->get(ObjectRepository::class)->find((int) $first->id())?->get('cimkek') === 'a', 'the first value stays');
 
+    // Deleting a relation and fields: confirmed, with their links and values.
+    check($send('POST', '/admin/system/blueprints/program/relations/new', ['_csrf' => $token, 'name' => 'kapcsolodo', 'label' => 'Kapcsolódó', 'target' => 'program', 'many' => '1', 'required' => ''])->status === 303);
+    $second = $boot()->get(\Campanella\Query\QueryEngine::class)->first(Query::objects()->blueprint('program')->where('title', '=', 'Második'), Actor::system());
+    $linked = $boot()->get(ObjectRepository::class)->find((int) $first->id());
+    $linked->setRelated('kapcsolodo', [(int) $second?->id()]);
+    $boot()->get(ObjectRepository::class)->save($linked);
+    $page = $send('GET', '/admin/system/blueprints/program/relations/kapcsolodo');
+    check(str_contains($page->body, 'A hivatkozásai is törlődnek: 1 darab'), 'the links are counted');
+    $send('POST', '/admin/system/blueprints/program/relations/kapcsolodo/delete', ['_csrf' => $token]);
+    check($boot()->get(BlueprintRegistry::class)->get('program')->relations !== [], 'not without confirming');
+    check($send('POST', '/admin/system/blueprints/program/relations/kapcsolodo/delete', ['_csrf' => $token, 'confirm' => '1'])->status === 303);
+    check($boot()->get(BlueprintRegistry::class)->get('program')->relations === [] && (int) $db->fetchValue("SELECT COUNT(*) FROM {relationships} WHERE type = 'kapcsolodo'") === 0, 'the relation and its links are gone');
+
+    check(str_contains($send('GET', '/admin/system/blueprints/program/fields/leiras')->body, 'Az értékei is törlődnek: 1 objektumnak'), 'the values are counted');
+    check($send('POST', '/admin/system/blueprints/program/fields/leiras/delete', ['_csrf' => $token, 'confirm' => '1'])->status === 303);
+    $info = (new \Campanella\Database\Schema\SchemaReader($db))->read('bp_program');
+    check($info !== null && $info->column('leiras') === null && $info->column('letszam') !== null, 'its column is dropped');
+    check(!array_key_exists('leiras', $boot()->get(ObjectRepository::class)->find((int) $first->id())?->values() ?? ['leiras' => 1]), 'the field is gone');
+    foreach (['cimkek', 'letszam'] as $name) {
+        check($send('POST', '/admin/system/blueprints/program/fields/' . $name . '/delete', ['_csrf' => $token, 'confirm' => '1'])->status === 303);
+    }
+    check(!(new \Campanella\Database\Schema\SchemaReader($db))->tableExists('bp_program') && $boot()->get(BlueprintRegistry::class)->get('program')->fields === [], 'the last column: the table goes too');
+    check($boot()->get(ObjectRepository::class)->find((int) $first->id())?->get('title') === 'Első', 'the object stays');
+
     $made = array_diff(glob($backups . '/campanella-*') ?: [], $before);
-    check(count($made) >= 4, 'a backup before each change: ' . count($made));
+    check(count($made) >= 7, 'a backup before each change: ' . count($made));
     foreach ($made as $file) {
         @unlink($file);
     }
