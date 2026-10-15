@@ -6258,11 +6258,12 @@ test('Kernel: a Blueprint made in the admin, its fields, relations and objects',
     check(str_contains($edit->body, 'Előtte mentés készült') && str_contains($edit->body, 'Hely'), 'the backup is reported');
 
     // The safe changes: label, order; the type stays.
-    check($send('POST', '/admin/system/blueprints/esemeny/fields/ar', ['_csrf' => $token, 'label' => 'Ár (Ft)', 'type' => 'string', 'scale' => '0', 'default' => '', 'choices' => ''])->status === 303);
+    check($send('POST', '/admin/system/blueprints/esemeny/fields/ar', ['_csrf' => $token, 'label' => 'Ár (Ft)', 'type' => 'string', 'queryable' => '1', 'length' => '255', 'scale' => '0', 'default' => '', 'choices' => ''])->status === 422, 'not to a narrower type');
+    check($send('POST', '/admin/system/blueprints/esemeny/fields/ar', ['_csrf' => $token, 'label' => 'Ár (Ft)', 'type' => 'decimal', 'queryable' => '1', 'length' => '255', 'scale' => '0', 'default' => '', 'choices' => ''])->status === 303);
     check($send('POST', '/admin/system/blueprints/esemeny/fields/ar/move-up', ['_csrf' => $token])->status === 303);
     $fields = $boot()->get(BlueprintRegistry::class)->get('esemeny')->fields;
     check(array_keys($fields) === ['ar', 'nap', 'fajta', 'hely'] && $fields['ar']->label === 'Ár (Ft)' && $fields['ar']->type === FieldType::Decimal, json_encode(array_keys($fields)));
-    check($send('POST', '/admin/system/blueprints/esemeny/fields/fajta', ['_csrf' => $token, 'label' => 'Fajta', 'choices' => 'eloadas | Előadás', 'scale' => '2', 'default' => ''])->status === 422, 'a choice in use stays');
+    check($send('POST', '/admin/system/blueprints/esemeny/fields/fajta', ['_csrf' => $token, 'label' => 'Fajta', 'type' => 'choice', 'length' => '255', 'choices' => 'eloadas | Előadás', 'scale' => '2', 'default' => ''])->status === 422, 'a choice in use stays');
 
     // Deleting: only without objects; the empty table goes too.
     $send('POST', '/admin/system/blueprints/esemeny/delete', ['_csrf' => $token]);
@@ -6355,6 +6356,79 @@ test('SchemaSync: a field\'s type, column and number of values change, its value
     $sync->apply();
     check($repository->find($id)?->get('size') === 3 && (int) $schemaDb->fetchValue("SELECT COUNT(*) FROM {field_values} WHERE field = 'size'") === 0, 'several values back to one column');
     $dropSchema();
+});
+
+test('Kernel: changing a field of a Blueprint made in the admin (0.2.4)', function () use ($newUser): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = null;
+    $storage = new ArraySessionStorage();
+    $boot = static function () use (&$kernel, $storage) {
+        $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+        $kernel->container()->set(Session::class, static fn () => new Session($storage));
+
+        return $kernel->container();
+    };
+    $container = $boot();
+    if ($container->get(Connection::class)->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $db = $container->get(Connection::class);
+    $backups = dirname(__DIR__) . '/var/backups';
+    $before = glob($backups . '/campanella-*') ?: [];
+    $send = function (string $method, string $path, array $post = []) use (&$kernel, $storage, $boot) {
+        $storage->endRequest();
+        $boot();
+
+        return $kernel->handle(new Request($method, $path, post: $post));
+    };
+    $container->get(AuthService::class)->login(new Request('GET', '/'), $newUser('bp-valtozas@example.hu', 'blueprint-jelszo-1', ['administrator']));
+    $token = preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $send('GET', '/admin/system/blueprints/new')->body, $m) === 1 ? $m[1] : '';
+    check($send('POST', '/admin/system/blueprints/new', ['_csrf' => $token, 'name' => 'program', 'label' => 'Program', 'capabilities' => []])->status === 303);
+    $base = ['_csrf' => $token, 'required' => '', 'queryable' => '', 'multiple' => '', 'max' => '', 'length' => '255', 'scale' => '2', 'choices' => '', 'default' => ''];
+    $field = static fn (string $path, array $post) => $send('POST', '/admin/system/blueprints/program/fields/' . $path, $post + $base);
+    check($field('new', ['name' => 'letszam', 'label' => 'Létszám', 'type' => 'integer', 'queryable' => '1'])->status === 303);
+    check($field('new', ['name' => 'cimkek', 'label' => 'Címkék', 'type' => 'string', 'queryable' => '1', 'multiple' => '1'])->status === 303);
+    check($field('new', ['name' => 'leiras', 'label' => 'Leírás', 'type' => 'string'])->status === 303);
+    $repository = $boot()->get(ObjectRepository::class);
+    $first = $repository->create('program', ['title' => 'Első', 'letszam' => 12, 'cimkek' => ['a', 'b'], 'leiras' => 'rövid']);
+    $repository->save($first);
+    $repository->save($repository->create('program', ['title' => 'Második']));
+
+    // A wider type: whole number → decimal; the column changes, with a backup first.
+    check($field('letszam', ['label' => 'Létszám', 'type' => 'decimal', 'queryable' => '1', 'scale' => '1'])->status === 303);
+    check($boot()->get(ObjectRepository::class)->find((int) $first->id())?->get('letszam') === '12.0', 'the value follows');
+    check((new \Campanella\Database\Schema\SchemaReader($db))->read('bp_program')?->column('letszam')?->type === \Campanella\Database\Schema\ColumnType::Decimal);
+    // Required: the second object has no value, and there is no default.
+    $refused = $field('letszam', ['label' => 'Létszám', 'type' => 'decimal', 'queryable' => '1', 'scale' => '1', 'required' => '1']);
+    check($refused->status === 422 && str_contains($refused->body, 'nem tehető kötelezővé'), (string) $refused->status);
+    check($field('letszam', ['label' => 'Létszám', 'type' => 'decimal', 'queryable' => '1', 'scale' => '1', 'required' => '1', 'default' => '10'])->status === 303, 'with a default');
+    check((string) $db->fetchValue("SELECT MIN(letszam) FROM {bp_program}") === '10.000000', 'the empty value got the default');
+
+    // A text made queryable: its values move into a column; and long text, not queryable again.
+    check($field('leiras', ['label' => 'Leírás', 'type' => 'string', 'queryable' => '1'])->status === 303);
+    check((string) $db->fetchValue('SELECT leiras FROM {bp_program} WHERE object_id = :id', ['id' => $first->id()]) === 'rövid', 'moved into the column');
+    check($field('leiras', ['label' => 'Leírás', 'type' => 'text'])->status === 303);
+    $loaded = $boot()->get(ObjectRepository::class)->find((int) $first->id());
+    check($loaded?->get('leiras') === 'rövid' && $loaded->get('letszam') === '12.0', json_encode($loaded?->values()));
+
+    // Several values to one: only after confirming it.
+    $unconfirmed = $field('cimkek', ['label' => 'Címkék', 'type' => 'string', 'queryable' => '1']);
+    check($unconfirmed->status === 422 && str_contains($unconfirmed->body, 'Erősítsd meg'), (string) $unconfirmed->status);
+    check($field('cimkek', ['label' => 'Címkék', 'type' => 'string', 'queryable' => '1', 'confirm' => '1'])->status === 303);
+    check($boot()->get(ObjectRepository::class)->find((int) $first->id())?->get('cimkek') === 'a', 'the first value stays');
+
+    $made = array_diff(glob($backups . '/campanella-*') ?: [], $before);
+    check(count($made) >= 4, 'a backup before each change: ' . count($made));
+    foreach ($made as $file) {
+        @unlink($file);
+    }
+    foreach ($boot()->get(\Campanella\Query\QueryEngine::class)->execute(Query::objects()->blueprint('program'), Actor::system())->items as $object) {
+        $boot()->get(ObjectRepository::class)->delete($object);
+    }
+    check($send('POST', '/admin/system/blueprints/program/delete', ['_csrf' => $token])->status === 303, 'cleaned up');
+    putenv('CAMPANELLA_DB_PREFIX');
 });
 
 echo "\nDocumentation examples\n";

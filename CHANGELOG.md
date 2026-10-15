@@ -22,6 +22,12 @@ Work towards 0.2.4: changing and deleting fields in the admin, in parts.
   and `field_values`; several values of a widened type move into its column
   of `field_values`. Anything else is Blocked. `migrate` backs up first
   (`SyncPlan::changesData()`).
+- **Changing a field in the admin:** its type to a wider one, whether it can be
+  filtered and sorted on (its column), one or several values (several to one
+  only after confirming that the first value of each object stays), its
+  length, and making it required (the empty values get its default; without
+  one, the form says why not). Applied at once, with a backup first if the
+  Blueprint has objects.
 
 ### Fixed
 

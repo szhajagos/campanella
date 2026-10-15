@@ -45,6 +45,25 @@ use Closure;
  */
 final class BlueprintEditor
 {
+    /**
+     * The types a field may change to (since 0.2.4): only wider ones, so every value
+     * stays valid. Its column changes with it (SchemaSync).
+     */
+    public const array WIDER_TYPES = [
+        'integer' => ['decimal'],
+        'string' => ['text'],
+        'date' => ['datetime'],
+        'email' => ['string', 'text'],
+        'url' => ['string', 'text'],
+        'choice' => ['string', 'text'],
+    ];
+
+    /** @return list<string> The field's type and those it may change to. */
+    private static function typesFor(Field $field): array
+    {
+        return [$field->type->value, ...(self::WIDER_TYPES[$field->type->value] ?? [])];
+    }
+
     /** The field types offered, in this order. */
     public const array TYPES = ['string', 'text', 'html', 'integer', 'decimal', 'boolean', 'date', 'datetime', 'email', 'url', 'choice'];
 
@@ -206,7 +225,7 @@ final class BlueprintEditor
     private function field(Request $request, Blueprint $blueprint, ?Field $field, Closure $render): Response
     {
         $form = $field === null
-            ? ['name' => '', 'label' => '', 'type' => 'string', 'required' => false, 'queryable' => false, 'multiple' => false, 'max' => '', 'translatable' => false, 'length' => '255', 'scale' => '2', 'choices' => '', 'default' => '']
+            ? ['name' => '', 'label' => '', 'type' => 'string', 'required' => false, 'queryable' => false, 'multiple' => false, 'max' => '', 'translatable' => false, 'length' => '255', 'scale' => '2', 'choices' => '', 'default' => '', 'confirm' => false]
             : self::fieldForm($field);
         $errors = [];
         $alert = null;
@@ -244,7 +263,8 @@ final class BlueprintEditor
             'form' => $form,
             'errors' => $errors,
             'alert_text' => $alert,
-            'types' => self::TYPES,
+            'types' => $field === null ? self::TYPES : self::typesFor($field),
+            'multiple_before' => $field?->isMultiple() ?? false,
         ]);
 
         return $request->isPost() ? self::status($response, 422) : $response;
@@ -263,8 +283,13 @@ final class BlueprintEditor
             $errors['label'] = new Message('validation.required');
         }
         if ($field !== null) {
-            // What 0.2.3 does not change: the name, type, column, number of values, length.
+            // The name never changes; the type only to a wider one (since 0.2.4).
             $item = BlueprintDefinition::fieldArray($field);
+            if (!in_array($form['type'], self::typesFor($field), true)) {
+                $errors['type'] = new Message('blueprints.type_not_widening');
+            }
+            $item['type'] = $form['type'];
+            $item['queryable'] = $form['queryable'];
         } else {
             $item = ['name' => $form['name'], 'type' => $form['type'], 'queryable' => $form['queryable'], 'translatable' => false];
             try {
@@ -280,22 +305,26 @@ final class BlueprintEditor
             if (!in_array($form['type'], self::TYPES, true)) {
                 $errors['type'] = new Message('validation.required');
             }
-            $item['cardinality'] = 1;
-            if ($form['multiple']) {
-                $max = trim((string) $form['max']);
-                if ($max === '') {
-                    $item['cardinality'] = Field::UNLIMITED;
-                } elseif (ctype_digit($max) && (int) $max >= 2 && (int) $max <= 100) {
-                    $item['cardinality'] = (int) $max;
-                } else {
-                    $errors['max'] = new Message('blueprints.invalid_max');
-                }
+        }
+        $item['cardinality'] = 1;
+        if ($form['multiple']) {
+            $max = trim((string) $form['max']);
+            if ($max === '') {
+                $item['cardinality'] = Field::UNLIMITED;
+            } elseif (ctype_digit($max) && (int) $max >= 2 && (int) $max <= 100) {
+                $item['cardinality'] = (int) $max;
+            } else {
+                $errors['max'] = new Message('blueprints.invalid_max');
             }
-            $length = trim((string) $form['length']);
-            $item['length'] = ctype_digit($length) && (int) $length >= 1 && (int) $length <= Field::MAX_MULTI_STRING_LENGTH ? (int) $length : 0;
-            if ($item['length'] === 0) {
-                $errors['length'] = new Message('blueprints.invalid_length');
-            }
+        }
+        $length = trim((string) $form['length']);
+        $item['length'] = ctype_digit($length) && (int) $length >= 1 && (int) $length <= Field::MAX_MULTI_STRING_LENGTH ? (int) $length : 0;
+        if ($item['length'] === 0) {
+            $errors['length'] = new Message('blueprints.invalid_length');
+        }
+        // Several values becoming one keeps only the first of each object: said and confirmed first.
+        if ($field !== null && $field->isMultiple() && $item['cardinality'] === 1 && !$form['confirm'] && $this->objectCount($blueprint->name) > 0) {
+            $errors['multiple'] = new Message('blueprints.confirm_loss');
         }
         $item['label'] = $form['label'];
         $item['translatable'] = $form['translatable'];
@@ -331,8 +360,8 @@ final class BlueprintEditor
         }
         $item['choices'] = $choices;
         $queryable = (bool) ($item['queryable'] ?? false);
-        // A column's NOT NULL is not changed here (0.2.4): required stays as it is for a queryable field.
-        $item['required'] = $field !== null && $queryable && !$field->isMultiple() ? $field->required : $form['required'];
+        // Made required: the SchemaSync gives the empty values the default, or refuses without one.
+        $item['required'] = $form['required'];
         $item['default'] = trim((string) $form['default']) === '' ? null : trim((string) $form['default']);
         if (($item['type'] ?? '') === FieldType::Boolean->value) {
             $item['default'] = $item['default'] === null ? null : in_array(mb_strtolower((string) $item['default'], 'UTF-8'), ['1', 'igen', 'yes', 'true'], true);
@@ -372,13 +401,10 @@ final class BlueprintEditor
             'scale' => $request->postString('scale'),
             'choices' => $request->postString('choices'),
             'default' => $request->postString('default'),
+            'confirm' => $request->postString('confirm') === '1',
         ];
         if ($field !== null) {
-            // The locked ones as they are.
-            $locked = self::fieldForm($field);
-            foreach (['name', 'type', 'queryable', 'multiple', 'max', 'length'] as $key) {
-                $form[$key] = $locked[$key];
-            }
+            $form['name'] = $field->name; // never changed
         }
 
         return $form;
@@ -404,6 +430,7 @@ final class BlueprintEditor
             'length' => (string) $field->length,
             'scale' => (string) $field->scale,
             'choices' => implode("\n", $choices),
+            'confirm' => false,
             'default' => match (true) {
                 $field->default === null => '',
                 is_bool($field->default) => $field->default ? '1' : '',
