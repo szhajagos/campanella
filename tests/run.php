@@ -6455,6 +6455,101 @@ test('Kernel: changing a field of a Blueprint made in the admin (0.2.4)', functi
     putenv('CAMPANELLA_DB_PREFIX');
 });
 
+echo "\nLists made in the admin (0.2.5)\n";
+
+test('ListDefinition: the stored form, checked, and its Query', function (): void {
+    $capabilities = new CapabilityRegistry([Titled::class, Publishable::class, Routable::class, \Campanella\Capability\Identifiable::class, Authenticatable::class]);
+    $blueprints = new BlueprintRegistry($capabilities, [
+        'esemeny' => [
+            'capabilities' => [Titled::class, Publishable::class, Routable::class],
+            'fields' => [
+                new Field('nap', FieldType::Date), new Field('fajta', FieldType::Choice, choices: ['eloadas' => 'Előadás', 'seta' => 'Séta']),
+                new Field('megjegyzes', FieldType::Text), new Field('cimkek', FieldType::String, cardinality: 3),
+            ],
+            'queryable' => ['nap', 'fajta', 'cimkek'],
+            'relations' => [new Relation('helyszin', Cardinality::One, targetBlueprints: ['esemeny'])],
+        ],
+        'user' => ['capabilities' => [Titled::class, Authenticatable::class]],
+    ]);
+    $stored = [
+        'title' => 'Közelgő események', 'blueprint' => 'esemeny',
+        'conditions' => [['field' => 'nap', 'op' => '>=', 'relative' => 'today'], ['field' => 'fajta', 'op' => '=', 'value' => 'seta'], ['relation' => 'helyszin', 'targets' => [5]]],
+        'sort' => [['field' => 'nap', 'dir' => 'asc']], 'per_page' => 20, 'display' => 'table', 'columns' => ['nap', 'fajta', 'megjegyzes'], 'path' => '/Esemenyek/',
+    ];
+    $list = \Campanella\Lists\ListDefinition::fromArray('kozelgo', $stored, $blueprints);
+    check($list->path === '/esemenyek' && $list->columns === ['nap', 'fajta', 'megjegyzes'] && $list->toArray()['conditions'][1] === ['field' => 'fajta', 'op' => '=', 'value' => 'seta'], json_encode($list->toArray()));
+
+    // today: the day in the site's time zone (23:30 UTC is already the next day in Budapest).
+    $now = new DateTimeImmutable('2026-10-15 23:30:00', new DateTimeZone('UTC'));
+    $compiled = (new QueryCompiler($capabilities, $blueprints))->compile($list->query($blueprints, new DateTimeZone('Europe/Budapest'), $now));
+    check(in_array('2026-10-16', $compiled->params, true) && in_array('seta', $compiled->params, true) && in_array(5, $compiled->params, true), json_encode($compiled->params));
+    check(str_contains($compiled->sql, 'bp_esemeny') && str_contains($compiled->sql, 'LIMIT 20'), $compiled->sql);
+
+    $bad = static function (array $change) use ($stored, $blueprints): bool {
+        try {
+            \Campanella\Lists\ListDefinition::fromArray('x', array_replace($stored, $change), $blueprints);
+        } catch (InvalidArgumentException) {
+            return true;
+        }
+
+        return false;
+    };
+    check($bad(['blueprint' => 'user']) && $bad(['blueprint' => 'nincs']), 'users cannot be listed; an unknown Blueprint');
+    check($bad(['conditions' => [['field' => 'megjegyzes', 'op' => '=', 'value' => 'x']]]), 'not by a field without a column');
+    check($bad(['conditions' => [['field' => 'fajta', 'op' => '=', 'value' => 'nincs']]]) && $bad(['conditions' => [['field' => 'fajta', 'op' => '>', 'value' => 'seta']]]), 'a choice not offered; > on a text');
+    check($bad(['conditions' => [['field' => 'fajta', 'op' => '=', 'relative' => 'today']]]) && $bad(['conditions' => [['field' => 'nap', 'op' => 'LIKE', 'value' => 'x']]]), 'today only for dates; unknown operators');
+    check($bad(['sort' => [['field' => 'cimkek']]]) && $bad(['per_page' => 101]) && $bad(['display' => 'grid']) && $bad(['path' => '/a b']) && $bad(['path' => '/']), 'sorting, per page, display, path');
+    check(!$bad(['conditions' => [['field' => 'cimkek', 'op' => '=', 'value' => 'x'], ['field' => 'created', 'op' => '<', 'relative' => 'now'], ['field' => 'title', 'op' => 'contains', 'value' => '50%']]]), 'several values, created, contains');
+
+    $registry = new \Campanella\Lists\ListRegistry(['kozelgo' => $stored, 'rossz' => ['title' => 'Rossz', 'blueprint' => 'nincs']], $blueprints);
+    check($registry->find('kozelgo') !== null && $registry->find('rossz') === null && array_keys($registry->errors()) === ['rossz']);
+});
+
+test('Kernel: a list\'s page at its path, as a table, with pages; list() in templates', function () use ($repository, $service, $admin): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $container = $kernel->container();
+    if ($container->get(Connection::class)->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $made = [];
+    foreach (['Lista-0225 első', 'Lista-0225 második', 'Lista-0225 piszkozat'] as $i => $title) {
+        $article = $repository->create('article', ['title' => $title, 'lead' => 'Bevezető ' . $i]);
+        if ($i < 2) {
+            $article->as(Publishable::class)->publish(new DateTimeImmutable('2026-01-0' . ($i + 1) . ' 10:00:00', new DateTimeZone('UTC')));
+        }
+        $repository->save($article);
+        $made[] = $article;
+    }
+    $store = $container->get(\Campanella\Lists\ListStore::class);
+    $store->save('listas', ['version' => 1, 'title' => 'Listás cikkek', 'blueprint' => 'article', 'conditions' => [['field' => 'title', 'op' => 'contains', 'value' => 'Lista-0225']],
+        'sort' => [['field' => 'published_at', 'dir' => 'desc']], 'per_page' => 1, 'display' => 'table', 'columns' => ['published_at', 'lead'], 'path' => '/listas-cikkek']);
+    $store->save('utkozo', ['version' => 1, 'title' => 'Ütköző', 'blueprint' => 'article', 'path' => '/hirek']);
+
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $page = $kernel->handle(new Request('GET', '/listas-cikkek'));
+    check($page->status === 200 && str_contains($page->body, '<h1 class="page-title mb-4">Listás cikkek</h1>') && str_contains($page->body, 'Lista-0225 második') && !str_contains($page->body, 'Lista-0225 első'), (string) $page->status);
+    check(str_contains($page->body, '<th scope="col">Bevezető</th>') && str_contains($page->body, 'Bevezető 1') && str_contains($page->body, '2026. 01. 02.') && str_contains($page->body, 'page=2'), 'the table and the pager');
+    $second = $kernel->handle(new Request('GET', '/listas-cikkek', ['page' => '2']));
+    check($second->status === 200 && str_contains($second->body, 'Lista-0225 első') && !str_contains($second->body, 'piszkozat'), 'page 2, without the draft');
+    check($kernel->handle(new Request('GET', '/listas-cikkek', ['page' => '3']))->status === 404, 'no page 3');
+    check(str_contains($kernel->handle(new Request('GET', '/hirek'))->body, 'Hírek'), 'a route of the file keeps its path');
+
+    $twig = $kernel->container()->get(\Twig\Environment::class);
+    $html = $twig->createTemplate("{% for item in list('listas') %}[{{ item.title }}]{% endfor %}{% for item in list('nincs') %}x{% endfor %}")->render([]);
+    check($html === '[Lista-0225 második]', $html);
+
+    $store->delete('listas');
+    $store->delete('utkozo');
+    foreach ($made as $article) {
+        $service->delete($admin, $article);
+    }
+    check((new \Campanella\Core\Kernel(dirname(__DIR__)))->handle(new Request('GET', '/listas-cikkek'))->status === 404, 'gone with its definition');
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
 echo "\nDocumentation examples\n";
 
 test('New capability as in the docs example (Featured)', function () use ($db, $admin): void {

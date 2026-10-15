@@ -1,0 +1,24 @@
+{# A list made in the admin, as a table of chosen fields (since 0.2.5). Its own variant: list/<name>.html.twig #}
+{% if result is empty %}
+    <p class="empty text-body-secondary">{{ t('content.empty') }}</p>
+{% else %}
+    <div class="table-responsive result result--list result--{{ list.name }}">
+        <table class="table align-middle">
+            <thead>
+                <tr>
+                    <th scope="col">{{ t('field.title') }}</th>
+                    {% for column in columns %}<th scope="col">{{ t(column.label) }}</th>{% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in result %}
+                    <tr>
+                        <td>{% if item.path is defined and item.path %}<a href="{{ url(item.path) }}">{{ item.title }}</a>{% else %}{{ item.title }}{% endif %}</td>
+                        {% for column in columns %}<td>{{ field_value(item, column.name) }}</td>{% endfor %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endif %}
+{{ include('list/_pager.html.twig') }}

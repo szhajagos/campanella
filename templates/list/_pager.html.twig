@@ -1,0 +1,14 @@
+{# The pages of a list (since 0.2.5). #}
+{% if result.pageCount > 1 %}
+    <nav class="pager mt-4" aria-label="{{ t('content.pager') }}">
+        <ul class="pagination">
+            {% for page in 1..result.pageCount %}
+                {% if page == result.currentPage %}
+                    <li class="page-item active" aria-current="page"><span class="page-link">{{ page }}</span></li>
+                {% else %}
+                    <li class="page-item"><a class="page-link" href="{{ url(path) }}?page={{ page }}">{{ page }}</a></li>
+                {% endif %}
+            {% endfor %}
+        </ul>
+    </nav>
+{% endif %}

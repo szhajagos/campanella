@@ -1,0 +1,9 @@
+{# A list made in the admin, as the objects' short cards (since 0.2.5). Its own variant: list/<name>.html.twig #}
+<div class="result result--list result--{{ list.name }}">
+    {% for item in result %}
+        {{ render_object(item, 'teaser') }}
+    {% else %}
+        <p class="empty text-body-secondary">{{ t('content.empty') }}</p>
+    {% endfor %}
+</div>
+{{ include('list/_pager.html.twig') }}

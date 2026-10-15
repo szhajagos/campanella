@@ -52,6 +52,17 @@ final class Presentation
         return $template->render(['result' => $result, 'name' => $name, 'item_mode' => $itemMode] + $context);
     }
 
+    /**
+     * The first of the templates that exists (e.g. a list's own, then its display's), rendered. Since 0.2.5.
+     *
+     * @param list<string> $templates
+     * @param array<string, mixed> $context
+     */
+    public function renderFirst(array $templates, array $context = []): string
+    {
+        return $this->twig->resolveTemplate($templates)->render($context);
+    }
+
     /** @param array<string, mixed> $context */
     public function render(string $template, array $context = []): string
     {

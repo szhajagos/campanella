@@ -27,6 +27,7 @@ namespace, in the `src/` folder (PSR-4).
 20. [The site](20-site.md): `Settings`, `SiteSettings`, `site` and `meta` in templates, `MetaBuilder`, `/sitemap.xml`, `/robots.txt`
 21. [Events and e-mail](21-events-and-mail.md): `Event` and its kinds, `EventDispatcher`, `Action`, `MailAdministrators`, `Mailer`, mail templates, the mail log
 22. [Forms](22-forms.md): the contact form (`ContactForm`, `contact_form()`), its messages (`Submitted`, `SubmissionService`), the admin's *Submissions*
+23. [Lists](23-lists.md): lists made in the admin (`ListDefinition`, `ListStore`, `ListRegistry`), their page (`ListController`), `list()` and `field_value()` in templates (since 0.2.5)
 
 ## Namespaces
 

@@ -72,6 +72,9 @@ use Campanella\I18n\Translator;
 use Campanella\Menu\MenuBuilder;
 use Campanella\Model\BlueprintRegistry;
 use Campanella\Model\BlueprintStore;
+use Campanella\Lists\ListRegistry;
+use Campanella\Lists\ListStore;
+use Campanella\Controller\ListController;
 use Campanella\Model\ObjectRepository;
 use Campanella\Query\QueryCompiler;
 use Campanella\Query\QueryEngine;
@@ -328,6 +331,17 @@ final class Kernel
             return $registry;
         });
         $c->set(BlueprintStore::class, static fn (Container $c): BlueprintStore => new BlueprintStore($c->get(Connection::class)));
+        // The lists made in the admin (since 0.2.5).
+        $c->set(ListStore::class, static fn (Container $c): ListStore => new ListStore($c->get(Connection::class)));
+        $c->set(ListRegistry::class, static function (Container $c): ListRegistry {
+            try {
+                $stored = $c->get(ListStore::class)->load();
+            } catch (\PDOException) {
+                $stored = [];
+            }
+
+            return new ListRegistry($stored, $c->get(BlueprintRegistry::class));
+        });
 
         // The settings edited in the admin (since 0.1.1), over the configuration file's.
         $c->set(Settings::class, static fn (Container $c): Settings => new Settings($c->get(Connection::class)));
@@ -700,6 +714,19 @@ final class Kernel
                         'max' => ContactForm::FIELDS,
                     ] + $form->fields($currentRequest()));
                 },
+                // list('name'): the first page of a list made in the admin (since 0.2.5).
+                static function (string $name) use ($c, $currentRequest): ?iterable {
+                    $list = $c->get(ListRegistry::class)->find($name);
+                    if ($list === null) {
+                        return null;
+                    }
+                    $timezone = new \DateTimeZone((string) $c->get(Config::class)->get('timezone', 'UTC'));
+
+                    return $c->get(QueryEngine::class)->execute(
+                        $list->query($c->get(BlueprintRegistry::class), $timezone),
+                        $c->get(AuthService::class)->currentActor($currentRequest()),
+                    );
+                },
             ));
 
             return $twig;
@@ -729,6 +756,12 @@ final class Kernel
             // For search engines (since 0.1.1).
             $router->add('/robots.txt', 'site', ['action' => 'robots']);
             $router->add('/sitemap.xml', 'site', ['action' => 'sitemap']);
+            // The lists made in the admin, at their paths, unless a route above has it (since 0.2.5).
+            foreach ($c->get(ListRegistry::class)->all() as $list) {
+                if ($list->path !== null && !$router->isRouted($list->path)) {
+                    $router->add($list->path, 'list', ['list' => $list->name]);
+                }
+            }
 
             return $router;
         });
@@ -863,7 +896,7 @@ final class Kernel
                 $c->get(SiteSettings::class),
                 $c->get(QueryEngine::class),
                 // The lists, and the contact page while it is on (since 0.1.5).
-                [...$router->paths('query'), ...((bool) $c->get(Config::class)->get('contact.enabled', true) ? $router->paths('contact') : [])],
+                [...$router->paths('query'), ...$router->paths('list'), ...((bool) $c->get(Config::class)->get('contact.enabled', true) ? $router->paths('contact') : [])],
                 // The admin only at its default path: a path of its own is not revealed here
                 // (the admin pages send noindex themselves).
                 [...($admin->path() === '/admin' ? ['/admin/'] : []), ...$router->paths('auth'), InstallController::PATH],
@@ -893,6 +926,16 @@ final class Kernel
             $c->get(Deferred::class),
             (int) $c->get(Config::class)->get('auth.password_reset_minutes', PasswordReset::DEFAULT_MINUTES),
             $c->get(SessionRegistry::class),
+        ));
+
+        $c->set('controller.list', static fn (Container $c): Controller => new ListController(
+            $c->get(QueryEngine::class),
+            $c->get(Presentation::class),
+            $c->get(ListRegistry::class),
+            $c->get(BlueprintRegistry::class),
+            new \DateTimeZone((string) $c->get(Config::class)->get('timezone', 'UTC')),
+            $c->get(RelationLoader::class),
+            $c->get(MetaBuilder::class),
         ));
 
         $c->set('controller.query', static fn (Container $c): Controller => new QueryController(

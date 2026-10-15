@@ -10,6 +10,19 @@ backward-incompatible.
 
 ## [Unreleased]
 
+Work towards 0.2.5: lists made in the admin, in parts.
+
+### Added
+
+- **Lists** ([PHP API](docs/php-api/23-lists.md)): which objects of a
+  Blueprint, under which conditions (on queryable fields and relations, with
+  `today` and `now` for dates), in what order, how many per page, shown as
+  teasers or as a table, at a path of their own. Stored as JSON in the new
+  `lists` table (schema version 15), checked against the Blueprints whenever
+  they are loaded. Their pages are in `sitemap.xml`. The editor in the admin
+  comes next.
+- `list('name')` and `field_value(item, 'field')` in templates.
+
 ## [0.2.4] – 2026-10-15
 
 **Changing and deleting fields in the admin.** The third step towards 0.3.0:

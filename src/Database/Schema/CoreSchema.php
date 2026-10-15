@@ -23,6 +23,7 @@ final class CoreSchema
     public const string SESSIONS = 'sessions';
     public const string PASSWORD_RESETS = 'password_resets';
     public const string BLUEPRINTS = 'blueprints';
+    public const string LISTS = 'lists';
 
     /** @return list<Table> */
     public static function tables(): array
@@ -212,6 +213,18 @@ final class CoreSchema
             // as JSON, loaded but never queried (Campanella\Model\BlueprintStore).
             new Table(
                 name: self::BLUEPRINTS,
+                columns: [
+                    new Column('name', ColumnType::String, length: 64),
+                    new Column('definition', ColumnType::Json),
+                    new Column('created_at', ColumnType::DateTime),
+                    new Column('updated_at', ColumnType::DateTime),
+                ],
+                primaryKey: ['name'],
+            ),
+            // The lists made in the admin (since 0.2.5, schema version 15): the definition as
+            // JSON, loaded but never queried (Campanella\Lists\ListStore).
+            new Table(
+                name: self::LISTS,
                 columns: [
                     new Column('name', ColumnType::String, length: 64),
                     new Column('definition', ColumnType::Json),

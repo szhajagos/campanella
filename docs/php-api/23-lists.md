@@ -1,0 +1,105 @@
+# 23. Lists
+
+*Since 0.2.5.* A list made in the admin: which objects of a Blueprint, under
+which conditions, in what order, how many per page, shown how, and at which
+path. It is the counterpart of `config/queries.php` that needs no code. The
+editor in the admin comes in the second part of 0.2.5; until then the lists are
+made through `ListStore`.
+
+```php
+$store->save('kozelgo', [
+    'version' => 1,
+    'title' => 'Közelgő események',
+    'blueprint' => 'esemeny',
+    'conditions' => [
+        ['field' => 'nap', 'op' => '>=', 'relative' => 'today'],
+        ['field' => 'fajta', 'op' => '=', 'value' => 'eloadas'],
+        ['relation' => 'kategoria', 'targets' => [12]],
+    ],
+    'sort' => [['field' => 'nap', 'dir' => 'asc']],
+    'per_page' => 10,
+    'display' => 'table',
+    'columns' => ['nap', 'fajta'],
+    'path' => '/esemenyek',
+]);
+```
+
+```twig
+{% for item in list('kozelgo') %}{{ render_object(item, 'teaser') }}{% endfor %}
+```
+
+## ListDefinition
+
+`Campanella\Lists\ListDefinition` · **Public** · `final readonly class`
+
+`$name`, `$title`, `$blueprint`, `$conditions`, `$sort`, `$perPage`,
+`$display`, `$columns`, `$path` (null: no page of its own).
+
+| Member | Description |
+|---|---|
+| `static fromArray(string $name, array $stored, BlueprintRegistry $blueprints): self` | From the stored form, checked; `InvalidArgumentException` for anything not valid |
+| `toArray(): array` | The stored form |
+| `query(BlueprintRegistry $blueprints, DateTimeZone $timezone, ?DateTimeImmutable $now = null): Query` | The list's Query at the moment (for `today` and `now`), limited to `perPage`; paging is the caller's (`Query::page()`). A Publishable Blueprint's list has the `published` scope; without a sort order, the newest first (`created`) |
+| `static queryable(Blueprint $blueprint, string $name): ?Field` | A field a list may filter or sort by: `created`, `updated`, or a queryable (`FieldStorage::Table`) field of the Blueprint that is not hidden |
+| `static path(mixed $path): string` | A list's path, normalised (lowercase, a leading slash, no trailing one); not `/`; letters, digits, `_ . -` |
+| `DISPLAYS`, `OPERATORS`, `RELATIVE` | `teaser`, `table`; `=`, `!=`, `<`, `<=`, `>`, `>=`, `contains`, `empty`, `not_empty`; `today`, `now` |
+| `MAX_PER_PAGE`, `MAX_CONDITIONS`, `MAX_SORT`, `MAX_COLUMNS`, `MAX_TITLE` | 100, 10, 3, 8, 200 |
+
+**The checks.** The Blueprint must exist, and not be one of users or forms'
+messages. A condition is on a field `queryable()` gives, or on a relation of
+the Blueprint (`targets`: object IDs). `contains` only on texts; `<`, `>` …
+not on texts and yes/no; the value is cast by the field's type (a choice must
+be offered); `relative` (`today`, `now`) only on dates. Sorting only by
+single-valued fields, at most three. Columns: any field of the Blueprint that is
+not hidden.
+
+**`today` and `now`.** For a `Date` field both are today's day in the site's
+time zone; for a date and time, `today` is today's midnight there, `now` the
+moment. They are worked out on every request, so "from today on" stays true.
+
+**Access** is the Query engine's, as for any query: a visitor sees only what
+they may see. A list adds nothing to it but the `published` scope.
+
+## ListStore
+
+`Campanella\Lists\ListStore` · **Public** · container: `ListStore::class`
+
+`load(): array<string, array>` (none before the `lists` table exists),
+`find(string $name): ?array`, `save(string $name, array $definition): void`,
+`delete(string $name): void`. The definitions are JSON in `cc_lists`, loaded,
+never queried.
+
+## ListRegistry
+
+`Campanella\Lists\ListRegistry` · **Public** · container: `ListRegistry::class`
+
+`__construct(array $stored, BlueprintRegistry $blueprints)`; `find(string $name):
+?ListDefinition`, `all(): array<string, ListDefinition>`, `errors():
+array<string, string>`: a stored list that does not pass (e.g. its field is not
+queryable any more) is left out, with the reason.
+
+## The page: ListController
+
+`Campanella\Controller\ListController` · handler: `list` · **Internal**
+
+Every list with a path gets a route (`list`, parameter `list`), unless a route
+of `config/routes.php` or the system already has that path: those win. An
+object's path that a list has is refused like any routed path
+(`validation.path_reserved`). The page: the list's title, its objects a page at
+a time (`?page=2`; past the last page, 404), and `meta` like a query's page.
+Lists with a path are in `sitemap.xml`.
+
+**Templates:** the list's own, `list/<name>.html.twig`, if a theme has one, else
+its display's: `list/teaser.html.twig` (the objects' `teaser` mode) or
+`list/table.html.twig` (the title as a link, then the `columns`, each by
+`field_value()`). Both include `list/_pager.html.twig`. They get `result`
+(the `ResultSet`), `list` (the `ListDefinition`), `columns` (`name`, `label`;
+the title is left out, it comes first) and `path`. `ListController::columns(ListDefinition $list, BlueprintRegistry $blueprints)`
+makes the columns.
+
+## In templates
+
+| Function | Description |
+|---|---|
+| `{% for item in list('name') %}` | The list's first page for the current visitor (`CampanellaTwigExtension::list()`); nothing for an unknown list |
+| `{{ field_value(item, 'nap') }}` | One field of an object shown by its type, safe to print, as `object_fields()` shows it (`fieldValue()`) |

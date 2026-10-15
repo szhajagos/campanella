@@ -53,6 +53,8 @@ use Twig\TwigFunction;
  *   {{ 1572864|file_size }}             a size in bytes, readable: 1.5 MB (in the current language)
  *   {% for f in object_fields(item) %}  the object's own (Blueprint) fields with a value, shown by type:
  *                                       name, label, type and html (safe to print; since 0.2.2)
+ *   {{ field_value(item, 'nap') }}      one field of an object, shown by its type (since 0.2.5)
+ *   {% for item in list('esemenyek') %} the first page of a list made in the admin (since 0.2.5)
  */
 final class CampanellaTwigExtension extends AbstractExtension implements GlobalsInterface
 {
@@ -87,6 +89,7 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
         private readonly ?Closure $images = null,
         private readonly ?SitePaths $paths = null,
         private readonly ?Closure $contactForm = null,
+        private readonly ?Closure $lists = null,
     ) {
     }
 
@@ -113,6 +116,8 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
             new TwigFunction('image_url', $this->imageUrl(...)),
             new TwigFunction('image_srcset', $this->imageSrcset(...)),
             new TwigFunction('object_fields', $this->objectFields(...), ['needs_environment' => true]),
+            new TwigFunction('field_value', $this->fieldValue(...), ['needs_environment' => true, 'is_safe' => ['html']]),
+            new TwigFunction('list', $this->list(...)),
         ];
     }
 
@@ -235,6 +240,36 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
         }
 
         return $fields;
+    }
+
+    /**
+     * One field of an object, shown by its type as safe HTML (as object_fields() shows
+     * it; several values separated by commas); '' for a hidden or unknown field or no
+     * value. Since 0.2.5.
+     */
+    public function fieldValue(Environment $env, CampanellaObject $object, string $name): string
+    {
+        $field = $object->fields()[$name] ?? null;
+        if ($field === null || $field->hidden) {
+            return '';
+        }
+        $value = $object->get($name);
+        if ($field->isEmpty($value)) {
+            return '';
+        }
+
+        return implode(', ', array_map(fn (mixed $item): string => $this->fieldHtml($env, $field, $item), $field->isMultiple() ? (array) $value : [$value]));
+    }
+
+    /**
+     * The first page of a list made in the admin, for the current visitor (an empty
+     * list for an unknown one). Since 0.2.5.
+     *
+     * @return iterable<CampanellaObject>
+     */
+    public function list(string $name): iterable
+    {
+        return $this->lists === null ? [] : (($this->lists)($name) ?? []);
     }
 
     private function fieldHtml(Environment $env, Field $field, mixed $value): string
