@@ -106,10 +106,28 @@ objects too; a removed one keeps their data.
 | **0.2.2** ✔ | Released 2026-10-13. Field types and queryable own fields in code: the new types, the `bp_*` tables, the `translatable` flag, the [design of the translation layer](docs/translations.md). From here on, `config/blueprints.php` can give a Blueprint fields to filter and sort on; when one becomes queryable or stops being, the upgrade moves its values (brought forward from 0.2.4). |
 | **0.2.3** ✔ | Released 2026-10-14. Blueprints in the admin: creating them, choosing capabilities, adding fields and relations, their order, the safe changes of a field, deleting a Blueprint without objects; the schema changed with a backup first. |
 | **0.2.4** ✔ | Released 2026-10-15. Changing and deleting fields and relations in the admin: the type (widening), the column, the number of values, making a queryable field required, deleting; a backup before every change that touches data. |
-| **0.2.5** | Lists in the admin, filtered and sorted by fields: a simple counterpart of Drupal's Views, on the existing Query. |
+| **0.2.5** | **Lists** (agreed 2026-10-15, see below): the counterpart of `config/queries.php` made in the admin, shown on a page of their own and in templates. In parts: the engine (storage, conditions, the page, `list()`), then the editor in the admin and the release. |
 | **0.2.6** | Exporting and importing the content model as files; an import first lists what it would change. |
 | **0.2.7** | Search with the database's FULLTEXT index, redirects (an automatic 301 when a path changes, and a list in the admin), an image picker in the editor (split in two if large). |
+| **0.3.x** | **Visitors' filters** on a list (e.g. a choice to pick the kind of event), and **the admin's object list with the own fields**: chosen fields as columns, sortable, with filters by type above the list (an `admin_columns` key for the Blueprints of the file). Both decided 2026-10-15 to come after 0.2.5. |
 | **0.3.0** | The milestone: a security review, the upgrade test, a chapter of the guide on one's own content types, the compatibility promise for 0.3.x. |
+
+**Lists (0.2.5, agreed 2026-10-15).** System → Lists. A list has a name, a
+machine name and a title; the Blueprint whose objects it shows; conditions
+on its queryable fields and relations (e.g. "the day ≥ today", "the kind =
+talk", "the category = Events"), with two changing values, **today** and
+**now**, so a list of upcoming events keeps itself up to date; one or more
+sort orders; the number per page (at most 100), with paging; a display:
+**teaser** (the existing short card) or a **table** of chosen fields, the
+displays kept open to more later (e.g. with the Component system of 0.4.0);
+and an optional path (`/esemenyek`), checked like an object's path, that a
+menu item can point to. Templates use it as `{% for item in list('esemenyek') %}`.
+Conditions only on queryable fields: they have columns and indexes, so a list
+stays fast however many objects there are. Access is unchanged: the Query
+engine adds the visitor's limits to every list. Stored as JSON definitions in
+a `lists` table, like the Blueprints; the content model's export (0.2.6)
+carries them too. Not in 0.2.5: visitors' filters, and the admin's object
+list with the own fields (both 0.3.x).
 
 ### 0.4.0 – building pages and the look
 
