@@ -1,0 +1,124 @@
+{% extends '@core/admin/base.html.twig' %}
+{% import '@core/admin/_blueprint_macros.html.twig' as m %}
+
+{% block content %}
+    <p class="small mb-1"><a href="{{ admin_url('system/lists') }}">{{ t('lists.title') }}</a></p>
+    <div class="d-flex flex-wrap align-items-baseline gap-2 mb-2">
+        <h1 class="h3 mb-0">{{ form.title }}</h1>
+        <code class="small">{{ list.name }}</code>
+        <span class="small text-body-secondary">{{ t(list.blueprint) }}</span>
+        {% if list.live_path %}<a class="small ms-auto" href="{{ url(list.live_path) }}">{{ t('lists.view') }}</a>{% endif %}
+    </div>
+    <p class="text-body-secondary mb-4">{{ t('lists.edit_intro', {name: list.name}) }}</p>
+    {% if errors.form ?? null %}<div class="alert alert-danger" role="alert">{{ t(errors.form.key, errors.form.params) }}</div>{% endif %}
+
+    <form method="post" action="{{ admin_url('system/lists/' ~ list.name) }}" class="admin-form" novalidate>
+        {{ csrf_field() }}
+        <section class="card card-body mb-4">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="list-title" class="form-label fw-semibold">{{ t('lists.list_title') }} <span class="text-danger" aria-hidden="true">*</span></label>
+                    <input type="text" class="form-control" id="list-title" name="title" value="{{ form.title }}" required maxlength="200">
+                </div>
+                <div class="col-md-6">
+                    <label for="list-path" class="form-label fw-semibold">{{ t('lists.path') }}</label>
+                    <input type="text" class="form-control{{ m.invalid(errors, 'path') }}" id="list-path" name="path" value="{{ form.path }}" placeholder="/esemenyek" maxlength="200">
+                    <div class="form-text">{{ t('lists.path_help') }}</div>
+                    {{ m.error(errors, 'path') }}
+                </div>
+                <div class="col-md-3">
+                    <label for="list-per-page" class="form-label fw-semibold">{{ t('lists.per_page') }}</label>
+                    <input type="number" class="form-control" id="list-per-page" name="per_page" value="{{ form.per_page }}" min="1" max="{{ max_per_page }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="list-display" class="form-label fw-semibold">{{ t('lists.display') }}</label>
+                    <select class="form-select" id="list-display" name="display">
+                        {% for display in displays %}<option value="{{ display }}"{{ display == form.display ? ' selected' }}>{{ t('lists.display.' ~ display) }}</option>{% endfor %}
+                    </select>
+                </div>
+            </div>
+        </section>
+
+        <section class="card card-body mb-4">
+            <h2 class="h6">{{ t('lists.conditions') }}</h2>
+            <p class="small text-body-secondary">{{ t('lists.conditions_help') }}</p>
+            {% for row in form.conditions %}
+                <div class="row g-2 mb-2 align-items-center">
+                    <div class="col-md-4">
+                        <select class="form-select form-select-sm" name="conditions[{{ loop.index0 }}][field]" aria-label="{{ t('lists.field') }}">
+                            <option value="">–</option>
+                            {% for field in fields %}<option value="{{ field.name }}"{{ field.name == row.field ? ' selected' }}>{{ t(field.label) }} ({{ t('field_type.' ~ field.type) }})</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select form-select-sm" name="conditions[{{ loop.index0 }}][op]" aria-label="{{ t('lists.operator') }}">
+                            {% for op in operators %}<option value="{{ op }}"{{ op == row.op ? ' selected' }}>{{ t('lists.op.' ~ op) }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <input type="text" class="form-control form-control-sm" name="conditions[{{ loop.index0 }}][value]" value="{{ row.value ?? '' }}" aria-label="{{ t('lists.value') }}">
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select form-select-sm" name="conditions[{{ loop.index0 }}][relative]" aria-label="{{ t('lists.relative') }}">
+                            <option value="">{{ t('lists.relative.none') }}</option>
+                            {% for relative in ['today', 'now'] %}<option value="{{ relative }}"{{ relative == (row.relative ?? '') ? ' selected' }}>{{ t('lists.relative.' ~ relative) }}</option>{% endfor %}
+                        </select>
+                    </div>
+                </div>
+            {% endfor %}
+            {% for relation in relations %}
+                <div class="mt-3">
+                    <label class="form-label fw-semibold" for="list-rel-{{ relation.name }}">{{ t(relation.label) }}</label>
+                    {% set chosen = (form.relations|filter(r => r.relation == relation.name)|first).targets ?? [] %}
+                    <select class="form-select form-select-sm" id="list-rel-{{ relation.name }}" name="relations[{{ relation.name }}][]" multiple size="4">
+                        {% for target in relation.targets %}<option value="{{ target.id }}"{{ target.id in chosen ? ' selected' }}>{{ target.title }}</option>{% endfor %}
+                    </select>
+                    <div class="form-text">{{ t('lists.relation_help') }}</div>
+                </div>
+            {% endfor %}
+        </section>
+
+        <section class="card card-body mb-4">
+            <h2 class="h6">{{ t('lists.sort') }}</h2>
+            {% for row in form.sort %}
+                <div class="row g-2 mb-2">
+                    <div class="col-md-6">
+                        <select class="form-select form-select-sm" name="sort[{{ loop.index0 }}][field]" aria-label="{{ t('lists.sort') }} {{ loop.index }}">
+                            <option value="">–</option>
+                            {% for field in sortable %}<option value="{{ field.name }}"{{ field.name == row.field ? ' selected' }}>{{ t(field.label) }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select form-select-sm" name="sort[{{ loop.index0 }}][dir]" aria-label="{{ t('lists.direction') }}">
+                            <option value="asc"{{ row.dir == 'asc' ? ' selected' }}>{{ t('lists.asc') }}</option>
+                            <option value="desc"{{ row.dir == 'desc' ? ' selected' }}>{{ t('lists.desc') }}</option>
+                        </select>
+                    </div>
+                </div>
+            {% endfor %}
+            <p class="small text-body-secondary mb-0">{{ t('lists.sort_help') }}</p>
+        </section>
+
+        <section class="card card-body mb-4">
+            <h2 class="h6">{{ t('lists.columns') }}</h2>
+            <p class="small text-body-secondary">{{ t('lists.columns_help') }}</p>
+            {% for column in columns %}
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="checkbox" name="columns[]" value="{{ column.name }}" id="list-col-{{ column.name }}"{{ column.name in form.columns ? ' checked' }}>
+                    <label class="form-check-label" for="list-col-{{ column.name }}">{{ t(column.label) }}</label>
+                </div>
+            {% endfor %}
+        </section>
+
+        <button type="submit" class="btn btn-primary">{{ t('admin.form.save') }}</button>
+    </form>
+
+    <section class="card card-body border-danger-subtle mt-5 mb-4">
+        <h2 class="h6">{{ t('lists.delete') }}</h2>
+        <form method="post" action="{{ admin_url('system/lists/' ~ list.name ~ '/delete') }}">
+            {{ csrf_field() }}
+            <p class="small text-body-secondary">{{ t('lists.delete_help') }}</p>
+            <button type="submit" class="btn btn-outline-danger btn-sm">{{ t('lists.delete') }}</button>
+        </form>
+    </section>
+{% endblock %}

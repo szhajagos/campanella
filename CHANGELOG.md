@@ -10,7 +10,18 @@ backward-incompatible.
 
 ## [Unreleased]
 
-Work towards 0.2.5: lists made in the admin, in parts.
+## [0.2.5] – 2026-10-15
+
+**Lists made in the admin.** The fourth step towards 0.3.0: the counterpart of
+`config/queries.php` that needs no code. A list shows the objects of one
+Blueprint, under conditions on its fields and relations (with `today` and
+`now` for dates, so "upcoming events" keeps itself up to date), in a chosen
+order, a page at a time, as short cards or as a table, at a path of its own
+and in templates.
+
+**Upgrading from 0.2.4:** upload the new files, then run the upgrade
+(`/admin/upgrade`, or `php bin/campanella migrate`): it adds the `lists`
+table (schema version 15). Nothing else changes for an existing site.
 
 ### Added
 
@@ -19,8 +30,13 @@ Work towards 0.2.5: lists made in the admin, in parts.
   `today` and `now` for dates), in what order, how many per page, shown as
   teasers or as a table, at a path of their own. Stored as JSON in the new
   `lists` table (schema version 15), checked against the Blueprints whenever
-  they are loaded. Their pages are in `sitemap.xml`. The editor in the admin
-  comes next.
+  they are loaded. Their pages are in `sitemap.xml`.
+- **System → Lists** in the admin: a new list (its name, title and
+  Blueprint), and on its page the title, path, number per page, display,
+  conditions (on the fields that can be filtered on, with a value or today /
+  now; on relations, by choosing the targets), order and the table's columns;
+  deleting it. A path that a route, the admin, a public folder or an object
+  has is refused.
 - `list('name')` and `field_value(item, 'field')` in templates.
 
 ## [0.2.4] – 2026-10-15

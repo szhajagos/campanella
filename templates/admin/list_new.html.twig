@@ -1,0 +1,35 @@
+{% extends '@core/admin/base.html.twig' %}
+{% import '@core/admin/_blueprint_macros.html.twig' as m %}
+
+{% block content %}
+    <p class="small mb-1"><a href="{{ admin_url('system/lists') }}">{{ t('lists.title') }}</a></p>
+    <h1 class="h3 mb-2">{{ t('lists.new') }}</h1>
+    <p class="text-body-secondary mb-4">{{ t('lists.new_intro') }}</p>
+    {% if errors.form ?? null %}<div class="alert alert-danger" role="alert">{{ t(errors.form.key, errors.form.params) }}</div>{% endif %}
+
+    <form method="post" action="{{ admin_url('system/lists/new') }}" class="admin-form" novalidate>
+        {{ csrf_field() }}
+        <section class="card card-body mb-4">
+            <div class="mb-3">
+                <label for="list-title" class="form-label fw-semibold">{{ t('lists.list_title') }} <span class="text-danger" aria-hidden="true">*</span></label>
+                <input type="text" class="form-control" id="list-title" name="title" value="{{ form.title }}" required maxlength="200">
+                <div class="form-text">{{ t('lists.title_help') }}</div>
+            </div>
+            <div class="mb-3">
+                <label for="list-name" class="form-label fw-semibold">{{ t('blueprints.name') }} <span class="text-danger" aria-hidden="true">*</span></label>
+                <input type="text" class="form-control font-monospace{{ m.invalid(errors, 'name') }}" id="list-name" name="name" value="{{ form.name }}" required maxlength="40" autocomplete="off">
+                <div class="form-text">{{ t('lists.name_help') }}</div>
+                {{ m.error(errors, 'name') }}
+            </div>
+            <div class="mb-0">
+                <label for="list-blueprint" class="form-label fw-semibold">Blueprint <span class="text-danger" aria-hidden="true">*</span></label>
+                <select class="form-select" id="list-blueprint" name="blueprint" required>
+                    <option value="">{{ t('admin.form.none') }}</option>
+                    {% for blueprint in blueprints %}<option value="{{ blueprint.name }}"{{ blueprint.name == form.blueprint ? ' selected' }}>{{ t(blueprint.label) }}</option>{% endfor %}
+                </select>
+                <div class="form-text">{{ t('lists.blueprint_help') }}</div>
+            </div>
+        </section>
+        <button type="submit" class="btn btn-primary">{{ t('blueprints.create') }}</button>
+    </form>
+{% endblock %}

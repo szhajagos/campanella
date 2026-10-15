@@ -10,6 +10,7 @@ use Campanella\Access\Actor;
 use Campanella\Access\Operation;
 use Campanella\Admin\AdminAccess;
 use Campanella\Admin\BlueprintEditor;
+use Campanella\Admin\ListEditor;
 use Campanella\Admin\Form\ObjectForm;
 use Campanella\Admin\MailPages;
 use Campanella\Admin\SettingsPage;
@@ -128,6 +129,7 @@ final class AdminController implements Controller
         private readonly SitePaths $paths = new SitePaths(),
         private readonly ?SubmissionPages $submissions = null,
         private readonly ?BlueprintEditor $blueprintEditor = null,
+        private readonly ?ListEditor $listEditor = null,
     ) {
     }
 
@@ -233,6 +235,10 @@ final class AdminController implements Controller
                 'can_edit' => $this->blueprintEditor !== null,
                 'stored_errors' => $this->blueprints->storedErrors(),
             ]);
+        }
+        // Lists made in the admin (since 0.2.5).
+        if (($segments[0] ?? null) === 'lists' && $this->listEditor !== null) {
+            return $this->listEditor->handle($request, $actor, array_slice($segments, 1), fn (string $template, string $active, array $context): Response => $this->render($template, $active, $context));
         }
         // Blueprints made in the admin (since 0.2.3).
         if (($segments[0] ?? null) === 'blueprints' && $this->blueprintEditor !== null) {

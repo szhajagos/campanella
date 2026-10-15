@@ -6550,6 +6550,67 @@ test('Kernel: a list\'s page at its path, as a table, with pages; list() in temp
     putenv('CAMPANELLA_DB_PREFIX');
 });
 
+test('Kernel: lists made in the admin (the editor)', function () use ($newUser, $repository, $service, $admin): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = null;
+    $storage = new ArraySessionStorage();
+    $boot = static function () use (&$kernel, $storage) {
+        $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+        $kernel->container()->set(Session::class, static fn () => new Session($storage));
+
+        return $kernel->container();
+    };
+    $container = $boot();
+    if ($container->get(Connection::class)->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $send = function (string $method, string $path, array $post = []) use (&$kernel, $storage, $boot) {
+        $storage->endRequest();
+        $boot();
+
+        return $kernel->handle(new Request($method, $path, post: $post));
+    };
+    $container->get(AuthService::class)->login(new Request('GET', '/'), $newUser('lista-szerk@example.hu', 'lista-jelszo-12', ['editor']));
+    check($send('GET', '/admin/system/lists')->status === 403, 'not for editors');
+    $boot()->get(AuthService::class)->login(new Request('GET', '/'), $newUser('lista-admin@example.hu', 'lista-jelszo-12', ['administrator']));
+    $overview = $send('GET', '/admin/system/lists');
+    check($overview->status === 200 && str_contains($overview->body, 'Új lista') && str_contains($overview->body, 'href="/admin/system/lists"'), 'the overview, in the menu');
+    $token = preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $overview->body, $m) === 1 ? $m[1] : '';
+
+    check($send('POST', '/admin/system/lists/new', ['_csrf' => $token, 'name' => 'Rossz név', 'title' => 'X', 'blueprint' => 'article'])->status === 422);
+    check($send('POST', '/admin/system/lists/new', ['_csrf' => $token, 'name' => 'felhasznalok', 'title' => 'X', 'blueprint' => 'user'])->status === 422, 'users cannot be listed');
+    $created = $send('POST', '/admin/system/lists/new', ['_csrf' => $token, 'name' => 'lista_teszt', 'title' => 'Teszt lista', 'blueprint' => 'article']);
+    check($created->status === 303 && ($created->headers['Location'] ?? '') === '/admin/system/lists/lista_teszt', (string) $created->status);
+    $edit = $send('GET', '/admin/system/lists/lista_teszt');
+    check($edit->status === 200 && str_contains($edit->body, '<option value="published_at"') && str_contains($edit->body, 'name="relations[categories][]"') && !str_contains($edit->body, '<option value="lead"'), 'only queryable fields in the conditions');
+
+    $article = $repository->create('article', ['title' => 'Foglalt út', 'path' => '/foglalt-ut']);
+    $repository->save($article);
+    $form = ['_csrf' => $token, 'title' => 'Teszt lista', 'per_page' => '5', 'display' => 'table', 'columns' => ['lead', 'published_at'],
+        'conditions' => [['field' => 'title', 'op' => 'contains', 'value' => 'Lista', 'relative' => ''], ['field' => 'published_at', 'op' => '<=', 'value' => '', 'relative' => 'now'], ['field' => '', 'op' => '=', 'value' => '', 'relative' => '']],
+        'sort' => [['field' => 'published_at', 'dir' => 'desc'], ['field' => '', 'dir' => 'asc']]];
+    foreach (['/hirek', '/admin/x', '/foglalt-ut', '/assets/x'] as $taken) {
+        $r = $send('POST', '/admin/system/lists/lista_teszt', ['path' => $taken] + $form);
+        check($r->status === 422, 'taken: ' . $taken . ' ' . $r->status . ' ' . (preg_match('/alert-danger[^>]*>([^<]*)/', $r->body, $mm) ? $mm[1] : ''));
+    }
+    $bad = $send('POST', '/admin/system/lists/lista_teszt', ['path' => '/lista-teszt', 'conditions' => [['field' => 'title', 'op' => '>', 'value' => 'x', 'relative' => '']]] + $form);
+    check($bad->status === 422 && str_contains($bad->body, 'Érvénytelen'), 'a condition that does not pass');
+    check($send('POST', '/admin/system/lists/lista_teszt', ['path' => '/Lista-Teszt'] + $form)->status === 303, 'saved');
+    $stored = $boot()->get(\Campanella\Lists\ListStore::class)->find('lista_teszt');
+    check(($stored['path'] ?? null) === '/lista-teszt' && count($stored['conditions'] ?? []) === 2 && ($stored['conditions'][1]['relative'] ?? null) === 'now' && ($stored['sort'] ?? null) == [['field' => 'published_at', 'dir' => 'desc']] /* == : MySQL sorts a JSON object's keys */, json_encode($stored));
+    check($send('POST', '/admin/system/lists/lista_teszt', ['path' => '/lista-teszt'] + $form)->status === 303, 'its own path is not taken');
+    $page = $send('GET', '/lista-teszt');
+    check($page->status === 200 && str_contains($page->body, 'Teszt lista') && str_contains($page->body, '<table'), (string) $page->status);
+    check(str_contains($send('GET', '/admin/system/lists')->body, 'href="/lista-teszt"'), 'listed, with its page');
+
+    check($send('POST', '/admin/system/lists/lista_teszt/delete', ['_csrf' => $token])->status === 303);
+    check($send('GET', '/lista-teszt')->status === 404 && $boot()->get(\Campanella\Lists\ListStore::class)->find('lista_teszt') === null, 'deleted');
+    $service->delete($admin, $article);
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
 echo "\nDocumentation examples\n";
 
 test('New capability as in the docs example (Featured)', function () use ($db, $admin): void {

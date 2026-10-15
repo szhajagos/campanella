@@ -2,9 +2,9 @@
 
 *Since 0.2.5.* A list made in the admin: which objects of a Blueprint, under
 which conditions, in what order, how many per page, shown how, and at which
-path. It is the counterpart of `config/queries.php` that needs no code. The
-editor in the admin comes in the second part of 0.2.5; until then the lists are
-made through `ListStore`.
+path. It is the counterpart of `config/queries.php` that needs no code. Lists
+are made in the admin (System → Lists, see below), or in code through
+`ListStore`.
 
 ```php
 $store->save('kozelgo', [
@@ -103,3 +103,20 @@ makes the columns.
 |---|---|
 | `{% for item in list('name') %}` | The list's first page for the current visitor (`CampanellaTwigExtension::list()`); nothing for an unknown list |
 | `{{ field_value(item, 'nap') }}` | One field of an object shown by its type, safe to print, as `object_fields()` shows it (`fieldValue()`) |
+
+## The editor: ListEditor
+
+`Campanella\Admin\ListEditor` · **Internal**, for the system roles
+(`admin.system_roles`), under System in the admin's menu.
+
+| Page | What it does |
+|---|---|
+| `/admin/system/lists` | The lists: title, machine name, Blueprint, path (a link to the page), display; a stored list that could not be loaded, with the reason |
+| `/admin/system/lists/new` | A new list: its title, machine name (as a Blueprint's; never changed later) and Blueprint (not users or forms' messages; never changed later) |
+| `/admin/system/lists/<name>` | Its title, path, number per page, display; conditions: rows of a field (only those `queryable()` gives), an operator, and a value or `today` / `now` (the list's own rows and three empty ones; an empty row is left out); a relation: the targets chosen (at most 200 offered); the order (three rows); the table's columns (the fields not hidden, but the title, body, status and format). Saving checks it with `ListDefinition::fromArray()`; what does not pass is shown with the reason |
+| `/admin/system/lists/<name>/delete` | POST: deletes the list (its page goes; the objects stay) |
+
+**The path** is refused if a route has it (`config/routes.php`, the system's
+pages, another list), if it is in the admin or a public folder (`/assets`,
+`/themes`, `/media`), or if an object has it (`validation.path_reserved`). An
+object's path a list has is refused the same way (the list's route).

@@ -1,0 +1,37 @@
+{% extends '@core/admin/base.html.twig' %}
+
+{% block content %}
+    <div class="d-flex flex-wrap align-items-baseline gap-2 mb-2">
+        <h1 class="h3 mb-0 me-auto">{{ t('lists.title') }}</h1>
+        <a class="btn btn-primary btn-sm" href="{{ admin_url('system/lists/new') }}">{{ t('lists.new') }}</a>
+    </div>
+    <p class="text-body-secondary mb-4">{{ t('lists.intro') }}</p>
+
+    {% for name, reason in errors %}
+        <div class="alert alert-danger" role="alert">{{ t('lists.not_loaded', {name: name, reason: reason}) }}</div>
+    {% endfor %}
+
+    {% if lists %}
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead><tr>
+                    <th scope="col">{{ t('lists.list_title') }}</th><th scope="col">{{ t('blueprints.name') }}</th>
+                    <th scope="col">Blueprint</th><th scope="col">{{ t('lists.path') }}</th><th scope="col">{{ t('lists.display') }}</th>
+                </tr></thead>
+                <tbody>
+                    {% for list in lists %}
+                        <tr>
+                            <td><a href="{{ admin_url('system/lists/' ~ list.name) }}">{{ list.title }}</a></td>
+                            <td><code>{{ list.name }}</code></td>
+                            <td>{{ t(list.blueprint) }}</td>
+                            <td>{% if list.path %}<a href="{{ url(list.path) }}">{{ list.path }}</a>{% else %}–{% endif %}</td>
+                            <td>{{ t('lists.display.' ~ list.display) }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="text-body-secondary">{{ t('lists.none') }}</p>
+    {% endif %}
+{% endblock %}

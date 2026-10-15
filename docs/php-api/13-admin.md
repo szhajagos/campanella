@@ -362,6 +362,9 @@ here, marked "defined in code") or are made here (since 0.2.3, see below).
 `capabilities(): list<array>` give the plain arrays the templates
 (`admin/blueprints.html.twig`, `admin/capabilities.html.twig`) show.
 
+Lists made in the admin (System → Lists, since 0.2.5) are in
+[chapter 23](23-lists.md#the-editor-listeditor).
+
 ### Making Blueprints: BlueprintEditor
 
 *Since 0.2.3.* `Campanella\Admin\BlueprintEditor` · **Internal**, for the
