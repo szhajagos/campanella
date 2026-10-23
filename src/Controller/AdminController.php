@@ -12,6 +12,7 @@ use Campanella\Admin\AdminAccess;
 use Campanella\Admin\BlueprintEditor;
 use Campanella\Admin\ListEditor;
 use Campanella\Admin\ModelPage;
+use Campanella\Admin\RedirectPages;
 use Campanella\Search\SearchIndexer;
 use Campanella\Admin\Form\ObjectForm;
 use Campanella\Admin\MailPages;
@@ -134,6 +135,7 @@ final class AdminController implements Controller
         private readonly ?ListEditor $listEditor = null,
         private readonly ?ModelPage $modelPage = null,
         private readonly ?SearchIndexer $searchIndexer = null,
+        private readonly ?RedirectPages $redirectPages = null,
     ) {
     }
 
@@ -243,6 +245,10 @@ final class AdminController implements Controller
         // Lists made in the admin (since 0.2.5).
         if (($segments[0] ?? null) === 'lists' && $this->listEditor !== null) {
             return $this->listEditor->handle($request, $actor, array_slice($segments, 1), fn (string $template, string $active, array $context): Response => $this->render($template, $active, $context));
+        }
+        // The redirects (since 0.2.7).
+        if (($segments[0] ?? null) === 'redirects' && $this->redirectPages !== null) {
+            return $this->redirectPages->handle($request, array_slice($segments, 1), fn (string $template, string $active, array $context): Response => $this->render($template, $active, $context));
         }
         // The content model's export and import (since 0.2.6).
         if (($segments[0] ?? null) === 'model' && $this->modelPage !== null) {

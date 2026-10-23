@@ -1,0 +1,76 @@
+{% extends '@core/admin/base.html.twig' %}
+
+{% block content %}
+    <h1 class="h3 mb-2">{{ t('redirects.title') }}</h1>
+    <p class="text-body-secondary mb-4">{{ t('redirects.intro') }}</p>
+    {% if errors.form ?? null %}<div class="alert alert-danger" role="alert">{{ t(errors.form.key, errors.form.params) }}</div>{% endif %}
+
+    <form method="post" action="{{ admin_url('system/redirects/new') }}" class="card card-body mb-4 admin-form" novalidate>
+        {{ csrf_field() }}
+        <h2 class="h5">{{ t('redirects.new') }}</h2>
+        <div class="row g-3 align-items-start">
+            <div class="col-md-5">
+                <label for="redirect-source" class="form-label fw-semibold">{{ t('redirects.source') }}</label>
+                <input type="text" class="form-control font-monospace{{ (errors.source ?? null) ? ' is-invalid' }}" id="redirect-source" name="source" value="{{ form.source }}" placeholder="/regi-oldal" maxlength="255" required autocomplete="off">
+                {% if errors.source ?? null %}<div class="invalid-feedback">{{ t(errors.source.key, errors.source.params) }}</div>{% endif %}
+            </div>
+            <div class="col-md-5">
+                <label for="redirect-target" class="form-label fw-semibold">{{ t('redirects.target') }}</label>
+                <input type="text" class="form-control font-monospace{{ (errors.target ?? null) ? ' is-invalid' }}" id="redirect-target" name="target" value="{{ form.target }}" placeholder="/uj-oldal" maxlength="255" required autocomplete="off">
+                {% if errors.target ?? null %}<div class="invalid-feedback">{{ t(errors.target.key, errors.target.params) }}</div>{% endif %}
+            </div>
+            <div class="col-md-2 align-self-end">
+                <button type="submit" class="btn btn-primary w-100">{{ t('redirects.add') }}</button>
+            </div>
+        </div>
+        <div class="form-text mt-2">{{ t('redirects.new_help') }}</div>
+    </form>
+
+    {% if redirects %}
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead><tr>
+                    <th scope="col">{{ t('redirects.source') }}</th>
+                    <th scope="col">{{ t('redirects.target') }}</th>
+                    <th scope="col">{{ t('redirects.hits') }}</th>
+                    <th scope="col">{{ t('redirects.created') }}</th>
+                    <th scope="col"><span class="visually-hidden">{{ t('redirects.delete') }}</span></th>
+                </tr></thead>
+                <tbody>
+                    {% for redirect in redirects %}
+                        <tr>
+                            <td><code>{{ redirect.source }}</code></td>
+                            <td>
+                                {% if redirect.object_id %}
+                                    {% if redirect.path %}<a href="{{ url(redirect.path) }}">{{ redirect.title ?? redirect.path }}</a> <code class="small">{{ redirect.path }}</code>{% else %}–{% endif %}
+                                    <span class="badge text-bg-secondary ms-1">{{ t('redirects.automatic') }}</span>
+                                {% else %}
+                                    <a href="{{ url(redirect.target) }}"><code>{{ redirect.target }}</code></a>
+                                {% endif %}
+                            </td>
+                            <td>{{ redirect.hits }}{% if redirect.last_hit_at %}<br><span class="small text-body-secondary">{{ t('redirects.last_hit', {time: date(redirect.last_hit_at, 'UTC')|date}) }}</span>{% endif %}</td>
+                            <td class="small text-nowrap">{{ date(redirect.created_at, 'UTC')|date }}</td>
+                            <td class="text-end">
+                                <form method="post" action="{{ admin_url('system/redirects/' ~ redirect.id ~ '/delete') }}" class="m-0">
+                                    {{ csrf_field() }}
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">{{ t('redirects.delete') }}</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if pages > 1 %}
+            <nav aria-label="{{ t('content.pager') }}">
+                <ul class="pagination">
+                    {% for p in 1..pages %}
+                        <li class="page-item{{ p == page ? ' active' }}"><a class="page-link" href="{{ admin_url('system/redirects') }}?page={{ p }}">{{ p }}</a></li>
+                    {% endfor %}
+                </ul>
+            </nav>
+        {% endif %}
+    {% else %}
+        <p class="text-body-secondary">{{ t('redirects.none') }}</p>
+    {% endif %}
+{% endblock %}

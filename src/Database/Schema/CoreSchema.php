@@ -25,6 +25,7 @@ final class CoreSchema
     public const string BLUEPRINTS = 'blueprints';
     public const string LISTS = 'lists';
     public const string SEARCH_INDEX = 'search_index';
+    public const string REDIRECTS = 'redirects';
 
     /** @return list<Table> */
     public static function tables(): array
@@ -250,6 +251,25 @@ final class CoreSchema
                 indexes: ['idx_blueprint' => ['blueprint']],
                 foreignKeys: [new ForeignKey('object_id', self::OBJECTS)],
                 fulltexts: ['ft_title' => ['title'], 'ft_text' => ['title', 'content']],
+            ),
+            // The redirects (since 0.2.7, schema version 16): an old path to an object (made when
+            // its path changes; it follows the object's later paths, and goes with the object) or,
+            // made in the admin, to a path (Campanella\Site\Redirects).
+            new Table(
+                name: self::REDIRECTS,
+                columns: [
+                    new Column('id', ColumnType::Id, autoIncrement: true),
+                    new Column('source', ColumnType::String, length: 255),
+                    new Column('object_id', ColumnType::Id, nullable: true),
+                    new Column('target', ColumnType::String, length: 255, nullable: true),
+                    new Column('hits', ColumnType::Integer, default: 0),
+                    new Column('last_hit_at', ColumnType::DateTime, nullable: true),
+                    new Column('created_at', ColumnType::DateTime),
+                ],
+                primaryKey: ['id'],
+                indexes: ['idx_object' => ['object_id']],
+                uniques: ['uniq_source' => ['source']],
+                foreignKeys: [new ForeignKey('object_id', self::OBJECTS)],
             ),
             // Throttling of attempts (e.g. login). The SHA-256 hash of the key.
             new Table(

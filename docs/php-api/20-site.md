@@ -205,6 +205,38 @@ generated one (the System page notes it). Search engines read `robots.txt`
 only at the root of a host: for a site in a folder, put the rules into the
 host's own file.
 
+## Redirects (`Redirects`)
+
+*Since 0.2.7.* An old address leads on with `301 Moved Permanently`, so links
+and search engines' entries keep working, in the `redirects` table (schema
+version 16):
+
+- **Automatic:** when an object's path changes, its old path leads to the
+  object, by its ID: to its current path however often it changes again, and
+  the redirect goes with the object. A page that takes a redirect's path (a new
+  object, or one moved there) deletes that redirect.
+- **Made in the admin** (System → Redirects): from a path to a path of the
+  site. The path it leads from must not be a page (a route, a list, an object,
+  the admin or a public folder): a redirect from it would never be used.
+
+A redirect is used only where nothing else answers: when a `GET` (or `HEAD`)
+request would end in 404, never in the admin; the query is kept
+(`/regi?utm=x` → `/uj?utm=x`). One that leads to another's source is followed
+(at most 5 in a row); a loop leads nowhere (404). Each use is counted.
+
+`Campanella\Site\Redirects` · **Public** · `final class`, a service
+
+| Member | Description |
+|---|---|
+| `static moved(Connection $db, int $objectId, ?string $old, string $new): void` | An object's path changed (the `ObjectRepository` calls it on save) |
+| `target(string $path): ?string` | Where a path leads, or null; counts the use |
+| `page(int $page, int $perPage): array` | A page of the redirects (`items`, `total`), the newest first, with an object's title and current path |
+| `exists(string $source): bool`, `add(string $source, string $target): void`, `delete(int $id): bool` | For the admin's page; `add()` does not check the paths |
+
+`Campanella\Admin\RedirectPages` · **Internal**: `/admin/system/redirects`
+(the list, 50 a page; the form), POST `/admin/system/redirects/new`, POST
+`/admin/system/redirects/<id>/delete`, for the system roles.
+
 ## Not indexed: the admin, logging in, error pages
 
 The admin pages already send `X-Robots-Tag: noindex, nofollow`. Since 0.1.1

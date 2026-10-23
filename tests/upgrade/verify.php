@@ -163,6 +163,15 @@ $indexer->build(30);
 $check($indexer->missing() === 0, 'the search index was not built: ' . $indexer->missing() . ' missing');
 $found = $c->get(\Campanella\Search\Search::class)->find('frissitesi probacikk', Actor::anonymous());
 $check(in_array($snapshot['article']['id'], array_map(static fn (array $i): int => (int) $i['object']->id(), $found->items), true), 'the old article is not found by the search');
+// The redirects (0.2.7): an old article's changed path leads on.
+$repository = $c->get(\Campanella\Model\ObjectRepository::class);
+$old = $repository->find($snapshot['article']['id']) ?? throw new RuntimeException('no article');
+$old->set('path', $snapshot['article']['path'] . '-uj');
+$repository->save($old);
+$moved = $get($snapshot['article']['path']);
+$check($moved->status === 301 && ($moved->headers['Location'] ?? '') === $snapshot['article']['path'] . '-uj', "the old article's old path: {$moved->status}");
+$old->set('path', $snapshot['article']['path']);
+$repository->save($old);   // back, so verify.php can run again on the same site
 $submissions = $c->get(\Campanella\Service\SubmissionService::class);
 $message = $submissions->submit('Frissítés után', 'utana@example.hu', '', 'Az új funkció a régi adatokon.');
 $check($submissions->find(Actor::system(), (int) $message->id()) !== null && $submissions->find(\Campanella\Auth\AuthService::actorFor($c->get(AuthService::class)->findUserByEmail($snapshot['users']['editor'][0]) ?? throw new RuntimeException('no editor')), (int) $message->id()) === null, 'a contact message is not for administrators only');

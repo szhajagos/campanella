@@ -6865,7 +6865,7 @@ test('Kernel: the content model page in the admin: download, plan, confirm', fun
     putenv('CAMPANELLA_DB_PREFIX');
 });
 
-echo "\nSearch (0.2.7)\n";
+echo "\nSearch and redirects (0.2.7)\n";
 
 test('Schema: FULLTEXT indexes are made, read and compared', function () use ($db): void {
     $table = \Campanella\Database\Schema\CoreSchema::tables();
@@ -6971,6 +6971,76 @@ test('Kernel: the search page finds the published pages, the title counts more; 
         $repository->delete($article);
     }
     check($db->fetchValue('SELECT 1 FROM {search_index} WHERE object_id = :id', ['id' => $id]) === null, 'deleted with its object');
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('Kernel: a changed path leads on (301), to the object\'s current path; redirects made in the admin', function () use ($newUser): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = null;
+    $storage = new ArraySessionStorage();
+    $boot = static function () use (&$kernel, $storage) {
+        $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+        $kernel->container()->set(Session::class, static fn () => new Session($storage));
+
+        return $kernel->container();
+    };
+    $container = $boot();
+    if ($container->get(Connection::class)->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $db = $container->get(Connection::class);
+    $send = function (string $method, string $path, array $query = [], array $post = []) use (&$kernel, $storage, $boot) {
+        $storage->endRequest();
+        $boot();
+
+        return $kernel->handle(new Request($method, $path, $query, $post));
+    };
+    $repository = $container->get(ObjectRepository::class);
+    $article = $repository->create('article', ['title' => 'Átirányítás-0227', 'path' => '/atiranyitas-a', 'status' => PublishStatus::Published, 'published_at' => new DateTimeImmutable('-1 hour')]);
+    $repository->save($article);
+    check((int) $db->fetchValue('SELECT COUNT(*) FROM {redirects} WHERE object_id = :id', ['id' => $article->id()]) === 0, 'a new object: none');
+    $article->set('path', '/atiranyitas-b');
+    $repository->save($article);
+    $moved = $send('GET', '/atiranyitas-a', ['utm' => 'x']);
+    check($moved->status === 301 && ($moved->headers['Location'] ?? '') === '/atiranyitas-b?utm=x', $moved->status . ' ' . ($moved->headers['Location'] ?? ''));
+    $article->set('path', '/atiranyitas-c');
+    $repository->save($article);
+    check(($send('GET', '/atiranyitas-a')->headers['Location'] ?? '') === '/atiranyitas-c' && ($send('GET', '/Atiranyitas-B/')->headers['Location'] ?? '') === '/atiranyitas-c', 'every old path to the current one');
+    check($send('GET', '/atiranyitas-c')->status === 200 && $send('POST', '/atiranyitas-a')->status !== 301, 'the page itself; only GET is redirected');
+    check((int) $db->fetchValue('SELECT hits FROM {redirects} WHERE source = :s', ['s' => '/atiranyitas-a']) === 2, 'counted');
+
+    // A new page at an old path takes it.
+    $other = $repository->create('article', ['title' => 'Másik-0227', 'path' => '/atiranyitas-a', 'status' => PublishStatus::Published, 'published_at' => new DateTimeImmutable('-1 hour')]);
+    $repository->save($other);
+    check($send('GET', '/atiranyitas-a')->status === 200 && !$db->fetchValue('SELECT 1 FROM {redirects} WHERE source = :s', ['s' => '/atiranyitas-a']), 'the redirect goes');
+
+    // In the admin.
+    $container->get(AuthService::class)->login(new Request('GET', '/'), $newUser('atiranyitas-szerk@example.hu', 'atiranyitas-jelszo-1', ['editor']));
+    check($send('GET', '/admin/system/redirects')->status === 403, 'not for editors');
+    $boot()->get(AuthService::class)->login(new Request('GET', '/'), $newUser('atiranyitas-admin@example.hu', 'atiranyitas-jelszo-1', ['administrator']));
+    $list = $send('GET', '/admin/system/redirects');
+    check($list->status === 200 && str_contains($list->body, '/atiranyitas-b') && str_contains($list->body, 'automatikus') && str_contains($list->body, 'href="/admin/system/redirects"'), 'the list, in the menu');
+    $token = preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $list->body, $m) === 1 ? $m[1] : '';
+    $add = static fn (string $source, string $target) => $send('POST', '/admin/system/redirects/new', [], ['_csrf' => $token, 'source' => $source, 'target' => $target]);
+    check($send('POST', '/admin/system/redirects/new', [], ['_csrf' => 'x', 'source' => '/regi-0227', 'target' => '/atiranyitas-c'])->status === 400, 'CSRF');
+    foreach ([['regi', '/x'], ['/re gi', '/x'], ['//pelda.hu', '/x'], ['/regi?x', '/x'], ['/hirek', '/x'], ['/atiranyitas-c', '/x'], ['/admin/valami', '/x'], ['/atiranyitas-b', '/x'], ['/regi-0227', '/regi-0227'], ['/regi-0227', 'https://pelda.hu']] as [$source, $target]) {
+        check($add($source, $target)->status === 422, "refused: {$source} → {$target}");
+    }
+    check($add('/Regi-0227/', '/atiranyitas-c')->status === 303, 'made');
+    check(($send('GET', '/regi-0227')->headers['Location'] ?? '') === '/atiranyitas-c', 'it leads on');
+    check($add('/hurok-a', '/hurok-b')->status === 303 && $add('/hurok-b', '/hurok-a')->status === 303 && $send('GET', '/hurok-a')->status === 404, 'a loop leads nowhere');
+    check($add('/lanc-0227', '/regi-0227')->status === 303 && ($send('GET', '/lanc-0227')->headers['Location'] ?? '') === '/atiranyitas-c', 'one after the other');
+    $id = (int) $db->fetchValue('SELECT id FROM {redirects} WHERE source = :s', ['s' => '/regi-0227']);
+    check($send('POST', '/admin/system/redirects/' . $id . '/delete', [], ['_csrf' => $token])->status === 303 && $send('GET', '/regi-0227')->status === 404, 'deleted');
+
+    // Deleting the object deletes its redirects.
+    $repository = $boot()->get(ObjectRepository::class);
+    $repository->delete($article);
+    $repository->delete($other);
+    check(!$db->fetchValue('SELECT 1 FROM {redirects} WHERE source = :s', ['s' => '/atiranyitas-b']), 'gone with the object');
+    $db->execute('DELETE FROM {redirects}');
     putenv('CAMPANELLA_DB_PREFIX');
 });
 

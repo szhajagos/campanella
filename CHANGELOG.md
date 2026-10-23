@@ -24,6 +24,13 @@ Work towards 0.2.7: search, redirects and an image picker, in parts.
   are added from the System page (a button) or with
   `php bin/campanella search:index` (`--all`: every page again). The search
   page is `noindex` and not to be crawled (`robots.txt`).
+- **Redirects** ([PHP API](docs/php-api/20-site.md#redirects-redirects)): when
+  an object's path changes, its old path leads to it with `301 Moved
+  Permanently` (to its current path, however often it changes again), and
+  **System → Redirects** in the admin lists them, makes new ones from a path to
+  a path of the site, and deletes them. A redirect is used only where no page
+  answers; the query is kept; each use is counted. The new `redirects` table
+  (schema version 16).
 - FULLTEXT indexes in table definitions (`Table::$fulltexts`), made, read and
   compared by the schema classes.
 

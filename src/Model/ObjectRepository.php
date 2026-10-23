@@ -15,6 +15,8 @@ use Campanella\Capability\Textual;
 use Campanella\Html\HtmlSanitizer;
 use Campanella\Media\MediaUsage;
 use Campanella\Search\SearchIndex;
+use Campanella\Site\Redirects;
+use Campanella\Capability\Routable;
 use Campanella\Database\Schema\SchemaReader;
 use Campanella\Tree\TreeKeeper;
 use Campanella\Support\Uuid;
@@ -34,6 +36,7 @@ use PDOException;
  *   relationships        – relationships to other objects
  *   media_usage          – the uploaded files a text shows (since 0.1.2)
  *   search_index         – the plain text for the search (since 0.2.7)
+ *   redirects            – an old path to the object, when its path changes (since 0.2.7)
  *
  * When loading lists, a single query runs per table (no N+1).
  * The object cache will also be built in here later.
@@ -46,8 +49,8 @@ final class ObjectRepository
     private readonly HtmlSanitizer $html;
     private readonly TreeKeeper $tree;
 
-    /** Whether the search's table exists (looked up once). */
-    private ?bool $searchIndex = null;
+    /** @var array<string, bool> Whether the search's and the redirects' tables exist (looked up once) */
+    private array $tables = [];
 
     /**
      * @param HtmlSanitizer|null $html Filters texts in `html` format on save (since 0.0.5);
@@ -247,7 +250,14 @@ final class ObjectRepository
         $json = json_encode($data, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         $format = FieldType::STORAGE_DATE_FORMAT;
 
-        $id = $this->db->transactional(function (Connection $db) use ($object, $json, $now, $format, $tree, $scope): int {
+        // The path before the change, for a redirect (since 0.2.7).
+        $oldPath = null;
+        if (!$object->isNew() && $object->has(Routable::class) && $this->hasTable(CoreSchema::REDIRECTS)) {
+            $value = $this->db->fetchValue('SELECT path FROM {cap_routable} WHERE object_id = :id', ['id' => (int) $object->id()]);
+            $oldPath = $value === null ? null : (string) $value;
+        }
+
+        $id = $this->db->transactional(function (Connection $db) use ($object, $json, $now, $format, $tree, $scope, $oldPath): int {
             if ($object->isNew()) {
                 $id = $db->insert(CoreSchema::OBJECTS, [
                     'uuid' => $object->uuid(),
@@ -317,8 +327,12 @@ final class ObjectRepository
                 );
             }
             // The search's index (since 0.2.7), once the database has its table.
-            if ($this->hasSearchIndex()) {
+            if ($this->hasTable(CoreSchema::SEARCH_INDEX)) {
                 SearchIndex::record($db, $id, $object, $blueprint);
+            }
+            // A changed path: the old one leads to the object from now on (since 0.2.7).
+            if ($object->has(Routable::class) && $this->hasTable(CoreSchema::REDIRECTS)) {
+                Redirects::moved($db, $id, $oldPath, $object->as(Routable::class)->route());
             }
             // A node moved to another scope (e.g. menu) takes its subtree with it.
             $scopeTarget = $scope === null ? null : ($object->relatedIds($scope)[0] ?? null);
@@ -356,10 +370,10 @@ final class ObjectRepository
         $this->db->delete(CoreSchema::OBJECTS, ['id' => $object->id()]);
     }
 
-    /** Whether the database has the search's table (it may be before the upgrade to 0.2.7). */
-    private function hasSearchIndex(): bool
+    /** Whether the database has a table of 0.2.7 (it may be before the upgrade). */
+    private function hasTable(string $table): bool
     {
-        return $this->searchIndex ??= (new SchemaReader($this->db))->tableExists(CoreSchema::SEARCH_INDEX);
+        return $this->tables[$table] ??= (new SchemaReader($this->db))->tableExists($table);
     }
 
     /** Replaces the rows of a multi-valued field in the field_values table. */

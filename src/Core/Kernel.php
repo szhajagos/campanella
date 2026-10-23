@@ -41,6 +41,7 @@ use Campanella\Admin\AdminAccess;
 use Campanella\Admin\BlueprintEditor;
 use Campanella\Admin\ListEditor;
 use Campanella\Admin\ModelPage;
+use Campanella\Admin\RedirectPages;
 use Campanella\Admin\Form\ObjectForm;
 use Campanella\Capability\CapabilityRegistry;
 use Campanella\Auth\AuthService;
@@ -51,6 +52,8 @@ use Campanella\Controller\AuthController;
 use Campanella\Controller\ContactController;
 use Campanella\Controller\SearchController;
 use Campanella\Search\Search;
+use Campanella\Site\Redirects;
+use Campanella\Capability\Routable;
 use Campanella\Search\SearchCheck;
 use Campanella\Search\SearchIndexer;
 use Campanella\Controller\Controller;
@@ -292,10 +295,42 @@ final class Kernel
 
             return $controller->handle($request, $route, $actor);
         } catch (HttpException $e) {
+            if ($e->status === 404 && in_array($request->method, ['GET', 'HEAD'], true)) {
+                $redirect = $this->redirectFor($request);
+                if ($redirect !== null) {
+                    return $redirect;
+                }
+            }
+
             return $this->errorResponse($e->status, $e->getMessage());
         } catch (\Throwable $e) {
             return $this->failure($e);
         }
+    }
+
+    /**
+     * A redirect of the path that nothing else answers (since 0.2.7): 301 to where it leads,
+     * with the query. Never in the admin.
+     */
+    private function redirectFor(Request $request): ?Response
+    {
+        try {
+            $admin = $this->container()->get(AdminAccess::class);
+            if ($admin->matches($request)) {
+                return null;
+            }
+            $target = $this->container()->get(Redirects::class)->target($request->path);
+        } catch (\Throwable $e) {
+            error_log('Campanella: the redirects could not be read: ' . $e->getMessage());
+
+            return null;
+        }
+        if ($target === null || $target === Routable::normalize($request->path)) {
+            return null;
+        }
+        $query = $request->query === [] ? '' : '?' . http_build_query($request->query);
+
+        return Response::redirect($request->basePath . $target . $query, 301);
     }
 
     /** The handlers that work while an upgrade is needed. */
@@ -876,6 +911,13 @@ final class Kernel
                 $c->get(Translator::class),
             ),
             $c->get(SearchIndexer::class),
+            new RedirectPages(
+                $c->get(Redirects::class),
+                $c->get(ListPathCheck::class),
+                $c->get(Csrf::class),
+                $c->get(Flash::class),
+                $c->get(AdminAccess::class),
+            ),
         ));
 
         // The contact form (since 0.1.5).
@@ -893,6 +935,8 @@ final class Kernel
             );
         });
 
+        // The redirects (since 0.2.7).
+        $c->set(Redirects::class, static fn (Container $c): Redirects => new Redirects($c->get(Connection::class)));
         // The search (since 0.2.7).
         $c->set(Search::class, static fn (Container $c): Search => new Search($c->get(Connection::class), $c->get(QueryEngine::class), $c->get(BlueprintRegistry::class)));
         $c->set(SearchIndexer::class, static fn (Container $c): SearchIndexer => new SearchIndexer(
