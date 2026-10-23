@@ -73,6 +73,7 @@ use Campanella\I18n\Translator;
 use Campanella\Menu\MenuBuilder;
 use Campanella\Model\BlueprintRegistry;
 use Campanella\Model\BlueprintStore;
+use Campanella\Lists\ListPathCheck;
 use Campanella\Lists\ListRegistry;
 use Campanella\Lists\ListStore;
 use Campanella\Controller\ListController;
@@ -82,6 +83,9 @@ use Campanella\Query\QueryEngine;
 use Campanella\Relation\RelationLoader;
 use Campanella\Security\Csrf;
 use Campanella\Security\Throttle;
+use Campanella\Transfer\ModelExport;
+use Campanella\Transfer\ModelImport;
+use Campanella\Transfer\ObjectReferences;
 use Campanella\Tree\SiblingOrder;
 use Campanella\Service\ObjectService;
 use Campanella\View\CampanellaTwigExtension;
@@ -628,6 +632,30 @@ final class Kernel
             $c->get(CapabilityRegistry::class),
             $c->get(Migrator::class),
             $c->get(BlueprintRegistry::class),
+        ));
+        // The content model's export and import (since 0.2.6).
+        $c->set(ObjectReferences::class, static fn (Container $c): ObjectReferences => new ObjectReferences($c->get(Connection::class)));
+        $c->set(ListPathCheck::class, static fn (Container $c): ListPathCheck => new ListPathCheck(
+            $c->get(Router::class),
+            $c->get(AdminAccess::class),
+            $c->get(Connection::class),
+        ));
+        $c->set(ModelExport::class, static fn (Container $c): ModelExport => new ModelExport(
+            $c->get(BlueprintStore::class),
+            $c->get(ListStore::class),
+            $c->get(ObjectReferences::class),
+        ));
+        $c->set(ModelImport::class, static fn (Container $c): ModelImport => new ModelImport(
+            $c->get(CapabilityRegistry::class),
+            $c->get(BlueprintStore::class),
+            $c->get(ListStore::class),
+            $c->get(Connection::class),
+            static fn (): array => require $root . '/config/blueprints.php',
+            $c->get(Installer::class),
+            $c->get(Migrator::class),
+            $c->get(DatabaseBackup::class),
+            $c->get(ListPathCheck::class),
+            $c->get(ObjectReferences::class),
         ));
         $c->set(SchemaSync::class, static fn (Container $c): SchemaSync => new SchemaSync(
             $c->get(Connection::class),

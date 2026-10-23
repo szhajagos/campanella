@@ -6611,6 +6611,190 @@ test('Kernel: lists made in the admin (the editor)', function () use ($newUser, 
     putenv('CAMPANELLA_DB_PREFIX');
 });
 
+echo "\nThe content model's export and import (0.2.6)\n";
+
+test('ModelFile: only a content model file of a known version is read', function (): void {
+    $bad = static function (string $json): bool {
+        try {
+            \Campanella\Transfer\ModelFile::decode($json);
+        } catch (\InvalidArgumentException) {
+            return true;
+        }
+
+        return false;
+    };
+    check($bad('{') && $bad('[]') && $bad('{"format":"x","version":1}'), 'not JSON, not the format');
+    check($bad('{"format":"campanella.content-model","version":2}') && $bad('{"format":"campanella.content-model"}'), 'a newer or no version');
+    check($bad('{"format":"campanella.content-model","version":1,"blueprints":[{"label":"x"}]}'), 'the Blueprints must be named');
+    check($bad('{"format":"campanella.content-model","version":1,"lists":{"a":"x"}}'), 'a definition must be an object');
+    check($bad(str_repeat(' ', \Campanella\Transfer\ModelFile::MAX_BYTES + 1)), 'too large');
+    check($bad('{"format":"campanella.content-model","version":1,"blueprints":' . str_repeat('{"a":', 20) . '1' . str_repeat('}', 20) . '}'), 'too deep');
+    $model = \Campanella\Transfer\ModelFile::decode("\xEF\xBB\xBF" . '{"format":"campanella.content-model","version":1,"blueprints":{},"lists":{}}');
+    check($model['blueprints'] === [] && $model['lists'] === [], 'empty, with a byte order mark');
+    $json = \Campanella\Transfer\ModelFile::encode(['blueprints' => [], 'lists' => [], 'campanella' => '0.2.6', 'exported_at' => 'x']);
+    check(str_contains($json, '"blueprints": {}') && \Campanella\Transfer\ModelFile::decode($json)['campanella'] === '0.2.6', 'written as objects');
+});
+
+test('Kernel: the content model exported and imported, with the editor\'s rules', function (): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $boot = static fn () => (new \Campanella\Core\Kernel(dirname(__DIR__)))->container();
+    $container = $boot();
+    if ($container->get(Connection::class)->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $db = $container->get(Connection::class);
+    $db->execute('DROP TABLE IF EXISTS ' . $db->table('bp_musor')); // left by a run that failed
+    $backups = dirname(__DIR__) . '/var/backups';
+    $before = glob($backups . '/campanella-*') ?: [];
+    $import = static fn () => $boot()->get(\Campanella\Transfer\ModelImport::class);
+    $model = static fn (array $blueprints, array $lists = []): array => ['blueprints' => $blueprints, 'lists' => $lists, 'campanella' => '0.2.6', 'exported_at' => ''];
+    $field = static fn (string $name, string $type, array $more = []): array => ['name' => $name, 'type' => $type, 'label' => ucfirst($name)] + $more;
+    $item = static function (\Campanella\Transfer\ImportPlan $plan, string $kind, string $name): ?\Campanella\Transfer\ImportItem {
+        foreach ($plan->items as $item) {
+            if ($item->kind === $kind && $item->name === $name) {
+                return $item;
+            }
+        }
+
+        return null;
+    };
+    $keys = static fn (?\Campanella\Transfer\ImportItem $i): array => array_map(static fn ($m): string => $m->key, [...($i->changes ?? []), ...($i->warnings ?? []), ...($i?->error !== null ? [$i->error] : [])]);
+
+    // A new Blueprint, from a file.
+    $esemeny = ['version' => 1, 'label' => 'Program', 'capabilities' => ['titled', 'routable', 'publishable'],
+        'fields' => [$field('nap', 'date', ['queryable' => true]), $field('db', 'integer', ['queryable' => true]), $field('fajta', 'choice', ['choices' => [['key' => 'a', 'label' => 'A'], ['key' => 'b', 'label' => 'B']]])],
+        'relations' => [['name' => 'helyszin', 'label' => 'Helyszín', 'targets' => ['category'], 'many' => false]]];
+    $plan = $import()->plan($model(['musor' => $esemeny, 'article' => ['label' => 'Cikk'], 'Rossz' => ['label' => 'x']]));
+    check($item($plan, 'blueprint', 'musor')?->action === 'create', 'new: ' . json_encode($keys($item($plan, 'blueprint', 'musor'))) . (string) $item($plan, 'blueprint', 'musor')?->error);
+    check($item($plan, 'blueprint', 'article')?->action === 'error' && $keys($item($plan, 'blueprint', 'article')) === ['transfer.error.code_blueprint'], 'not a Blueprint of the code');
+    check($item($plan, 'blueprint', 'Rossz')?->action === 'error' && $plan->hasErrors(), 'not an invalid name');
+    $threw = false;
+    try {
+        $import()->apply($plan);
+    } catch (\RuntimeException) {
+        $threw = true;
+    }
+    check($threw && $boot()->get(\Campanella\Model\BlueprintStore::class)->find('musor') === null, 'with an error, nothing is done');
+
+    $plan = $import()->plan($model(['musor' => $esemeny]));
+    check(!$plan->hasErrors() && $plan->hasChanges() && !$plan->backup && $plan->database !== [], 'a plan, without a backup (no objects)');
+    check($import()->apply($plan) === null, 'applied');
+    $registry = $boot()->get(BlueprintRegistry::class);
+    check($registry->isEditable('musor') && isset($registry->get('musor')->fields['nap']) && (new \Campanella\Database\Schema\SchemaReader($db))->read('bp_musor')?->column('db') !== null, 'the Blueprint and its table');
+    check(!$import()->plan($model(['musor' => $esemeny]))->hasChanges(), 'again: unchanged');
+
+    // With an object: only the safe changes.
+    $repository = $boot()->get(ObjectRepository::class);
+    $kat = $repository->create('category', ['title' => 'Kat-0226', 'path' => '/kat-0226']);
+    $repository->save($kat);
+    $obj = $repository->create('musor', ['title' => 'Program-0226', 'path' => '/program-0226', 'nap' => '2026-11-01', 'db' => 3, 'fajta' => 'a', 'status' => PublishStatus::Published]);
+    $repository->save($obj);
+    $changed = $esemeny;
+    $changed['label'] = 'Programok';
+    $changed['fields'][1] = $field('db', 'decimal', ['queryable' => true, 'scale' => 1]);
+    $changed['fields'][] = $field('hely', 'string', ['queryable' => true, 'required' => true, 'default' => 'Pécs']);
+    unset($changed['fields'][0]);
+    $changed['fields'] = array_values($changed['fields']);
+    $plan = $import()->plan($model(['musor' => $changed]));
+    $line = $item($plan, 'blueprint', 'musor');
+    check(!$plan->hasErrors() && $line?->action === 'update' && $plan->backup, json_encode($keys($line)));
+    check(in_array('transfer.change.label', $keys($line), true) && in_array('transfer.change.field.type', $keys($line), true) && in_array('transfer.change.field_added', $keys($line), true) && in_array('transfer.warning.field_kept', $keys($line), true), json_encode($keys($line)));
+    $file = $import()->apply($plan);
+    check($file !== null && is_file($file), 'a backup first');
+    $fields = $boot()->get(BlueprintRegistry::class)->get('musor')->fields;
+    check(array_keys($fields) === ['db', 'fajta', 'hely', 'nap'] && $fields['db']->type === FieldType::Decimal, 'the field not in the file is kept, at the end: ' . json_encode(array_keys($fields)));
+    check((string) $db->fetchValue('SELECT hely FROM {bp_musor} WHERE object_id = :id', ['id' => $obj->id()]) === 'Pécs', 'the new column has the default');
+
+    $narrow = $changed;
+    $narrow['fields'][0] = $field('db', 'integer', ['queryable' => true]);
+    check($keys($item($import()->plan($model(['musor' => $narrow])), 'blueprint', 'musor')) !== [] && $item($import()->plan($model(['musor' => $narrow])), 'blueprint', 'musor')?->error?->key === 'transfer.error.type_narrower', 'not to a narrower type');
+    $choices = $changed;
+    $choices['fields'][1] = $field('fajta', 'choice', ['choices' => [['key' => 'b', 'label' => 'B']]]);
+    check($item($import()->plan($model(['musor' => $choices])), 'blueprint', 'musor')?->error?->key === 'transfer.error.choices_removed', 'a choice stays');
+    $target = $changed;
+    $target['relations'][0]['many'] = true;
+    check($item($import()->plan($model(['musor' => $target])), 'blueprint', 'musor')?->error?->key === 'transfer.error.relation_changed', 'a relation\'s number stays');
+    $required = $changed;
+    $required['fields'][] = $field('uj', 'string', ['queryable' => true, 'required' => true]);
+    check($item($import()->plan($model(['musor' => $required])), 'blueprint', 'musor')?->error?->key === 'transfer.error.needs_default', 'a new required column needs a default');
+    $other = $import()->plan($model(['kezi_0226' => ['label' => 'Kézi', 'capabilities' => ['authenticatable']]]));
+    check($item($other, 'blueprint', 'kezi_0226')?->error?->key === 'transfer.error.invalid', 'checked like a stored one');
+    check($item($other, 'blueprint', 'musor')?->action === 'kept', 'what the file does not have stays');
+
+    // Lists: the objects of a relation condition by reference.
+    $list = ['version' => 1, 'title' => 'Programok', 'blueprint' => 'musor', 'conditions' => [['field' => 'nap', 'op' => '>=', 'relative' => 'today'], ['relation' => 'helyszin', 'targets' => [['blueprint' => 'category', 'path' => '/kat-0226']]]],
+        'sort' => [['field' => 'nap', 'dir' => 'asc']], 'per_page' => 10, 'display' => 'table', 'columns' => ['nap'], 'path' => '/programok-0226'];
+    $plan = $import()->plan($model([], ['programok' => $list]));
+    check(!$plan->hasErrors() && $item($plan, 'list', 'programok')?->action === 'create' && $plan->lists['programok']['conditions'][1]['targets'] === [(int) $kat->id()], json_encode($plan->lists));
+    $import()->apply($plan);
+    $export = $boot()->get(\Campanella\Transfer\ModelExport::class)->model();
+    check(isset($export['blueprints']['musor']) && !isset($export['blueprints']['article']), 'the export: the Blueprints made in the admin');
+    $refs = $export['lists']['programok']['conditions'][1]['targets'] ?? null;
+    check(($refs[0]['blueprint'] ?? null) === 'category' && ($refs[0]['path'] ?? null) === '/kat-0226' && ($refs[0]['title'] ?? null) === 'Kat-0226', 'by reference: ' . json_encode($refs, JSON_UNESCAPED_UNICODE));
+    $round = \Campanella\Transfer\ModelFile::decode(\Campanella\Transfer\ModelFile::encode($export));
+    $again = $import()->plan($round);
+    check(!$again->hasErrors() && !$again->hasChanges(), 'its own export changes nothing: ' . json_encode(array_map(static fn ($i) => [$i->name, $i->action, array_map('strval', $i->changes)], $again->items), JSON_UNESCAPED_UNICODE));
+
+    $ids = $list;
+    $ids['conditions'][1]['targets'] = [(int) $kat->id()];
+    check($item($import()->plan($model([], ['programok' => $ids])), 'list', 'programok')?->error?->key === 'transfer.error.list_ids', 'not by ID');
+    $missing = $list;
+    $missing['conditions'][1]['targets'] = [['blueprint' => 'category', 'title' => 'Nincs ilyen']];
+    check($item($import()->plan($model([], ['programok' => $missing])), 'list', 'programok')?->error?->key === 'transfer.error.no_targets', 'objects not on the site');
+    $half = $list;
+    $half['conditions'][1]['targets'][] = ['blueprint' => 'category', 'title' => 'Nincs ilyen'];
+    check(in_array('transfer.warning.target_missing', $keys($item($import()->plan($model([], ['programok' => $half])), 'list', 'programok')), true), 'one missing: a warning');
+    $taken = $list;
+    $taken['path'] = '/kat-0226';
+    check($item($import()->plan($model([], ['programok' => $taken])), 'list', 'programok')?->error?->key === 'transfer.error.path_taken', 'a path taken');
+    $two = $import()->plan($model([], ['masik' => ['path' => '/egyforma-0226'] + $list, 'harmadik' => ['path' => '/egyforma-0226'] + $list]));
+    check($item($two, 'list', 'harmadik')?->error?->key === 'transfer.error.path_taken', 'two lists of the file at one path');
+    $retitled = ['title' => 'Programjaink'] + $list;
+    $line = $item($import()->plan($model([], ['programok' => $retitled])), 'list', 'programok');
+    check($line?->action === 'update' && $keys($line) === ['transfer.change.list.title'], json_encode($keys($line)));
+
+    // The command line.
+    $run = static function (\Campanella\Cli\Command $command, array $args) use ($boot): array {
+        $stream = fopen('php://memory', 'w+');
+        $code = $command->run($boot(), $args, new \Campanella\Cli\Output($stream, $stream));
+        rewind($stream);
+
+        return [$code, (string) stream_get_contents($stream)];
+    };
+    $path = sys_get_temp_dir() . '/campanella-model-' . bin2hex(random_bytes(4)) . '.json';
+    [$code, $out] = $run(new \Campanella\Cli\ModelExportCommand(), [$path]);
+    check($code === 0 && is_file($path) && str_contains($out, '1 Blueprint'), $out);
+    [$code] = $run(new \Campanella\Cli\ModelExportCommand(), [$path]);
+    check($code === 1, 'not overwritten without --force');
+    [$code, $out] = $run(new \Campanella\Cli\ModelExportCommand(), []);
+    check($code === 0 && str_contains($out, '"format": "campanella.content-model"'), 'printed');
+    $data = json_decode((string) file_get_contents($path), true);
+    $data['lists']['programok']['title'] = 'Programjaink';
+    file_put_contents($path, json_encode($data));
+    [$code, $out] = $run(new \Campanella\Cli\ModelImportCommand(), [$path]);
+    check($code === 0 && str_contains($out, 'A címe') && str_contains($out, '--yes') && $boot()->get(\Campanella\Lists\ListStore::class)->find('programok')['title'] === 'Programok', $out);
+    [$code, $out] = $run(new \Campanella\Cli\ModelImportCommand(), [$path, '--yes']);
+    check($code === 0 && str_contains($out, 'Importálva') && $boot()->get(\Campanella\Lists\ListStore::class)->find('programok')['title'] === 'Programjaink', $out);
+    file_put_contents($path, '{"format":"x"}');
+    [$code, $out] = $run(new \Campanella\Cli\ModelImportCommand(), [$path]);
+    check($code === 1 && str_contains($out, 'nem olvasható be'), $out);
+    @unlink($path);
+
+    // Cleaning up.
+    $boot()->get(\Campanella\Lists\ListStore::class)->delete('programok');
+    $repository = $boot()->get(ObjectRepository::class);
+    $repository->delete($obj);
+    $repository->delete($kat);
+    $boot()->get(\Campanella\Model\BlueprintStore::class)->delete('musor');
+    $db->execute('DROP TABLE IF EXISTS ' . $db->table('bp_musor'));
+    foreach (array_diff(glob($backups . '/campanella-*') ?: [], $before) as $made) {
+        @unlink($made);
+    }
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
 echo "\nDocumentation examples\n";
 
 test('New capability as in the docs example (Featured)', function () use ($db, $admin): void {

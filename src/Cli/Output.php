@@ -19,6 +19,12 @@ final class Output
         fwrite($this->stream, $text . PHP_EOL);
     }
 
+    /** Text as it is, without a line break added (since 0.2.6: e.g. a JSON file). */
+    public function raw(string $text): void
+    {
+        fwrite($this->stream, $text);
+    }
+
     public function success(string $text): void
     {
         $this->line('✔ ' . $text);

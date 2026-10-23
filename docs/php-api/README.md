@@ -28,6 +28,7 @@ namespace, in the `src/` folder (PSR-4).
 21. [Events and e-mail](21-events-and-mail.md): `Event` and its kinds, `EventDispatcher`, `Action`, `MailAdministrators`, `Mailer`, mail templates, the mail log
 22. [Forms](22-forms.md): the contact form (`ContactForm`, `contact_form()`), its messages (`Submitted`, `SubmissionService`), the admin's *Submissions*
 23. [Lists](23-lists.md): lists made in the admin (`ListDefinition`, `ListStore`, `ListRegistry`), their page (`ListController`), `list()` and `field_value()` in templates (since 0.2.5)
+24. [The content model's export and import](24-content-model.md): the file (`ModelFile`), `ModelExport`, `ModelImport` and its plan (`ImportPlan`, `ImportItem`), the objects by reference (since 0.2.6)
 
 ## Namespaces
 
@@ -37,6 +38,7 @@ namespace, in the `src/` folder (PSR-4).
 | `Campanella\Capability` | Model | The Capability contract and the built-in capabilities |
 | `Campanella\Tree` | Model | Trees of Hierarchical objects: building them, keeping them consistent |
 | `Campanella\Menu` | Service | Building menus for a visitor (since 0.0.7) |
+| `Campanella\Transfer` | Service | The content model's export and import (since 0.2.6) |
 | `Campanella\Site` | Service | The site's settings, meta tags of pages (since 0.1.1) |
 | `Campanella\Settings` | Infrastructure | Settings saved in the admin (since 0.1.1) |
 | `Campanella\Event` | Service | Events and the actions bound to them (since 0.1.3) |

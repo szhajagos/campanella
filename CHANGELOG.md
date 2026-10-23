@@ -10,6 +10,24 @@ backward-incompatible.
 
 ## [Unreleased]
 
+Work towards 0.2.6: the content model's export and import, in parts.
+
+### Added
+
+- **The content model's export and import** ([PHP API](docs/php-api/24-content-model.md)):
+  the Blueprints and lists made in the admin in one JSON file
+  (`campanella-model.json`), to carry them to another site. An import first
+  shows its plan (what is new, what changes, what stays, and why something
+  cannot be imported), and is done only without errors, all of it, with the
+  admin editors' rules (a field's type only to a wider one, the choices in use
+  kept, and so on), a backup first when objects are affected. It never deletes:
+  what the site has and the file does not stays. A list's relation condition
+  names its objects by machine name, path or title, not by ID. The page in the
+  admin comes next.
+- `php bin/campanella model:export [file] [--force]` and
+  `php bin/campanella model:import <file> [--yes]` (without `--yes`, only the
+  plan).
+
 ## [0.2.5] – 2026-10-15
 
 **Lists made in the admin.** The fourth step towards 0.3.0: the counterpart of

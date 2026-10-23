@@ -6,7 +6,6 @@ namespace Campanella\Admin;
 
 use Campanella\Access\Actor;
 use Campanella\Database\Connection;
-use Campanella\Database\Schema\SchemaReader;
 use Campanella\Http\Flash;
 use Campanella\Http\HttpException;
 use Campanella\Http\Request;
@@ -14,6 +13,7 @@ use Campanella\Http\Response;
 use Campanella\Http\Router;
 use Campanella\I18n\Message;
 use Campanella\Lists\ListDefinition;
+use Campanella\Lists\ListPathCheck;
 use Campanella\Lists\ListRegistry;
 use Campanella\Lists\ListStore;
 use Campanella\Model\Blueprint;
@@ -312,19 +312,7 @@ final class ListEditor
     /** Whether another route, the admin, a public folder or an object has the path. */
     private function pathTaken(string $path, string $name): bool
     {
-        $route = $this->router->match(new Request('GET', $path));
-        $ownRoute = $route->handler === 'list' && ($route->params['list'] ?? null) === $name;
-        if ($this->router->isRouted($path) && !$ownRoute) {
-            return true;
-        }
-        if ($this->access->matches(new Request('GET', $path)) || preg_match('#^/(assets|themes|media)(/|$)#', $path) === 1) {
-            return true;
-        }
-        if ((new SchemaReader($this->db))->tableExists('cap_routable')) {
-            return $this->db->fetchValue('SELECT 1 FROM {cap_routable} WHERE path = :p', ['p' => $path]) !== null;
-        }
-
-        return false;
+        return (new ListPathCheck($this->router, $this->access, $this->db))->isTaken($path, $name);
     }
 
     private function delete(Request $request, string $name): Response

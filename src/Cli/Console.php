@@ -28,6 +28,8 @@ final class Console
             new SchemaCheckCommand(),
             new MigrateCommand(),
             new DbBackupCommand(),
+            new ModelExportCommand(),
+            new ModelImportCommand(),
             new MediaVariantsCommand(),
             new SubmissionsPruneCommand(),
         ];
