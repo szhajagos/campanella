@@ -6795,6 +6795,76 @@ test('Kernel: the content model exported and imported, with the editor\'s rules'
     putenv('CAMPANELLA_DB_PREFIX');
 });
 
+test('Kernel: the content model page in the admin: download, plan, confirm', function () use ($newUser): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = null;
+    $storage = new ArraySessionStorage();
+    $boot = static function () use (&$kernel, $storage) {
+        $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+        $kernel->container()->set(Session::class, static fn () => new Session($storage));
+
+        return $kernel->container();
+    };
+    $container = $boot();
+    if ($container->get(Connection::class)->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $db = $container->get(Connection::class);
+    $db->execute('DROP TABLE IF EXISTS ' . $db->table('bp_hirlevel')); // left by a run that failed
+    $send = function (string $method, string $path, array $post = [], array $files = []) use (&$kernel, $storage, $boot) {
+        $storage->endRequest();
+        $boot();
+
+        return $kernel->handle(new Request($method, $path, post: $post, files: $files));
+    };
+    $upload = static function (string $json): array {
+        $path = tempnam(sys_get_temp_dir(), 'cm');
+        file_put_contents($path, $json);
+
+        return ['file' => new \Campanella\Http\UploadedFile('campanella-model.json', $path, strlen($json))];
+    };
+    $container->get(AuthService::class)->login(new Request('GET', '/'), $newUser('modell-szerk@example.hu', 'modell-jelszo-12', ['editor']));
+    check($send('GET', '/admin/system/model')->status === 403 && $send('GET', '/admin/system/model/export')->status === 403, 'not for editors');
+    $boot()->get(AuthService::class)->login(new Request('GET', '/'), $newUser('modell-admin@example.hu', 'modell-jelszo-12', ['administrator']));
+
+    $page = $send('GET', '/admin/system/model');
+    check($page->status === 200 && str_contains($page->body, 'href="/admin/system/model"') && str_contains($page->body, 'enctype="multipart/form-data"'), 'the page, in the menu');
+    $token = preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $page->body, $m) === 1 ? $m[1] : '';
+    $download = $send('GET', '/admin/system/model/export');
+    check($download->status === 200 && str_starts_with($download->headers['Content-Type'] ?? '', 'application/json') && str_contains($download->headers['Content-Disposition'] ?? '', 'campanella-model.json')
+        && \Campanella\Transfer\ModelFile::decode($download->body)['blueprints'] === $boot()->get(\Campanella\Model\BlueprintStore::class)->load(), 'the download');
+
+    $model = static fn (array $blueprints): string => json_encode(['format' => 'campanella.content-model', 'version' => 1, 'blueprints' => $blueprints, 'lists' => new \stdClass()]);
+    $hirlevel = ['label' => 'Hírlevél', 'capabilities' => ['titled'], 'fields' => [['name' => 'szam', 'type' => 'integer', 'label' => 'Szám', 'queryable' => true]], 'relations' => []];
+    check($send('POST', '/admin/system/model/import', ['_csrf' => 'x'], $upload($model(['hirlevel' => $hirlevel])))->status === 400, 'CSRF');
+    check($send('POST', '/admin/system/model/import', ['_csrf' => $token])->status === 422, 'no file');
+    $bad = $send('POST', '/admin/system/model/import', ['_csrf' => $token], $upload('{"format":"valami"}'));
+    check($bad->status === 422 && str_contains($bad->body, 'nem olvasható be'), 'not a content model');
+    $error = $send('POST', '/admin/system/model/import', ['_csrf' => $token], $upload($model(['article' => ['label' => 'Cikk']])));
+    check($error->status === 422 && str_contains($error->body, 'kódban van megadva') && !str_contains($error->body, 'system/model/apply'), 'an error: no confirming');
+
+    $plan = $send('POST', '/admin/system/model/import', ['_csrf' => $token], $upload($model(['hirlevel' => $hirlevel])));
+    check($plan->status === 200 && str_contains($plan->body, 'Hírlevél') && str_contains($plan->body, 'action="/admin/system/model/apply"'), 'the plan');
+    check($boot()->get(\Campanella\Model\BlueprintStore::class)->find('hirlevel') === null, 'nothing changed yet');
+    preg_match('/name="model" value="([^"]*)"/', $plan->body, $mm);
+    preg_match('/name="fingerprint" value="([0-9a-f]{64})"/', $plan->body, $fm);
+    $changed = $send('POST', '/admin/system/model/apply', ['_csrf' => $token, 'model' => $mm[1] ?? '', 'fingerprint' => str_repeat('0', 64)]);
+    check($changed->status === 409 && str_contains($changed->body, 'változott') && $boot()->get(\Campanella\Model\BlueprintStore::class)->find('hirlevel') === null, 'the plan changed: shown again');
+    check($send('POST', '/admin/system/model/apply', ['_csrf' => $token, 'model' => '!!!', 'fingerprint' => $fm[1] ?? ''])->status === 422, 'not a file');
+    $done = $send('POST', '/admin/system/model/apply', ['_csrf' => $token, 'model' => $mm[1] ?? '', 'fingerprint' => $fm[1] ?? '']);
+    check($done->status === 303 && ($done->headers['Location'] ?? '') === '/admin/system/model', (string) $done->status);
+    check($boot()->get(BlueprintRegistry::class)->isEditable('hirlevel') && (new \Campanella\Database\Schema\SchemaReader($db))->tableExists('bp_hirlevel'), 'imported');
+    check(str_contains($send('GET', '/admin/system/model')->body, 'Importálva: 1 Blueprint'), 'said so');
+    $again = $send('POST', '/admin/system/model/import', ['_csrf' => $token], $upload($model(['hirlevel' => $hirlevel])));
+    check($again->status === 200 && str_contains($again->body, 'nincs mit változtatni') && !str_contains($again->body, 'system/model/apply'), 'again: nothing to do');
+
+    $boot()->get(\Campanella\Model\BlueprintStore::class)->delete('hirlevel');
+    $db->execute('DROP TABLE IF EXISTS ' . $db->table('bp_hirlevel'));
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
 echo "\nDocumentation examples\n";
 
 test('New capability as in the docs example (Featured)', function () use ($db, $admin): void {

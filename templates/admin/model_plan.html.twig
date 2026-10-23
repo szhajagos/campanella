@@ -1,0 +1,64 @@
+{% extends '@core/admin/base.html.twig' %}
+
+{% block content %}
+    <p class="small mb-1"><a href="{{ admin_url('system/model') }}">{{ t('model.title') }}</a></p>
+    <h1 class="h3 mb-2">{{ t('model.plan') }}</h1>
+    <p class="text-body-secondary mb-4">{{ t('model.plan_intro') }}</p>
+    {% if alert_text %}<div class="alert alert-warning" role="alert">{{ alert_text }}</div>{% endif %}
+    {% for error in errors %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endfor %}
+    {% if has_errors %}
+        <div class="alert alert-danger" role="alert">{{ t('model.has_errors', {count: counts.error}) }}</div>
+    {% elseif not has_changes %}
+        <div class="alert alert-success" role="alert">{{ t('transfer.nothing') }}</div>
+    {% endif %}
+
+    <div class="table-responsive">
+        <table class="table align-top">
+            <thead><tr>
+                <th scope="col">{{ t('model.item') }}</th>
+                <th scope="col">{{ t('model.action') }}</th>
+                <th scope="col">{{ t('model.details') }}</th>
+            </tr></thead>
+            <tbody>
+                {% for item in items %}
+                    <tr{{ item.action == 'error' ? ' class="table-danger"' }}>
+                        <td>
+                            <span class="text-body-secondary small">{{ t('transfer.kind.' ~ item.kind) }}</span><br>
+                            {{ t(item.label) }} <code>{{ item.name }}</code>
+                        </td>
+                        <td><span class="badge {{ {create: 'text-bg-success', update: 'text-bg-primary', error: 'text-bg-danger'}[item.action] ?? 'text-bg-secondary' }}">{{ t('transfer.action.' ~ item.action) }}</span></td>
+                        <td>
+                            {% if item.error %}<p class="text-danger fw-semibold mb-1">{{ item.error }}</p>{% endif %}
+                            {% if item.changes or item.warnings %}
+                                <ul class="mb-0 ps-3">
+                                    {% for change in item.changes %}<li>{{ change }}</li>{% endfor %}
+                                    {% for warning in item.warnings %}<li class="text-warning-emphasis">{{ warning }}</li>{% endfor %}
+                                </ul>
+                            {% elseif not item.error %}–{% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if database %}
+        <section class="card card-body mb-4">
+            <h2 class="h5">{{ t('transfer.database') }}</h2>
+            <ul class="mb-0">{% for step in database %}<li>{{ step }}</li>{% endfor %}</ul>
+        </section>
+    {% endif %}
+
+    {% if not has_errors and has_changes %}
+        <form method="post" action="{{ admin_url('system/model/apply') }}" class="d-flex flex-wrap align-items-center gap-3">
+            {{ csrf_field() }}
+            <input type="hidden" name="model" value="{{ model }}">
+            <input type="hidden" name="fingerprint" value="{{ fingerprint }}">
+            <button type="submit" class="btn btn-primary">{{ t('model.apply') }}</button>
+            {% if backup %}<span class="text-body-secondary">{{ t('transfer.backup_first') }}</span>{% endif %}
+            <a href="{{ admin_url('system/model') }}">{{ t('model.cancel') }}</a>
+        </form>
+    {% else %}
+        <a class="btn btn-outline-secondary" href="{{ admin_url('system/model') }}">{{ t('model.back') }}</a>
+    {% endif %}
+{% endblock %}

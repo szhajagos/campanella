@@ -1,0 +1,27 @@
+{% extends '@core/admin/base.html.twig' %}
+
+{% block content %}
+    <h1 class="h3 mb-2">{{ t('model.title') }}</h1>
+    <p class="text-body-secondary mb-4">{{ t('model.intro') }}</p>
+    {% if alert_text %}<div class="alert alert-danger" role="alert">{{ alert_text }}</div>{% endif %}
+
+    <section class="card card-body mb-4">
+        <h2 class="h5">{{ t('model.export') }}</h2>
+        <p class="mb-3">{{ t('model.export_help', {blueprints: blueprints, lists: lists}) }}</p>
+        <div><a class="btn btn-primary" href="{{ admin_url('system/model/export') }}" download>{{ t('model.download') }}</a></div>
+    </section>
+
+    <section class="card card-body mb-4">
+        <h2 class="h5">{{ t('model.import') }}</h2>
+        <p>{{ t('model.import_help') }}</p>
+        <form method="post" action="{{ admin_url('system/model/import') }}" enctype="multipart/form-data" class="admin-form">
+            {{ csrf_field() }}
+            <div class="mb-3">
+                <label for="model-file" class="form-label fw-semibold">{{ t('model.file') }}</label>
+                <input type="file" class="form-control" id="model-file" name="file" accept=".json,application/json" required>
+                <div class="form-text">{{ t('model.file_help', {size: (max_bytes / 1048576)|round ~ ' MB'}) }}</div>
+            </div>
+            <button type="submit" class="btn btn-outline-primary">{{ t('model.check') }}</button>
+        </form>
+    </section>
+{% endblock %}

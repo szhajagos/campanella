@@ -364,6 +364,8 @@ here, marked "defined in code") or are made here (since 0.2.3, see below).
 
 Lists made in the admin (System → Lists, since 0.2.5) are in
 [chapter 23](23-lists.md#the-editor-listeditor).
+The content model's export and import (System → Content model, since 0.2.6)
+are in [chapter 24](24-content-model.md#the-page-in-the-admin-modelpage).
 
 ### Making Blueprints: BlueprintEditor
 

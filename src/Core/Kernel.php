@@ -40,6 +40,7 @@ use Campanella\Controller\AdminController;
 use Campanella\Admin\AdminAccess;
 use Campanella\Admin\BlueprintEditor;
 use Campanella\Admin\ListEditor;
+use Campanella\Admin\ModelPage;
 use Campanella\Admin\Form\ObjectForm;
 use Campanella\Capability\CapabilityRegistry;
 use Campanella\Auth\AuthService;
@@ -858,6 +859,14 @@ final class Kernel
                 $c->get(QueryEngine::class),
                 $c->get(Csrf::class),
                 $c->get(Flash::class),
+            ),
+            new ModelPage(
+                $c->get(ModelExport::class),
+                $c->get(ModelImport::class),
+                $c->get(Csrf::class),
+                $c->get(Flash::class),
+                $c->get(AdminAccess::class),
+                $c->get(Translator::class),
             ),
         ));
 

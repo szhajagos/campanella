@@ -18,6 +18,20 @@ has an error, nothing is imported. **Nothing is deleted:** a Blueprint, list,
 field or relation the site has and the file does not stays as it is (and the
 plan says so). Deleting is done by hand, in the admin.
 
+## The page in the admin: ModelPage
+
+`Campanella\Admin\ModelPage` · **Internal**, for the system roles
+(`admin.system_roles`), under System in the admin's menu (*Content model*).
+
+| Page | What it does |
+|---|---|
+| `/admin/system/model` | How many Blueprints and lists the site has made in the admin; the download; the form to upload a file |
+| `/admin/system/model/export` | The file, `campanella-model.json` (`Content-Disposition: attachment`, `Cache-Control: no-store`) |
+| `/admin/system/model/import` | POST, with the file (`file`; at most 1 MB): its plan. Changes nothing. With errors, it says why and offers no confirming (422) |
+| `/admin/system/model/apply` | POST: the confirmed import. The file comes back from the plan's page (base64, in a hidden field) and is checked again in full; the plan's `fingerprint` must still be the same, otherwise the new plan is shown (409). Then `ModelImport::apply()`, and back to the page with what was done (and the backup, if one was made) |
+
+The uploaded file is never stored on the server.
+
 ## The file: ModelFile
 
 `Campanella\Transfer\ModelFile` · **Public** · `final class`

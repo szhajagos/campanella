@@ -10,23 +10,40 @@ backward-incompatible.
 
 ## [Unreleased]
 
-Work towards 0.2.6: the content model's export and import, in parts.
+## [0.2.6] – 2026-10-23
+
+**The content model's export and import.** The fifth step towards 0.3.0: the
+Blueprints and lists made in the admin go into one file and can be carried to
+another site, e.g. from a test site to the live one. An import shows its plan
+first and changes nothing until it is confirmed; it never deletes anything.
+
+**Upgrading from 0.2.5:** upload the new files. The database does not change
+(the schema version stays 15).
 
 ### Added
 
 - **The content model's export and import** ([PHP API](docs/php-api/24-content-model.md)):
   the Blueprints and lists made in the admin in one JSON file
-  (`campanella-model.json`), to carry them to another site. An import first
-  shows its plan (what is new, what changes, what stays, and why something
-  cannot be imported), and is done only without errors, all of it, with the
-  admin editors' rules (a field's type only to a wider one, the choices in use
-  kept, and so on), a backup first when objects are affected. It never deletes:
-  what the site has and the file does not stays. A list's relation condition
-  names its objects by machine name, path or title, not by ID. The page in the
-  admin comes next.
+  (`campanella-model.json`). An import first shows its plan (what is new, what
+  changes, what stays, and why something cannot be imported), and is done
+  only without errors, all of it, with the admin editors' rules (a field's
+  type only to a wider one, the choices in use kept, and so on), a backup first
+  when objects are affected. It never deletes: what the site has and the file
+  does not stays. A list's relation condition names its objects by machine
+  name, path or title, not by ID. The Blueprints of `config/blueprints.php`
+  are not in the file.
+- **System → Content model** in the admin, for the system roles: the
+  download, the upload (at most 1 MB) and its plan, the confirmation. The
+  uploaded file is not stored; a confirmation is applied only if the plan is
+  still the same.
 - `php bin/campanella model:export [file] [--force]` and
   `php bin/campanella model:import <file> [--yes]` (without `--yes`, only the
   plan).
+
+### Changed
+
+- The list editor's check of a path is a class of its own, `ListPathCheck`,
+  used by the import too.
 
 ## [0.2.5] – 2026-10-15
 

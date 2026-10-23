@@ -274,6 +274,13 @@ with the server. A daily job, e.g. with cron:
 
 Old backups are not deleted automatically: remove the ones you no longer need.
 
+The **content model** (the Blueprints and lists made in the admin) is in the
+database backup too. To carry it to another site, e.g. from a test site to
+the live one, export it on its own (System → Content model, or
+`php bin/campanella model:export`) and import it there: the import shows its
+plan first and never deletes anything ([PHP API, chapter 24](php-api/24-content-model.md)).
+The content itself is not in that file.
+
 ## 7. Upgrades
 
 1. Make a backup (above).

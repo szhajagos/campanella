@@ -1,4 +1,4 @@
-# Campanella 0.2.5
+# Campanella 0.2.6
 
 [![CI](https://github.com/szhajagos/campanella/actions/workflows/ci.yml/badge.svg)](https://github.com/szhajagos/campanella/actions/workflows/ci.yml)
 
@@ -18,6 +18,9 @@ templates and their variables, and the Twig functions only grow (see the
 The steps towards 0.3.0, content types built in the admin
 ([ROADMAP](ROADMAP.md#030--the-content-model-in-the-admin)):
 
+- **0.2.6 – The content model's export and import** (System → Content
+  model): the Blueprints and lists made in the admin in one file, to carry
+  them to another site; an import shows its plan first and never deletes.
 - **0.2.5 – Lists made in the admin** (System → Lists): the objects of a
   Blueprint under conditions (also "from today on"), in an order, a page at a
   time, as cards or a table, at a path of their own and in templates
