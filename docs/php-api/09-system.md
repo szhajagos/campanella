@@ -186,6 +186,7 @@ from ([chapter 17](17-migrations.md#the-oldest-version-that-can-be-upgraded)).
 | `model:export` | Saves the content model (the Blueprints and lists made in the admin) into a JSON file, or prints it; `--force`: overwrites the file (since 0.2.6; [chapter 24](24-content-model.md)) |
 | `model:import` | Shows the plan of importing a content model file; `--yes`: does it, if it has no errors (since 0.2.6; [chapter 24](24-content-model.md)) |
 | `submissions:prune` | Deletes the contact form's messages older than `contact.keep_days`, and the expired throttling rows (since 0.1.5; for cron on a quiet site, [chapter 22](22-forms.md#data-protection)) |
+| `search:index` | Puts the pages not in the search's index yet into it (e.g. after the upgrade to 0.2.7); `--all`: every page again (since 0.2.7; [chapter 25](25-search.md#building-the-index-searchindexer)) |
 | `media:variants` | Makes the smaller copies of the images that have none yet; `--all`: of every image again (since 0.1.2; [chapter 16](16-media.md#smaller-copies-variants)) |
 | `seed` | Sample content. Can be run repeatedly: whatever already exists by path is not created again |
 | `status` | Version, the system check ([chapter 14](14-system-check.md)), capabilities, Blueprints, object count; reports if the database needs an upgrade. Exits with `1` if a check reports an error |
@@ -229,7 +230,7 @@ module system it will become registrable.
 |---|---|
 | `Console` · **Internal** | `__construct(Kernel $kernel, Output $output = new Output())`, `run(array $argv): int` |
 | `Output` · **Public** | `__construct($stream = STDOUT, $errors = STDERR)`; `line(string $text = '')`, `success(string $text)` (with a ✔ mark), `error(string $text)` (with a ✘ mark, to the error stream), `raw(string $text)` (as it is, without a line break; since 0.2.6) |
-| `InstallCommand`, `SeedCommand`, `StatusCommand`, `HtmlSanitizeCommand`, `SchemaCheckCommand`, `MigrateCommand`, `DbBackupCommand`, `ModelExportCommand`, `ModelImportCommand`, `SubmissionsPruneCommand`, `MigrationRunner` · **Internal** | The built-in commands |
+| `InstallCommand`, `SeedCommand`, `StatusCommand`, `HtmlSanitizeCommand`, `SchemaCheckCommand`, `MigrateCommand`, `DbBackupCommand`, `ModelExportCommand`, `ModelImportCommand`, `SearchIndexCommand`, `SubmissionsPruneCommand`, `MigrationRunner` · **Internal** | The built-in commands |
 
 ## Helper classes
 

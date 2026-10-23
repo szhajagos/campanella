@@ -12,6 +12,7 @@ use Campanella\Admin\AdminAccess;
 use Campanella\Admin\BlueprintEditor;
 use Campanella\Admin\ListEditor;
 use Campanella\Admin\ModelPage;
+use Campanella\Search\SearchIndexer;
 use Campanella\Admin\Form\ObjectForm;
 use Campanella\Admin\MailPages;
 use Campanella\Admin\SettingsPage;
@@ -132,6 +133,7 @@ final class AdminController implements Controller
         private readonly ?BlueprintEditor $blueprintEditor = null,
         private readonly ?ListEditor $listEditor = null,
         private readonly ?ModelPage $modelPage = null,
+        private readonly ?SearchIndexer $searchIndexer = null,
     ) {
     }
 
@@ -264,6 +266,21 @@ final class AdminController implements Controller
                 @set_time_limit(60);
                 [$made, $left] = $this->media->makeMissingVariants(self::VARIANT_SECONDS);
                 $this->flash->add($left > 0 ? Flash::WARNING : Flash::SUCCESS, new Message($left > 0 ? 'admin.system.media_variants_partly' : 'admin.system.media_variants_done', ['made' => $made, 'left' => $left]));
+            }
+
+            return Response::redirect($request->basePath . $this->access->path('system'), 303);
+        }
+        // The search's index for the objects not in it yet, as many as fit into the time (since 0.2.7).
+        if ($segments === ['search-index'] && $this->searchIndexer !== null) {
+            if (!$request->isPost()) {
+                throw new HttpException(405, 'error.method_not_allowed');
+            }
+            if (!$this->csrf->isValid($request)) {
+                $this->flash->add(Flash::DANGER, 'auth.form_expired');
+            } else {
+                @set_time_limit(60);
+                [$done, $left] = $this->searchIndexer->build(self::VARIANT_SECONDS);
+                $this->flash->add($left > 0 ? Flash::WARNING : Flash::SUCCESS, new Message($left > 0 ? 'admin.system.search_partly' : 'admin.system.search_done', ['done' => $done, 'left' => $left]));
             }
 
             return Response::redirect($request->basePath . $this->access->path('system'), 303);

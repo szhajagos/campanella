@@ -1,0 +1,48 @@
+{% extends 'base.html.twig' %}
+
+{% block meta %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block content %}
+    <h1 class="page-title mb-4">{{ title }}</h1>
+    <form method="get" action="{{ path('search') }}" class="search-form mb-4" role="search">
+        <label for="search-q" class="visually-hidden">{{ t('search.label') }}</label>
+        <div class="input-group">
+            <input type="search" class="form-control" id="search-q" name="q" value="{{ query }}" maxlength="200" placeholder="{{ t('search.placeholder') }}">
+            <button type="submit" class="btn btn-primary">{{ t('search.submit') }}</button>
+        </div>
+    </form>
+
+    {% if too_short %}
+        <p class="text-body-secondary">{{ t('search.too_short', {min: min_word}) }}</p>
+    {% elseif result is not null %}
+        {% if result.total == 0 %}
+            <p class="text-body-secondary">{{ t('search.none', {query: query}) }}</p>
+        {% else %}
+            <p class="text-body-secondary">{{ t('search.count', {count: result.total, query: query}) }}</p>
+            <ol class="search-results list-unstyled">
+                {% for hit in result.items %}
+                    {% set object = hit.object %}
+                    <li class="search-result mb-4">
+                        <h2 class="h5 mb-1"><a href="{{ url(object.path) }}">{{ object.title }}</a></h2>
+                        {% if hit.excerpt %}
+                            <p class="mb-0 text-body-secondary">{% for piece in hit.excerpt %}{% if piece.mark %}<mark>{{ piece.text }}</mark>{% else %}{{ piece.text }}{% endif %}{% endfor %}</p>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ol>
+            {% if result.pages > 1 %}
+                <nav class="pager mt-4" aria-label="{{ t('content.pager') }}">
+                    <ul class="pagination">
+                        {% for page in 1..result.pages %}
+                            {% if page == result.page %}
+                                <li class="page-item active" aria-current="page"><span class="page-link">{{ page }}</span></li>
+                            {% else %}
+                                <li class="page-item"><a class="page-link" href="{{ url(path) }}?q={{ query|url_encode }}&amp;page={{ page }}">{{ page }}</a></li>
+                            {% endif %}
+                        {% endfor %}
+                    </ul>
+                </nav>
+            {% endif %}
+        {% endif %}
+    {% endif %}
+{% endblock %}

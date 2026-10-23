@@ -14,6 +14,8 @@ use Campanella\Capability\Hierarchical;
 use Campanella\Capability\Textual;
 use Campanella\Html\HtmlSanitizer;
 use Campanella\Media\MediaUsage;
+use Campanella\Search\SearchIndex;
+use Campanella\Database\Schema\SchemaReader;
 use Campanella\Tree\TreeKeeper;
 use Campanella\Support\Uuid;
 use DateTimeImmutable;
@@ -31,6 +33,7 @@ use PDOException;
  *   field_values         – the values of the queryable multi-valued fields
  *   relationships        – relationships to other objects
  *   media_usage          – the uploaded files a text shows (since 0.1.2)
+ *   search_index         – the plain text for the search (since 0.2.7)
  *
  * When loading lists, a single query runs per table (no N+1).
  * The object cache will also be built in here later.
@@ -42,6 +45,9 @@ final class ObjectRepository
 
     private readonly HtmlSanitizer $html;
     private readonly TreeKeeper $tree;
+
+    /** Whether the search's table exists (looked up once). */
+    private ?bool $searchIndex = null;
 
     /**
      * @param HtmlSanitizer|null $html Filters texts in `html` format on save (since 0.0.5);
@@ -310,6 +316,10 @@ final class ObjectRepository
                     $this->capabilities->get('media_file')->tableName(),
                 );
             }
+            // The search's index (since 0.2.7), once the database has its table.
+            if ($this->hasSearchIndex()) {
+                SearchIndex::record($db, $id, $object, $blueprint);
+            }
             // A node moved to another scope (e.g. menu) takes its subtree with it.
             $scopeTarget = $scope === null ? null : ($object->relatedIds($scope)[0] ?? null);
             if ($scopeTarget !== null) {
@@ -344,6 +354,12 @@ final class ObjectRepository
         }
         // Rows in the capability tables are deleted by ON DELETE CASCADE.
         $this->db->delete(CoreSchema::OBJECTS, ['id' => $object->id()]);
+    }
+
+    /** Whether the database has the search's table (it may be before the upgrade to 0.2.7). */
+    private function hasSearchIndex(): bool
+    {
+        return $this->searchIndex ??= (new SchemaReader($this->db))->tableExists(CoreSchema::SEARCH_INDEX);
     }
 
     /** Replaces the rows of a multi-valued field in the field_values table. */

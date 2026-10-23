@@ -81,7 +81,7 @@ field, and its `indexed` / `unique` index.
 
 | Class | Description |
 |---|---|
-| `Table(string $name, list<Column> $columns, list<string> $primaryKey, array $indexes = [], array $uniques = [], list<ForeignKey> $foreignKeys = [])` | Indexes and unique indexes: `name => columns` |
+| `Table(string $name, list<Column> $columns, list<string> $primaryKey, array $indexes = [], array $uniques = [], list<ForeignKey> $foreignKeys = [], array $fulltexts = [])` | Indexes, unique indexes and (since 0.2.7) FULLTEXT indexes: `name => columns`. A FULLTEXT index is for `MATCH … AGAINST` only, both servers support it on InnoDB tables |
 | `Column(string $name, ColumnType $type, bool $nullable = false, string\|int\|null $default = null, bool $autoIncrement = false, int $length = 255)` | |
 | `ForeignKey(string $column, string $referencedTable, string $referencedColumn = 'id', bool $cascadeDelete = true)` | |
 | `ColumnType` (enum) | `Id`, `Integer`, `Boolean`, `String`, `Text`, `DateTime`, `Uuid`, `Json`, `Decimal` (`DECIMAL(20,6)`) and `Date` (`DATE`) (both since 0.2.2); `sql(int $length): string` returns the SQL type |
@@ -127,7 +127,7 @@ differences of the two servers are evened out: `int(11)` (MariaDB) and `int`
 | `static normalizeDefault(mixed $default): ?string` | A default as either server reports it, as text without quotes; null for none |
 
 `TableInfo` (`name`, `columns` by name in the table's order, `primaryKey`,
-`indexes`, `uniques`, `foreignKeys` by constraint name: `column`, `table`
+`indexes`, `uniques`, `fulltexts` (since 0.2.7), `foreignKeys` by constraint name: `column`, `table`
 without the prefix, `referencedColumn`, `cascadeDelete`; `column(string $name): ?ColumnInfo`,
 `hasIndex(string $name): bool`) and `ColumnInfo` (`name`, `type`: the
 `ColumnType`, or null for a type Campanella does not create, `rawType` as the

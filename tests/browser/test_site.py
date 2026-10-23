@@ -512,6 +512,23 @@ def test_admin_pages(browser):
     context.close()
 
 
+def test_search(browser):
+    """The header's search field leads to the results, the words marked; a draft is never found (since 0.2.7)."""
+    context = new_context(browser)
+    page = context.new_page()
+    page.goto(BASE + "/")
+    page.fill("#site-search-q", "capability")
+    with page.expect_navigation():
+        page.press("#site-search-q", "Enter")
+    check(path_of(page) == "/search", "the search field: ended on %s" % page.url)
+    check(page.locator(".search-result").count() > 0, "the search found nothing for 'capability'")
+    check(page.locator(".search-result mark").count() > 0, "the words found are not marked")
+    check(page.locator("meta[name=robots][content=noindex]").count() == 1, "the search page has no noindex")
+    page.goto(BASE + "/search?q=piszkozat")
+    check(page.locator(".search-result").count() == 0, "the search found a draft")
+    context.close()
+
+
 TESTS = [
     test_security_headers,
     test_login_and_logout,
@@ -520,6 +537,7 @@ TESTS = [
     test_password_reset,
     test_contact_form,
     test_admin_pages,
+    test_search,
 ]
 
 

@@ -29,6 +29,7 @@ namespace, in the `src/` folder (PSR-4).
 22. [Forms](22-forms.md): the contact form (`ContactForm`, `contact_form()`), its messages (`Submitted`, `SubmissionService`), the admin's *Submissions*
 23. [Lists](23-lists.md): lists made in the admin (`ListDefinition`, `ListStore`, `ListRegistry`), their page (`ListController`), `list()` and `field_value()` in templates (since 0.2.5)
 24. [The content model's export and import](24-content-model.md): the file (`ModelFile`), `ModelExport`, `ModelImport` and its plan (`ImportPlan`, `ImportItem`), the objects by reference (since 0.2.6)
+25. [Search](25-search.md): the index (`SearchIndex`), `Search` and its results, the page, building the index (`SearchIndexer`, `search:index`) (since 0.2.7)
 
 ## Namespaces
 
@@ -39,6 +40,7 @@ namespace, in the `src/` folder (PSR-4).
 | `Campanella\Tree` | Model | Trees of Hierarchical objects: building them, keeping them consistent |
 | `Campanella\Menu` | Service | Building menus for a visitor (since 0.0.7) |
 | `Campanella\Transfer` | Service | The content model's export and import (since 0.2.6) |
+| `Campanella\Search` | Service | The site's search (since 0.2.7) |
 | `Campanella\Site` | Service | The site's settings, meta tags of pages (since 0.1.1) |
 | `Campanella\Settings` | Infrastructure | Settings saved in the admin (since 0.1.1) |
 | `Campanella\Event` | Service | Events and the actions bound to them (since 0.1.3) |

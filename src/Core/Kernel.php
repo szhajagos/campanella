@@ -49,6 +49,10 @@ use Campanella\Auth\SessionRegistry;
 use Campanella\Auth\LoginGuard;
 use Campanella\Controller\AuthController;
 use Campanella\Controller\ContactController;
+use Campanella\Controller\SearchController;
+use Campanella\Search\Search;
+use Campanella\Search\SearchCheck;
+use Campanella\Search\SearchIndexer;
 use Campanella\Controller\Controller;
 use Campanella\Controller\ObjectController;
 use Campanella\Controller\QueryController;
@@ -451,6 +455,7 @@ final class Kernel
                 $root,
             );
             $system->add(MediaCheck::checks($c->get(ImageProcessor::class), $c->get(MediaStorage::class), $c->get(MediaService::class)));
+            $system->add(SearchCheck::checks($c->get(SearchIndexer::class)));
             $system->add(SyncCheck::checks($c->get(Installer::class), $c->get(SchemaSync::class)));
             $system->add(MailCheck::checks($c->get(Mailer::class)));
             $system->add(ContactCheck::checks(
@@ -783,6 +788,8 @@ final class Kernel
             $router->add($paths->get('password_reset'), 'auth', ['action' => 'reset']);
             // The contact form (since 0.1.5).
             $router->add($paths->get('contact'), 'contact');
+            // The search (since 0.2.7).
+            $router->add($paths->get('search'), 'search');
             // For search engines (since 0.1.1).
             $router->add('/robots.txt', 'site', ['action' => 'robots']);
             $router->add('/sitemap.xml', 'site', ['action' => 'sitemap']);
@@ -868,6 +875,7 @@ final class Kernel
                 $c->get(AdminAccess::class),
                 $c->get(Translator::class),
             ),
+            $c->get(SearchIndexer::class),
         ));
 
         // The contact form (since 0.1.5).
@@ -884,6 +892,19 @@ final class Kernel
                 (int) $config->get('contact.min_seconds', ContactForm::MIN_SECONDS),
             );
         });
+
+        // The search (since 0.2.7).
+        $c->set(Search::class, static fn (Container $c): Search => new Search($c->get(Connection::class), $c->get(QueryEngine::class), $c->get(BlueprintRegistry::class)));
+        $c->set(SearchIndexer::class, static fn (Container $c): SearchIndexer => new SearchIndexer(
+            $c->get(Connection::class),
+            $c->get(ObjectRepository::class),
+            $c->get(BlueprintRegistry::class),
+        ));
+        $c->set('controller.search', static fn (Container $c): Controller => new SearchController(
+            $c->get(Search::class),
+            $c->get(Presentation::class),
+            $c->get(Translator::class),
+        ));
 
         $c->set('controller.contact', static fn (Container $c): Controller => new ContactController(
             $c->get(ContactForm::class),
@@ -948,7 +969,8 @@ final class Kernel
                 [...$router->paths('query'), ...$router->paths('list'), ...((bool) $c->get(Config::class)->get('contact.enabled', true) ? $router->paths('contact') : [])],
                 // The admin only at its default path: a path of its own is not revealed here
                 // (the admin pages send noindex themselves).
-                [...($admin->path() === '/admin' ? ['/admin/'] : []), ...$router->paths('auth'), InstallController::PATH],
+                // The search's results too (since 0.2.7): endless addresses, and noindex anyway.
+                [...($admin->path() === '/admin' ? ['/admin/'] : []), ...$router->paths('auth'), ...$router->paths('search'), InstallController::PATH],
             );
         });
 

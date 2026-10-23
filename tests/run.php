@@ -4293,7 +4293,7 @@ test('Kernel: meta tags, robots.txt and sitemap.xml', function () use ($fakeImag
     check(str_contains($page->body, '<meta property="og:type" content="article">') && str_contains($page->body, '<meta property="og:title" content="Térképes cikk">'));
     check($kernel->handle(new Request('GET', '/sitemap.xml'))->status === 404, 'no sitemap without the address');
     $robots = $kernel->handle(new Request('GET', '/robots.txt'));
-    check($robots->status === 200 && str_starts_with($robots->headers['Content-Type'] ?? '', 'text/plain') && str_contains($robots->body, "User-agent: *\nDisallow: /admin/\nDisallow: /login\nDisallow: /logout\nDisallow: /password-reset\nDisallow: /install\n") && !str_contains($robots->body, 'Sitemap:'), $robots->body);
+    check($robots->status === 200 && str_starts_with($robots->headers['Content-Type'] ?? '', 'text/plain') && str_contains($robots->body, "User-agent: *\nDisallow: /admin/\nDisallow: /login\nDisallow: /logout\nDisallow: /password-reset\nDisallow: /search\nDisallow: /install\n") && !str_contains($robots->body, 'Sitemap:'), $robots->body);
 
     $settings->set(['site.url' => 'https://pelda.hu']);
     $page = $kernel->handle(new Request('GET', '/terkepes-cikk'));
@@ -4943,7 +4943,7 @@ test('SitePaths: English by default, configurable, checked', function (): void {
     $default = new $P();
     check($default->get('login') === '/login' && $default->get('logout') === '/logout' && $default->login('/admin/article?status=draft') === '/login?return=%2Fadmin%2Farticle%3Fstatus%3Ddraft');
     $hu = new $P(['login' => '/belepes/', 'logout' => 'kilepes']);
-    check($hu->all() === ['login' => '/belepes', 'logout' => '/kilepes', 'password_reset' => '/password-reset', 'contact' => '/contact'], json_encode($hu->all()));
+    check($hu->all() === ['login' => '/belepes', 'logout' => '/kilepes', 'password_reset' => '/password-reset', 'contact' => '/contact', 'search' => '/search'], json_encode($hu->all()));
     foreach ([['bejelentkezes' => '/x'], ['login' => '/'], ['login' => '/a b'], ['login' => '/a?b'], ['login' => 42], ['login' => '/x', 'logout' => '/x']] as $bad) {
         throws(\InvalidArgumentException::class, fn () => new $P($bad));
     }
@@ -6862,6 +6862,115 @@ test('Kernel: the content model page in the admin: download, plan, confirm', fun
 
     $boot()->get(\Campanella\Model\BlueprintStore::class)->delete('hirlevel');
     $db->execute('DROP TABLE IF EXISTS ' . $db->table('bp_hirlevel'));
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
+echo "\nSearch (0.2.7)\n";
+
+test('Schema: FULLTEXT indexes are made, read and compared', function () use ($db): void {
+    $table = \Campanella\Database\Schema\CoreSchema::tables();
+    $search = array_values(array_filter($table, static fn ($t): bool => $t->name === 'search_index'))[0];
+    $sql = (new \Campanella\Database\Schema\SchemaBuilder($db))->createSql($search);
+    check(str_contains($sql, 'FULLTEXT KEY `ft_text` (`title`, `content`)'), $sql);
+    check(str_contains((new \Campanella\Database\Schema\SchemaBuilder($db))->addIndexSql($search, 'ft_title'), 'ADD FULLTEXT INDEX `ft_title`'), 'added later');
+    $info = (new \Campanella\Database\Schema\SchemaReader($db))->read('search_index');
+    check($info !== null && $info->fulltexts === ['ft_text' => ['title', 'content'], 'ft_title' => ['title']] && !isset($info->indexes['ft_text']), json_encode($info?->fulltexts));
+    $comparator = new \Campanella\Database\Schema\SchemaComparator(new \Campanella\Database\Schema\SchemaReader($db), new \Campanella\Database\Schema\SchemaBuilder($db));
+    check($comparator->compareTable($search, $info) === [], 'the installed table matches');
+    $plain = new \Campanella\Database\Schema\Table($search->name, $search->columns, $search->primaryKey, $search->indexes + ['ft_text' => ['title', 'content']], foreignKeys: $search->foreignKeys, fulltexts: ['ft_title' => ['title']]);
+    $kinds = array_map(static fn ($d): string => $d->kind->name . ':' . $d->name, $comparator->compareTable($plain, $info));
+    check($kinds === ['IndexColumns:ft_text'], 'a FULLTEXT index is not an ordinary one: ' . json_encode($kinds));
+});
+
+test('Search: the words, the text of an object, the excerpt', function (): void {
+    $S = \Campanella\Search\Search::class;
+    check($S::words('A kert, és a KERTÉSZ-ház; kert 2026') === ['kert', 'kertesz', 'haz', '2026'], json_encode($S::words('A kert, és a KERTÉSZ-ház; kert 2026'), JSON_UNESCAPED_UNICODE));
+    check($S::words('the kert with www') === ['kert'] && \Campanella\Search\SearchIndex::fold('Árvíztűrő TÜKÖRFÚRÓGÉP') === 'arvizturo tukorfurogep', 'stop words left out; accents folded');
+    check($S::words('+"x"* -- ()') === [] && count($S::words(str_repeat('szó ', 3) . 'egy kettő három négy öt hat hét nyolc kilenc tíz')) === 8, 'no operators; at most 8');
+    check(\Campanella\Search\SearchIndex::fromHtml('<h2>Cím</h2><p>Első&nbsp;bekezdés &amp; <b>vastag</b></p><script>x()</script><p>Második</p>') === "Cím Első\u{a0}bekezdés & vastag Második" || \Campanella\Search\SearchIndex::fromHtml('<h2>Cím</h2><p>Első bekezdés &amp; <b>vastag</b></p><script>x()</script><p>Második</p>') === 'Cím Első bekezdés & vastag Második', json_encode(\Campanella\Search\SearchIndex::fromHtml('<h2>Cím</h2><p>Első bekezdés &amp; <b>vastag</b></p><script>x()</script><p>Második</p>'), JSON_UNESCAPED_UNICODE));
+    $text = str_repeat('Előtte sok szöveg van itt. ', 10) . 'A kertben virágok nyílnak, a Kert szép.' . str_repeat(' Utána is.', 30);
+    $pieces = $S::excerpt($text, ['kert']);
+    $marked = array_values(array_map(static fn ($p) => $p['text'], array_filter($pieces, static fn ($p) => $p['mark'])));
+    check($marked === ['kertben', 'Kert'] && str_starts_with($pieces[0]['text'], '…') && str_ends_with(end($pieces)['text'], '…'), json_encode($pieces, JSON_UNESCAPED_UNICODE));
+    check(implode('', array_column($pieces, 'text')) !== '' && mb_strlen(implode('', array_column($pieces, 'text'))) <= $S::EXCERPT + 2, 'short');
+});
+
+test('Kernel: the search page finds the published pages, the title counts more; the index is built for old pages', function () use ($newUser): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = null;
+    $storage = new ArraySessionStorage();
+    $boot = static function () use (&$kernel, $storage) {
+        $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+        $kernel->container()->set(Session::class, static fn () => new Session($storage));
+
+        return $kernel->container();
+    };
+    $container = $boot();
+    if ($container->get(Connection::class)->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $db = $container->get(Connection::class);
+    $send = function (string $method, string $path, array $query = [], array $post = []) use (&$kernel, $storage, $boot) {
+        $storage->endRequest();
+        $boot();
+
+        return $kernel->handle(new Request($method, $path, $query, $post));
+    };
+    $repository = $container->get(ObjectRepository::class);
+    $made = [];
+    foreach ([
+        ['title' => 'Zöldségeskert-0227 nyáron', 'body' => '<p>Paradicsom és <b>paprika</b> a kertben.</p>', 'status' => PublishStatus::Published],
+        ['title' => 'Virágok-0227', 'body' => '<p>A zöldségeskert-0227 mellett a virágágyás.</p>', 'status' => PublishStatus::Published],
+        ['title' => 'Piszkozat-0227 zöldségeskert-0227', 'body' => '<p>Titkos.</p>', 'status' => PublishStatus::Draft],
+    ] as $i => $values) {
+        $article = $repository->create('article', $values + ['path' => '/kereses-teszt-' . $i, 'format' => 'html', 'published_at' => new DateTimeImmutable('-1 hour')]);
+        $repository->save($article);
+        $made[] = $article;
+    }
+    $row = $db->fetchOne('SELECT title, content, blueprint FROM {search_index} WHERE object_id = :id', ['id' => $made[0]->id()]);
+    check(($row['title'] ?? '') === 'zoldsegeskert-0227 nyaron' && str_contains((string) ($row['content'] ?? ''), 'paradicsom es paprika a kertben.') && ($row['blueprint'] ?? '') === 'article', json_encode($row, JSON_UNESCAPED_UNICODE));
+
+    $page = $send('GET', '/search', ['q' => 'zöldségeskert 0227']);
+    check($page->status === 200 && str_contains($page->body, 'name="robots" content="noindex"'), (string) $page->status);
+    $first = strpos($page->body, 'href="/kereses-teszt-0"');
+    $second = strpos($page->body, 'href="/kereses-teszt-1"');
+    check($first !== false && $second !== false && $first < $second, 'both, the one with it in its title first');
+    check(!str_contains($page->body, '/kereses-teszt-2') && !str_contains($page->body, 'Titkos'), 'not the draft');
+    check(str_contains($page->body, '<mark>Zöldségeskert</mark>-<mark>0227</mark>') || str_contains($page->body, '<mark>zöldségeskert</mark>-<mark>0227</mark>'), 'the words marked');
+    check(str_contains($send('GET', '/search', ['q' => 'paprik'])->body, '/kereses-teszt-0'), 'the start of a word');
+    check(str_contains($send('GET', '/search', ['q' => 'zoldsegeskert'])->body, '/kereses-teszt-1') && str_contains($send('GET', '/search', ['q' => 'VIRÁGÁGY'])->body, '/kereses-teszt-1'), 'with or without accents, in any case');
+    check(str_contains($send('GET', '/search', ['q' => 'ab'])->body, 'legalább egy, 3'), 'too short');
+    check(str_contains($send('GET', '/search', ['q' => 'nincsilyenszo0227'])->body, 'Nincs találat'), 'nothing');
+    check(str_contains($send('GET', '/search', ['q' => '<script>'])->body, '&lt;script&gt;') || !str_contains($send('GET', '/search', ['q' => '<script>'])->body, '<script>x'), 'escaped');
+    check($send('GET', '/search', ['q' => 'zöldségeskert', 'page' => '9'])->status === 404, 'a page beyond the last');
+    check(str_contains($send('GET', '/')->body, 'action="/search"'), 'the form in the header');
+
+    // An editor finds only the published ones too; a page deleted leaves the index.
+    $boot()->get(AuthService::class)->login(new Request('GET', '/'), $newUser('kereso-admin@example.hu', 'kereso-jelszo-12', ['administrator']));
+    check(!str_contains($send('GET', '/search', ['q' => 'piszkozat 0227'])->body, '/kereses-teszt-2'), 'not even for an administrator');
+
+    // Pages saved before the index: the System page, the button, the command line.
+    $db->execute('DELETE FROM {search_index} WHERE object_id IN (:a, :b)', ['a' => $made[0]->id(), 'b' => $made[1]->id()]);
+    $indexer = $boot()->get(\Campanella\Search\SearchIndexer::class);
+    check($indexer->missing() >= 2, (string) $indexer->missing());
+    $system = $send('GET', '/admin/system');
+    check(str_contains($system->body, 'még nincs a keresésben') && str_contains($system->body, 'system/search-index'), 'the System page offers it');
+    $token = preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $system->body, $m) === 1 ? $m[1] : '';
+    check($send('POST', '/admin/system/search-index', [], ['_csrf' => $token])->status === 303 && $boot()->get(\Campanella\Search\SearchIndexer::class)->missing() === 0, 'built');
+    check(str_contains($send('GET', '/search', ['q' => 'zöldségeskert'])->body, '/kereses-teszt-1'), 'found again');
+    $stream = fopen('php://memory', 'w+');
+    $code = (new \Campanella\Cli\SearchIndexCommand())->run($boot(), ['--all'], new \Campanella\Cli\Output($stream, $stream));
+    rewind($stream);
+    check($code === 0 && str_contains((string) stream_get_contents($stream), 'oldal indexelve'), 'search:index --all');
+
+    $id = $made[1]->id();
+    $repository = $boot()->get(ObjectRepository::class);
+    foreach ($made as $article) {
+        $repository->delete($article);
+    }
+    check($db->fetchValue('SELECT 1 FROM {search_index} WHERE object_id = :id', ['id' => $id]) === null, 'deleted with its object');
     putenv('CAMPANELLA_DB_PREFIX');
 });
 

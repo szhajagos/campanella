@@ -24,6 +24,7 @@ final class CoreSchema
     public const string PASSWORD_RESETS = 'password_resets';
     public const string BLUEPRINTS = 'blueprints';
     public const string LISTS = 'lists';
+    public const string SEARCH_INDEX = 'search_index';
 
     /** @return list<Table> */
     public static function tables(): array
@@ -232,6 +233,23 @@ final class CoreSchema
                     new Column('updated_at', ColumnType::DateTime),
                 ],
                 primaryKey: ['name'],
+            ),
+            // The search's index (since 0.2.7, schema version 16): the plain text of each object
+            // with a page of its own, written on save (Campanella\Search\SearchIndex), searched
+            // with the FULLTEXT indexes. Deleting the object deletes its row.
+            new Table(
+                name: self::SEARCH_INDEX,
+                columns: [
+                    new Column('object_id', ColumnType::Id),
+                    new Column('blueprint', ColumnType::String, length: 64),
+                    new Column('title', ColumnType::String, length: 255),
+                    new Column('content', ColumnType::Text),
+                    new Column('indexed_at', ColumnType::DateTime),
+                ],
+                primaryKey: ['object_id'],
+                indexes: ['idx_blueprint' => ['blueprint']],
+                foreignKeys: [new ForeignKey('object_id', self::OBJECTS)],
+                fulltexts: ['ft_title' => ['title'], 'ft_text' => ['title', 'content']],
             ),
             // Throttling of attempts (e.g. login). The SHA-256 hash of the key.
             new Table(

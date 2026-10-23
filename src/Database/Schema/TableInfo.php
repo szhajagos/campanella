@@ -16,6 +16,7 @@ final readonly class TableInfo
      * @param array<string, list<string>> $indexes Non-unique indexes: name => columns
      * @param array<string, list<string>> $uniques Unique indexes (without the primary key): name => columns
      * @param array<string, array{column: string, table: string, referencedColumn: string, cascadeDelete: bool}> $foreignKeys By constraint name; `table` without the prefix
+     * @param array<string, list<string>> $fulltexts FULLTEXT indexes: name => columns (since 0.2.7)
      */
     public function __construct(
         public string $name,
@@ -24,6 +25,7 @@ final readonly class TableInfo
         public array $indexes = [],
         public array $uniques = [],
         public array $foreignKeys = [],
+        public array $fulltexts = [],
     ) {
     }
 
@@ -34,6 +36,6 @@ final readonly class TableInfo
 
     public function hasIndex(string $name): bool
     {
-        return isset($this->indexes[$name]) || isset($this->uniques[$name]);
+        return isset($this->indexes[$name]) || isset($this->uniques[$name]) || isset($this->fulltexts[$name]);
     }
 }

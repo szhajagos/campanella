@@ -50,6 +50,7 @@ return [
         'logout' => '/logout',
         'password_reset' => '/password-reset',   // the forgotten password
         'contact' => '/contact',                 // the contact form (since 0.1.5)
+        'search' => '/search',                   // the search (since 0.2.7)
     ],
 
     'site' => [

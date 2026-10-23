@@ -8,7 +8,7 @@ use Campanella\Capability\Routable;
 
 /**
  * The addresses of the system's own public pages (since 0.1.4): logging in and out
- * the forgotten password and the contact form (since 0.1.5). English by default, any of them can be changed in the
+ * the forgotten password, the contact form (since 0.1.5) and the search (since 0.2.7). English by default, any of them can be changed in the
  * configuration, e.g. to the site's language:
  *
  *     'paths' => ['login' => '/belepes', 'logout' => '/kilepes', 'password_reset' => '/elfelejtett-jelszo'],
@@ -23,6 +23,7 @@ final class SitePaths
         'logout' => '/logout',
         'password_reset' => '/password-reset',
         'contact' => '/contact',
+        'search' => '/search',
     ];
 
     /** @var array<string, string> */

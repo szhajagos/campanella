@@ -10,6 +10,23 @@ backward-incompatible.
 
 ## [Unreleased]
 
+Work towards 0.2.7: search, redirects and an image picker, in parts.
+
+### Added
+
+- **Search** ([PHP API](docs/php-api/25-search.md)) with the database's
+  FULLTEXT indexes, at `/search` (`paths.search`), with a search field in the
+  default theme's header. It finds the published pages (objects with a path),
+  by every word as the start of a word, with or without accents; a match in
+  the title counts more; results a page at a time, with an excerpt, the words
+  marked. Users, messages and files are never found. The new `search_index`
+  table (schema version 16) is written on every save; the pages saved before
+  are added from the System page (a button) or with
+  `php bin/campanella search:index` (`--all`: every page again). The search
+  page is `noindex` and not to be crawled (`robots.txt`).
+- FULLTEXT indexes in table definitions (`Table::$fulltexts`), made, read and
+  compared by the schema classes.
+
 ## [0.2.6] – 2026-10-23
 
 **The content model's export and import.** The fifth step towards 0.3.0: the

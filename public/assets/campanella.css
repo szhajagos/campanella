@@ -57,6 +57,7 @@
    the user's links wrap below the menu instead of running out of it (since 0.2.1). */
 .navbar-collapse { flex-wrap: wrap; row-gap: .25rem; }
 .site-user { margin-left: auto; }
+.site-search + .site-user { margin-left: 0; }
 .site-user__name { white-space: nowrap; }
 [data-bs-theme="dark"] .navbar .dropdown-menu { --bs-dropdown-link-active-color: #191816; }
 
@@ -106,3 +107,9 @@ h1, h2, h3, .h1, .h2, .h3, .h4, .h5 { line-height: 1.25; }
 .body img { max-width: 100%; height: auto; }
 .body figure { margin: 1.5rem 0; }
 .body figcaption { font-size: .875em; color: var(--bs-secondary-color); }
+
+/* The search (since 0.2.7): a small field in the header; the words found marked without a gap. */
+@media (min-width: 768px) {
+    .site-search .form-control { width: 8.5rem; }
+}
+.search-result mark { padding: 0 .1em; }

@@ -31,6 +31,7 @@ final class Console
             new ModelExportCommand(),
             new ModelImportCommand(),
             new MediaVariantsCommand(),
+            new SearchIndexCommand(),
             new SubmissionsPruneCommand(),
         ];
         foreach ($commands as $command) {

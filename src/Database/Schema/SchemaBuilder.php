@@ -37,6 +37,9 @@ final class SchemaBuilder
         foreach ($table->indexes as $name => $columns) {
             $lines[] = 'KEY ' . $q($name) . ' (' . implode(', ', array_map($q, $columns)) . ')';
         }
+        foreach ($table->fulltexts as $name => $columns) {
+            $lines[] = 'FULLTEXT KEY ' . $q($name) . ' (' . implode(', ', array_map($q, $columns)) . ')';
+        }
         foreach ($table->foreignKeys as $fk) {
             $lines[] = sprintf(
                 'CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s (%s)%s',
@@ -117,17 +120,18 @@ final class SchemaBuilder
         );
     }
 
-    /** Adds an index (or unique index) of the table's definition. */
+    /** Adds an index (a unique one, or since 0.2.7 a FULLTEXT one) of the table's definition. */
     public function addIndexSql(Table $table, string $index): string
     {
         $unique = isset($table->uniques[$index]);
-        $columns = $table->uniques[$index] ?? $table->indexes[$index]
+        $fulltext = isset($table->fulltexts[$index]);
+        $columns = $table->uniques[$index] ?? $table->indexes[$index] ?? $table->fulltexts[$index]
             ?? throw new \InvalidArgumentException("No index {$index} in the definition of {$table->name}.");
 
         return sprintf(
             'ALTER TABLE %s ADD %s %s (%s)',
             $this->db->table($table->name),
-            $unique ? 'UNIQUE INDEX' : 'INDEX',
+            $unique ? 'UNIQUE INDEX' : ($fulltext ? 'FULLTEXT INDEX' : 'INDEX'),
             Connection::quoteIdentifier($index),
             implode(', ', array_map(Connection::quoteIdentifier(...), $columns)),
         );

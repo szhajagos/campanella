@@ -84,8 +84,9 @@ final class SchemaReader
         $primaryKey = [];
         $indexes = [];
         $uniques = [];
+        $fulltexts = [];
         $statistics = $this->db->fetchAll(
-            'SELECT INDEX_NAME AS idx, COLUMN_NAME AS col, NON_UNIQUE AS non_unique
+            'SELECT INDEX_NAME AS idx, COLUMN_NAME AS col, NON_UNIQUE AS non_unique, INDEX_TYPE AS index_type
              FROM information_schema.STATISTICS
              WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :name
              ORDER BY INDEX_NAME, SEQ_IN_INDEX',
@@ -96,6 +97,7 @@ final class SchemaReader
             $column = (string) $row['col'];
             match (true) {
                 $index === 'PRIMARY' => $primaryKey[] = $column,
+                strtoupper((string) $row['index_type']) === 'FULLTEXT' => $fulltexts[$index][] = $column,
                 (int) $row['non_unique'] === 0 => $uniques[$index][] = $column,
                 default => $indexes[$index][] = $column,
             };
@@ -123,7 +125,7 @@ final class SchemaReader
             ];
         }
 
-        return new TableInfo($table, $columns, $primaryKey, $indexes, $uniques, $foreignKeys);
+        return new TableInfo($table, $columns, $primaryKey, $indexes, $uniques, $foreignKeys, $fulltexts);
     }
 
     /** @param array<string, mixed> $row */

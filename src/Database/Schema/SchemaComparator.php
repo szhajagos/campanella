@@ -101,30 +101,31 @@ final class SchemaComparator
             $differences[] = new SchemaDifference(DifferenceKind::PrimaryKey, $t, null, implode(', ', $table->primaryKey), implode(', ', $actual->primaryKey) ?: null);
         }
 
-        $definedIndexes = $table->indexes + $table->uniques;
+        $definedIndexes = $table->indexes + $table->uniques + $table->fulltexts;
+        $kind = static fn (array $uniques, array $fulltexts, string $name): string => isset($uniques[$name]) ? 'UNIQUE ' : (isset($fulltexts[$name]) ? 'FULLTEXT ' : '');
         foreach ($definedIndexes as $name => $columns) {
-            $found = $actual->indexes[$name] ?? $actual->uniques[$name] ?? null;
-            $unique = isset($table->uniques[$name]);
+            $found = $actual->indexes[$name] ?? $actual->uniques[$name] ?? $actual->fulltexts[$name] ?? null;
+            $expectedKind = $kind($table->uniques, $table->fulltexts, $name);
             if ($found === null) {
                 $differences[] = new SchemaDifference(
                     DifferenceKind::MissingIndex,
                     $t,
                     $name,
-                    expected: ($unique ? 'UNIQUE ' : '') . '(' . implode(', ', $columns) . ')',
+                    expected: $expectedKind . '(' . implode(', ', $columns) . ')',
                     sql: $this->builder->addIndexSql($table, $name),
                     additive: true,
                 );
-            } elseif ($found !== $columns || $unique !== isset($actual->uniques[$name])) {
+            } elseif ($found !== $columns || $expectedKind !== $kind($actual->uniques, $actual->fulltexts, $name)) {
                 $differences[] = new SchemaDifference(
                     DifferenceKind::IndexColumns,
                     $t,
                     $name,
-                    ($unique ? 'UNIQUE ' : '') . '(' . implode(', ', $columns) . ')',
-                    (isset($actual->uniques[$name]) ? 'UNIQUE ' : '') . '(' . implode(', ', $found) . ')',
+                    $expectedKind . '(' . implode(', ', $columns) . ')',
+                    $kind($actual->uniques, $actual->fulltexts, $name) . '(' . implode(', ', $found) . ')',
                 );
             }
         }
-        foreach ($actual->indexes + $actual->uniques as $name => $columns) {
+        foreach ($actual->indexes + $actual->uniques + $actual->fulltexts as $name => $columns) {
             // The server creates an index for a foreign key by itself, named after the constraint.
             $forForeignKey = isset($actual->foreignKeys[$name]) && $columns === [$actual->foreignKeys[$name]['column']];
             if (!isset($definedIndexes[$name]) && !$forForeignKey) {

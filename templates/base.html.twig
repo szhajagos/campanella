@@ -52,6 +52,11 @@
                             <li class="nav-item"><a class="nav-link" href="{{ url('/rolunk') }}">{{ t('site.nav.about') }}</a></li>
                         {%- endif %}
                     </ul>
+                    {# The search (since 0.2.7). #}
+                    <form method="get" action="{{ path('search') }}" class="site-search d-flex ms-md-auto me-md-3 my-2 my-md-0" role="search">
+                        <label for="site-search-q" class="visually-hidden">{{ t('search.label') }}</label>
+                        <input type="search" class="form-control form-control-sm" id="site-search-q" name="q" maxlength="200" placeholder="{{ t('search.placeholder') }}">
+                    </form>
                     {% set user = current_user() %}
                     <div class="site-user d-flex align-items-center gap-3">
                         {% if user %}

@@ -171,6 +171,7 @@ Disallow: /admin/
 Disallow: /login
 Disallow: /logout
 Disallow: /password-reset
+Disallow: /search
 Disallow: /install
 
 Sitemap: https://example.hu/sitemap.xml
@@ -178,8 +179,9 @@ Sitemap: https://example.hu/sitemap.xml
 
 The disallowed paths are the admin (only at its default path `/admin`: a path
 of its own is not revealed here; the admin pages send `noindex` anyway), the
-`auth` routes of `config/routes.php` (found with `Router::paths('auth')`) and
-the installer.
+`auth` routes of `config/routes.php` (found with `Router::paths('auth')`), the
+search's page (since 0.2.7: endless addresses, and `noindex` anyway) and the
+installer.
 
 **While indexing is turned off** every response without an `X-Robots-Tag` of
 its own gets `X-Robots-Tag: noindex` (the Kernel), the pages say

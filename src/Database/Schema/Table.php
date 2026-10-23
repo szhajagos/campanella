@@ -17,6 +17,7 @@ final readonly class Table
      * @param array<string, list<string>> $indexes Index name => columns
      * @param array<string, list<string>> $uniques Index name => columns
      * @param list<ForeignKey> $foreignKeys
+     * @param array<string, list<string>> $fulltexts FULLTEXT index name => columns (since 0.2.7)
      */
     public function __construct(
         public string $name,
@@ -25,6 +26,7 @@ final readonly class Table
         public array $indexes = [],
         public array $uniques = [],
         public array $foreignKeys = [],
+        public array $fulltexts = [],
     ) {
     }
 }

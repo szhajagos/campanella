@@ -156,6 +156,13 @@ foreach ($widths as $width) {
     $path = MediaFile::variantPath((string) $image?->get('file_path'), $width);
     $check(is_file($site . '/public/media/' . $path), "a smaller copy is missing: {$path}");
 }
+// The search (0.2.7): the pages saved before it are indexed as the System page's button does, then found.
+$indexer = $c->get(\Campanella\Search\SearchIndexer::class);
+$check($indexer->missing() > 0 || (int) $snapshot['schema'] >= 16, 'the old pages are not reported as missing from the search');
+$indexer->build(30);
+$check($indexer->missing() === 0, 'the search index was not built: ' . $indexer->missing() . ' missing');
+$found = $c->get(\Campanella\Search\Search::class)->find('frissitesi probacikk', Actor::anonymous());
+$check(in_array($snapshot['article']['id'], array_map(static fn (array $i): int => (int) $i['object']->id(), $found->items), true), 'the old article is not found by the search');
 $submissions = $c->get(\Campanella\Service\SubmissionService::class);
 $message = $submissions->submit('Frissítés után', 'utana@example.hu', '', 'Az új funkció a régi adatokon.');
 $check($submissions->find(Actor::system(), (int) $message->id()) !== null && $submissions->find(\Campanella\Auth\AuthService::actorFor($c->get(AuthService::class)->findUserByEmail($snapshot['users']['editor'][0]) ?? throw new RuntimeException('no editor')), (int) $message->id()) === null, 'a contact message is not for administrators only');
