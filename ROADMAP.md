@@ -112,6 +112,7 @@ objects too; a removed one keeps their data.
 | **0.2.6** ✔ | Released 2026-10-23. Exporting and importing the content model as a file (System → Content model, `model:export`, `model:import`); an import first lists what it would change, follows the editors' rules and never deletes. |
 | **0.2.7** | Search with the database's FULLTEXT index, redirects (an automatic 301 when a path changes, and a list in the admin), an image picker in the editor (split in two if large). |
 | **0.3.x** | **Visitors' filters** on a list (e.g. a choice to pick the kind of event), and **the admin's object list with the own fields**: chosen fields as columns, sortable, with filters by type above the list (an `admin_columns` key for the Blueprints of the file). Both decided 2026-10-15 to come after 0.2.5. |
+| **0.3.x** | **Importers, step 1** (see below): importing objects from an uploaded CSV or JSON file, with a mapping, a unique key, a trial run, a log and undoing a run. Decided 2026-10-23. |
 | **0.3.0** | The milestone: a security review, the upgrade test, a chapter of the guide on one's own content types, the compatibility promise for 0.3.x. |
 
 **Lists (0.2.5, agreed 2026-10-15).** System → Lists. A list has a name, a
@@ -130,6 +131,40 @@ engine adds the visitor's limits to every list. Stored as JSON definitions in
 a `lists` table, like the Blueprints; the content model's export (0.2.6)
 carries them too. Not in 0.2.5: visitors' filters, and the admin's object
 list with the own fields (both 0.3.x).
+
+**Importers (agreed 2026-10-23)**, like Drupal's Feeds. System → Importers.
+An importer is stored as a JSON definition in an `importers` table: its
+source, its format, the Blueprint its objects become, the user in whose name
+(and with whose permissions) they are made, the mapping of the source's
+columns to fields and relations, and a unique key (e.g. an `id` column or a
+feed's GUID) by which a later run updates an object instead of making
+another. Values are converted by the field types (dates, decimal commas, a
+choice by key or label, several values with a separator), formatted text goes
+through the HTML filter. A relation's target is found by machine name, path
+or title (as in the content model's import); if it is not found, the item is
+an error (the default), or it is imported without the link, or the target is
+made, chosen per importer. A trial run shows the first items as they would
+become, changing nothing; a run works in batches, skips unchanged items (by a
+hash), and leaves a log (made, updated, unchanged, failed, the errors by
+row). Which item became which object is kept in real columns of an
+`import_items` table (importer, key, object, hash, time), so a run can be
+undone (the objects it made deleted, after a backup). An item that left the
+source stays (the default) or becomes a draft; an import never deletes.
+Running: by hand in the admin or with `php bin/campanella import:run <name>`,
+on a schedule only from cron (`import:cron`), **never started by a visitor's
+request** (it would slow down their page). Only the system roles set up
+importers.
+
+1. **Step 1, 0.3.x:** an uploaded CSV (with a header row, `;` or `,`, UTF-8)
+   or JSON file (with a path to its items); at most a few MB in the browser,
+   larger ones from the command line. No XML yet.
+2. **Step 2, 0.5.0, as the first official module:** sources at a web address
+   (CSV, JSON, RSS and Atom), fetched safely (only `https://` by default, no
+   internal addresses after resolving the name, redirects checked again, time
+   and size limits; XML without external entities or DTDs), on a schedule from
+   cron, and what happens to items that left the source.
+3. **Step 3, after 0.4.0's media:** images and files at addresses in the
+   source become media objects related to the imported object.
 
 ### 0.4.0 – building pages and the look
 
@@ -154,6 +189,9 @@ list with the own fields (both 0.3.x).
 - **JSON API** according to the [HTTP API draft](docs/http-api/README.md),
   with a machine-readable description of the Blueprints (JSON Schema).
 - **Cache:** object, query and render cache with cache tags and contexts.
+- **Importers, steps 2 and 3** (2026-10-23, see 0.3.0 above): feeds from web
+  addresses on a schedule, and images from the source, as the first official
+  module.
 
 ### 0.6.0 – content for the long term
 
@@ -251,6 +289,10 @@ list with the own fields (both 0.3.x).
   a layer over the original (`*_t` tables, `object_translations`), never by
   changing the existing tables; Blueprints made in the admin stored in the
   database, carried between sites by export and import (see 0.3.0 above).
+- **Importers** (2026-10-23): like Drupal's Feeds, in three steps (files in
+  0.3.x; web addresses and RSS/Atom as a module in 0.5.0; images after the
+  media of 0.4.0). An import never deletes; a run is never started by a
+  visitor's request, only by hand or from cron.
 - **Language:** code, documentation, comments, commit messages and
   developer-facing messages are English; the UI is multilingual via the
   translation layer, with Hungarian as a first-class translation (2026-09-30).
