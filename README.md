@@ -253,7 +253,8 @@ older than 0.0.6 is upgraded to 0.0.7 first, then to the current version.
 | `php bin/campanella schema:check` | Compares the table definitions with the database (`--sql`: the statements of the additive changes); changes nothing |
 | `php bin/campanella html:sanitize` | Filters the stored HTML texts with the allowlist (`--dry-run`: only lists them) |
 | `composer test` | Tests (on a real database, with a separate `test_` table prefix) |
-| `tests/upgrade/run.sh <0.1.0 source>` | The upgrade test: installs 0.1.0 with content, upgrades it to this code, checks that nothing was lost (since 0.2.0; [details](docs/php-api/17-migrations.md#the-upgrade-test)) |
+| `tests/upgrade/run.sh <old source>` | The upgrade test: installs an old version (0.1.0, 0.1.5, 0.2.0, 0.2.9) with content, upgrades it to this code, checks that nothing was lost (since 0.2.0; [details](docs/php-api/17-migrations.md#the-upgrade-test)) |
+| `tests/performance/run.sh` | The performance check: 10 000 objects, the busiest pages within their limits (since 0.3.0; [details](docs/testing.md#the-performance-check)) |
 | `tests/package/check.sh` | The installation package: built as the release builds it, its contents checked, installed from the browser, the browser tests on it (since 0.2.0; [details](docs/testing.md#the-release-package)) |
 | `tests/browser/run.sh` | The browser tests: a fresh site in headless Chromium, its logins, sessions, forgotten password, contact form and admin, protections first (since 0.2.0; [details](docs/testing.md#the-browser-tests)) |
 | `composer analyse` | PHPStan, level 8, targeting PHP 8.3 |

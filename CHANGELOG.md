@@ -32,6 +32,12 @@ Work towards 0.3.0, the third milestone, in parts.
   list with a filter, events, a changed path), and the checks cover it: its
   values, pages, admin pages, redirect, search, and export
   ([The upgrade test](docs/php-api/17-migrations.md#the-upgrade-test)).
+- The performance check (`tests/performance/run.sh`), in CI on MariaDB 10.6
+  and MySQL 8.0: 10 000 objects of a Blueprint with own fields, then a list's
+  pages with filters, the admin's list with its columns and filters, and the
+  search, each within 500 ms (the median) and 60 SQL statements. All of them
+  answer in 15–135 ms, with the same number of queries for any number of
+  objects ([The performance check](docs/testing.md#the-performance-check)).
 
 ### Changed
 

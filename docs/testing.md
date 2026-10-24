@@ -1,6 +1,6 @@
 # Testing
 
-Campanella has four kinds of automated checks. All of them run in CI on every
+Campanella has five kinds of automated checks. All of them run in CI on every
 push ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)); each can be
 run locally too.
 
@@ -9,6 +9,7 @@ run locally too.
 | Tests | `composer test` | The PHP code, on a real database (table prefix `test_`) |
 | Static analysis and docs | `composer analyse`, `composer docs:check`, `composer docs:links`, `composer lang:check` | Types (PHPStan level 8); every public class and method documented; links; translations |
 | Upgrade test | `tests/upgrade/run.sh <old source>` | A real upgrade from 0.1.0, 0.1.5, 0.2.0 or 0.2.9 (with a content model): nothing is lost (since 0.2.0; see [The upgrade test](php-api/17-migrations.md#the-upgrade-test)) |
+| Performance check | `tests/performance/run.sh` | 10 000 objects; the busiest pages answer within their limits of time and SQL queries (since 0.3.0; [below](#the-performance-check)) |
 | Browser tests | `tests/browser/run.sh` | The site in a real browser, its protections first (since 0.2.0; below) |
 | Release package | `tests/package/check.sh` | The installation package as a site owner gets it: its contents, installing it from the browser on a minimal PHP, the browser tests on it (since 0.2.0; below) |
 | Guide's screenshots | `tests/guide/screenshots.sh [hu\|en]` | Not a test: makes the [guide](guide/README.md)'s screenshots from a fresh site in each language, installed from the browser as the guide tells (since 0.2.1). Run it after a change of the admin's look, and commit the changed images |
@@ -100,3 +101,69 @@ In CI the PHP has only the extensions Campanella needs (`ctype`, `dom`,
 `json`, `mbstring`, `pdo_mysql`, `session`, `gd`) and what Composer needs:
 none of the recommended ones, as on a bare web host.
 
+## The performance check
+
+*Since 0.3.0.* How the pages that grow with a site's content (a list, the
+admin's list, the search) answer when there is a lot of it. In CI on MariaDB
+10.6 and MySQL 8.0; locally:
+
+```bash
+bash tests/performance/run.sh                  # --objects N: fewer, without the limits; --offline; --keep
+php tests/performance/measure.php <site>       # again, on a site kept with --keep
+```
+
+1. **The site:** this code installed into a temporary folder, with the sample
+   content (`seed`); the tables get the prefix `perf_`, dropped before and after.
+2. **The content** (`fixture.php`): a content model imported as System →
+   Content model imports it: a Blueprint `perf_event` with a queryable date,
+   choice, decimal and yes/no field, a multi-valued text field and a relation
+   to a category (one of 30), its 4 admin columns; a list of it with 4
+   visitors' filters (20 a page), another as a table (50 a page). Then 10 000
+   objects saved one by one as the admin saves them (search index, relation,
+   path; one in ten a draft), their texts of 3 paragraphs made from a fixed
+   vocabulary with a fixed seed, so every run has the same data.
+3. **The pages** (`measure.php`), each requested once to warm up, then 7 times
+   as new requests (a new Kernel, container and connection): the list's first
+   and 100th page, with one and with all 4 filters, the table; the admin's
+   list unsorted, sorted by an own column, with 4 filters, with a title search
+   on page 5; the search for a common word, two words, a rare word, a word's
+   beginning on page 20; an event's own page. Checked: the **median time**
+   against the page's limit (500 ms, the event's page 300 ms), and the
+   **number of SQL statements** the request sent (the server's count) against
+   60. The time depends on the machine, so its limit leaves room for a slow
+   one; the count does not, and a page that loads something once per object
+   shown goes over it at once.
+
+### The results for 0.3.0
+
+Measured on 2026-10-24 (a development container; PHP 8.4, the medians):
+
+| Page | MariaDB 10.11 | MySQL 8.0 | SQL statements |
+|---|---|---|---|
+| A list, first page | 101 ms | 119 ms | 47 |
+| A list, page 100 | 120 ms | 112 ms | 47 |
+| A list, all 4 filters | 133 ms | 41 ms | 47 |
+| A list as a table, 50 a page | 107 ms | 55 ms | 47 |
+| Admin list | 54 ms | 55 ms | 43 |
+| Admin list, sorted by a column | 53 ms | 52 ms | 43 |
+| Admin list, 4 filters | 29 ms | 29 ms | 43 |
+| Search, a common word | 69 ms | 114 ms | 46 |
+| Search, a rare word | 23 ms | 35 ms | 46 |
+| An event's page | 14 ms | 22 ms | 46 |
+
+What they show:
+
+- **No page loads per object shown.** The number of statements is the same
+  with 300 objects as with 10 000, and with 20 objects on a page as with 50:
+  the objects of a page, their fields, capabilities and relations, and the
+  related objects are loaded in a few queries each, by their IDs.
+- **The slowest is a list that matches most of the objects** (about 9 000 of
+  the 10 000): its count and its page each read every match, about 40 ms each,
+  because whether a visitor may see an object (published, its date passed) is
+  checked row by row. An index on the sorted field does not change that (tried
+  on `nap`); narrower conditions or filters make it faster.
+- The rest of a request's time (about 15 ms) is starting the program and
+  rendering the page, the same for every page.
+
+The full measurement (100 000 objects, many visitors at once, the cache) is
+planned for 1.0.
