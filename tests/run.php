@@ -7205,6 +7205,105 @@ test('Kernel: the admin\'s list of a Blueprint shows its columns, sorts and filt
     putenv('CAMPANELLA_DB_PREFIX');
 });
 
+echo "\nVisitors' filters (0.2.9)\n";
+
+test('Kernel: a list\'s filters for visitors: the form, the results, the pages, noindex', function () use ($newUser): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = null;
+    $storage = new ArraySessionStorage();
+    $boot = static function () use (&$kernel, $storage) {
+        $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+        $kernel->container()->set(Session::class, static fn () => new Session($storage));
+
+        return $kernel->container();
+    };
+    $container = $boot();
+    if ($container->get(Connection::class)->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $db = $container->get(Connection::class);
+    $db->execute('DROP TABLE IF EXISTS ' . $db->table('bp_eloadas_0229')); // left by a run that failed
+    $send = function (string $method, string $path, array $query = [], array $post = []) use (&$kernel, $storage, $boot) {
+        $storage->endRequest();
+        $boot();
+
+        return $kernel->handle(new Request($method, $path, $query, $post));
+    };
+    $import = $container->get(\Campanella\Transfer\ModelImport::class);
+    $list = ['title' => 'Előadások-0229', 'blueprint' => 'eloadas_0229', 'conditions' => [], 'sort' => [['field' => 'nap', 'dir' => 'asc']], 'per_page' => 1, 'display' => 'table',
+        'columns' => ['fajta'], 'path' => '/eloadasok-0229', 'filters' => ['fajta', 'nap', 'ingyenes', 'helyszin']];
+    $plan = $import->plan(['blueprints' => ['eloadas_0229' => ['label' => 'Előadás', 'capabilities' => ['titled', 'routable', 'publishable'],
+        'fields' => [
+            ['name' => 'nap', 'type' => 'date', 'label' => 'Nap', 'queryable' => true],
+            ['name' => 'fajta', 'type' => 'choice', 'label' => 'Fajta', 'queryable' => true, 'choices' => [['key' => 'eloadas', 'label' => 'Előadás'], ['key' => 'seta', 'label' => 'Séta']]],
+            ['name' => 'ingyenes', 'type' => 'boolean', 'label' => 'Ingyenes', 'queryable' => true],
+            ['name' => 'leiras', 'type' => 'text', 'label' => 'Leírás'],
+        ],
+        'relations' => [['name' => 'helyszin', 'label' => 'Helyszín', 'targets' => ['category'], 'many' => false]]]],
+        'lists' => ['eloadasok_0229' => $list]]);
+    check(!$plan->hasErrors(), json_encode(array_map(static fn ($i) => $i->name . ':' . $i->error, $plan->items), JSON_UNESCAPED_UNICODE));
+    $import->apply($plan);
+
+    // Checked like the rest of a list.
+    $registry = $boot()->get(BlueprintRegistry::class);
+    foreach ([['leiras'], ['status'], ['nincs'], ['created'], ['fajta', 'fajta'], ['fajta', 'nap', 'ingyenes', 'helyszin', 'published_at'], 'fajta'] as $bad) {
+        throws(\InvalidArgumentException::class, fn () => \Campanella\Lists\ListDefinition::fromArray('rossz', ['filters' => $bad] + $list, $registry));
+    }
+    check(\Campanella\Lists\ListDefinition::fromArray('jo', ['filters' => ['published_at', 'helyszin']] + $list, $registry)->toArray()['filters'] === ['published_at', 'helyszin'], 'a capability\'s field, a relation');
+
+    $repository = $boot()->get(ObjectRepository::class);
+    $hely = $repository->create('category', ['title' => 'Terem-0229', 'path' => '/terem-0229', 'status' => PublishStatus::Published, 'published_at' => new DateTimeImmutable('-1 hour')]);
+    $repository->save($hely);
+    $made = [$hely];
+    foreach ([
+        ['Első-0229', '2026-11-05', 'eloadas', false, PublishStatus::Published],
+        ['Második-0229', '2026-11-12', 'seta', true, PublishStatus::Published],
+        ['Harmadik-0229', '2026-11-19', 'seta', true, PublishStatus::Published],
+        ['Rejtett-0229', '2026-11-20', 'seta', true, PublishStatus::Draft],
+    ] as [$title, $day, $kind, $free, $status]) {
+        $object = $repository->create('eloadas_0229', ['title' => $title, 'path' => '/' . strtolower(str_replace(['ő', 'á'], ['o', 'a'], $title)), 'nap' => $day, 'fajta' => $kind, 'ingyenes' => $free, 'status' => $status, 'published_at' => new DateTimeImmutable('-1 hour')]);
+        if ($title === 'Harmadik-0229' || $title === 'Rejtett-0229') {
+            $object->relate('helyszin', $hely);
+        }
+        $repository->save($object);
+        $made[] = $object;
+    }
+
+    $page = $send('GET', '/eloadasok-0229');
+    $indexed = !str_contains($page->body, 'name="robots"'); // the site's own setting (another test may have turned it off)
+    check($page->status === 200 && str_contains($page->body, 'name="f[fajta]"') && str_contains($page->body, 'name="f[nap][from]"') && str_contains($page->body, 'name="f[ingyenes]"') && str_contains($page->body, 'Terem-0229'), 'the form');
+    $titles = static fn ($r): array => array_values(array_filter(['Első-0229', 'Második-0229', 'Harmadik-0229', 'Rejtett-0229'], static fn (string $t): bool => str_contains($r->body, $t . '<')));
+    $seta = $send('GET', '/eloadasok-0229', ['f' => ['fajta' => 'seta']]);
+    check($titles($seta) === ['Második-0229'] && str_contains($seta->body, 'name="robots" content="noindex"') && str_contains($seta->body, '<option value="seta" selected'), 'a choice, the first page; noindex');
+    check(str_contains($seta->body, 'href="/eloadasok-0229?f%5Bfajta%5D=seta&amp;page=2"'), 'the pages keep the filter');
+    check($titles($send('GET', '/eloadasok-0229', ['f' => ['fajta' => 'seta'], 'page' => '2'])) === ['Harmadik-0229'] && $send('GET', '/eloadasok-0229', ['f' => ['fajta' => 'seta'], 'page' => '3'])->status === 404, 'never the draft');
+    check($titles($send('GET', '/eloadasok-0229', ['f' => ['helyszin' => (string) $hely->id()]])) === ['Harmadik-0229'], 'a relation');
+    check($titles($send('GET', '/eloadasok-0229', ['f' => ['nap' => ['from' => '2026-11-10', 'to' => '2026-11-12']]])) === ['Második-0229'], 'a date range');
+    check($titles($send('GET', '/eloadasok-0229', ['f' => ['ingyenes' => '0']])) === ['Első-0229'], 'yes / no');
+    $bad = $send('GET', '/eloadasok-0229', ['f' => ['fajta' => '<script>', 'leiras' => 'x', 'nap' => ['from' => 'tegnap']]]);
+    check($bad->status === 200 && $titles($bad) === ['Első-0229'] && $indexed === !str_contains($bad->body, 'name="robots"') && !str_contains($bad->body, '&lt;script&gt;'), 'invalid values are ignored, not shown back');
+
+    // The list editor.
+    $boot()->get(AuthService::class)->login(new Request('GET', '/'), $newUser('szuro-admin@example.hu', 'szuro-jelszo-12', ['administrator']));
+    $edit = $send('GET', '/admin/system/lists/eloadasok_0229');
+    check($edit->status === 200 && str_contains($edit->body, 'Szűrők a látogatóknak') && preg_match('/name="filters\[\]" value="fajta"[^>]*checked/', $edit->body) === 1 && !str_contains($edit->body, 'name="filters[]" value="leiras"') && !str_contains($edit->body, 'name="filters[]" value="status"'), 'the editor offers them');
+    $token = preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $edit->body, $m) === 1 ? $m[1] : '';
+    $saved = $send('POST', '/admin/system/lists/eloadasok_0229', [], ['_csrf' => $token, 'title' => 'Előadások-0229', 'path' => '/eloadasok-0229', 'per_page' => '1', 'display' => 'table', 'columns' => ['fajta'], 'filters' => ['ingyenes'], 'sort' => [['field' => 'nap', 'dir' => 'asc']]]);
+    check($saved->status === 303 && ($boot()->get(\Campanella\Lists\ListStore::class)->find('eloadasok_0229')['filters'] ?? null) === ['ingyenes'], (string) $saved->status);
+    check(!str_contains($send('GET', '/eloadasok-0229')->body, 'name="f[fajta]"'), 'only those chosen');
+
+    $repository = $boot()->get(ObjectRepository::class);
+    foreach (array_reverse($made) as $object) {
+        $repository->delete($object);
+    }
+    $boot()->get(\Campanella\Lists\ListStore::class)->delete('eloadasok_0229');
+    $boot()->get(\Campanella\Model\BlueprintStore::class)->delete('eloadas_0229');
+    $db->execute('DROP TABLE IF EXISTS ' . $db->table('bp_eloadas_0229'));
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
 echo "\nDocumentation examples\n";
 
 test('New capability as in the docs example (Featured)', function () use ($db, $admin): void {

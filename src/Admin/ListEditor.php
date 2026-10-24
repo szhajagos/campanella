@@ -135,6 +135,7 @@ final class ListEditor
                     'display' => $form['display'],
                     'columns' => $form['columns'],
                     'path' => $form['path'] === '' ? null : $form['path'],
+                    'filters' => $form['filters'],
                 ];
                 try {
                     $list = ListDefinition::fromArray($name, $definition, $this->blueprints);
@@ -188,6 +189,14 @@ final class ListEditor
                 ], $targets),
             ];
         }
+        // What visitors may filter by (since 0.2.9): queryable fields with a filter, relations.
+        $filterable = [];
+        foreach ([...array_keys($blueprint->allFields()), ...array_keys($blueprint->allRelations())] as $filterName) {
+            $filter = ListDefinition::filter($blueprint, (string) $filterName);
+            if ($filter !== null) {
+                $filterable[] = ['name' => $filter->name, 'label' => $filter->label !== '' ? $filter->label : $filter->name];
+            }
+        }
         while (count($form['conditions']) < count(self::conditionRows($stored)) + self::EMPTY_ROWS && count($form['conditions']) < ListDefinition::MAX_CONDITIONS) {
             $form['conditions'][] = ['field' => '', 'op' => '=', 'value' => '', 'relative' => ''];
         }
@@ -204,6 +213,8 @@ final class ListEditor
             'sortable' => $sortable,
             'columns' => $columns,
             'relations' => $relations,
+            'filterable' => $filterable,
+            'max_filters' => ListDefinition::MAX_FILTERS,
             'operators' => ListDefinition::OPERATORS,
             'displays' => ListDefinition::DISPLAYS,
             'max_per_page' => ListDefinition::MAX_PER_PAGE,
@@ -216,7 +227,7 @@ final class ListEditor
      * The form's values from a stored definition.
      *
      * @param array<string, mixed> $stored
-     * @return array{title: string, path: string, per_page: string, display: string, columns: list<string>, sort: list<array{field: string, dir: string}>, conditions: list<array{field: string, op: string, value: string, relative: string}>, relations: list<array{relation: string, targets: list<int>}>}
+     * @return array{title: string, path: string, per_page: string, display: string, columns: list<string>, filters: list<string>, sort: list<array{field: string, dir: string}>, conditions: list<array{field: string, op: string, value: string, relative: string}>, relations: list<array{relation: string, targets: list<int>}>}
      */
     private static function form(array $stored): array
     {
@@ -233,6 +244,7 @@ final class ListEditor
             'per_page' => (string) ($stored['per_page'] ?? 10),
             'display' => (string) ($stored['display'] ?? 'teaser'),
             'columns' => array_values(array_map(strval(...), is_array($stored['columns'] ?? null) ? $stored['columns'] : [])),
+            'filters' => array_values(array_map(strval(...), is_array($stored['filters'] ?? null) ? $stored['filters'] : [])),
             'sort' => array_values(array_map(static fn (mixed $s): array => ['field' => (string) (is_array($s) ? ($s['field'] ?? '') : ''), 'dir' => is_array($s) && ($s['dir'] ?? '') === 'desc' ? 'desc' : 'asc'], is_array($stored['sort'] ?? null) ? $stored['sort'] : [])),
             'conditions' => self::conditionRows($stored),
             'relations' => $relations,
@@ -264,7 +276,7 @@ final class ListEditor
     /**
      * The posted form, in the stored form's terms (empty rows left out).
      *
-     * @return array{title: string, path: string, per_page: string, display: string, columns: list<string>, sort: list<array{field: string, dir: string}>, conditions: list<array<string, mixed>>, relations: list<array{relation: string, targets: list<int>}>}
+     * @return array{title: string, path: string, per_page: string, display: string, columns: list<string>, filters: list<string>, sort: list<array{field: string, dir: string}>, conditions: list<array<string, mixed>>, relations: list<array{relation: string, targets: list<int>}>}
      */
     private function posted(Request $request, Blueprint $blueprint): array
     {
@@ -303,6 +315,7 @@ final class ListEditor
             'per_page' => trim($request->postString('per_page')),
             'display' => $request->postString('display'),
             'columns' => $strings($post['columns'] ?? []),
+            'filters' => $strings($post['filters'] ?? []),
             'sort' => $sort,
             'conditions' => $conditions,
             'relations' => $relations,

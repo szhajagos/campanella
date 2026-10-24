@@ -113,3 +113,6 @@ h1, h2, h3, .h1, .h2, .h3, .h4, .h5 { line-height: 1.25; }
     .site-search .form-control { width: 8.5rem; }
 }
 .search-result mark { padding: 0 .1em; }
+
+/* A list's filters for visitors (since 0.2.9): a range's legend like the other labels. */
+.list-filters legend { font-size: inherit; }

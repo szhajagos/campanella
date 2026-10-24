@@ -110,6 +110,20 @@
             {% endfor %}
         </section>
 
+        {# The visitors' filters (since 0.2.9). #}
+        <section class="card card-body mb-4">
+            <h2 class="h6">{{ t('lists.filters') }}</h2>
+            <p class="small text-body-secondary">{{ t('lists.filters_help', {max: max_filters}) }}</p>
+            {% for filter in filterable %}
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="checkbox" name="filters[]" value="{{ filter.name }}" id="list-filter-{{ filter.name }}"{{ filter.name in form.filters ? ' checked' }}>
+                    <label class="form-check-label" for="list-filter-{{ filter.name }}">{{ t(filter.label) }}</label>
+                </div>
+            {% else %}
+                <p class="small text-body-secondary mb-0">{{ t('lists.filters_none') }}</p>
+            {% endfor %}
+        </section>
+
         <button type="submit" class="btn btn-primary">{{ t('admin.form.save') }}</button>
     </form>
 

@@ -1,4 +1,5 @@
 {# A list made in the admin, as a table of chosen fields (since 0.2.5). Its own variant: list/<name>.html.twig #}
+{{ include('list/_filters.html.twig') }}
 {% if result is empty %}
     <p class="empty text-body-secondary">{{ t('content.empty') }}</p>
 {% else %}

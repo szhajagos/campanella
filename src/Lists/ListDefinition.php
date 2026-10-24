@@ -13,7 +13,9 @@ use Campanella\Model\FieldStorage;
 use Campanella\Model\FieldType;
 use Campanella\Database\Schema\ColumnType;
 use Campanella\Capability\Routable;
+use Campanella\Query\FieldFilters;
 use Campanella\Query\Query;
+use Campanella\Relation\Relation;
 use DateTimeImmutable;
 use DateTimeZone;
 use InvalidArgumentException;
@@ -37,7 +39,8 @@ use InvalidArgumentException;
  *   "per_page": 10,
  *   "display": "table",
  *   "columns": ["nap", "fajta"],
- *   "path": "/esemenyek"
+ *   "path": "/esemenyek",
+ *   "filters": ["fajta", "nap"]
  * }
  * ```
  *
@@ -46,6 +49,10 @@ use InvalidArgumentException;
  * request in the site's time zone. The Query engine adds the visitor's limits
  * (e.g. only published objects for visitors) as to any query; a Publishable
  * Blueprint's list shows only the published ones to everyone.
+ *
+ * `filters` (since 0.2.9): at most MAX_FILTERS queryable fields (of a type that has
+ * a filter: FieldFilters::kindOf()) and relations the visitor may filter the list by,
+ * on its page, added to its own conditions.
  */
 final readonly class ListDefinition
 {
@@ -65,11 +72,13 @@ final readonly class ListDefinition
     public const int MAX_SORT = 3;
     public const int MAX_COLUMNS = 8;
     public const int MAX_TITLE = 200;
+    public const int MAX_FILTERS = 4;
 
     /**
      * @param list<array<string, mixed>> $conditions As stored, checked
      * @param list<array{field: string, dir: string}> $sort
      * @param list<string> $columns
+     * @param list<string> $filters The fields and relations visitors may filter by (since 0.2.9)
      */
     public function __construct(
         public string $name,
@@ -81,6 +90,7 @@ final readonly class ListDefinition
         public string $display,
         public array $columns,
         public ?string $path,
+        public array $filters = [],
     ) {
     }
 
@@ -135,8 +145,15 @@ final readonly class ListDefinition
         if ($path !== null) {
             $path = self::path($path);
         }
+        $filters = [];
+        foreach (self::listOf($stored['filters'] ?? [], 'filters', self::MAX_FILTERS) as $filter) {
+            if (!is_string($filter) || self::filter($blueprint, $filter) === null || in_array($filter, $filters, true)) {
+                throw new InvalidArgumentException('A list can be filtered only by a queryable field (a choice, yes/no, a date, a number) or a relation: ' . json_encode($filter));
+            }
+            $filters[] = $filter;
+        }
 
-        return new self($name, trim($title), $blueprint->name, $conditions, $sort, $perPage, $display, array_values(array_unique($columns)), $path);
+        return new self($name, trim($title), $blueprint->name, $conditions, $sort, $perPage, $display, array_values(array_unique($columns)), $path, $filters);
     }
 
     /** @return array<string, mixed> The stored form. */
@@ -152,6 +169,7 @@ final readonly class ListDefinition
             'display' => $this->display,
             'columns' => $this->columns,
             'path' => $this->path,
+            'filters' => $this->filters,
         ];
     }
 
@@ -204,6 +222,21 @@ final readonly class ListDefinition
         $field = $blueprint->allFields()[$name] ?? null;
 
         return $field !== null && $field->storage === FieldStorage::Table && !$field->hidden ? $field : null;
+    }
+
+    /**
+     * A field or relation visitors may filter a list by (since 0.2.9): a queryable field
+     * of a type with a filter (FieldFilters::kindOf()), or a relation; null otherwise.
+     */
+    public static function filter(Blueprint $blueprint, string $name): Field|Relation|null
+    {
+        $field = $blueprint->allFields()[$name] ?? null;
+        if ($field !== null) {
+            // Not the publication status: a list shows only what is published anyway.
+            return FieldFilters::kindOf($field) !== null && $name !== 'status' ? $field : null;
+        }
+
+        return $blueprint->allRelations()[$name] ?? null;
     }
 
     /**

@@ -1,0 +1,45 @@
+{# The visitors' filters of a list (since 0.2.9): a form above it, sent as ?f[…] to the
+   list's own path. `filters`: name, label, kind (choice, boolean, range_date,
+   range_number, relation), options; `filter_values`: the valid values. A theme can
+   override this template. #}
+{% if filters is defined and filters %}
+    <form method="get" action="{{ url(path) }}" class="list-filters card card-body mb-4" role="search" aria-label="{{ t('list.filters.label') }}">
+        <div class="row g-3 align-items-end">
+            {% for filter in filters %}
+                {% set value = filter_values[filter.name] ?? null %}
+                {% if filter.kind in ['choice', 'relation', 'boolean'] %}
+                    <div class="col-sm-6 col-lg-3">
+                        <label for="list-filter-{{ filter.name }}" class="form-label">{{ t(filter.label) }}</label>
+                        <select class="form-select" id="list-filter-{{ filter.name }}" name="f[{{ filter.name }}]">
+                            <option value="">{{ t('list.filters.any') }}</option>
+                            {% if filter.kind == 'boolean' %}
+                                <option value="1"{{ value == '1' ? ' selected' }}>{{ t('list.filters.yes') }}</option>
+                                <option value="0"{{ value == '0' ? ' selected' }}>{{ t('list.filters.no') }}</option>
+                            {% else %}
+                                {% for option in filter.options %}
+                                    <option value="{{ option.value }}"{{ value == option.value ? ' selected' }}>{{ t(option.label) }}</option>
+                                {% endfor %}
+                            {% endif %}
+                        </select>
+                    </div>
+                {% else %}
+                    {% set ends = filter.kind == 'range_date' ? ['from', 'to'] : ['min', 'max'] %}
+                    <fieldset class="col-sm-12 col-lg-6">
+                        <legend class="form-label float-none">{{ t(filter.label) }}</legend>
+                        <div class="input-group">
+                            {% for end in ends %}
+                                <label class="input-group-text" for="list-filter-{{ filter.name }}-{{ end }}">{{ t('list.filters.' ~ end) }}</label>
+                                <input class="form-control" id="list-filter-{{ filter.name }}-{{ end }}" name="f[{{ filter.name }}][{{ end }}]" value="{{ value[end] ?? '' }}"
+                                    {%- if filter.kind == 'range_date' %} type="date"{% else %} type="text" inputmode="decimal" maxlength="30"{% endif %}>
+                            {% endfor %}
+                        </div>
+                    </fieldset>
+                {% endif %}
+            {% endfor %}
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary">{{ t('list.filters.apply') }}</button>
+                {% if filter_values %}<a class="btn btn-link" href="{{ url(path) }}">{{ t('list.filters.reset') }}</a>{% endif %}
+            </div>
+        </div>
+    </form>
+{% endif %}

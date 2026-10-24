@@ -1,4 +1,4 @@
-# Campanella 0.2.8
+# Campanella 0.2.9
 
 [![CI](https://github.com/szhajagos/campanella/actions/workflows/ci.yml/badge.svg)](https://github.com/szhajagos/campanella/actions/workflows/ci.yml)
 
@@ -18,6 +18,8 @@ templates and their variables, and the Twig functions only grow (see the
 The steps towards 0.3.0, content types built in the admin
 ([ROADMAP](ROADMAP.md#030--the-content-model-in-the-admin)):
 
+- **0.2.9 – Visitors' filters on the lists:** a list can offer a form to
+  narrow it, e.g. by the kind of event or a range of days.
 - **0.2.8 – The admin's list with own fields:** up to 4 of a Blueprint's
   fields and relations as columns, sortable, with filters by their type.
 - **0.2.7 – Search, redirects, an image picker:** the site can be searched

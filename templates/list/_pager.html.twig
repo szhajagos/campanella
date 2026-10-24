@@ -1,4 +1,4 @@
-{# The pages of a list (since 0.2.5). #}
+{# The pages of a list (since 0.2.5); they keep the visitor's filters (since 0.2.9). #}
 {% if result.pageCount > 1 %}
     <nav class="pager mt-4" aria-label="{{ t('content.pager') }}">
         <ul class="pagination">
@@ -6,7 +6,7 @@
                 {% if page == result.currentPage %}
                     <li class="page-item active" aria-current="page"><span class="page-link">{{ page }}</span></li>
                 {% else %}
-                    <li class="page-item"><a class="page-link" href="{{ url(path) }}?page={{ page }}">{{ page }}</a></li>
+                    <li class="page-item"><a class="page-link" href="{{ url(path) }}?{{ (filter_query ?? '') ? filter_query ~ '&' }}page={{ page }}">{{ page }}</a></li>
                 {% endif %}
             {% endfor %}
         </ul>

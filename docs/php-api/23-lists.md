@@ -33,7 +33,8 @@ $store->save('kozelgo', [
 `Campanella\Lists\ListDefinition` · **Public** · `final readonly class`
 
 `$name`, `$title`, `$blueprint`, `$conditions`, `$sort`, `$perPage`,
-`$display`, `$columns`, `$path` (null: no page of its own).
+`$display`, `$columns`, `$path` (null: no page of its own), `$filters` (since
+0.2.9: what visitors may filter it by).
 
 | Member | Description |
 |---|---|
@@ -41,9 +42,10 @@ $store->save('kozelgo', [
 | `toArray(): array` | The stored form |
 | `query(BlueprintRegistry $blueprints, DateTimeZone $timezone, ?DateTimeImmutable $now = null): Query` | The list's Query at the moment (for `today` and `now`), limited to `perPage`; paging is the caller's (`Query::page()`). A Publishable Blueprint's list has the `published` scope; without a sort order, the newest first (`created`) |
 | `static queryable(Blueprint $blueprint, string $name): ?Field` | A field a list may filter or sort by: `created`, `updated`, or a queryable (`FieldStorage::Table`) field of the Blueprint that is not hidden |
+| `static filter(Blueprint $blueprint, string $name): Field\|Relation\|null` | A field or relation visitors may filter a list by (since 0.2.9): a queryable field with a filter (`FieldFilters::kindOf()`; not `status`), or a relation of the Blueprint |
 | `static path(mixed $path): string` | A list's path, normalised (lowercase, a leading slash, no trailing one); not `/`; letters, digits, `_ . -` |
 | `DISPLAYS`, `OPERATORS`, `RELATIVE` | `teaser`, `table`; `=`, `!=`, `<`, `<=`, `>`, `>=`, `contains`, `empty`, `not_empty`; `today`, `now` |
-| `MAX_PER_PAGE`, `MAX_CONDITIONS`, `MAX_SORT`, `MAX_COLUMNS`, `MAX_TITLE` | 100, 10, 3, 8, 200 |
+| `MAX_PER_PAGE`, `MAX_CONDITIONS`, `MAX_SORT`, `MAX_COLUMNS`, `MAX_TITLE`, `MAX_FILTERS` | 100, 10, 3, 8, 200, 4 |
 
 **The checks.** The Blueprint must exist, and not be one of users or forms'
 messages. A condition is on a field `queryable()` gives, or on a relation of
@@ -59,6 +61,43 @@ moment. They are worked out on every request, so "from today on" stays true.
 
 **Access** is the Query engine's, as for any query: a visitor sees only what
 they may see. A list adds nothing to it but the `published` scope.
+
+## Visitors' filters
+
+*Since 0.2.9.* A list's `filters` (at most 4, chosen in its editor) are offered
+to visitors as a form above it, `list/_filters.html.twig` (a theme can override
+it), sent to the list's own path as `?f[…]`. Each is added to the list's own
+conditions, so what is not published stays hidden whatever is chosen. A filter
+is by the field's type, or one of a relation's targets (those the visitor may
+see, while there are at most 200), as in the admin's lists:
+
+```
+/esemenyek?f[fajta]=eloadas&f[nap][from]=2026-11-01&f[nap][to]=2026-11-30&f[helyszin]=12
+```
+
+A value that is not valid for its field is ignored, and not shown back. The
+pages keep the filters (`list/_pager.html.twig`). A filtered page is
+`noindex`, its canonical address the list's own (`PageMeta::notIndexed()`).
+
+### FieldFilters
+
+`Campanella\Query\FieldFilters` · **Public** · `final class` (since 0.2.9; the
+admin's lists use it too)
+
+| Kind | Type | Filter | In the address |
+|---|---|---|---|
+| `choice` | choice | one of the choices | `f[fajta]=seta` |
+| `boolean` | boolean | yes or no | `f[aktiv]=1`, `f[aktiv]=0` |
+| `range_date` | date, datetime | from, to (days, in the site's time zone, both included) | `f[nap][from]=…&f[nap][to]=…` |
+| `range_number` | integer, decimal | at least, at most (a decimal comma and spaces read) | `f[ar][min]=…&f[ar][max]=…` |
+| `relation` | a relation | one of its targets | `f[kategoria]=12` |
+
+| Member | Description |
+|---|---|
+| `__construct(QueryEngine $queries, DateTimeZone $timezone)` | The time zone the days of a date and time are in |
+| `static kindOf(Field $field): ?string` | A queryable, not hidden field's kind by its type; null if it has none |
+| `apply(Query $query, array $filters, array $input, Actor $actor): array` | The query with the filters of `$input` (the request's `f`) for the given fields and relations; the valid values (for the form and the addresses); and the options of the choice and relation filters, by name (a relation with more than `MAX_TARGETS` targets has none) |
+| `MAX_TARGETS` | 200 |
 
 ## ListStore
 
@@ -94,7 +133,10 @@ its display's: `list/teaser.html.twig` (the objects' `teaser` mode) or
 `list/table.html.twig` (the title as a link, then the `columns`, each by
 `field_value()`). Both include `list/_pager.html.twig`. They get `result`
 (the `ResultSet`), `list` (the `ListDefinition`), `columns` (`name`, `label`;
-the title is left out, it comes first) and `path`. `ListController::columns(ListDefinition $list, BlueprintRegistry $blueprints)`
+the title is left out, it comes first), `path`, and since 0.2.9 `filters`
+(`name`, `label`, `kind`, `options`), `filter_values` and `filter_query` (the
+filters as a query string, for the pages); both include `list/_filters.html.twig`
+first. `ListController::columns(ListDefinition $list, BlueprintRegistry $blueprints)`
 makes the columns.
 
 ## In templates
@@ -113,7 +155,7 @@ makes the columns.
 |---|---|
 | `/admin/system/lists` | The lists: title, machine name, Blueprint, path (a link to the page), display; a stored list that could not be loaded, with the reason |
 | `/admin/system/lists/new` | A new list: its title, machine name (as a Blueprint's; never changed later) and Blueprint (not users or forms' messages; never changed later) |
-| `/admin/system/lists/<name>` | Its title, path, number per page, display; conditions: rows of a field (only those `queryable()` gives), an operator, and a value or `today` / `now` (the list's own rows and three empty ones; an empty row is left out); a relation: the targets chosen (at most 200 offered); the order (three rows); the table's columns (the fields not hidden, but the title, body, status and format). Saving checks it with `ListDefinition::fromArray()`; what does not pass is shown with the reason |
+| `/admin/system/lists/<name>` | Its title, path, number per page, display; conditions: rows of a field (only those `queryable()` gives), an operator, and a value or `today` / `now` (the list's own rows and three empty ones; an empty row is left out); a relation: the targets chosen (at most 200 offered); the order (three rows); the table's columns (the fields not hidden, but the title, body, status and format). Since 0.2.9 also the visitors' filters (at most 4 of what `filter()` allows). Saving checks it with `ListDefinition::fromArray()`; what does not pass is shown with the reason |
 | `/admin/system/lists/<name>/delete` | POST: deletes the list (its page goes; the objects stay) |
 
 **The path** is refused if a route has it (`config/routes.php`, the system's

@@ -52,7 +52,7 @@ final class ModelImport
     private const array FIELD_PROPERTIES = ['type', 'label', 'required', 'queryable', 'cardinality', 'translatable', 'length', 'scale', 'choices', 'default'];
 
     /** The list keys compared, in the order they are reported. */
-    private const array LIST_PROPERTIES = ['title', 'blueprint', 'conditions', 'sort', 'per_page', 'display', 'columns', 'path'];
+    private const array LIST_PROPERTIES = ['title', 'blueprint', 'conditions', 'sort', 'per_page', 'display', 'columns', 'path', 'filters'];
 
     /**
      * @param Closure(): array<string, array{label?: string, capabilities: list<string>}> $codeBlueprints The definitions of config/blueprints.php

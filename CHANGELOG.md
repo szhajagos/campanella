@@ -10,6 +10,33 @@ backward-incompatible.
 
 ## [Unreleased]
 
+## [0.2.9] – 2026-10-24
+
+**Visitors' filters on the lists.** The eighth and last step before the 0.3.0
+milestone: a list made in the admin can let its visitors narrow it, e.g. to
+one kind of event or a range of days.
+
+**Upgrading from 0.2.8:** upload the new files. The database does not change
+(the schema version stays 16).
+
+### Added
+
+- **Filters for visitors** ([PHP API](docs/php-api/23-lists.md#visitors-filters)):
+  a list's editor chooses at most 4 queryable fields (a choice, yes/no, a
+  date, a number) and relations; its page shows them as a form above the list
+  (`list/_filters.html.twig`, overridable by a theme), sent as `?f[…]`. They
+  add to the list's own conditions (what is not published stays hidden), keep
+  to the pages, and an invalid value is ignored. A filtered page is `noindex`,
+  its canonical address the list's own. The content model's export carries
+  them.
+- `Campanella\Query\FieldFilters`: the filters by a field's type or a
+  relation's targets, shared by the admin's lists and the visitors' filters;
+  `PageMeta::notIndexed()`.
+
+### Changed
+
+- `Admin\ListColumns` uses `FieldFilters` (its constructor takes one).
+
 ## [0.2.8] – 2026-10-24
 
 **The admin's list with the own fields.** The seventh step towards 0.3.0: a

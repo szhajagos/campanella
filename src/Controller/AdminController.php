@@ -57,6 +57,7 @@ use Campanella\Model\BlueprintRegistry;
 use Campanella\Query\Condition\FieldCondition;
 use Campanella\Query\Condition\Group;
 use Campanella\Query\Operator;
+use Campanella\Query\FieldFilters;
 use Campanella\Query\Query;
 use Campanella\Capability\MediaFile;
 use Campanella\Query\QueryEngine;
@@ -515,7 +516,7 @@ final class AdminController implements Controller
         $weighted = isset($blueprint->capabilities['weighted']);
 
         // The Blueprint's own columns (since 0.2.8): the queryable single-valued ones sortable.
-        $own = new ListColumns($this->queries, new \DateTimeZone($this->form->timezone()));
+        $own = new ListColumns(new FieldFilters($this->queries, new \DateTimeZone($this->form->timezone())));
         $columns = $own->columns($blueprint);
         $sortable = array_values(array_filter([
             $weighted ? 'weight' : null,

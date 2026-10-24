@@ -35,4 +35,14 @@ final readonly class PageMeta
         public ?string $robots = null,
     ) {
     }
+
+    /**
+     * The same, not to be indexed, with another canonical URL (e.g. a filtered list's page:
+     * its list's own; since 0.2.9).
+     */
+    public function notIndexed(?string $canonical): self
+    {
+        return new self($this->title, $this->siteName, $this->description, $canonical, $this->type, $this->imageUrl,
+            $this->imageWidth, $this->imageHeight, $this->imageAlt, $this->publishedTime, $this->modifiedTime, 'noindex');
+    }
 }

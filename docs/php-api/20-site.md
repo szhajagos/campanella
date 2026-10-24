@@ -134,7 +134,9 @@ The pages that have one (an object's own page, a list, the front page) pass a
 `PageMeta`'s properties: `title`, `siteName`, `description`, `canonical`,
 `type` (`website` or `article`), `imageUrl`, `imageWidth`, `imageHeight`,
 `imageAlt`, `publishedTime`, `modifiedTime`, `robots` (`noindex` while indexing
-is turned off). An element whose value is missing is left out.
+is turned off). An element whose value is missing is left out. `notIndexed(?string $canonical): PageMeta`
+(since 0.2.9): the same with `noindex` and another canonical URL (a filtered
+list's page: the list's own).
 
 ## `MetaBuilder`
 

@@ -48,7 +48,7 @@ The uploaded file is never stored on the server.
   "lists": {
     "esemenyek": {"version": 1, "title": "Események", "blueprint": "esemeny",
       "conditions": [{"relation": "kategoria", "targets": [{"blueprint": "category", "path": "/rendezvenyek", "title": "Rendezvények"}]}],
-      "sort": [], "per_page": 10, "display": "teaser", "columns": [], "path": "/esemenyek"}
+      "sort": [], "per_page": 10, "display": "teaser", "columns": [], "path": "/esemenyek", "filters": []}
   }
 }
 ```
