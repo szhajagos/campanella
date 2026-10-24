@@ -3,9 +3,10 @@
 Campanella evolves in small steps: every feature gets its own version, with
 its own tests, documentation and CHANGELOG entry. Since 0.1.0 (the first
 milestone, 2026-10-08) a real website can be run and managed from the
-browser; since 0.2.0 (the second, 2026-10-12) the site communicates, and what
-0.2.x keeps is [promised](docs/compatibility.md). Since 0.2.1 site owners have
-a [guide](docs/guide/README.md) of their own. Each milestone is reached
+browser; since 0.2.0 (the second, 2026-10-12) the site communicates. Since
+0.2.1 site owners have a [guide](docs/guide/README.md) of their own. Since
+0.3.0 (the third, 2026-10-24) content types are built in the admin, and what
+0.3.x keeps is [promised](docs/compatibility.md). Each milestone is reached
 in small steps (0.1.1, 0.1.2 …), each a release of its own.
 
 The roadmap is a direction, not a promise: the order may change based on experience.
@@ -38,7 +39,8 @@ Completed changes are listed in the [CHANGELOG](CHANGELOG.md).
 | 0.2.7 | Search, redirects and an image picker (released 2026-10-24): FULLTEXT search of the published pages, with or without accents, at `/search`; a 301 from an object's old path, and System → Redirects; the editor's picker of uploaded images. The sixth step of 0.3.0. |
 | 0.2.8 | The admin's list with the own fields (released 2026-10-24): up to 4 columns per Blueprint (the editor, or `admin_columns`), sortable, with filters by type; carried by the content model's export. The seventh step of 0.3.0. |
 | 0.2.9 | Visitors' filters on the lists (released 2026-10-24): at most 4 fields and relations per list, a form above it, kept by the pages, `noindex` when filtered; `FieldFilters` shared with the admin's lists. The eighth step of 0.3.0. |
-| – | Continuous integration (GitHub Actions): PHPStan, documentation, tests on MariaDB 10.6/11.4 and MySQL 8.0/8.4, an upgrade from 0.1.0, browser tests, the installation package checked before every release (with `vendor/`, for every version tag) |
+| **0.3.0** | **Third milestone: the content model in the admin** (released 2026-10-24). What 0.2.2–0.2.9 built (fields to filter and sort on, Blueprints and lists made in the admin, the content model's export and import, search and redirects, the admin's own columns, visitors' filters), released as one whole: a security review of 0.2.2–0.2.9, upgrade tests from 0.2.0 and 0.2.9 (with a content model), the upgrade guide for any 0.2.x or 0.1.x, a performance check with 10 000 objects, the guide's chapter on one's own content types, sample events, and the compatibility promise for 0.3.x (0.2.x gets security fixes until 0.4.0). Agreed in detail on 2026-10-24, in five parts. |
+| – | Continuous integration (GitHub Actions): PHPStan, documentation, tests on MariaDB 10.6/11.4 and MySQL 8.0/8.4, upgrades from 0.1.0, 0.1.5, 0.2.0 and 0.2.9, a performance check, browser tests, the installation package checked before every release (with `vendor/`, for every version tag) |
 
 ## Next: the road to 1.0
 
@@ -50,8 +52,8 @@ all of 1.x; what only builds on it (comments, workflow, an AI assistant) may
 come after.
 
 As before, each milestone is reached in small steps, each a release of its
-own (0.2.2, 0.2.3 … towards 0.3.0), keeping the
-[compatibility promise](docs/compatibility.md) of 0.2.x; fixes, security fixes
+own (0.2.2, 0.2.3 … towards 0.3.0; 0.3.1 … towards 0.4.0), keeping the
+[compatibility promise](docs/compatibility.md) of its series; fixes, security fixes
 first, come in between. Each milestone is planned in detail when it starts.
 
 ### 0.3.0 – the content model in the admin
@@ -116,7 +118,7 @@ objects too; a removed one keeps their data.
 | **0.2.7** ✔ | Released 2026-10-24. Search with the database's FULLTEXT index (`/search`, accents folded), redirects (an automatic 301 when a path changes, and System → Redirects), an image picker in the editor. |
 | **0.2.8** ✔ | Released 2026-10-24. **The admin's object list with the own fields** (see below): chosen fields as columns, sortable, with filters by type above the list. |
 | **0.2.9** ✔ | Released 2026-10-24. **Visitors' filters** on a list (see below), e.g. a choice to pick the kind of event, or a date range. |
-| **0.3.0** | The milestone (see below, agreed 2026-10-24): a security review, upgrade tests from 0.2.0 and 0.2.9, a chapter of the guide on one's own content types, sample content with a Blueprint of its own, a performance check, the compatibility promise for 0.3.x. |
+| **0.3.0** ✔ | Released 2026-10-24. The milestone (see below, agreed 2026-10-24): a security review, upgrade tests from 0.2.0 and 0.2.9, a chapter of the guide on one's own content types, sample content with a Blueprint of its own, a performance check, the compatibility promise for 0.3.x. |
 | **0.3.1** | **Importers, step 1** (see below): importing objects from an uploaded CSV or JSON file, with a mapping, a unique key, a trial run, a log and undoing a run; and the admin's list exported as CSV. Decided 2026-10-23. |
 
 **Lists (0.2.5, agreed 2026-10-15).** System → Lists. A list has a name, a
@@ -159,7 +161,7 @@ type, checked the same way, added to the list's own conditions (what is not
 published stays hidden). Paging keeps them; a filtered page is `noindex`, its
 canonical address the list's own.
 
-**The 0.3.0 milestone (agreed 2026-10-24).** No new feature: what 0.2.2–0.2.9
+**The 0.3.0 milestone (agreed 2026-10-24; released the same day, all five parts done).** No new feature: what 0.2.2–0.2.9
 built, checked, documented and promised for the longer term. Nothing was
 marked Deprecated in 0.2.x, so 0.3.0 breaks nothing. In parts:
 

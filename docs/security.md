@@ -13,6 +13,10 @@ Please report it privately to the maintainer (not in a public issue), with the
 steps to reproduce it. A fix is released as soon as possible, and the
 CHANGELOG's **Security** section names it.
 
+Supported with security fixes: **0.3.x**, and **0.2.x until 0.4.0 is out**
+(see [Compatibility](compatibility.md#versions-and-security-fixes)). An older
+version: upgrade it to 0.3.x ([Upgrading](upgrading.md)).
+
 ## What protects a site
 
 - **Access:** every query is filtered by the access policy before it reaches

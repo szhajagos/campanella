@@ -10,7 +10,48 @@ backward-incompatible.
 
 ## [Unreleased]
 
-Work towards 0.3.0, the third milestone, in parts.
+## [0.3.0] – 2026-10-24
+
+**The third milestone: the content model in the admin.** 0.3.0 releases what
+0.2.2–0.2.9 built, as one whole, tested, documented and promised for the
+longer term:
+
+- **Fields to filter and sort on** (0.2.2): a Blueprint's own queryable
+  fields, six new field types (decimal, date, e-mail, web address, choice,
+  formatted text).
+- **Blueprints made in the admin** (0.2.3, 0.2.4): a new kind of content with
+  its capabilities, fields and relations, changed and deleted safely, with a
+  backup first.
+- **Lists made in the admin** (0.2.5): conditions, an order, pages, cards or a
+  table, a path of their own, `list()` in templates.
+- **The content model's export and import** (0.2.6): to carry it to another
+  site, with a plan first, never deleting.
+- **Search, redirects, an image picker** (0.2.7).
+- **The admin's own columns** with sorting and filters (0.2.8), and
+  **visitors' filters** on the lists (0.2.9).
+
+What 0.3.0 itself adds is below: no new feature, but a security review of
+0.2.2–0.2.9, upgrade tests from 0.2.0 and 0.2.9 (the latter with a content
+model), the upgrade guide for 0.3.0, a performance check with 10 000 objects,
+the guide's chapter on one's own content types, sample events, a few fixes,
+and the [compatibility promise for 0.3.x](docs/compatibility.md): within 0.3.x
+the Public API, the settings, the content model (its stored forms and its
+file), the templates and their variables, the Twig functions, the commands
+and the addresses only grow. **0.2.x gets security fixes until 0.4.0 is out.**
+
+**Upgrading from any 0.2.x or 0.1.x** (in one go): follow
+[docs/upgrading.md](docs/upgrading.md). In short:
+
+1. Make a backup (the database, `public/media/`, `config/local.php`).
+2. Upload the release package, or `git pull` and `composer install --no-dev`.
+3. Run `php bin/campanella install`, or open `/admin/upgrade`. From 0.2.7,
+   0.2.8 or 0.2.9 the database does not change (the schema version stays 16;
+   0.3.0 adds none).
+4. From 0.2.6 or older: put the existing pages into the search (the System
+   page's button, or `php bin/campanella search:index`). From 0.1.x: also the
+   steps of [From 0.1.x](docs/upgrading.md#from-01x).
+5. Optionally `php bin/campanella seed` for the sample events (only what the
+   site does not have is added).
 
 ### Security
 
@@ -55,6 +96,12 @@ Work towards 0.3.0, the third milestone, in parts.
 
 ### Changed
 
+- The [compatibility promise](docs/compatibility.md) is for 0.3.x: besides
+  what 0.2.x promised, the stored forms of the Blueprints and lists made in
+  the admin (version 1), the content model's file (format 1), the addresses
+  `/search`, a list's path and its `?f[…]` filters, the commands
+  `model:export`, `model:import`, `search:index`, and the Public classes added
+  since 0.2.0. 0.2.x gets security fixes until 0.4.0 is out; 0.1.x none.
 - The [upgrade guide](docs/upgrading.md) is for 0.3.0: from any 0.2.x or
   0.1.x in one go, with the database's changes, what is new since 0.2.0, what
   behaves differently, and a new checklist.

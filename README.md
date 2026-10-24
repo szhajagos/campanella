@@ -1,4 +1,4 @@
-# Campanella 0.2.9
+# Campanella 0.3.0
 
 [![CI](https://github.com/szhajagos/campanella/actions/workflows/ci.yml/badge.svg)](https://github.com/szhajagos/campanella/actions/workflows/ci.yml)
 
@@ -6,14 +6,40 @@ A capability-driven CMS. There are no predefined content types: an object's
 behavior is determined by the capabilities attached to it.
 
 0.1.0 was the first milestone: a real website can be run and managed from the
-browser with it. **0.2.0** is the second: the site communicates (e-mail, a
-forgotten password, a contact form, search engines and sharing), and what
-0.2.x keeps is promised: within 0.2.x the Public PHP API, the settings, the
-templates and their variables, and the Twig functions only grow (see the
+browser with it. 0.2.0 was the second: the site communicates (e-mail, a
+forgotten password, a contact form, search engines and sharing). **0.3.0** is
+the third: **content types built in the admin**, without programming, with
+their fields, lists for visitors with filters, search and redirects, carried
+between sites by export and import; and what 0.3.x keeps is promised (see the
 [compatibility promise](docs/compatibility.md)). Plans are in the
 [ROADMAP](ROADMAP.md), changes in the [CHANGELOG](CHANGELOG.md).
 
-## What is new since 0.2.0
+## What is new in 0.3.0
+
+0.3.0 brings together what 0.2.1–0.2.9 built (below), checked, documented and
+promised for the longer term:
+
+- **A security review** of 0.2.2–0.2.9: the search is limited to 30 searches
+  a minute per network, the content model's import checks choices and
+  relations as strictly as the editor
+  ([docs/security.md](docs/security.md#security-review-for-030-2026-10-24)).
+- **Upgrade tests from 0.2.0 and 0.2.9** (with a content model made in the
+  admin), besides 0.1.0 and 0.1.5, and the upgrade guide for any 0.2.x or
+  0.1.x ([docs/upgrading.md](docs/upgrading.md)).
+- **A performance check** with 10 000 objects: a list with filters, the
+  admin's list, the search, within set limits on MariaDB and MySQL
+  ([docs/testing.md](docs/testing.md#the-performance-check)).
+- **The guide's new chapter**: an event calendar built step by step in the
+  admin ([en](docs/guide/en/11-own-content-types.md),
+  [hu](docs/guide/hu/11-sajat-tartalomtipusok.md)); **sample events** in the
+  sample content, with their list and filters.
+- **The compatibility promise for 0.3.x**, now also for the content model
+  ([docs/compatibility.md](docs/compatibility.md)); 0.2.x gets security fixes
+  until 0.4.0 is out.
+
+The details are in the [CHANGELOG](CHANGELOG.md#030--2026-10-24).
+
+## What 0.2.1–0.2.9 built
 
 The steps towards 0.3.0, content types built in the admin
 ([ROADMAP](ROADMAP.md#030--the-content-model-in-the-admin)):
@@ -69,9 +95,7 @@ The steps towards 0.3.0, content types built in the admin
   a blocked account gets the same answer as a wrong password
   ([docs/security.md](docs/security.md#security-review-for-020-2026-10-11)).
 - **E-mails show times in the site's time zone.**
-- **The compatibility promise** for 0.2.x
-  ([docs/compatibility.md](docs/compatibility.md)); security fixes come as
-  0.2.1, 0.2.2 …
+- **The compatibility promise** for 0.2.x.
 
 The details are in the [CHANGELOG](CHANGELOG.md#020--2026-10-12).
 
