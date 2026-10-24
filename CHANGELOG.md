@@ -10,7 +10,17 @@ backward-incompatible.
 
 ## [Unreleased]
 
-Work towards 0.2.7: search, redirects and an image picker, in parts.
+## [0.2.7] – 2026-10-24
+
+**Search, redirects and an image picker.** The sixth step towards 0.3.0: the
+site can be searched, a page keeps its old addresses when its path changes,
+and the editor inserts images uploaded before.
+
+**Upgrading from 0.2.6:** upload the new files, then run the upgrade
+(`/admin/upgrade`, or `php bin/campanella migrate`): it adds the
+`search_index` and `redirects` tables (schema version 16). Then add the
+existing pages to the search: the System page has a button for it (press it
+until it is done), or run `php bin/campanella search:index`.
 
 ### Added
 
@@ -31,8 +41,14 @@ Work towards 0.2.7: search, redirects and an image picker, in parts.
   a path of the site, and deletes them. A redirect is used only where no page
   answers; the query is kept; each use is counted. The new `redirects` table
   (schema version 16).
+- **An image picker in the editor** ([PHP API](docs/php-api/16-media.md#the-image-picker)):
+  a toolbar button lists the uploaded images (the newest first, with a search
+  by title, a page at a time); a click inserts one where the cursor was, with
+  its alternative text. `GET /admin/media/browse` answers in JSON.
 - FULLTEXT indexes in table definitions (`Table::$fulltexts`), made, read and
   compared by the schema classes.
+- The browser tests open the image picker, search the site, and check the
+  System pages of 0.2.3–0.2.7 for administrators and editors.
 
 ## [0.2.6] – 2026-10-23
 

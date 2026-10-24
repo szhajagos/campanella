@@ -11,6 +11,12 @@
 // images are uploaded too, all to that address (POST /admin/media/upload). An
 // image is never embedded in the text as data (base64).
 //
+// The image picker (since 0.2.7): if the form carries a browse address (data-browse-url),
+// the "full" toolbar gets a button that lists the uploaded images (GET
+// /admin/media/browse, JSON), with a search by title and pages; a click inserts the
+// image with its alternative text. The server adds the smaller copies (srcset) when
+// the text is shown.
+//
 // Switching to another editor (e.g. SunEditor) means replacing this file and
 // the html widget template; nothing else depends on Jodit.
 (() => {
@@ -138,13 +144,149 @@
         });
     };
 
+    // Builds an element with a class and a text (never HTML from the server).
+    const el = (tag, className, text) => {
+        const node = document.createElement(tag);
+        if (className) {
+            node.className = className;
+        }
+        if (text !== undefined) {
+            node.textContent = text;
+        }
+        return node;
+    };
+
+    // The image picker: a dialog of the uploaded images; a click inserts one.
+    const openPicker = (editor, form) => {
+        let labels = {};
+        try {
+            labels = JSON.parse(form.dataset.browseLabels || '{}');
+        } catch (e) {
+            labels = {};
+        }
+        editor.s.save();
+        const dialog = editor.dlg({ closeOnClickOverlay: true, closeOnEsc: true });
+        const box = el('div', 'campanella-picker');
+        const search = el('input', 'form-control form-control-sm mb-3');
+        search.type = 'search';
+        search.placeholder = labels.search || 'Search';
+        search.setAttribute('aria-label', labels.search || 'Search');
+        const grid = el('div', 'campanella-picker__grid');
+        grid.setAttribute('role', 'list');
+        const status = el('p', 'campanella-picker__status text-body-secondary small mb-0');
+        status.setAttribute('role', 'status');
+        const pager = el('div', 'campanella-picker__pager d-flex align-items-center gap-2 mt-3');
+        const previous = el('button', 'btn btn-sm btn-outline-secondary', labels.previous || '‹');
+        const next = el('button', 'btn btn-sm btn-outline-secondary', labels.next || '›');
+        const where = el('span', 'small text-body-secondary');
+        previous.type = 'button';
+        next.type = 'button';
+        pager.append(previous, where, next);
+        box.append(search, grid, status, pager);
+
+        let page = 1;
+        let pages = 1;
+        let loading = 0;
+        const insert = (item) => {
+            dialog.close();
+            editor.s.restore();
+            const img = editor.createInside.element('img');
+            img.setAttribute('src', item.url);
+            img.setAttribute('alt', item.alt || '');
+            editor.s.insertImage(img, null, null);
+            editor.synchronizeValues();
+        };
+        const load = async () => {
+            const ticket = ++loading;
+            const url = new URL(form.dataset.browseUrl, window.location.href);
+            url.searchParams.set('page', String(page));
+            if (search.value.trim() !== '') {
+                url.searchParams.set('q', search.value.trim());
+            }
+            let result = null;
+            try {
+                const response = await fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' } });
+                if (!(response.headers.get('Content-Type') || '').includes('application/json')) {
+                    throw new Error(labels.session || 'Error');
+                }
+                result = await response.json();
+                if (!response.ok || !result.success) {
+                    throw new Error(response.status === 401 ? (labels.session || 'Error') : (labels.error || 'Error'));
+                }
+            } catch (e) {
+                if (ticket === loading) {
+                    grid.replaceChildren();
+                    status.textContent = String(e && e.message ? e.message : e);
+                }
+                return;
+            }
+            if (ticket !== loading) {
+                return; // an older answer, after a newer request
+            }
+            pages = result.pages;
+            grid.replaceChildren(...result.items.map((item) => {
+                const button = el('button', 'campanella-picker__item');
+                button.type = 'button';
+                button.setAttribute('role', 'listitem');
+                button.title = item.title;
+                const thumb = el('img');
+                thumb.src = item.thumb;
+                thumb.alt = '';
+                thumb.loading = 'lazy';
+                button.append(thumb, el('span', 'campanella-picker__title', item.title));
+                button.addEventListener('click', () => insert(item));
+                return button;
+            }));
+            status.textContent = result.items.length === 0 ? (labels.none || '') : '';
+            where.textContent = (labels.page || '{page} / {pages}').replace('{page}', String(page)).replace('{pages}', String(pages));
+            previous.disabled = page <= 1;
+            next.disabled = page >= pages;
+            pager.classList.toggle('d-none', pages <= 1);
+        };
+        let typing = 0;
+        search.addEventListener('input', () => {
+            window.clearTimeout(typing);
+            typing = window.setTimeout(() => {
+                page = 1;
+                load();
+            }, 300);
+        });
+        previous.addEventListener('click', () => {
+            if (page > 1) {
+                page--;
+                load();
+            }
+        });
+        next.addEventListener('click', () => {
+            if (page < pages) {
+                page++;
+                load();
+            }
+        });
+
+        dialog.setHeader(labels.title || 'Images');
+        dialog.setContent(box);
+        dialog.setSize(Math.min(760, window.innerWidth - 32), Math.min(620, window.innerHeight - 64));
+        dialog.open();
+        load();
+        window.setTimeout(() => search.focus(), 50);
+    };
+
     document.querySelectorAll('textarea[data-editor]').forEach((area) => {
         const form = area.form;
         const canUpload = Boolean(form && form.dataset.uploadUrl);
+        const canBrowse = Boolean(form && form.dataset.browseUrl);
         let buttons = profiles[area.dataset.editor] || profiles.full;
-        if (canUpload && buttons === profiles.full) {
-            // The image button comes after the link button.
-            buttons = buttons.flatMap((b) => (b === 'link' ? ['link', 'image'] : [b]));
+        if ((canUpload || canBrowse) && buttons === profiles.full) {
+            // The image buttons come after the link button: uploading, and the picker.
+            const images = [...(canUpload ? ['image'] : []), ...(canBrowse ? ['campanellaImages'] : [])];
+            buttons = buttons.flatMap((b) => (b === 'link' ? ['link', ...images] : [b]));
+        }
+        let pickerLabel = 'Images';
+        try {
+            pickerLabel = JSON.parse(form && form.dataset.browseLabels ? form.dataset.browseLabels : '{}').button || pickerLabel;
+        } catch (e) {
+            pickerLabel = 'Images';
         }
         let allowTags = false;
         try {
@@ -163,7 +305,11 @@
             toolbarSticky: false,
             buttons,
             // atom: replaces Jodit's default list (which has h1) instead of merging with it.
-            controls: { paragraph: { list: window.Jodit.atom(paragraphs) } },
+            controls: {
+                paragraph: { list: window.Jodit.atom(paragraphs) },
+                // The image picker (since 0.2.7).
+                campanellaImages: { icon: 'folder', tooltip: pickerLabel, exec: (jodit) => openPicker(jodit, form) },
+            },
 
             // Nothing is loaded from other servers: the HTML view is a plain textarea
             // (not Ace from a CDN), and the HTML is not beautified (js-beautify from a CDN).

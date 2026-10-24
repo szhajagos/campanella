@@ -27,7 +27,12 @@
             <form method="post" action="{{ url(action) }}" class="admin-form" novalidate
                 {%- if upload and has_editor %} data-upload-url="{{ url(upload.url) }}" data-upload-max="{{ upload.max }}"
                     data-upload-too-large="{{ t('media.too_large', {max: upload.max_mb}) }}"
-                    data-upload-session="{{ t('media.session_expired') }}"{% endif %}>
+                    data-upload-session="{{ t('media.session_expired') }}"{% endif %}
+                {%- if browse_url and has_editor %} data-browse-url="{{ url(browse_url) }}" data-browse-labels="{{ {
+                    button: t('media.picker.button'), title: t('media.picker.title'), search: t('media.picker.search'),
+                    none: t('media.picker.none'), previous: t('media.picker.previous'), next: t('media.picker.next'),
+                    error: t('media.picker.error'), session: t('media.session_expired'), page: t('media.picker.page')
+                }|json_encode(constant('JSON_UNESCAPED_UNICODE') b-or constant('JSON_UNESCAPED_SLASHES')) }}"{% endif %}>
                 {{ csrf_field() }}
                 {% if version %}<input type="hidden" name="_version" value="{{ version }}">{% endif %}
 

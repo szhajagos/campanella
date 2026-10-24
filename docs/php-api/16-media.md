@@ -315,6 +315,31 @@ on save anyway; meanwhile the admin's Content-Security-Policy does not even
 let the browser load it). Without upload permission, dropping a file on the
 editor does nothing.
 
+### The image picker
+
+*Since 0.2.7.* The `full` toolbar also has a button (a folder icon, *Choose an
+uploaded image*) that opens a dialog of the uploaded images: the newest
+first, 24 a page, with a search by title. A click inserts the image where the
+cursor was, with its alternative text (`alt`); when the text is shown the
+server adds its smaller copies (`srcset`, [above](#smaller-copies-variants)).
+The edit form carries the address (`data-browse-url`) and the dialog's texts
+(`data-browse-labels`, JSON) whenever the site has the `image` Blueprint;
+the dialog is built from the answer with DOM methods only (no HTML from the
+server).
+
+`GET /admin/media/browse?q=…&page=…` (`AdminController::BROWSE_PER_PAGE`
+images a page), for the admin's users, answers in JSON:
+
+```json
+{"success": true, "page": 1, "pages": 3, "total": 51,
+ "items": [{"id": 12, "title": "Nyaralás", "alt": "A Balaton nyáron", "url": "/media/2026/10/….jpg",
+            "thumb": "/media/2026/10/…-480.jpg", "width": 1920, "height": 1080}]}
+```
+
+Only the images the user may see (the Query engine); `q` matches the title
+anywhere (`%` and `_` are not wildcards); an expired session gets `401` with
+`{"success": false, "message": …}`, as the upload does.
+
 ## Web server
 
 The protection of `public/media/` is the random names with image extensions,

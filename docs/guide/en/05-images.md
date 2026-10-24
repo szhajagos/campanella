@@ -57,6 +57,11 @@ On the **Upload** tab, click the box and choose the image, or drop it there.
 The image is uploaded as in the Image list (it appears there too), and put
 into the text. Dragging or pasting an image into the editor uploads it too.
 
+**To insert an image uploaded before,** use the **folder** button next to it
+(*Choose an uploaded image*): the window shows the newest images, you can
+search them by title, and a click puts one where the cursor is, with the
+alternative text it already has.
+
 **Give it an alternative text in the text too:** double-click the image in
 the editor, fill in **Alternative**, then **Apply**:
 

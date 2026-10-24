@@ -35,6 +35,7 @@ Completed changes are listed in the [CHANGELOG](CHANGELOG.md).
 | 0.2.4 | Changing and deleting fields in the admin (released 2026-10-15): a widened type, the column, one or several values, required, deleting fields and relations; the SchemaSync follows each change, with a backup first. The third step of 0.3.0. |
 | 0.2.5 | Lists made in the admin (released 2026-10-15): the counterpart of `config/queries.php` without code, stored in the `lists` table, with a page of their own and `list()` in templates. The fourth step of 0.3.0. |
 | 0.2.6 | The content model's export and import (released 2026-10-23): the Blueprints and lists made in the admin in one JSON file, in the admin (System → Content model) and on the command line; an import shows its plan first, follows the editors' rules, never deletes. The fifth step of 0.3.0. |
+| 0.2.7 | Search, redirects and an image picker (released 2026-10-24): FULLTEXT search of the published pages, with or without accents, at `/search`; a 301 from an object's old path, and System → Redirects; the editor's picker of uploaded images. The sixth step of 0.3.0. |
 | – | Continuous integration (GitHub Actions): PHPStan, documentation, tests on MariaDB 10.6/11.4 and MySQL 8.0/8.4, an upgrade from 0.1.0, browser tests, the installation package checked before every release (with `vendor/`, for every version tag) |
 
 ## Next: the road to 1.0
@@ -110,7 +111,7 @@ objects too; a removed one keeps their data.
 | **0.2.4** ✔ | Released 2026-10-15. Changing and deleting fields and relations in the admin: the type (widening), the column, the number of values, making a queryable field required, deleting; a backup before every change that touches data. |
 | **0.2.5** ✔ | Released 2026-10-15. **Lists** made in the admin (see below): conditions on queryable fields and relations with today and now, an order, paging, short cards or a table, a path, `list()` in templates. |
 | **0.2.6** ✔ | Released 2026-10-23. Exporting and importing the content model as a file (System → Content model, `model:export`, `model:import`); an import first lists what it would change, follows the editors' rules and never deletes. |
-| **0.2.7** | Search with the database's FULLTEXT index, redirects (an automatic 301 when a path changes, and a list in the admin), an image picker in the editor (split in two if large). |
+| **0.2.7** ✔ | Released 2026-10-24. Search with the database's FULLTEXT index (`/search`, accents folded), redirects (an automatic 301 when a path changes, and System → Redirects), an image picker in the editor. |
 | **0.3.x** | **Visitors' filters** on a list (e.g. a choice to pick the kind of event), and **the admin's object list with the own fields**: chosen fields as columns, sortable, with filters by type above the list (an `admin_columns` key for the Blueprints of the file). Both decided 2026-10-15 to come after 0.2.5. |
 | **0.3.x** | **Importers, step 1** (see below): importing objects from an uploaded CSV or JSON file, with a mapping, a unique key, a trial run, a log and undoing a run. Decided 2026-10-23. |
 | **0.3.0** | The milestone: a security review, the upgrade test, a chapter of the guide on one's own content types, the compatibility promise for 0.3.x. |

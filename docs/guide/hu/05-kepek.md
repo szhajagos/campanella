@@ -57,6 +57,11 @@ A kép ugyanúgy feltöltődik, mint a Kép listában (ott is megjelenik), és
 bekerül a szövegbe. Képet a szerkesztőbe húzva vagy beillesztve is
 feltölthetsz.
 
+**Már feltöltött kép** beszúrásához a mellette lévő **mappa** gombot
+(*Feltöltött kép választása*) használd: a megjelenő ablakban a legújabb képek
+látszanak, cím szerint kereshetsz köztük, és egy kattintással beszúrhatod
+őket a kurzor helyére, a már megadott alternatív szövegükkel együtt.
+
 **Az alternatív szöveget a szövegben is add meg:** kattints duplán a képre a
 szerkesztőben, és töltsd ki a **Helyettesítő szöveg** mezőt, majd
 **Alkalmazni**:

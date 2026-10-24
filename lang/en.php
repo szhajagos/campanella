@@ -837,6 +837,15 @@ return [
     'cli.search_index.description' => 'Puts the pages not in the search index yet into it (--all: every page again)',
     'cli.search_index.needs_upgrade' => 'The database must be installed and up to date first (php bin/campanella migrate).',
     'cli.search_index.done' => '{count} pages indexed.',
+    // The editor's image picker (0.2.7)
+    'media.picker.button' => 'Choose an uploaded image',
+    'media.picker.title' => 'Uploaded images',
+    'media.picker.search' => 'Search by title',
+    'media.picker.none' => 'No image found.',
+    'media.picker.previous' => 'Previous',
+    'media.picker.next' => 'Next',
+    'media.picker.page' => '{page} / {pages}',
+    'media.picker.error' => 'The images could not be loaded.',
     // The redirects (0.2.7)
     'redirects.title' => 'Redirects',
     'redirects.intro' => 'An old address that leads on to a page (301 Moved Permanently), so links and search engines keep working. When a page\'s path changes, its old path leads to it automatically. A redirect is used only where no page answers.',

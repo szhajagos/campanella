@@ -57,6 +57,7 @@ use Campanella\Query\Condition\FieldCondition;
 use Campanella\Query\Condition\Group;
 use Campanella\Query\Operator;
 use Campanella\Query\Query;
+use Campanella\Capability\MediaFile;
 use Campanella\Query\QueryEngine;
 use Campanella\Query\ResultSet;
 use Campanella\Tree\SiblingOrder;
@@ -147,8 +148,8 @@ final class AdminController implements Controller
     {
         $this->actor = null;
         $uploading = $request->path === $this->access->path('media/upload');
-        // The editor's upload expects JSON: an expired session gets a message, not the login page.
-        if ($actor->isAnonymous() && $uploading && self::wantsJson($request)) {
+        // The editor's upload and image picker expect JSON: an expired session gets a message, not the login page.
+        if ($actor->isAnonymous() && ($uploading || $request->path === $this->access->path('media/browse')) && self::wantsJson($request)) {
             return Response::json(['success' => false, 'message' => $this->translator->translate('media.session_expired')], 401);
         }
         if ($actor->isAnonymous()) {
@@ -332,6 +333,9 @@ final class AdminController implements Controller
      */
     private function mediaUpload(Request $request, Actor $actor, array $segments): Response
     {
+        if ($segments === ['browse']) {
+            return $this->mediaBrowse($request, $actor);
+        }
         if ($segments !== ['upload']) {
             throw HttpException::notFound();
         }
@@ -345,6 +349,51 @@ final class AdminController implements Controller
         );
 
         return Response::redirect($request->basePath . $this->access->path('image'), 303);
+    }
+
+    /** The images per page of the editor's image picker. */
+    public const int BROWSE_PER_PAGE = 24;
+
+    /**
+     * GET /admin/media/browse?q=&page= (since 0.2.7): the uploaded images for the editor's
+     * image picker, the newest first, those whose title contains `q`, a page at a time,
+     * as JSON: `{success, items: [{id, title, alt, url, thumb, width, height}], page, pages,
+     * total}`. Only the images the actor may see (the Query engine).
+     */
+    private function mediaBrowse(Request $request, Actor $actor): Response
+    {
+        if ($this->blueprints->find('image') === null) {
+            throw HttpException::notFound();
+        }
+        $page = max(1, $request->queryInt('page', 1));
+        $search = trim(mb_substr($request->queryString('q'), 0, 100, 'UTF-8'));
+        $query = Query::objects()->blueprint('image')->orderBy('created', 'desc')->orderBy('id', 'desc');
+        if ($search !== '') {
+            $query = $query->where('title', 'LIKE', '%' . addcslashes($search, '%_\\') . '%');
+        }
+        $result = $this->queries->execute($query->page($page, self::BROWSE_PER_PAGE), $actor, withTotal: true);
+        $total = (int) $result->total;
+        $items = [];
+        foreach ($result->items as $image) {
+            $file = $image->as(MediaFile::class);
+            $items[] = [
+                'id' => (int) $image->id(),
+                'title' => (string) $image->get('title'),
+                'alt' => $image->hasField('alt') ? (string) $image->get('alt') : '',
+                'url' => $request->basePath . $this->media->url($image),
+                'thumb' => $request->basePath . $this->media->thumbnailUrl($image),
+                'width' => $file->width(),
+                'height' => $file->height(),
+            ];
+        }
+
+        return Response::json([
+            'success' => true,
+            'items' => $items,
+            'page' => $page,
+            'pages' => max(1, (int) ceil($total / self::BROWSE_PER_PAGE)),
+            'total' => $total,
+        ])->withHeader('Cache-Control', 'no-store');
     }
 
     /**
@@ -827,6 +876,8 @@ final class AdminController implements Controller
             'can_publish_new' => $object->isNew() && $this->canPublishNew($actor, $object),
             'can_delete' => !$object->isNew() && $this->policy->allows($actor, Operation::Delete, $object),
             'upload' => $this->uploadSettings($actor),
+            // The editor's image picker (since 0.2.7): the uploaded images, if there are any.
+            'browse_url' => $this->blueprints->find('image') !== null ? $this->access->path('media/browse') : null,
             'media_url' => self::isFile($blueprint) && !$object->isNew() ? $this->media->url($object) : null,
             'type_names' => ImageProcessor::NAMES,
             'scoped' => $object->isNew() ? [] : $this->scopedTrees($object, $actor),

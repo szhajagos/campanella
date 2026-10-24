@@ -57,6 +57,7 @@ The `subpath` route parameter selects the page. Everything goes through the
 | `/admin/<blueprint>/<id>/delete` | Deleting: a confirmation page; POST deletes |
 | `POST /admin/<blueprint>/<id>/move-up`, `…/move-down` | Moves a `Weighted` object among its siblings ([below](#trees-and-hand-set-order)) |
 | `POST /admin/media/upload` | Uploading an image: JSON for the editor and the Images list, a redirect for the form without JavaScript ([chapter 16](16-media.md#uploading-from-the-admin)) |
+| `GET /admin/media/browse` | The uploaded images for the editor's image picker, as JSON (since 0.2.7; [chapter 16](16-media.md#the-image-picker)) |
 | `POST /admin/<blueprint>/<id>/convert-html` | Converts a saved plain body to a formatted one ([below](#formatted-text-the-html-editor)) |
 | `/admin/system` | The System page ([below](#the-system-page)) |
 | `/admin/upgrade` | Running the upgrade from the browser; a route of its own (`UpgradeController`), so it works before logging in and while the rest of the admin waits for the upgrade ([chapter 17](17-migrations.md#from-the-browser)) |

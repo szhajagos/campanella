@@ -835,6 +835,15 @@ return [
     'cli.search_index.description' => 'A keresési indexbe teszi a még benne nem lévő oldalakat (--all: minden oldalt újra)',
     'cli.search_index.needs_upgrade' => 'Előbb telepíteni, illetve frissíteni kell az adatbázist (php bin/campanella migrate).',
     'cli.search_index.done' => '{count} oldal indexelve.',
+    // The editor's image picker (0.2.7)
+    'media.picker.button' => 'Feltöltött kép választása',
+    'media.picker.title' => 'Feltöltött képek',
+    'media.picker.search' => 'Keresés cím szerint',
+    'media.picker.none' => 'Nincs ilyen kép.',
+    'media.picker.previous' => 'Előző',
+    'media.picker.next' => 'Következő',
+    'media.picker.page' => '{page} / {pages}',
+    'media.picker.error' => 'A képeket nem sikerült betölteni.',
     // The redirects (0.2.7)
     'redirects.title' => 'Átirányítások',
     'redirects.intro' => 'Egy régi cím, amely továbbvezet egy oldalra (301 Moved Permanently), hogy a linkek és a keresőmotorok találatai működjenek. Ha egy oldal útja megváltozik, a régi útja automatikusan oda vezet. Átirányítás csak ott lép életbe, ahol egyetlen oldal sem válaszol.',

@@ -454,8 +454,10 @@ ADMIN_PAGES = [
     "/admin", "/admin/article", "/admin/article/new", "/admin/page", "/admin/image", "/admin/menu",
     "/admin/user", "/admin/user/new", "/admin/profile", "/admin/submission",
     "/admin/system", "/admin/system/settings", "/admin/system/mail",
+    "/admin/system/blueprints", "/admin/system/lists", "/admin/system/model", "/admin/system/redirects",
 ]
-ADMINISTRATORS_ONLY = ["/admin/user", "/admin/user/new", "/admin/submission", "/admin/system", "/admin/system/settings", "/admin/system/mail"]
+ADMINISTRATORS_ONLY = ["/admin/user", "/admin/user/new", "/admin/submission", "/admin/system", "/admin/system/settings", "/admin/system/mail",
+                       "/admin/system/blueprints", "/admin/system/lists", "/admin/system/model", "/admin/system/redirects"]
 
 
 def test_admin_pages(browser):
@@ -477,6 +479,14 @@ def test_admin_pages(browser):
     check(page.locator(".alert-success").count() == 1, "saving a new article: no message")
     page.goto(BASE + "/admin/article")
     check(page.get_by_text(title).count() >= 1, "the new article is not in the list")
+
+    # The editor's image picker (since 0.2.7): its button opens a dialog of the uploaded images.
+    page.goto(BASE + "/admin/article/new")
+    page.click(".jodit-toolbar-button_campanellaImages button")
+    page.wait_for_selector(".campanella-picker", timeout=5000)
+    page.wait_for_function("document.querySelector('.campanella-picker__status').textContent !== '' || document.querySelector('.campanella-picker__item') !== null", timeout=5000)
+    check(page.locator(".campanella-picker__item").count() > 0 or "Nincs" in page.locator(".campanella-picker__status").inner_text(),
+          "the image picker: neither images nor 'none': %s" % page.locator(".campanella-picker__status").inner_text())
 
     # The form refuses a save without a CSRF token.
     page.goto(BASE + "/admin/article/new")

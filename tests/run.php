@@ -6865,7 +6865,7 @@ test('Kernel: the content model page in the admin: download, plan, confirm', fun
     putenv('CAMPANELLA_DB_PREFIX');
 });
 
-echo "\nSearch and redirects (0.2.7)\n";
+echo "\nSearch, redirects, the image picker (0.2.7)\n";
 
 test('Schema: FULLTEXT indexes are made, read and compared', function () use ($db): void {
     $table = \Campanella\Database\Schema\CoreSchema::tables();
@@ -7041,6 +7041,49 @@ test('Kernel: a changed path leads on (301), to the object\'s current path; redi
     $repository->delete($other);
     check(!$db->fetchValue('SELECT 1 FROM {redirects} WHERE source = :s', ['s' => '/atiranyitas-b']), 'gone with the object');
     $db->execute('DELETE FROM {redirects}');
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('Kernel: the editor\'s image picker lists the uploaded images as JSON', function () use ($newUser, $fakeImage, $repository): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = null;
+    $storage = new ArraySessionStorage();
+    $boot = static function () use (&$kernel, $storage) {
+        $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+        $kernel->container()->set(Session::class, static fn () => new Session($storage));
+
+        return $kernel->container();
+    };
+    $container = $boot();
+    if ($container->get(Connection::class)->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $send = function (string $path, array $query = [], array $headers = ['accept' => 'application/json']) use (&$kernel, $storage, $boot) {
+        $storage->endRequest();
+        $boot();
+
+        return $kernel->handle(new Request('GET', $path, $query, headers: $headers));
+    };
+    $images = [$fakeImage('Választó-0227 alma'), $fakeImage('Választó-0227 körte'), $fakeImage('Választó-0227 50%_x')];
+
+    $anonymous = $send('/admin/media/browse');
+    check($anonymous->status === 401 && str_contains($anonymous->body, '"success":false'), 'an expired session: JSON');
+    $container->get(AuthService::class)->login(new Request('GET', '/'), $newUser('valaszto-szerk@example.hu', 'valaszto-jelszo-1', ['editor']));
+    $all = $send('/admin/media/browse', ['q' => 'Választó-0227']);
+    $data = json_decode($all->body, true);
+    check($all->status === 200 && str_starts_with($all->headers['Content-Type'] ?? '', 'application/json') && ($data['total'] ?? 0) === 3, $all->status . ' ' . substr($all->body, 0, 200));
+    $first = $data['items'][0] ?? [];
+    check(($first['title'] ?? '') === 'Választó-0227 50%_x' && str_starts_with((string) ($first['url'] ?? ''), '/media/2026/10/') && ($first['alt'] ?? '') === 'Választó-0227 50%_x leírása' && ($first['width'] ?? 0) === 1200, 'the newest first: ' . json_encode($first, JSON_UNESCAPED_UNICODE));
+    check(count(json_decode($send('/admin/media/browse', ['q' => 'körte'])->body, true)['items'] ?? []) === 1, 'by title');
+    check(count(json_decode($send('/admin/media/browse', ['q' => '0227 50%'])->body, true)['items'] ?? []) === 1 && (json_decode($send('/admin/media/browse', ['q' => '%'])->body, true)['total'] ?? 0) === 1, '% is not a wildcard');
+    check((json_decode($send('/admin/media/browse', ['q' => 'Választó-0227', 'page' => '2'])->body, true)['items'] ?? null) === [], 'a page beyond the last: none');
+    $form = $send('/admin/article/new', [], []);
+    check(str_contains($form->body, 'data-browse-url="/admin/media/browse"') && str_contains($form->body, 'Feltöltött kép választása'), 'the form offers it');
+    foreach ($images as $image) {
+        $repository->delete($image);
+    }
     putenv('CAMPANELLA_DB_PREFIX');
 });
 
