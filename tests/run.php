@@ -7396,6 +7396,114 @@ test('Review (0.3.0): the search is throttled, takes no operators; redirects sen
     putenv('CAMPANELLA_DB_PREFIX');
 });
 
+echo "\nThe sample events, and lists kept whole (0.3.0)\n";
+
+test('Seed (0.3.0): the events Blueprint, its list and events, made once; the main menu links the list', function (): void {
+    $root = dirname(__DIR__);
+    $env = 'CAMPANELLA_DB_PREFIX=seedt_ CAMPANELLA_LOCALE=hu';
+    $drop = static function (): void {
+        putenv('CAMPANELLA_DB_PREFIX=seedt_');
+        $db = (new \Campanella\Core\Kernel(dirname(__DIR__)))->container()->get(Connection::class);
+        $db->execute('SET FOREIGN_KEY_CHECKS = 0');
+        foreach ($db->fetchColumn("SHOW TABLES LIKE 'seedt\\_%'") as $table) {
+            $db->execute('DROP TABLE `' . $table . '`');
+        }
+        $db->execute('SET FOREIGN_KEY_CHECKS = 1');
+        putenv('CAMPANELLA_DB_PREFIX');
+    };
+    $drop();
+    exec($env . ' php ' . escapeshellarg($root . '/bin/campanella') . ' install --yes 2>&1', $out, $code);
+    check($code === 0, implode("\n", $out));
+    $out = [];
+    exec($env . ' php ' . escapeshellarg($root . '/bin/campanella') . ' seed 2>&1', $out, $code);
+    check($code === 0 && str_contains(implode("\n", $out), 'esemeny'), implode("\n", $out));
+
+    putenv('CAMPANELLA_DB_PREFIX=seedt_');
+    $kernel = new \Campanella\Core\Kernel($root);
+    $c = $kernel->container();
+    $blueprints = $c->get(BlueprintRegistry::class);
+    $event = $blueprints->find('esemeny');
+    check($event !== null && $blueprints->isEditable('esemeny') && $event->adminColumns === ['kezdes', 'fajta', 'belepo'], 'the Blueprint, made as in the admin');
+    $queries = $c->get(QueryEngine::class);
+    check($queries->count(Query::objects()->blueprint('esemeny'), Actor::system()) === 7, 'seven events');
+    $list = $c->get(\Campanella\Lists\ListRegistry::class)->find('esemenyek');
+    check($list !== null && $list->path === '/esemenyek' && $list->filters === ['fajta', 'kezdes', 'belepo'], 'the list');
+    $page = $kernel->handle(new Request('GET', '/esemenyek', ip: '198.51.100.40'));
+    check($page->status === 200 && str_contains($page->body, 'Barokk est') && !str_contains($page->body, 'Őszi könyvbörze') && str_contains($page->body, 'name="f[fajta]"'), 'the upcoming ones, with filters; not the past one');
+    $filtered = (new \Campanella\Core\Kernel($root))->handle(new Request('GET', '/esemenyek', ['f' => ['fajta' => 'koncert']], ip: '198.51.100.41'));
+    check(str_contains($filtered->body, 'Jazz a pincében') && !str_contains($filtered->body, 'Történelmi séta'), 'filtered');
+    check(str_contains((new \Campanella\Core\Kernel($root))->handle(new Request('GET', '/', ip: '198.51.100.42'))->body, 'href="/esemenyek"'), 'in the main menu');
+
+    // Again: nothing made twice.
+    putenv('CAMPANELLA_DB_PREFIX');
+    $out = [];
+    exec($env . ' php ' . escapeshellarg($root . '/bin/campanella') . ' seed 2>&1', $out, $code);
+    putenv('CAMPANELLA_DB_PREFIX=seedt_');
+    $c = (new \Campanella\Core\Kernel($root))->container();
+    check($code === 0 && $c->get(QueryEngine::class)->count(Query::objects()->blueprint('esemeny'), Actor::system()) === 7 && !str_contains(implode("\n", $out), 'esemeny Blueprint'), implode("\n", $out));
+    putenv('CAMPANELLA_DB_PREFIX');
+    $drop();
+});
+
+test('Blueprint editor (0.3.0): a Blueprint, field or queryable flag a list uses is kept; a zero is shown in a column', function () use ($newUser): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = null;
+    $storage = new ArraySessionStorage();
+    $boot = static function () use (&$kernel, $storage) {
+        $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+        $kernel->container()->set(Session::class, static fn () => new Session($storage));
+
+        return $kernel->container();
+    };
+    $container = $boot();
+    if ($container->get(Connection::class)->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $db = $container->get(Connection::class);
+    $db->execute('DROP TABLE IF EXISTS ' . $db->table('bp_kitart'));
+    $container->get(\Campanella\Model\BlueprintStore::class)->delete('kitart');
+    $send = function (string $method, string $path, array $post = []) use (&$kernel, $storage, $boot) {
+        $storage->endRequest();
+        $boot();
+
+        return $kernel->handle(new Request($method, $path, post: $post));
+    };
+    $boot()->get(AuthService::class)->login(new Request('GET', '/'), $newUser('kitart-admin@example.hu', 'kitart-jelszo-12', ['administrator']));
+    $token = preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $send('GET', '/admin/system/blueprints/new')->body, $m) === 1 ? $m[1] : '';
+    check($send('POST', '/admin/system/blueprints/new', ['_csrf' => $token, 'name' => 'kitart', 'label' => 'Kitartó'])->status === 303, 'made');
+    $field = static fn (array $post) => $send('POST', '/admin/system/blueprints/kitart/fields/new', ['_csrf' => $token] + $post + ['required' => '', 'multiple' => '', 'max' => '', 'length' => '255', 'scale' => '2', 'choices' => '', 'default' => '']);
+    check($field(['name' => 'nap', 'label' => 'Nap', 'type' => 'date', 'queryable' => '1'])->status === 303 && $field(['name' => 'szam', 'label' => 'Szám', 'type' => 'integer', 'queryable' => '1'])->status === 303, 'its fields');
+    $send('POST', '/admin/system/blueprints/kitart/columns', ['_csrf' => $token, 'columns' => ['szam']]);
+    $boot()->get(\Campanella\Lists\ListStore::class)->save('kitart_lista', ['version' => 1, 'title' => 'Kitartó lista', 'blueprint' => 'kitart',
+        'conditions' => [['field' => 'nap', 'op' => '>=', 'relative' => 'today']], 'sort' => [], 'per_page' => 10, 'display' => 'teaser', 'columns' => [], 'filters' => []]);
+    $object = $boot()->get(\Campanella\Model\ObjectRepository::class)->create('kitart', ['title' => 'Nulla-0300', 'nap' => '2026-11-01', 'szam' => 0]);
+    $boot()->get(\Campanella\Model\ObjectRepository::class)->save($object);
+    $row = preg_match('/id="row-' . $object->id() . '".*?<\/tr>/s', $send('GET', '/admin/kitart')->body, $mm) === 1 ? $mm[0] : '';
+    check(preg_match('/>\s*0\s*</', $row) === 1, 'a zero, not a dash: ' . $row);
+    $boot()->get(\Campanella\Model\ObjectRepository::class)->delete($object);
+
+    $send('POST', '/admin/system/blueprints/kitart/fields/nap/delete', ['_csrf' => $token, 'confirm' => '1']);
+    check(isset($boot()->get(BlueprintRegistry::class)->get('kitart')->fields['nap']), 'a field a list uses is not deleted');
+    check(str_contains($send('GET', '/admin/system/blueprints/kitart/fields/nap')->body, 'Kitartó lista'), 'the list is named (a flash)');
+    $unqueryable = $send('POST', '/admin/system/blueprints/kitart/fields/nap', ['_csrf' => $token, 'label' => 'Nap', 'type' => 'date', 'required' => '', 'queryable' => '', 'multiple' => '', 'max' => '', 'length' => '255', 'scale' => '2', 'choices' => '', 'default' => '']);
+    check(str_contains($unqueryable->body . $send('GET', '/admin/system/blueprints/kitart/fields/nap')->body, 'Kitartó lista') && $boot()->get(BlueprintRegistry::class)->get('kitart')->fields['nap']->storage === \Campanella\Model\FieldStorage::Table, 'nor made unqueryable: ' . $unqueryable->status);
+    $send('POST', '/admin/system/blueprints/kitart/delete', ['_csrf' => $token]);
+    check($boot()->get(BlueprintRegistry::class)->find('kitart') !== null, 'nor the Blueprint deleted');
+    check($send('POST', '/admin/system/blueprints/kitart/fields/szam/delete', ['_csrf' => $token, 'confirm' => '1'])->status === 303 && !isset($boot()->get(BlueprintRegistry::class)->get('kitart')->fields['szam']), 'a field no list uses is');
+
+    $boot()->get(\Campanella\Lists\ListStore::class)->delete('kitart_lista');
+    $send('POST', '/admin/system/blueprints/kitart/delete', ['_csrf' => $token]);
+    check($boot()->get(BlueprintRegistry::class)->find('kitart') === null, 'without the list, it is deleted');
+    $boot()->get(\Campanella\Model\BlueprintStore::class)->delete('kitart');
+    $db->execute('DROP TABLE IF EXISTS ' . $db->table('bp_kitart'));
+    foreach (glob(dirname(__DIR__) . '/var/backups/campanella-*') ?: [] as $file) {
+        @unlink($file);
+    }
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
 echo "\nDocumentation examples\n";
 
 test('New capability as in the docs example (Featured)', function () use ($db, $admin): void {

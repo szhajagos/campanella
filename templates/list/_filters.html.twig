@@ -24,7 +24,8 @@
                     </div>
                 {% else %}
                     {% set ends = filter.kind == 'range_date' ? ['from', 'to'] : ['min', 'max'] %}
-                    <fieldset class="col-sm-12 col-lg-6">
+                    {# Two dates need more room than two numbers. #}
+                    <fieldset class="col-sm-12 {{ filter.kind == 'range_date' ? 'col-lg-8' : 'col-lg-6' }}">
                         <legend class="form-label float-none">{{ t(filter.label) }}</legend>
                         <div class="input-group">
                             {% for end in ends %}

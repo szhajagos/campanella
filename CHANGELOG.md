@@ -39,11 +39,42 @@ Work towards 0.3.0, the third milestone, in parts.
   answer in 15–135 ms, with the same number of queries for any number of
   objects ([The performance check](docs/testing.md#the-performance-check)).
 
+- The site owners' guide's new chapter, **Your own kinds of content: an event
+  calendar** ([en](docs/guide/en/11-own-content-types.md),
+  [hu](docs/guide/hu/11-sajat-tartalomtipusok.md)), with screenshots: a
+  Blueprint and its fields, changing them, the admin's columns, the events, a
+  list of the upcoming ones with visitors' filters and a menu item, carrying
+  the model to another site with an import's plan, deleting. The search and
+  the redirects in the chapter on content, the new System pages in the first
+  steps, new rows in the troubleshooting.
+- **Sample content** (`seed`): the Blueprint *Esemény* made as in the admin
+  (a start, a kind, a venue, a ticket price, with admin columns), the list
+  *Közelgő események* at `/esemenyek` with visitors' filters, seven events,
+  and *Események* in the main menu. Only if the site has no Blueprint or list
+  of these names.
+
 ### Changed
 
 - The [upgrade guide](docs/upgrading.md) is for 0.3.0: from any 0.2.x or
   0.1.x in one go, with the database's changes, what is new since 0.2.0, what
   behaves differently, and a new checklist.
+- The Blueprint editor keeps what a list made in the admin uses: a Blueprint, a
+  field or a relation in a list's condition, order, columns or filters is not
+  deleted, nor a field made unqueryable; the message names the list (a list
+  left broken was hidden before).
+
+### Fixed
+
+- The admin's own columns showed a value of 0 (a price, a number) as empty.
+- System → Blueprints named the newer field types by their keys
+  (`structure.type.decimal`); it uses the editor's names now. The *made here*
+  label was hard to read.
+- A list's date filter for visitors left too little room for the dates on a
+  wide screen.
+- A main menu too long for one line broke inside an item (*Opening / hours*);
+  it wraps between the items now.
+- `composer lang:check` also checks the keys made from a value (the field
+  types, the lists' operators, displays and relative dates).
 
 ## [0.2.9] – 2026-10-24
 

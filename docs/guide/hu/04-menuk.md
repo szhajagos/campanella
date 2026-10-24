@@ -37,8 +37,8 @@ Kattints a **Menüpont** listában az **Új** gombra (vagy egy pont mellett a
   választod, a menüpont akkor is jó helyre mutat, ha a cél útvonala később
   megváltozik.
 - **URL:** ha nem a fenti listából választasz, ide írd a címet: az oldal egy
-  útvonalát (például `/hirek`) vagy egy teljes, más webhelyre mutató címet
-  (`https://…`).
+  útvonalát (például `/hirek`, vagy egy lista címét, mint az `/esemenyek`, 11.
+  fejezet) vagy egy teljes, más webhelyre mutató címet (`https://…`).
 
 A **Létrehozás** után a menüpont azonnal megjelenik a webhelyen:
 

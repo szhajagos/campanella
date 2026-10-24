@@ -5,7 +5,7 @@ it, write content, manage the users and take care of the backups. No
 programming knowledge is needed; where something is technical (editing a
 settings file), it is described step by step.
 
-The guide describes Campanella 0.2.x. The pictures show the English
+The guide describes Campanella 0.3.x. The pictures show the English
 interface, with Campanella's own sample content (which is in Hungarian).
 
 ## Contents
@@ -15,7 +15,7 @@ interface, with Campanella's own sample content (which is in Hungarian).
 2. [First steps](02-first-steps.md): logging in, the admin, the site's
    settings, the System page.
 3. [Content](03-content.md): articles, pages, categories, the editor,
-   publishing (later too), deleting.
+   publishing (later too), the search, redirects, deleting.
 4. [Menus](04-menus.md): the main menu's items, drop-downs, the order.
 5. [Images](05-images.md): uploading, alternative text, images in texts,
    deleting.
@@ -28,5 +28,8 @@ interface, with Campanella's own sample content (which is in Hungarian).
    how, restoring, upgrading to a newer version.
 10. [When something does not work](10-troubleshooting.md): common problems,
     their causes and what to do; where to get help.
+11. [Your own kinds of content: an event calendar](11-own-content-types.md):
+    a new kind of content and its fields, the admin's list, a list for
+    visitors with filters, carrying it to another site.
 
 [Magyar változat](../hu/README.md)

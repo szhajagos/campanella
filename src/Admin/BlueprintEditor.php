@@ -12,6 +12,8 @@ use Campanella\Database\Migration\Migrator;
 use Campanella\Database\Schema\SchemaReader;
 use Campanella\Database\Sync\SchemaSync;
 use Campanella\Http\Flash;
+use Campanella\Lists\ListDefinition;
+use Campanella\Lists\ListStore;
 use Campanella\Http\HttpException;
 use Campanella\Http\Request;
 use Campanella\Http\Response;
@@ -84,6 +86,7 @@ final class BlueprintEditor
         private readonly Flash $flash,
         private readonly AdminAccess $access,
         private readonly Translator $translator,
+        private readonly ?ListStore $lists = null,
     ) {
     }
 
@@ -820,6 +823,21 @@ final class BlueprintEditor
         $registry->loadStored($stored);
         if (isset($registry->storedErrors()[$name])) {
             return $this->translator->translate('blueprints.invalid', ['reason' => $registry->storedErrors()[$name]]);
+        }
+        // The lists made in the admin must still load (since 0.3.0): not a Blueprint, field
+        // or relation deleted, nor a field made unqueryable, that a list uses.
+        foreach ($this->lists?->load() ?? [] as $list => $listStored) {
+            try {
+                ListDefinition::fromArray((string) $list, $listStored, $registry);
+            } catch (\InvalidArgumentException) {
+                try {
+                    ListDefinition::fromArray((string) $list, $listStored, $this->blueprints);
+                } catch (\InvalidArgumentException) {
+                    continue; // already broken before this change
+                }
+
+                return $this->translator->translate('blueprints.list_uses', ['list' => is_string($listStored['title'] ?? null) ? $listStored['title'] : (string) $list]);
+            }
         }
         $sync = new SchemaSync($this->db, new Installer($this->db, $this->capabilities, $this->migrator, $registry), $this->capabilities, $registry);
         $plan = $sync->plan();

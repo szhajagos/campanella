@@ -177,6 +177,7 @@ controller renders it.
 ## Seed
 
 `php bin/campanella seed` creates the main menu (machine name `main`) if there
-is none: *Kezdőlap* (`/`), *Hírek* (`/hirek`), *Kategóriák* (`/kategoriak`)
+is none: *Kezdőlap* (`/`), *Hírek* (`/hirek`), *Események* (`/esemenyek`, the
+sample events' list, since 0.3.0, if it was made), *Kategóriák* (`/kategoriak`)
 with the sample categories under it, and *Rólunk* (the page). A main menu
 edited in the admin is never touched.

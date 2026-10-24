@@ -36,11 +36,11 @@ A bal oldali menü:
 | Menüpont | Mire való? |
 |---|---|
 | **Irányítópult** | Áttekintés: hány elem van az egyes tartalomtípusokból, és mi változott legutóbb. |
-| **Tartalom** | A tartalomtípusok listái: **Cikk**, **Oldal**, **Kép**, **Kategória**, **Menü**, **Menüpont**. Itt hozol létre, szerkesztesz és teszel közzé tartalmat (3–5. fejezet). |
+| **Tartalom** | A tartalomtípusok listái: **Cikk**, **Oldal**, **Kép**, **Kategória**, **Menü**, **Menüpont**, és a saját tartalomtípusaid (a példatartalomban az **Esemény**). Itt hozol létre, szerkesztesz és teszel közzé tartalmat (3–5. és 11. fejezet). |
 | **Beküldések** | A kapcsolati űrlapon érkezett üzenetek (7. fejezet). Csak az adminisztrátorok látják. |
 | **Felhasználók** | A fiókok kezelése (6. fejezet). Csak az adminisztrátorok látják. |
 | **Profilom** | A saját neved, jelszavad, és hogy hol vagy belépve. |
-| **Rendszer** | A webhely állapota, a **Webhely-beállítások**, az **E-mail** beállítása és naplója. A **Blueprintek** és a **Capability-k** a tartalomtípusok felépítését mutatják; ezek inkább fejlesztőknek szólnak. |
+| **Rendszer** | A webhely állapota, a **Webhely-beállítások**, az **E-mail** beállítása és naplója. A **Blueprintek** (a tartalomtípusok), a **Listák** és a **Tartalommodell** a saját tartalomtípusokhoz kell (11. fejezet), a **Capability-k** a tartalomtípusok építőköveit mutatják. Az **Átirányítások** a régi címekről vezetnek tovább (3. fejezet). |
 
 Fent a **Vissza az oldalra** link a nyilvános oldalra visz, a neved pedig a
 profilodra.
@@ -115,6 +115,10 @@ Gyakori figyelmeztetések egy friss telepítés után:
 | **Küldés: nincs beállítva** (az E-mail részben) | Az oldal nem tud e-mailt küldeni. Erről a 8. fejezet szól. |
 | **Adatkezelési tájékoztató: nincs belinkelve** | Lásd fent és a 7. fejezetben. |
 
+Egy frissítés után a **Keresési index** sor jelezheti, hogy néhány régebbi oldal
+még nincs a keresésben: a **Hozzáadás a kereséshez** gomb beteszi őket (ha
+sok van, nyomd meg többször, amíg a sor el nem tűnik).
+
 A **Hibakereső mód** sorban mindig „ki” álljon. Ha „be”, azonnal javítsd a
 `config/local.php`-ben (`'debug' => false`).
 
@@ -129,6 +133,9 @@ Ha a példatartalmat is telepítetted, a nyilvános oldalon már van mit nézni:
 
 Amíg be vagy lépve, a fejlécben az **Admin** gomb, a neved és a **Kilépés**
 gomb is látszik. A látogatók ezeket nem látják, és a piszkozatokat sem.
+
+A fejléc **Keresés…** mezőjével a látogatók a webhely közzétett tartalmai között
+kereshetnek (3. fejezet).
 
 ---
 

@@ -410,14 +410,17 @@ same roles. Its definitions are stored in the database
 | `…/relations/new`, `…/relations/<relation>` | A relation to the objects of one Blueprint (not users or forms' messages): one or several targets, required; later its label and required flag |
 | `…/fields/<field>/delete`, `…/relations/<relation>/delete` | POST, with the `confirm` box ticked (since 0.2.4): deletes a field or relation. Its page says how many objects have a value (how many links there are); a backup is made first if any; then the definition is saved without it, and its values are deleted: the column (the Blueprint's table, if nothing else is left), its rows in `field_values`, its key in the JSON data; or the relation's links from the Blueprint's objects |
 | `…/columns` | POST (since 0.2.8): the columns of its list in the admin, `columns[]`: at most 4 of its fields and relations, in order (an empty or repeated choice is left out); a deleted field or relation leaves the columns too |
-| `…/delete` | POST: deletes a Blueprint without objects (and its empty table), unless another Blueprint's relation points to it |
+| `…/delete` | POST: deletes a Blueprint without objects (and its empty table), unless another Blueprint's relation points to it, or a list made in the admin lists it (since 0.3.0) |
 
 Every change is checked by defining all the Blueprints again with it (those of
 the file and the stored ones): a field or relation name taken by a capability,
 by the Blueprint, or with another type in another Blueprint is refused there.
 Then the SchemaSync is planned: a **blocked** step of the Blueprint stops the
 change (e.g. a required queryable field without a default while the Blueprint
-has objects — the form asks for a default first). If the database changes and
+has objects — the form asks for a default first). The lists made in the admin
+must still load with the change (since 0.3.0): a Blueprint, field or relation a
+list uses (in a condition, the order, a column or a filter) is not deleted, nor
+a field made unqueryable, and the message names the list. If the database changes and
 the Blueprint has objects, **a backup** is made first (`var/backups/`, reported
 on the next page); then the definition is saved and the SchemaSync applied. If
 applying fails, the old definition is put back. While an upgrade is pending,

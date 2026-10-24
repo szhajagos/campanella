@@ -21,7 +21,7 @@
                 <h2 class="h5 mb-0 me-2" id="bp-{{ blueprint.name }}-title">{{ t(blueprint.label) }}</h2>
                 <code class="small">{{ blueprint.name }}</code>
                 {% if blueprint.editable %}
-                    <span class="badge text-bg-primary-subtle border">{{ t('blueprints.made_in_admin') }}</span>
+                    <span class="badge bg-primary-subtle text-primary-emphasis border border-primary-subtle">{{ t('blueprints.made_in_admin') }}</span>
                 {% else %}
                     <span class="badge text-bg-light border" title="{{ t('blueprints.in_code_help') }}">{{ t('blueprints.in_code') }}</span>
                 {% endif %}

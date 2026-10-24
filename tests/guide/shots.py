@@ -63,6 +63,51 @@ TEXT = {
     },
 }[LANG]
 
+# The own content type of chapter 11 (an events calendar), in the guide's language: the
+# Blueprint, its fields (label, name, type, required, queryable, extra), the admin's
+# columns, the events (title, days from today, time, kind, place, price, booking), the
+# list, a filter to show, a word to search, and an article's new path (a redirect).
+OWN = {
+    "hu": {
+        "label": "Program", "name": "program",
+        "fields": [
+            ("Időpont", "idopont", "datetime", True, True, {}),
+            ("Fajta", "fajta", "choice", True, True, {"choices": "eloadas | Előadás\nkoncert | Koncert\nkirandulas | Kirándulás"}),
+            ("Helyszín", "helyszin", "string", False, False, {"length": "120"}),
+            ("Belépő (Ft)", "belepo", "decimal", False, True, {"scale": "0"}),
+            ("Jelentkezés szükséges", "jelentkezes", "boolean", False, True, {}),
+        ],
+        "columns": ["idopont", "fajta", "belepo", "jelentkezes"],
+        "items": [
+            ("Csillagászati est", 5, "19:00", "eloadas", "Csillagvizsgáló", "0", False, "Távcsöves bemutató derült idő esetén, előtte rövid előadás a téli égboltról."),
+            ("Őszi kirándulás a Pilisbe", 12, "08:30", "kirandulas", "Indulás a Batthyány térről", "2000", True, "Egész napos túra, kb. 14 km. Hozz magaddal ennivalót és vizet."),
+            ("Kórushangverseny", 20, "18:00", "koncert", "Zeneiskola, nagyterem", "1500", False, "A városi kórus őszi hangversenye magyar és európai szerzők műveiből."),
+        ],
+        "list_title": "Programnaptár", "list_name": "programnaptar", "list_path": "/programok",
+        "filter": "kirandulas", "search": "kirándulás", "new_path": "/nyitvatartas",
+        "extra_field": {"name": "korhatar", "type": "integer", "label": "Korhatár"},
+    },
+    "en": {
+        "label": "Event", "name": "event",
+        "fields": [
+            ("Starts", "starts", "datetime", True, True, {}),
+            ("Kind", "kind", "choice", True, True, {"choices": "talk | Talk\nconcert | Concert\nwalk | Walk"}),
+            ("Venue", "venue", "string", False, False, {"length": "120"}),
+            ("Ticket price", "price", "decimal", False, True, {"scale": "2"}),
+            ("Booking required", "booking", "boolean", False, True, {}),
+        ],
+        "columns": ["starts", "kind", "price", "booking"],
+        "items": [
+            ("An evening of astronomy", 5, "19:00", "talk", "The observatory", "0", False, "Looking through telescopes if the sky is clear, after a short talk on the winter sky."),
+            ("An autumn walk in the hills", 12, "08:30", "walk", "Meeting at the station", "5", True, "A day's walk of about 9 miles. Bring food and water."),
+            ("Choir concert", 20, "18:00", "concert", "The music school's hall", "8.50", False, "The town choir's autumn concert, with music from across Europe."),
+        ],
+        "list_title": "Event calendar", "list_name": "calendar", "list_path": "/events",
+        "filter": "walk", "search": "walk", "new_path": "/opening-hours",
+        "extra_field": {"name": "min_age", "type": "integer", "label": "Minimum age"},
+    },
+}[LANG]
+
 # The example administrator of the guide, in its language.
 ADMIN = {
     "hu": {"name": "Kovács Anna", "email": "anna@pelda.hu", "password": "Hosszu-jelszo-2026"},
@@ -268,6 +313,142 @@ def menus(page):
     shot(page, "site-menu")
 
 
+def own_types(page, browser, article_url):
+    """Chapter 11: an own content type (an events calendar) made in the admin, step by step."""
+    import datetime
+    import json
+    submit = "form.admin-form button[type=submit], main form button[type=submit]"
+
+    # The Blueprint: its name and capabilities.
+    page.goto(BASE + "/admin/system/blueprints/new")
+    page.fill("#bp-label", OWN["label"])
+    page.fill("#bp-name", OWN["name"])
+    for capability in ("textual", "routable", "publishable"):
+        page.check("#bp-cap-" + capability)
+    shot(page, "blueprint-new", full_page=True)
+    page.locator("form[action$='/blueprints/new'] button[type=submit]").click()
+    page.wait_for_load_state("load")
+    blueprint_url = BASE + "/admin/system/blueprints/" + OWN["name"]
+
+    # Its fields, one by one (the choice field shown filled in).
+    for label, name, kind, required, queryable, extra in OWN["fields"]:
+        page.goto(blueprint_url + "/fields/new")
+        page.fill("#bp-label", label)
+        page.fill("#bp-name", name)
+        page.select_option("#bp-type", kind)
+        if "choices" in extra:
+            page.fill("#bp-choices", extra["choices"].replace("\\n", "\n"))
+        if "length" in extra:
+            page.fill("#bp-length", extra["length"])
+        if "scale" in extra:
+            page.fill("#bp-scale", extra["scale"])
+        if required:
+            page.check("#bp-required")
+        if queryable:
+            page.check("#bp-queryable")
+        if kind == "choice":
+            shot(page, "blueprint-field", full_page=True)
+        page.locator("form[action$='/fields/new'] button[type=submit]").click()
+        page.wait_for_load_state("load")
+
+    # The Blueprint's page, and the admin's columns.
+    page.goto(blueprint_url)
+    for i, column in enumerate(OWN["columns"]):
+        page.select_option("#bp-column-%d" % i, column)
+    shot(page, "blueprint-edit")
+    shot(page, "blueprint-columns", element="#columns")
+    page.locator("form[action$='/columns'] button[type=submit]").click()
+    page.wait_for_load_state("load")
+
+    # The events, as an editor writes them (the first one shown).
+    today = datetime.date.today()
+    for index, (title, days, time_of_day, kind, place, price, booking, text) in enumerate(OWN["items"]):
+        page.goto(BASE + "/admin/" + OWN["name"] + "/new")
+        names = [f[1] for f in OWN["fields"]]
+        page.fill("#field-title", title)
+        page.fill("#field-" + names[0], (today + datetime.timedelta(days=days)).isoformat() + "T" + time_of_day)
+        page.select_option("#field-" + names[1], kind)
+        page.fill("#field-" + names[2], place)
+        page.fill("#field-" + names[3], price)
+        if booking:
+            page.check("#field-" + names[4])
+        page.locator(".jodit-wysiwyg").first.click()
+        page.keyboard.type(text)
+        page.locator("#field-title").click()
+        if index == 0:
+            shot(page, "own-form", full_page=True)
+        page.locator("form.admin-form button[name=_publish]").click()
+        page.wait_for_load_state("load")
+    page.goto(BASE + "/admin/" + OWN["name"])
+    shot(page, "own-list")
+
+    # The list for the visitors: made, then its conditions, order, columns and filters.
+    page.goto(BASE + "/admin/system/lists/new")
+    page.fill("#list-title", OWN["list_title"])
+    page.fill("#list-name", OWN["list_name"])
+    page.select_option("#list-blueprint", OWN["name"])
+    shot(page, "list-new")
+    page.locator("form[action$='/lists/new'] button[type=submit]").click()
+    page.wait_for_load_state("load")
+    starts = OWN["fields"][0][1]
+    page.fill("#list-path", OWN["list_path"])
+    page.select_option("#list-display", "table")
+    page.select_option("select[name='conditions[0][field]']", starts)
+    page.select_option("select[name='conditions[0][op]']", ">=")
+    page.select_option("select[name='conditions[0][relative]']", "now")
+    page.select_option("select[name='sort[0][field]']", starts)
+    page.select_option("select[name='sort[0][dir]']", "asc")
+    for name in [f[1] for f in OWN["fields"]][:4]:
+        page.check("#list-col-" + name)
+    for name in OWN["columns"]:
+        page.check("#list-filter-" + name)
+    shot(page, "list-edit", full_page=True)
+    page.locator("form[action$='/lists/" + OWN["list_name"] + "'] button[type=submit]").click()
+    page.wait_for_load_state("load")
+
+    # The list's page, as a visitor sees it; then filtered.
+    visitor = browser.new_context(viewport={"width": 1280, "height": 900}, locale="hu-HU" if LANG == "hu" else "en-GB")
+    view = visitor.new_page()
+    view.goto(BASE + OWN["list_path"])
+    shot(view, "site-list", full_page=True)
+    view.select_option("#list-filter-" + OWN["fields"][1][1], OWN["filter"])
+    view.locator("form.list-filters button[type=submit]").click()
+    view.wait_for_load_state("load")
+    shot(view, "site-list-filtered", full_page=True)
+
+    # The search (chapter 3).
+    view.goto(BASE + "/")
+    view.fill("header input[name=q]", OWN["search"])
+    view.press("header input[name=q]", "Enter")
+    view.wait_for_load_state("load")
+    shot(view, "site-search", full_page=True)
+    visitor.close()
+
+    # Carrying the content model to another site: the export, and an import's plan
+    # (the same file with one field more, as if changed on a test site; not applied).
+    page.goto(BASE + "/admin/system/model")
+    shot(page, "model")
+    model = json.loads(page.request.get(BASE + "/admin/system/model/export").text())
+    extra = OWN["extra_field"]
+    model["blueprints"][OWN["name"]]["fields"].append({"name": extra["name"], "type": extra["type"], "label": extra["label"]})
+    path = os.path.join(SITE, "var", "cache", "guide", "campanella-model.json")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as file:
+        json.dump(model, file, ensure_ascii=False, indent=2)
+    page.set_input_files("#model-file", path)
+    page.locator("form[action$='/model/import'] button[type=submit]").click()
+    page.wait_for_load_state("load")
+    shot(page, "model-plan", full_page=True)
+
+    # A changed path leads on (chapter 3): the article gets a new one.
+    page.goto(article_url)
+    page.fill("#field-path", OWN["new_path"])
+    page.locator("form.admin-form button[type=submit]:not([name])").click()
+    page.wait_for_load_state("load")
+    page.goto(BASE + "/admin/system/redirects")
+    shot(page, "redirects")
+
+
 MAILS = os.environ.get("CAMPANELLA_GUIDE_MAILS", "")
 
 
@@ -434,6 +615,7 @@ def main():
         images(page)
         image_in_text(page, article_url)
         menus(page)
+        own_types(page, browser, article_url)
         users(page, browser)
         contact(page, browser)
         mail(page)

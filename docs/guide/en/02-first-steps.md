@@ -35,11 +35,11 @@ The menu on the left:
 | Item | What it is for |
 |---|---|
 | **Dashboard** | An overview: how many items of each kind of content there are, and what changed lately. |
-| **Content** | The lists of the kinds of content: **Article**, **Page**, **Image**, **Category**, **Menu**, **Menu item**. Here you create, edit and publish content (chapters 3–5). |
+| **Content** | The lists of the kinds of content: **Article**, **Page**, **Image**, **Category**, **Menu**, **Menu item**, and your own kinds of content (**Esemény** in the sample content). Here you create, edit and publish content (chapters 3–5 and 11). |
 | **Submissions** | The messages from the contact form (chapter 7). For administrators only. |
 | **Users** | Managing the accounts (chapter 6). For administrators only. |
 | **My profile** | Your own name and password, and where you are logged in. |
-| **System** | The site's state, the **Site settings**, setting up **E-mail** and its log. **Blueprints** and **Capabilities** show how the kinds of content are built, mostly for developers. |
+| **System** | The site's state, the **Site settings**, setting up **E-mail** and its log. **Blueprints** (the kinds of content), **Lists** and **Content model** are for your own kinds of content (chapter 11); **Capabilities** shows their building blocks. **Redirects** lead on from old addresses (chapter 3). |
 
 At the top, **Back to the site** takes you to the public site, and your name
 to your profile.
@@ -112,6 +112,10 @@ Common warnings on a fresh installation:
 | **Sending: not set up** (under E-mail) | The site cannot send e-mail. See chapter 8. |
 | **Privacy notice: not linked** | See above, and chapter 7. |
 
+After an upgrade, the **Search index** row may say that some older pages are
+not in the search yet: **Add them to the search** puts them there (if there
+are many, press it again until the row goes).
+
 **Debug mode** must always say "off". If it says "on", fix it at once in
 `config/local.php` (`'debug' => false`).
 
@@ -127,6 +131,9 @@ show:
 
 While you are logged in, the header shows the **Admin** button, your name and
 **Log out**. Visitors see none of these, nor the drafts.
+
+With the **Search…** field of the header, visitors can search the site's
+published content (chapter 3).
 
 ---
 

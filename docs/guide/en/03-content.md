@@ -21,6 +21,9 @@ list of that content:
 
 - **Search in the title** and the **Status** filter find what you look for;
   **Filter** applies them.
+- The **Categories** filter shows the articles of one category. (The columns
+  and filters of your own kinds of content are yours to choose, see chapter
+  11.)
 - Clicking a column heading sorts the list.
 - Clicking a title opens its edit page; **View** shows it on the site (a draft
   too, but only to you).
@@ -48,9 +51,8 @@ After **New** this form appears:
 - **Categories:** tick the ones it belongs to: several, or none.
 - **Author:** left empty, you become the author.
 - **Path:** the article's address on the site, e.g. `/summer-opening-hours`.
-  Left empty, it is made from the title. If you change it later, links to the
-  old address (on other sites, in search engines) stop working, so try not to
-  change it once published.
+  Left empty, it is made from the title. It can be changed later: the old
+  address then leads on to the new one (see [Redirects](#redirects) below).
 
 At the bottom there are two buttons:
 
@@ -138,6 +140,45 @@ Categories form a tree: a category can have subcategories.
 - A category with subcategories cannot be deleted: its delete page lists
   them; delete or move them first.
 
+## Searching the site
+
+With the **Search…** field in the site's header, visitors search the published
+articles, pages, categories (and the items of your own kinds of content):
+
+![A search's results](../images/en/site-search.png)
+
+- The search looks in the title and the text; a word found in the title counts
+  more. Every word typed must be there; the start of a word is enough (*garden*
+  finds *gardens* too), and accents do not matter.
+- Words of at least three letters count; very common English words (such as
+  *the*, *and*) are left out.
+- Below each result is a part of its text, with the words found highlighted.
+- Drafts and scheduled items are not found, only once they are out. A saved
+  change can be found at once.
+- If a visitor (or a program) searches very often within a minute, the search
+  stops for them for a minute. This protects the site from overload.
+
+The search's page is at `/search`; search engines do not list it.
+
+## Redirects
+
+When the **path** of an article or a page **changes**, its old address is not
+lost: whoever follows the old link (from another site, a search engine, a
+bookmark) gets to the new one. Campanella does this by itself.
+
+The **System → Redirects** page lists them:
+
+![The list of redirects](../images/en/redirects.png)
+
+- The **automatic** rows were made by a changed path: they always lead to the
+  item's current address, even if it changes again. They go when the item is
+  deleted.
+- In the **New redirect** box you can add one by hand, e.g. from the addresses
+  of an old site (`/old-page`) to the current ones (`/new-page`). Not from an
+  address that is a page of the site: the page always comes first.
+- The **Used** column shows how often it led on. **Delete** removes one no
+  longer needed.
+
 ## Deleting
 
 **Delete** on the edit page asks first:
@@ -154,8 +195,9 @@ Editors cannot delete; that is for administrators.
 
 If you asked for sample content when installing, delete or rewrite it before
 the site goes public: the articles (Neumann János, Digitális Agora …), the
-**Tudomány** and **Campanella** categories, the **Rólunk** page, and the main
-menu's items pointing to them (chapter 4).
+**Tudomány** and **Campanella** categories, the **Rólunk** page, the events
+(**Esemény**, chapter 11, at its end), and the main menu's items pointing to
+them (chapter 4).
 
 ---
 

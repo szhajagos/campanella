@@ -30,6 +30,22 @@ foreach (Translator::compare($catalogs) as $locale => $diff) {
     }
 }
 
+// Keys made from a value in the templates (`t('field_type.' ~ field.type)`): one for each.
+$base = $catalogs[Translator::BASE_LOCALE];
+$families = [
+    'field_type.' => array_map(static fn (\Campanella\Model\FieldType $t): string => $t->value, \Campanella\Model\FieldType::cases()),
+    'lists.op.' => \Campanella\Lists\ListDefinition::OPERATORS,
+    'lists.relative.' => \Campanella\Lists\ListDefinition::RELATIVE,
+    'lists.display.' => \Campanella\Lists\ListDefinition::DISPLAYS,
+];
+foreach ($families as $prefix => $values) {
+    foreach ($values as $value) {
+        if (!isset($base[$prefix . $value])) {
+            $problems[] = "lang/en.php: missing key {$prefix}{$value}";
+        }
+    }
+}
+
 if ($problems !== []) {
     fwrite(STDERR, implode("\n", $problems) . "\n");
     exit(1);

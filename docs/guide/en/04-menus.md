@@ -34,8 +34,8 @@ an item under it):
 - **Leads to:** an article, page or category of the site. Chosen here, the
   item leads to the right place even if the target's path changes later.
 - **URL:** if you do not choose from the list above, enter the address here:
-  a path of the site (e.g. `/hirek`) or a full address of another site
-  (`https://…`).
+  a path of the site (e.g. `/hirek`, or a list's address such as
+  `/esemenyek`, chapter 11) or a full address of another site (`https://…`).
 
 After **Create** the item appears on the site at once:
 

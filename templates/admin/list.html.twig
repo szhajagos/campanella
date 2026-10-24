@@ -174,9 +174,9 @@
                                     {%- if column.kind == 'relation' -%}
                                         {% for target in related(item, column.name) %}{{ target.title ?? ('#' ~ target.id) }}{{ not loop.last ? ', ' }}{% else %}<span class="text-body-secondary">–</span>{% endfor %}
                                     {%- elseif column_texts[item.id][column.name] is defined -%}
-                                        {{ column_texts[item.id][column.name] ?: '–' }}
+                                        {{ column_texts[item.id][column.name] is not empty ? column_texts[item.id][column.name] : '–' }}
                                     {%- else -%}
-                                        {% set shown = field_value(item, column.name) %}{{ shown ?: '<span class="text-body-secondary">–</span>' }}
+                                        {# Not `?:`: a value of 0 is shown too. #}{% set shown = field_value(item, column.name) %}{{ shown is not empty ? shown : '<span class="text-body-secondary">–</span>' }}
                                     {%- endif -%}
                                 </td>
                             {% endfor %}

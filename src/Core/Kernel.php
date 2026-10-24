@@ -892,6 +892,7 @@ final class Kernel
                 $c->get(Flash::class),
                 $c->get(AdminAccess::class),
                 $c->get(Translator::class),
+                $c->get(ListStore::class),
             ),
             new ListEditor(
                 $c->get(ListStore::class),

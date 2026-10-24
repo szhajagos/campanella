@@ -111,6 +111,9 @@ h1, h2, h3, .h1, .h2, .h3, .h4, .h5 { line-height: 1.25; }
 /* The search (since 0.2.7): a small field in the header; the words found marked without a gap. */
 @media (min-width: 768px) {
     .site-search .form-control { width: 8.5rem; }
+    /* A long main menu wraps between its items, not inside one (since 0.3.0). */
+    .navbar-nav { flex-wrap: wrap; }
+    .navbar-nav .nav-link { white-space: nowrap; }
 }
 .search-result mark { padding: 0 .1em; }
 

@@ -5,7 +5,7 @@ feltöltik és telepítik, tartalmat írnak, kezelik a felhasználókat és
 gondoskodnak a mentésről. Programozói tudás nem kell hozzá. Ami mégis
 technikai (egy beállítási fájl szerkesztése), azt lépésről lépésre leírja.
 
-Az útmutató a Campanella 0.2.x verzióit írja le. A képek a magyar nyelvű
+Az útmutató a Campanella 0.3.x verzióit írja le. A képek a magyar nyelvű
 felületet mutatják, a Campanella saját példatartalmával.
 
 ## Tartalom
@@ -15,7 +15,7 @@ felületet mutatják, a Campanella saját példatartalmával.
 2. [Első lépések](02-elso-lepesek.md): belépés, az admin felépítése, a
    webhely beállításai, a Rendszer oldal.
 3. [Tartalom](03-tartalom.md): cikkek, oldalak, kategóriák, a szövegszerkesztő,
-   közzététel (később is), törlés.
+   közzététel (később is), keresés, átirányítások, törlés.
 4. [Menük](04-menuk.md): a főmenü pontjai, lenyíló almenük, sorrend.
 5. [Képek](05-kepek.md): feltöltés, alternatív szöveg, kép a szövegben,
    törlés.
@@ -28,5 +28,8 @@ felületet mutatják, a Campanella saját példatartalmával.
    visszaállítás, frissítés újabb verzióra.
 10. [Ha valami nem működik](10-hibaelharitas.md): gyakori jelenségek, okuk
     és a teendő; hol kérj segítséget.
+11. [Saját tartalomtípusok: egy programnaptár](11-sajat-tartalomtipusok.md):
+    egy új tartalomtípus és mezői, az admin listája, egy lista a látogatóknak
+    szűrőkkel, átvitel egy másik webhelyre.
 
 [English version](../en/README.md)

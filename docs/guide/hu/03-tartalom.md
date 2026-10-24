@@ -21,6 +21,9 @@ listáját nyitja meg:
 
 - A **Keresés a címben** mezővel és az **Állapot** szerinti szűréssel
   találod meg, amit keresel. A **Szűrés** gomb alkalmazza.
+- A **Kategóriák** szűrővel egy kategória cikkeit nézheted meg. (A saját
+  tartalomtípusok listájának oszlopait és szűrőit te választod meg, lásd a
+  11. fejezetet.)
 - Az oszlopfejlécekre kattintva rendezheted a listát.
 - A címre kattintva a szerkesztő oldal nyílik meg, a **Megtekintés** link az
   oldalon mutatja meg (a piszkozatot is, de csak neked).
@@ -47,9 +50,9 @@ Az **Új** gomb után ez az űrlap jelenik meg:
 - **Kategóriák:** jelöld be, melyikbe tartozik. Több is lehet, vagy egy sem.
 - **Szerző:** ha üresen hagyod, te leszel a szerző.
 - **Útvonal:** a cikk címe a webhelyen, például `/nyari-nyitvatartas`. Ha
-  üresen hagyod, a címből készül: ékezetek nélkül, kötőjelekkel. Ha később
-  módosítod, a régi címre mutató linkek (más oldalakon, keresőkben) nem
-  fognak működni, ezért közzététel után lehetőleg ne változtasd meg.
+  üresen hagyod, a címből készül: ékezetek nélkül, kötőjelekkel. Később is
+  módosíthatod: a régi cím ilyenkor továbbvezet az újra (lásd lent,
+  [Átirányítások](#átirányítások)).
 
 Alul két gomb van:
 
@@ -140,6 +143,45 @@ A kategóriák fát alkotnak: egy kategóriának lehetnek alkategóriái.
 - Egy kategória, amelynek alkategóriái vannak, nem törölhető: a törlés oldala
   felsorolja őket, ezeket előbb töröld vagy helyezd át.
 
+## Keresés a webhelyen
+
+A webhely fejlécében a **Keresés…** mezővel a látogatók a közzétett cikkek,
+oldalak, kategóriák (és a saját tartalomtípusaid elemei) között kereshetnek:
+
+![Egy keresés eredménye](../images/hu/site-search.png)
+
+- A keresés a címben és a szövegben keres, a címben talált szó többet ér. Minden
+  beírt szónak szerepelnie kell; egy szó eleje is elég (*kert* megtalálja a
+  *kertben* szót is), és az ékezetek nem számítanak (*kirandulas* is jó).
+- A legalább háromjegyű szavak számítanak; a nagyon gyakori angol szavakat
+  (például *the*, *and*) a keresés kihagyja.
+- A találatok alatt a szöveg egy részlete áll, a megtalált szavak kiemelve.
+- A piszkozatokat és az időzítetteket a keresés nem találja meg, a megjelenésük
+  után igen. Egy mentett módosítás azonnal kereshető.
+- Ha egy látogató (vagy egy program) egy percen belül nagyon sokat keres, a
+  keresés egy percre megáll neki. Ez a webhelyet védi a túlterheléstől.
+
+A keresés oldala a `/search` címen van; a keresőmotorok nem listázzák.
+
+## Átirányítások
+
+Ha egy cikk vagy oldal **útvonala megváltozik**, a régi címe nem vész
+el: aki a régi linkre kattint (egy másik oldalról, egy keresőből, egy
+könyvjelzőből), az újra kerül. Ezt a Campanella magától intézi.
+
+A **Rendszer → Átirányítások** oldal sorolja fel ezeket:
+
+![Az átirányítások listája](../images/hu/redirects.png)
+
+- Az **automatikus** sorokat egy útvonal-változás hozta létre: mindig az elem
+  mostani címére vezetnek, akkor is, ha az később újra változik. Az elem
+  törlésével megszűnnek.
+- Az **Új átirányítás** dobozban kézzel is megadhatsz egyet, például egy régi
+  webhely címeiről (`/regi-oldal`) a mostaniakra (`/uj-oldal`). Olyan címről,
+  amely egy létező oldal, nem lehet: az oldal mindig előbbre való.
+- A **Használat** oszlop mutatja, hányszor vezetett tovább. Egy már nem kellő
+  átirányítást a **Törlés** gombbal szüntethetsz meg.
+
 ## Törlés
 
 A szerkesztő oldalon a **Törlés** gomb előbb rákérdez:
@@ -156,8 +198,9 @@ A szerkesztők nem törölhetnek, ez az adminisztrátorok joga.
 
 Ha a telepítéskor példatartalmat is kértél, ezeket töröld vagy írd át, mielőtt
 az oldal nyilvános lesz: a cikkeket (Neumann János, Digitális Agora …), a
-**Tudomány** és **Campanella** kategóriát, a **Rólunk** oldalt, és a főmenü
-megfelelő pontjait (4. fejezet).
+**Tudomány** és **Campanella** kategóriát, a **Rólunk** oldalt, az
+**Eseményeket** (11. fejezet, a végén), és a főmenü megfelelő pontjait
+(4. fejezet).
 
 ---
 

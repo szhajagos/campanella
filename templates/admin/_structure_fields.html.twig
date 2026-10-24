@@ -12,7 +12,7 @@
         {% for field in fields %}
             <tr>
                 <th scope="row" class="fw-normal">{{ t(field.label) }} <code class="small ms-1">{{ field.name }}</code></th>
-                <td class="small">{{ t('structure.type.' ~ field.type) }}</td>
+                <td class="small">{{ t('field_type.' ~ field.type) }}</td>
                 <td class="small">{{ t('structure.storage.' ~ field.storage) }}</td>
                 <td class="small">
                     {%- for flag in field.flags -%}
