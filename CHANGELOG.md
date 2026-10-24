@@ -24,6 +24,21 @@ Work towards 0.3.0, the third milestone, in parts.
   - a page number too large for the search or the redirects' list is an empty
     page or a 404, not an error.
 
+### Added
+
+- Upgrade tests from 0.2.0 (MySQL 8.4) and from 0.2.9 (MariaDB 10.6,
+  MySQL 8.0) in CI, besides 0.1.0 and 0.1.5. From 0.2.6 on the old site gets
+  a content model made as in the admin (a Blueprint with admin columns, a
+  list with a filter, events, a changed path), and the checks cover it: its
+  values, pages, admin pages, redirect, search, and export
+  ([The upgrade test](docs/php-api/17-migrations.md#the-upgrade-test)).
+
+### Changed
+
+- The [upgrade guide](docs/upgrading.md) is for 0.3.0: from any 0.2.x or
+  0.1.x in one go, with the database's changes, what is new since 0.2.0, what
+  behaves differently, and a new checklist.
+
 ## [0.2.9] – 2026-10-24
 
 **Visitors' filters on the lists.** The eighth and last step before the 0.3.0

@@ -291,8 +291,8 @@ The content itself is not in that file.
 4. Read the version's section in the [CHANGELOG](../CHANGELOG.md): extra steps
    are at its top.
 
-From 0.1.x to 0.2.0: the [upgrade guide](upgrading.md) puts every step since
-0.1.0 together, with a checklist and how to go back.
+From any 0.2.x or 0.1.x to 0.3.0: the [upgrade guide](upgrading.md) puts
+every step together, with a checklist and how to go back.
 
 An installation older than 0.0.6 is upgraded to 0.0.7 first.
 

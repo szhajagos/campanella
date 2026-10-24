@@ -352,7 +352,14 @@ old versions can be removed.
 ## The upgrade test
 
 *Since 0.2.0.* Upgrades are supported from 0.1.0 on, and a test plays one out
-for real (`tests/upgrade/`, in CI from 0.1.0 on MariaDB 10.6 and MySQL 8.0, and from 0.1.5, the newest 0.1.x, on MariaDB 11.4):
+for real (`tests/upgrade/`). CI runs it on every push:
+
+| From | Database | Why |
+|---|---|---|
+| 0.1.0 | MariaDB 10.6, MySQL 8.0 | the oldest supported version |
+| 0.1.5 | MariaDB 11.4 | the newest 0.1.x |
+| 0.2.0 | MySQL 8.4 | the oldest 0.2.x (since 0.3.0) |
+| 0.2.9 | MariaDB 10.6, MySQL 8.0 | the newest 0.2.x, with a content model made in the admin (since 0.3.0) |
 
 ```bash
 git worktree add /tmp/campanella-0.1.0 v0.1.0
@@ -363,7 +370,12 @@ bash tests/upgrade/run.sh /tmp/campanella-0.1.0       # --offline: no composer i
    (its own dependencies, `composer install`), with its sample content
    (`seed`) and what a real site has besides: an administrator, an editor, a
    blocked user, an uploaded image shown in an article (`old-fixture.php`,
-   which uses only what 0.1.0 had). Then a snapshot of every row of every
+   which uses only what 0.1.0 had). From 0.2.6 on (when the old version can
+   import a content model) also a content model as an administrator makes it:
+   a Blueprint with a field of each kind (a date, a choice, a decimal, a
+   multi-valued text, formatted text) and a relation, with its admin columns
+   from 0.2.8; a list at its own path, with a filter from 0.2.9; two events,
+   and from 0.2.7 a changed path. Then a snapshot of every row of every
    table (but `system`, `migrations` and `throttle`), and of every media file.
 2. **The upgrade:** the current files are copied over the old ones, as one
    uploads a new version (`config/local.php`, `public/media/` and `var/`
@@ -377,7 +389,13 @@ bash tests/upgrade/run.sh /tmp/campanella-0.1.0       # --offline: no composer i
    administrator (the profile's session list and the *Submissions* too); the
    migration's work (the image's use in the article, `core:0008_media_usage`);
    the smaller copies of the old image made as the System page's button makes
-   them; a contact message for administrators only. Any problem is listed and
+   them; a contact message for administrators only. From 0.2.7 or older: the
+   search index built as the System page's button builds it, and an old page
+   found. With the content model: the Blueprint and the list loaded and
+   editable, the events' values (the multi-valued ones and the relation too)
+   and a query on them, the list's page with its filter, the admin's pages,
+   a changed path leading on, the events found by the search, and the
+   model's export importing again with no change. Any problem is listed and
    fails the test.
 
 The database is the tests' (`CAMPANELLA_DB_*`), the tables get the

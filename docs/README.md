@@ -12,7 +12,7 @@ chapter in the same commit.
 | [Security](security.md) | What protects a site, the security review of 0.1.0, the known and accepted risks, reporting a vulnerability | Since 0.1.0 |
 | [Deployment](deployment.md) | Running Campanella on a public server: web root, HTTPS and proxies, settings, security headers, permissions, backups, upgrades, a checklist | Since 0.1.0 |
 | [Compatibility](compatibility.md) | What stays within 0.2.x (the Public API, the settings, templates and their variables, Twig functions, commands, addresses, data), Deprecated before removed, security fixes | Since 0.2.0 |
-| [Upgrading](upgrading.md) | From any 0.1.x to 0.2.0: the steps, the new settings, what behaves differently, themes and custom code, a checklist, going back | Since 0.2.0 |
+| [Upgrading](upgrading.md) | From any 0.2.x or 0.1.x to 0.3.0: the steps, the database's changes, what is new, what behaves differently, themes and custom code, a checklist, going back | Since 0.2.0 |
 | [Translations](translations.md) | How multilingual content will be stored: the original and a translation layer, and why | Design (since 0.2.2; built in 0.6.0) |
 | [Testing](testing.md) | The automated checks: the tests, the upgrade test, the browser tests; running them locally | Since 0.2.0 |
 | [Changelog](../CHANGELOG.md) | What was added, changed or removed in each version | Ongoing |

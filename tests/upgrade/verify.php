@@ -177,6 +177,45 @@ $message = $submissions->submit('Frissítés után', 'utana@example.hu', '', 'Az
 $check($submissions->find(Actor::system(), (int) $message->id()) !== null && $submissions->find(\Campanella\Auth\AuthService::actorFor($c->get(AuthService::class)->findUserByEmail($snapshot['users']['editor'][0]) ?? throw new RuntimeException('no editor')), (int) $message->id()) === null, 'a contact message is not for administrators only');
 $submissions->delete(Actor::system(), $message);   // so verify.php can run again on the same site
 
+// 7. The content model (since 0.3.0; an old version of 0.2.6 and later made one): the
+// Blueprint made in the admin, its objects' values, its list, the redirect, the search.
+$model = $snapshot['model'] ?? null;
+if (is_array($model)) {
+    $c = (new Kernel($site))->container();
+    $registry = $c->get(\Campanella\Model\BlueprintRegistry::class);
+    $blueprint = $registry->find($model['blueprint']);
+    $check($blueprint !== null && $registry->isEditable($model['blueprint']), 'the Blueprint made in the admin is not loaded: ' . json_encode($registry->storedErrors()));
+    if (version_compare($snapshot['version'], '0.2.8', '>=')) {
+        $check($blueprint?->adminColumns === ['nap', 'fajta'], 'the admin\'s columns were lost: ' . json_encode($blueprint?->adminColumns));
+    }
+    $events = $c->get(\Campanella\Model\ObjectRepository::class)->loadMany($model['events']);
+    $first = $events[$model['events'][0]] ?? null;
+    $second = $events[$model['events'][1]] ?? null;
+    $check($first !== null && (string) $first->get('nap') === '2027-01-15' && $first->get('fajta') === 'eloadas' && (string) $first->get('ar') === '1500'
+        && $first->get('cimkek') === ['tél', 'zene'] && str_contains((string) $first->get('megjegyzes'), '<b>formázott</b>') && $first->relatedIds('helyszin') !== [],
+        'an event\'s values changed: ' . json_encode($first === null ? null : ['nap' => (string) $first->get('nap'), 'fajta' => $first->get('fajta'), 'ar' => (string) $first->get('ar'), 'cimkek' => $first->get('cimkek'), 'helyszin' => $first->relatedIds('helyszin')], JSON_UNESCAPED_UNICODE));
+    $check($second !== null && $second->get('cimkek') === ['tavasz'], 'the second event\'s values changed');
+    $events = $c->get(\Campanella\Query\QueryEngine::class)->execute(\Campanella\Query\Query::objects()->blueprint($model['blueprint'])->where('cimkek', '=', 'zene'), Actor::anonymous());
+    $check(count($events) === 1, 'a multi-valued queryable field cannot be queried');
+
+    $list = $get($model['list_path']);
+    $check($list->status === 200 && str_contains($list->body, 'Frissítési előadás') && !str_contains($list->body, 'Frissítési séta'), "the list's page: {$list->status}");
+    if ($model['filters']) {
+        $check(str_contains($list->body, 'name="f[nap][from]"'), 'the list\'s filters for visitors were lost');
+    }
+    $check($get('/admin/' . $model['blueprint'], $asAdmin)->status === 200 && $get('/admin/system/blueprints/' . $model['blueprint'], $asAdmin)->status === 200 && $get('/admin/system/lists/' . $model['list'], $asAdmin)->status === 200, 'the admin\'s pages of the content model');
+    if (is_array($model['redirect'])) {
+        $moved = $get($model['redirect']['from']);
+        $check($moved->status === 301 && ($moved->headers['Location'] ?? '') === $model['redirect']['to'], 'the redirect: ' . $moved->status . ' ' . ($moved->headers['Location'] ?? ''));
+    }
+    $c->get(\Campanella\Search\SearchIndexer::class)->build(30);
+    $found = $c->get(\Campanella\Search\Search::class)->find('frissitesi eloadas', Actor::anonymous());
+    $check(in_array($model['events'][0], array_map(static fn (array $i): int => (int) $i['object']->id(), $found->items), true), 'the event is not found by the search');
+    // Its own export imports into it without a change.
+    $again = $c->get(\Campanella\Transfer\ModelImport::class)->plan(\Campanella\Transfer\ModelFile::decode($c->get(\Campanella\Transfer\ModelExport::class)->json()));
+    $check(!$again->hasErrors() && !$again->hasChanges(), 'the content model\'s own export would change it: ' . json_encode(array_map(static fn ($i) => [$i->name, $i->action, (string) $i->error], $again->items), JSON_UNESCAPED_UNICODE));
+}
+
 echo "{$checks} checks, upgraded from {$snapshot['version']} (schema {$snapshot['schema']}) to " . Version::CAMPANELLA . ' (schema ' . Version::SCHEMA . ").\n";
 if ($problems !== []) {
     echo count($problems) . " problems:\n";

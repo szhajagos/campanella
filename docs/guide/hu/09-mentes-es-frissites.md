@@ -113,7 +113,7 @@ fájljait, és az adatbázist a frissítés előtt készült mentésből (a fris
 oldala kiírja a nevét). A részleteket a fejlesztői
 [frissítési útmutató](../../upgrading.md#going-back) írja le (angolul).
 
-A 0.1.x verziókról a 0.2-re frissítés teendőit szintén a
+A 0.2.x és 0.1.x verziókról a 0.3-ra frissítés teendőit szintén a
 [frissítési útmutató](../../upgrading.md) gyűjti össze.
 
 ---

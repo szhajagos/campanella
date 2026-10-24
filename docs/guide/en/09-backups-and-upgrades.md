@@ -112,7 +112,7 @@ again, and restore the database from the backup made before the upgrade (the
 upgrade page shows its name). The developers'
 [upgrade guide](../../upgrading.md#going-back) has the details.
 
-What to do when upgrading from 0.1.x to 0.2 is collected in the
+What to do when upgrading from 0.2.x or 0.1.x to 0.3 is collected in the
 [upgrade guide](../../upgrading.md) too.
 
 ---

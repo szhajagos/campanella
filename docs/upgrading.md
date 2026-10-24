@@ -1,29 +1,36 @@
-# Upgrading to 0.2.0
+# Upgrading to 0.3.0
 
-This guide takes a site from **any 0.1.x version** (0.1.0 to 0.1.5) to 0.2.0 in
-one go. You do not need to install the versions in between: one upgrade runs
-every change since your version. The CHANGELOG has the same steps version by
-version. This page puts them together, and adds what to check and how to go
-back.
+This guide takes a site from **any 0.2.x version** (0.2.0 to 0.2.9), or from
+**any 0.1.x** (0.1.0 to 0.1.5), to 0.3.0 in one go. You do not need to install
+the versions in between: one upgrade runs every change since your version. The
+CHANGELOG has the same steps version by version; this page puts them
+together, and adds what to check and how to go back.
 
 | Your version | What to do |
 |---|---|
-| 0.1.0 – 0.1.5 | This guide. Supported and tested: CI upgrades 0.1.0 to the current code on every push, with content, users and images (`tests/upgrade/run.sh`). |
+| 0.2.0 – 0.2.9 | This guide. Supported and tested: CI upgrades 0.2.0 and 0.2.9 to the current code on every push, the latter with a content model made in the admin (`tests/upgrade/run.sh`). |
+| 0.1.0 – 0.1.5 | This guide, and also [From 0.1.x](#from-01x) below. Tested too: CI upgrades 0.1.0 and 0.1.5. |
 | 0.0.6, 0.0.7 | The upgrade runs (their schema version, 6, is accepted), but it is not tested. Also read the [0.1.0 section of the CHANGELOG](../CHANGELOG.md#010--2026-10-08). |
-| Older than 0.0.6 | Upgrade to 0.0.7 first, then follow this guide. 0.2.0 refuses to upgrade the database and changes nothing. |
+| Older than 0.0.6 | Upgrade to 0.0.7 first, then follow this guide. 0.3.0 refuses to upgrade the database and changes nothing. |
 
 Your version is shown on the System page (`/admin/system`), and by
 `php bin/campanella status`.
 
 The requirements did not change: PHP 8.3 or newer, MariaDB 10.6+ or MySQL 8.0+.
 
+**Nothing is incompatible.** 0.2.x marked nothing Deprecated, so 0.3.0 removes
+and renames nothing: a site, a theme or code written for any 0.2.x keeps
+working. What 0.3.0 promises for the 0.3.x series is in
+[Compatibility](compatibility.md).
+
 ## Contents
 
 - [The steps](#the-steps)
 - [What the upgrade changes in the database](#what-the-upgrade-changes-in-the-database)
-- [New settings](#new-settings)
+- [What is new since 0.2.0](#what-is-new-since-020)
 - [What behaves differently](#what-behaves-differently)
 - [Themes and custom code](#themes-and-custom-code)
+- [From 0.1.x](#from-01x)
 - [Checklist after the upgrade](#checklist-after-the-upgrade)
 - [Going back](#going-back)
 
@@ -34,58 +41,122 @@ The requirements did not change: PHP 8.3 or newer, MariaDB 10.6+ or MySQL 8.0+.
      `var/backups/`. The upgrade makes one too, but have your own;
    - the uploaded files: the `public/media/` folder;
    - your own files: `config/local.php`, your theme (`themes/`), and any
-     file of the program you changed.
+     file of the program you changed (e.g. `config/blueprints.php`).
 
    Copy them off the server.
 
-2. **Upload the new version.** Use the release package (`campanella-0.2.0.zip`
-   from the GitHub release). It includes the `vendor/` folder, which **changed
-   since 0.1.2**: 0.1.3 added symfony/mailer. With git: `git pull`, then
-   `composer install --no-dev`.
+2. **Upload the new version.** Use the release package (`campanella-0.3.0.zip`
+   from the GitHub release); it includes the `vendor/` folder. With git:
+   `git pull`, then `composer install --no-dev`.
 
    Keep these: `config/local.php`, `public/media/`, `var/` and `themes/`.
    Replace the program's folders as a whole (`bin/`, `config/` except
    `local.php`, `lang/`, `public/assets/`, `public/index.php`, `src/`,
    `templates/`, `vendor/`). Do not copy them over the old ones: files removed
-   since your version would stay behind.
-
-   With Docker: `docker compose exec web composer install`, then
-   `docker compose up -d`, which also starts the Mailpit container added in
-   0.1.3.
+   since your version would stay behind. If you changed `config/blueprints.php`,
+   compare your copy with the new one (0.2.8 added `'admin_columns'` to the
+   articles) and keep yours.
 
 3. **Run the upgrade.** Until then the site answers 503 to visitors, but
    logging in works. Either:
-   - on the command line: `php bin/campanella install`. It asks first, makes a
-     backup into `var/backups/` before it changes anything, then adds the new
-     tables and runs the migrations. Add `--yes` to skip the question;
+   - on the command line: `php bin/campanella install` (or `migrate`). It asks
+     first, makes a backup into `var/backups/` before it changes anything,
+     then adds the new tables. Add `--yes` to skip the question;
    - or without a command line: log in as an administrator and open
      `/admin/upgrade`. It also makes the backup first, then shows each step. If
      logging in does not work, set an `upgrade.key` of at least 20 characters
      in `config/local.php`, open the page with it, then **remove the key**.
 
-   From 0.1.5 the database does not change (0.2.0 adds no table): the command
-   says there is nothing to do, and the site works at once.
+   From 0.2.7, 0.2.8 or 0.2.9 the database does not change (0.3.0 adds no
+   table): there is nothing to do, and the site works at once.
 
    Then run `php bin/campanella schema:check`, or look at the System page: the
    tables must match the definitions.
 
-4. **Make the smaller copies of the images** (new in 0.1.2), from 0.1.0 or
-   0.1.1. Use the System page (*Images → Smaller copies*, and press the button
-   again while some are left), or `php bin/campanella media:variants`. Until
-   then the old images are shown in full size, as before.
+4. **Put the existing pages into the search** (new in 0.2.7), from 0.2.6 or
+   older. The System page says how many are missing, with a button that adds
+   them (press it again while some are left); or run
+   `php bin/campanella search:index`. Until then the search does not find the
+   pages saved before the upgrade.
 
-5. **Set up what is new.** Read [New settings](#new-settings). At the least:
-   - the site's address under *Site settings*;
-   - e-mail in `config/local.php`;
-   - the privacy notice for the contact form.
+5. **From 0.1.x:** also the steps of [From 0.1.x](#from-01x) (the smaller
+   copies of the images, the new settings).
 
 6. **Go through the [checklist](#checklist-after-the-upgrade).**
 
 ## What the upgrade changes in the database
 
-From 0.1.0 (schema version 6) to 0.2.0 (schema version 12). Nothing is
-removed or rewritten; only tables and one column are added, plus one
-migration that fills a new table.
+Nothing is removed or rewritten; only tables and one column are added. 0.2.0
+has schema version 12, 0.3.0 has 16 (from 0.1.x: see [below](#from-01x) for
+6 to 12).
+
+| Schema | Version | Change |
+|---|---|---|
+| 13 | 0.2.2 | The `value_decimal` column of `field_values` (multi-valued decimal fields). A Blueprint's own queryable fields get a table of their own, `bp_<name>`, when they are defined |
+| 14 | 0.2.3 | `blueprints` table: the Blueprints made in the admin |
+| 15 | 0.2.5 | `lists` table: the lists made in the admin |
+| 16 | 0.2.7 | `search_index` table (with FULLTEXT indexes), `redirects` table |
+
+With a table prefix, every name starts with it (`cc_lists`, …).
+
+## What is new since 0.2.0
+
+Nothing needs setting up: everything below works with the defaults, and is
+used only when an administrator starts using it.
+
+| Version | What | Where |
+|---|---|---|
+| 0.2.1 | A guide for site owners | [docs/guide](guide/README.md) |
+| 0.2.2 | Field types (decimal, date, e-mail, web address, choice, formatted text), queryable own fields | `config/blueprints.php` |
+| 0.2.3, 0.2.4 | Blueprints made, changed and deleted in the admin | System → Blueprints |
+| 0.2.5 | Lists made in the admin, at a path of their own and in templates (`list()`) | System → Lists |
+| 0.2.6 | The content model's export and import | System → Content model; `model:export`, `model:import` |
+| 0.2.7 | Search (`/search`, a field in the header), redirects, the editor's image picker | System → Redirects; `search:index` |
+| 0.2.8 | The admin's lists with own columns, sorting and filters | the Blueprint editor; `admin_columns` |
+| 0.2.9 | Visitors' filters on the lists | the list editor |
+
+A new setting: `paths.search` (0.2.7, default `/search`), the search page's
+address, like the other `paths`.
+
+## What behaves differently
+
+- **The search's page is at `/search`** (0.2.7). If an object of your site
+  had that path, the search answers there now: give the search another
+  address (`'paths' => ['search' => '/kereses']`) or the object another path.
+  `robots.txt` lists the search's page as not to crawl.
+- **A changed path leads on** (0.2.7): when an object's path changes, its old
+  path redirects (301) to the new one. System → Redirects lists them, and can
+  delete them.
+- **The articles' list in the admin shows their categories**, with a filter
+  (0.2.8, `config/blueprints.php`).
+- **The search is limited to 30 searches a minute per network** (0.3.0), then
+  answers 429 for the rest of the minute.
+- **The content model's import is stricter** (0.3.0): a choice's key must
+  follow the editor's pattern, and a relation cannot point to users or the
+  forms' messages. What the editor made always did.
+
+## Themes and custom code
+
+Only if your site has a theme of its own (`themes/`), changed core files, or
+PHP code that uses Campanella's classes.
+
+- **The base layout's header has a search field** (0.2.7). A theme's own
+  `base.html.twig` can add one: a form to `{{ path('search') }}` with a `q`
+  field.
+- **New templates** a theme can override: `page/search.html.twig` (0.2.7),
+  `list/teaser.html.twig`, `list/table.html.twig`, `list/_pager.html.twig`
+  (0.2.5), `list/_filters.html.twig` (0.2.9). A theme's own `list/*` template
+  should include `list/_filters.html.twig` to offer a list's filters, and its
+  pager should keep `filter_query`.
+- **`Admin\ListColumns`** (0.2.8, Internal) takes a `FieldFilters` since 0.2.9.
+- For anything else, the **Changed** sections of 0.2.1–0.2.9 in the
+  [CHANGELOG](../CHANGELOG.md) list every change of the
+  [PHP API](php-api/README.md).
+
+## From 0.1.x
+
+From 0.1.0 to 0.1.5, the upgrade to 0.3.0 also runs everything 0.2.0 brought.
+The tables of schema 7 to 12:
 
 | Schema | Version | Change |
 |---|---|---|
@@ -96,9 +167,14 @@ migration that fills a new table.
 | 11 | 0.1.4 | `password_resets` table |
 | 12 | 0.1.5 | `cap_submitted` table: the contact form's messages |
 
-With a table prefix, every name starts with it (`cc_settings`, …).
+After the upgrade, **make the smaller copies of the images** (new in 0.1.2),
+from 0.1.0 or 0.1.1: the System page (*Images → Smaller copies*, and press the
+button again while some are left), or `php bin/campanella media:variants`.
+Until then the old images are shown in full size, as before. Then set up what
+is new below; at the least the site's address under *Site settings*, e-mail in
+`config/local.php`, and the privacy notice for the contact form.
 
-## New settings
+### New settings since 0.1.x
 
 All of them are optional. Without them the site works as before, and the
 System page warns about what is missing. They go into `config/local.php`
@@ -110,7 +186,7 @@ unless noted.
 | `mail.dsn`, `mail.from` | 0.1.3 | empty: nothing is sent | E-mail. Needed for the forgotten password and the contact form's notifications. Test it from the System page. See [Deployment: E-mail](deployment.md#e-mail). |
 | `mail.from_name`, `mail.log_days`, `mail.timeout` | 0.1.3 | the site's name, 90, 10 | The sender's name, how long the mail log keeps entries, how long to wait for the server |
 | `events` | 0.1.3 | `[]` | Actions bound to events, e.g. an e-mail to the administrators when something is published |
-| `paths` | 0.1.4 | `/login`, `/logout`, `/password-reset`, `/contact` | The addresses of the system's pages; see [below](#what-behaves-differently) |
+| `paths` | 0.1.4 | `/login`, `/logout`, `/password-reset`, `/contact` | The addresses of the system's pages; see [below](#what-behaves-differently-since-01x) |
 | `session.absolute_timeout` | 0.1.4 | 43200 (12 hours) | A login ends this long after it started, however active |
 | `auth.password_reset_minutes` | 0.1.4 | 60 | How long the forgotten password's link is valid |
 | `contact.enabled` | 0.1.5 | `true` | The contact form at `/contact` (`false`: 404, and `contact_form()` shows nothing) |
@@ -124,7 +200,7 @@ On a quiet site, run the deletion of old messages from cron, e.g. daily:
 `php bin/campanella submissions:prune`. Otherwise old messages are deleted
 when a new one arrives or an administrator opens the dashboard.
 
-## What behaves differently
+### What behaves differently since 0.1.x
 
 - **Logging in moved to `/login`, logging out to `/logout`** (0.1.4); they
   were `/belepes` and `/kilepes`. The login page's return parameter is
@@ -163,7 +239,7 @@ when a new one arrives or an administrator opens the dashboard.
   /48, e.g. an office, share its 20 login attempts in 15 minutes; raise
   `auth.max_attempts_per_ip` if they need more.
 
-## Themes and custom code
+### Themes and custom code since 0.1.x
 
 Only if your site has a theme of its own (`themes/`), changed core files, or
 PHP code that uses Campanella's classes.
@@ -217,18 +293,18 @@ in the [CHANGELOG](../CHANGELOG.md) list every change of the
 
 ## Checklist after the upgrade
 
-- [ ] The System page shows 0.2.0, no error, and the tables match the
-      definitions.
-- [ ] The front page, an article with an image, and a 404 page look right.
-- [ ] Logging in and out work, at the new address or at the one you kept.
-- [ ] *Site settings*: the address (with `https://`), the name and the
-      privacy notice are set.
-- [ ] E-mail: the System page's test e-mail arrives. Log out, use
-      *Forgot your password?*, and the link arrives.
-- [ ] The contact form: send a test message. It shows under *Submissions*,
-      and the e-mail about it arrives. Or the form is turned off.
-- [ ] The images have their smaller copies (the System page says none are
-      missing).
+- [ ] The System page shows 0.3.0, no error, the tables match the
+      definitions, and no page is missing from the search.
+- [ ] The front page, an article with an image, a list, the search
+      (`/search?q=…`) and a 404 page look right.
+- [ ] Logging in and out work.
+- [ ] The Blueprints and lists made in the admin (if any) are under System,
+      and their pages work.
+- [ ] A changed path leads on: change a test page's path, open the old one.
+- [ ] *Site settings*: the address (with `https://`) is set; e-mail: the
+      System page's test e-mail arrives.
+- [ ] From 0.1.x: the images have their smaller copies; the contact form
+      works or is turned off.
 - [ ] Cron: `db:backup`, and `submissions:prune` on a quiet site.
 - [ ] `upgrade.key` is not set any more.
 - [ ] The [Deployment checklist](deployment.md#checklist-before-going-live)
@@ -252,8 +328,8 @@ to your old version:
    gunzip -c var/backups/campanella-20261011-101500-a1b2c3.sql.gz | mysql -u campanella -p campanella
    ```
 
-   Or use phpMyAdmin → Import. The tables added by the upgrade (the list
-   [above](#what-the-upgrade-changes-in-the-database)) are not in the backup
+   Or use phpMyAdmin → Import. The tables added by the upgrade (the lists
+   [above](#what-the-upgrade-changes-in-the-database) and [from 0.1.x](#from-01x)) are not in the backup
    and stay. The old version does not use them, and its `schema:check` lists
    them as tables without a definition. Dropping them is cleaner (the
    `sessions` table, for one, would hold logins from after the upgrade); a
