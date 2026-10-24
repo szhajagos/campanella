@@ -484,7 +484,9 @@ def test_admin_pages(browser):
     page.goto(BASE + "/admin/article/new")
     page.click(".jodit-toolbar-button_campanellaImages button")
     page.wait_for_selector(".campanella-picker", timeout=5000)
-    page.wait_for_function("document.querySelector('.campanella-picker__status').textContent !== '' || document.querySelector('.campanella-picker__item') !== null", timeout=5000)
+    # A locator, not wait_for_function(): that evaluates a string, which the admin's
+    # Content-Security-Policy (no 'unsafe-eval') refuses in some Chromium versions.
+    page.locator(".campanella-picker__item, .campanella-picker__status:not(:empty)").first.wait_for(timeout=5000)
     check(page.locator(".campanella-picker__item").count() > 0 or "Nincs" in page.locator(".campanella-picker__status").inner_text(),
           "the image picker: neither images nor 'none': %s" % page.locator(".campanella-picker__status").inner_text())
 
