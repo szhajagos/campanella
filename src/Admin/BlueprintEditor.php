@@ -352,7 +352,7 @@ final class BlueprintEditor
                     continue;
                 }
                 [$key, $label] = str_contains($line, '|') ? array_map(trim(...), explode('|', $line, 2)) : [str_replace('-', '_', Slugger::slugify(trim($line))), trim($line)];
-                if (preg_match('/^[A-Za-z0-9_.-]{1,64}$/', $key) !== 1 || $label === '' || isset($choices[$key])) {
+                if (preg_match(BlueprintDefinition::CHOICE_KEY, $key) !== 1 || $label === '' || isset($choices[$key])) {
                     $errors['choices'] = new Message('blueprints.invalid_choices');
                     break;
                 }

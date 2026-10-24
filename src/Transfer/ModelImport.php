@@ -110,6 +110,17 @@ final class ModelImport
         foreach ($save as $name => $definition) {
             if (isset($next->storedErrors()[$name])) {
                 $items['blueprint:' . $name] = self::failed($items['blueprint:' . $name], new Message('transfer.error.invalid', ['reason' => $next->storedErrors()[$name]]));
+                continue;
+            }
+            // A relation's targets as in the editor (since 0.3.0): Blueprints there are, not users or forms' messages.
+            foreach ($next->get($name)->relations as $relation) {
+                foreach ($relation->targetBlueprints as $target) {
+                    $targetBlueprint = $next->find($target);
+                    if ($targetBlueprint === null || isset($targetBlueprint->capabilities['authenticatable']) || isset($targetBlueprint->capabilities['submitted'])) {
+                        $items['blueprint:' . $name] = self::failed($items['blueprint:' . $name], new Message('transfer.error.relation_target', ['relation' => $relation->name, 'target' => $target]));
+                        continue 3;
+                    }
+                }
             }
         }
 

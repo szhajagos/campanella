@@ -10,6 +10,20 @@ backward-incompatible.
 
 ## [Unreleased]
 
+Work towards 0.3.0, the third milestone, in parts.
+
+### Security
+
+- The [security review for 0.3.0](docs/security.md#security-review-for-030-2026-10-24)
+  of 0.2.2–0.2.9. No critical or high issue; fixed:
+  - the search is limited to 30 searches a minute per network (then 429);
+  - an imported Blueprint's choice keys follow the editor's pattern (at most
+    200 choices), and its relations cannot point to users, forms' messages or
+    a Blueprint the site does not have;
+  - a redirect's `Location` header is ASCII (accented letters percent-encoded);
+  - a page number too large for the search or the redirects' list is an empty
+    page or a 404, not an error.
+
 ## [0.2.9] – 2026-10-24
 
 **Visitors' filters on the lists.** The eighth and last step before the 0.3.0

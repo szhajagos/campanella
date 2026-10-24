@@ -73,7 +73,10 @@ foreach ($result->items as ['object' => $object, 'excerpt' => $excerpt]) { … }
 (a theme can override it; it gets `query`, `result`: a `SearchResult` or null
 without a query, `too_short`, `min_word`, `path`). A page beyond the last is
 404. The page sends `<meta name="robots" content="noindex">`, and `robots.txt`
-lists it as not to crawl.
+lists it as not to crawl. Since 0.3.0 at most `SearchController::MAX_SEARCHES`
+(30) searches a minute come from one network (the client's address counted
+as for the login, `AuthService::clientKey()`), then 429 with `Retry-After`
+and a message (`too_many` in the template).
 
 ## Building the index: SearchIndexer
 

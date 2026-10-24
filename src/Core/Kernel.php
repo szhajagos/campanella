@@ -329,8 +329,10 @@ final class Kernel
             return null;
         }
         $query = $request->query === [] ? '' : '?' . http_build_query($request->query);
+        // The header carries only ASCII (since 0.3.0): a path's other characters percent-encoded.
+        $location = (string) preg_replace_callback('/[^\x21-\x7e]/', static fn (array $m): string => rawurlencode($m[0]), $request->basePath . $target);
 
-        return Response::redirect($request->basePath . $target . $query, 301);
+        return Response::redirect($location . $query, 301);
     }
 
     /** The handlers that work while an upgrade is needed. */
@@ -948,6 +950,7 @@ final class Kernel
             $c->get(Search::class),
             $c->get(Presentation::class),
             $c->get(Translator::class),
+            $c->get(Throttle::class),
         ));
 
         $c->set('controller.contact', static fn (Container $c): Controller => new ContactController(

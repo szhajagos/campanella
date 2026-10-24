@@ -74,8 +74,9 @@ final class Search
 
     public function find(string $query, Actor $actor, int $page = 1, int $perPage = 10): SearchResult
     {
-        $page = max(1, $page);
         $perPage = max(1, min(50, $perPage));
+        // An absurdly large page number is an empty page, not an overflow (since 0.3.0).
+        $page = min(max(1, $page), intdiv(self::MAX_RESULTS, $perPage) + 2);
         $words = self::words($query);
         if ($words === [] || !(new SchemaReader($this->db))->tableExists(CoreSchema::SEARCH_INDEX)) {
             return new SearchResult($query, $words, [], 0, $page, $perPage);

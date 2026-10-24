@@ -56,6 +56,12 @@ final class BlueprintDefinition
     /** The longest label. */
     public const int MAX_LABEL = 100;
 
+    /** A choice's key (since 0.3.0 checked here too; the editor's pattern since 0.2.3). */
+    public const string CHOICE_KEY = '/^[A-Za-z0-9_.-]{1,64}$/';
+
+    /** The most choices of a field (since 0.3.0). */
+    public const int MAX_CHOICES = 200;
+
     /** The most own fields and relations of a Blueprint made in the admin. */
     public const int MAX_FIELDS = 60;
 
@@ -161,8 +167,16 @@ final class BlueprintDefinition
                 $key = $choice['key'];
                 $choice = $choice['label'] ?? null;
             }
+            // The key is stored and goes into addresses: the editor's pattern (checked here too
+            // since 0.3.0, for an imported file).
+            if (preg_match(self::CHOICE_KEY, (string) $key) !== 1) {
+                throw new InvalidArgumentException("Field {$name}: a choice's key is 1 to 64 letters, digits, '_', '.' or '-': " . json_encode($key));
+            }
             if (array_key_exists((string) $key, $choices)) {
                 throw new InvalidArgumentException("Field {$name}: the choice '{$key}' is given twice.");
+            }
+            if (count($choices) >= self::MAX_CHOICES) {
+                throw new InvalidArgumentException(sprintf('Field %s: at most %d choices.', $name, self::MAX_CHOICES));
             }
             $choices[(string) $key] = self::label($choice);
         }

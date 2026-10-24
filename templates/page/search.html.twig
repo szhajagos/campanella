@@ -12,7 +12,9 @@
         </div>
     </form>
 
-    {% if too_short %}
+    {% if too_many ?? false %}
+        <div class="alert alert-warning" role="alert">{{ t('search.too_many') }}</div>
+    {% elseif too_short %}
         <p class="text-body-secondary">{{ t('search.too_short', {min: min_word}) }}</p>
     {% elseif result is not null %}
         {% if result.total == 0 %}

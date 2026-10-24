@@ -7304,6 +7304,98 @@ test('Kernel: a list\'s filters for visitors: the form, the results, the pages, 
     putenv('CAMPANELLA_DB_PREFIX');
 });
 
+echo "\nSecurity review (0.3.0)\n";
+
+test('Review (0.3.0): the search is throttled, takes no operators; redirects send ASCII; imported choices and targets are checked', function () use ($newUser): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = null;
+    $storage = new ArraySessionStorage();
+    $boot = static function () use (&$kernel, $storage) {
+        $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+        $kernel->container()->set(Session::class, static fn () => new Session($storage));
+
+        return $kernel->container();
+    };
+    $container = $boot();
+    if ($container->get(Connection::class)->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $db = $container->get(Connection::class);
+    $get = function (string $path, array $query = [], string $ip = '198.51.100.7') use (&$kernel, $storage, $boot) {
+        $storage->endRequest();
+        $boot();
+
+        return $kernel->handle(new Request('GET', $path, $query, ip: $ip));
+    };
+
+    // The search: operators and odd input never reach the database as such; a flood is throttled.
+    foreach (['+alma -körte "x y" @3 ~z <a> (b) *', str_repeat('á', 500), "\0\x01", '%_\\'] as $q) {
+        check($get('/search', ['q' => $q])->status === 200, 'odd input: ' . json_encode(mb_substr($q, 0, 20)));
+    }
+    $db->execute('DELETE FROM {throttle}');
+    $statuses = [];
+    for ($i = 0; $i < \Campanella\Controller\SearchController::MAX_SEARCHES + 1; $i++) {
+        $statuses[] = $get('/search', ['q' => 'alma' . $i], '203.0.113.50')->status;
+    }
+    $last = $get('/search', ['q' => 'alma'], '203.0.113.50');
+    check(count(array_filter($statuses, static fn (int $s): bool => $s === 200)) === \Campanella\Controller\SearchController::MAX_SEARCHES && $last->status === 429 && (int) ($last->headers['Retry-After'] ?? 0) > 0 && str_contains($last->body, 'Túl sok keresés'), json_encode(array_count_values($statuses)));
+    check($get('/search', ['q' => 'alma'], '192.0.2.99')->status === 200 && $get('/search', [], '203.0.113.50')->status === 200, 'another network, and the empty form, are not affected');
+    check($get('/search', ['q' => 'alma', 'page' => '99999999999999999999'])->status === 404, 'a page number too large: 404, not an overflow');
+    $db->execute('DELETE FROM {throttle}');
+
+    // Redirects: the Location header is ASCII; nothing leaves the site.
+    $repository = $container->get(ObjectRepository::class);
+    $page = $repository->create('article', ['title' => 'Ékezetes út', 'path' => '/regi-ekezetes', 'status' => PublishStatus::Published, 'published_at' => new DateTimeImmutable('-1 hour')]);
+    $repository->save($page);
+    $page->set('path', '/új-út');
+    $repository->save($page);
+    $moved = $get('/regi-ekezetes');
+    check($moved->status === 301 && ($moved->headers['Location'] ?? '') === '/%C3%BAj-%C3%BAt', (string) ($moved->headers['Location'] ?? ''));
+    $redirects = $container->get(\Campanella\Site\Redirects::class);
+    $redirects->add('/kezzel-0300', '/a%0d%0aSet-Cookie:x=1');
+    check(($get('/kezzel-0300')->headers['Location'] ?? '') === '/a%0d%0aSet-Cookie:x=1', 'percent signs stay as they are: no header is split');
+    check(array_slice($redirects->page(PHP_INT_MAX, 50)['items'], 0, 1) === [], 'the admin\'s pages too');
+    $repository->delete($page);
+    $db->execute('DELETE FROM {redirects}');
+
+    // The content model's import: choice keys as in the editor, relations not to users or messages.
+    $import = $container->get(\Campanella\Transfer\ModelImport::class);
+    $choice = static fn (string $key): array => ['label' => 'Próba', 'capabilities' => ['titled'], 'fields' => [['name' => 'fajta', 'type' => 'choice', 'label' => 'Fajta', 'choices' => [['key' => $key, 'label' => 'X']]]]];
+    $error = static function ($plan, string $name): ?string {
+        foreach ($plan->items as $item) {
+            if ($item->name === $name) {
+                return $item->error?->key;
+            }
+        }
+
+        return null;
+    };
+    check($error($import->plan(['blueprints' => ['proba_0300' => $choice('<script>')], 'lists' => []]), 'proba_0300') === 'transfer.error.invalid', 'a choice key out of the pattern');
+    check($error($import->plan(['blueprints' => ['proba_0300' => $choice(str_repeat('a', 65))], 'lists' => []]), 'proba_0300') === 'transfer.error.invalid', 'a choice key too long');
+    check($error($import->plan(['blueprints' => ['proba_0300' => $choice('jo.kulcs-1_A')], 'lists' => []]), 'proba_0300') === null, 'a good key');
+    $many = ['label' => 'Sok', 'capabilities' => ['titled'], 'fields' => [['name' => 'fajta', 'type' => 'choice', 'label' => 'F', 'choices' => array_map(static fn (int $i): array => ['key' => 'k' . $i, 'label' => 'L' . $i], range(1, \Campanella\Model\BlueprintDefinition::MAX_CHOICES + 1))]]];
+    check($error($import->plan(['blueprints' => ['proba_0300' => $many], 'lists' => []]), 'proba_0300') === 'transfer.error.invalid', 'too many choices');
+    foreach (['user', 'submission', 'nincs_ilyen'] as $target) {
+        $definition = ['label' => 'Kapcsolat', 'capabilities' => ['titled'], 'relations' => [['name' => 'kinek', 'label' => 'Kinek', 'targets' => [$target]]]];
+        check($error($import->plan(['blueprints' => ['proba_0300' => $definition], 'lists' => []]), 'proba_0300') === 'transfer.error.relation_target', 'a relation to ' . $target);
+    }
+    check($error($import->plan(['blueprints' => ['proba_0300' => ['label' => 'K', 'capabilities' => ['titled'], 'relations' => [['name' => 'kat', 'label' => 'Kat', 'targets' => ['category']]]]], 'lists' => []]), 'proba_0300') === null, 'a relation to categories');
+
+    // A list's filters: an unpublished target is neither offered nor taken.
+    $hidden = $repository->create('category', ['title' => 'Rejtett kategória-0300', 'path' => '/rejtett-kategoria-0300']);
+    $repository->save($hidden);
+    $filters = new \Campanella\Query\FieldFilters($container->get(\Campanella\Query\QueryEngine::class), new DateTimeZone('UTC'));
+    $relation = $container->get(BlueprintRegistry::class)->get('article')->relations['categories'];
+    [, $values, $options] = $filters->apply(\Campanella\Query\Query::objects()->blueprint('article'), [$relation], ['categories' => (string) $hidden->id()], Actor::anonymous());
+    check($values === [] && !in_array((string) $hidden->id(), array_column($options['categories'] ?? [], 'value'), true), 'not for a visitor');
+    [, $values] = $filters->apply(\Campanella\Query\Query::objects()->blueprint('article'), [$relation], ['categories' => ['x' => ['y' => 1]]], Actor::anonymous());
+    check($values === [], 'an array where a value is expected');
+    $repository->delete($hidden);
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
 echo "\nDocumentation examples\n";
 
 test('New capability as in the docs example (Featured)', function () use ($db, $admin): void {

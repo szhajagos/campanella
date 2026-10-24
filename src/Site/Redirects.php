@@ -99,7 +99,7 @@ final class Redirects
             . ($titles ? ', t.title' : ', NULL AS title')
             . ' FROM {redirects} r LEFT JOIN {cap_routable} p ON p.object_id = r.object_id'
             . ($titles ? ' LEFT JOIN {cap_titled} t ON t.object_id = r.object_id' : '')
-            . ' ORDER BY r.id DESC LIMIT ' . max(1, $perPage) . ' OFFSET ' . max(0, ($page - 1) * $perPage),
+            . ' ORDER BY r.id DESC LIMIT ' . max(1, $perPage) . ' OFFSET ' . (min(max(1, $page), intdiv(PHP_INT_MAX, max(1, $perPage))) - 1) * max(1, $perPage),
         );
         $items = array_map(static fn (array $r): array => [
             'id' => (int) $r['id'],

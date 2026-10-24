@@ -428,6 +428,7 @@ takes. The same form will be the content model's export (0.2.6):
 | `static adminColumns(mixed $columns, array $names): array` | The columns of its list in the admin (since 0.2.8): those of the given own fields and relations, each once, at most 4; a name that is no longer one (a field deleted since) is left out, so the Blueprint still loads |
 | `SYSTEM_CAPABILITIES` | The capabilities such a Blueprint cannot have: `identifiable`, `authenticatable`, `media_file`, `submitted`, `keyed`, `link` |
 | `REQUIRED_CAPABILITY`, `MAX_LABEL`, `MAX_FIELDS`, `VERSION` | `titled`; 100 characters; 60 fields and relations; 1 |
+| `CHOICE_KEY`, `MAX_CHOICES` | A choice's key: 1–64 letters, digits, `_ . -` (since 0.3.0 checked for every stored definition, as the editor always did); at most 200 choices |
 
 The choices are a list of key–label pairs, not a JSON object: MySQL stores an
 object with its keys sorted, so their order would be lost.

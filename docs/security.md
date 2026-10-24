@@ -58,6 +58,21 @@ CHANGELOG's **Security** section names it.
   error messages have the password masked); the test e-mail goes only to the
   logged-in administrator's own address, at most 5 in 15 minutes; addresses
   and headers are checked by symfony/mailer; the log never keeps the text.
+- **The content model** (since 0.2.3): Blueprints, fields and lists are made
+  only by the system roles; a machine name has a strict pattern before it
+  becomes a table or a column name, and every one is quoted; the schema
+  changes only after the whole model is checked again, with a backup first
+  when data is touched; an imported file is checked like the editors' input
+  (since 0.3.0 its choice keys and relation targets too), carries no object
+  IDs, and is applied only as planned.
+- **Search, lists and filters** (since 0.2.5): only what is published, for
+  everyone; a visitor's filter only on the fields the list offers, each value
+  checked by its type, a relation's only among the targets the visitor may
+  see; the search's words are letters and digits only (no operators), at
+  most 8, and 30 searches a minute per network (since 0.3.0).
+- **Redirects** (since 0.2.7): only to a path of the same site, made by the
+  system roles or by a page's change of path; never in the admin; loops lead
+  nowhere; the header carries only ASCII (since 0.3.0).
 - **Dependencies:** only MIT-compatible ones; `composer audit` runs in CI on
   every push.
 - **Tests of the protections** (since 0.2.0): besides the PHP tests, the
@@ -65,6 +80,64 @@ CHANGELOG's **Security** section names it.
   login's answers and limits, the session cookie, the sessions, the forgotten
   password, the contact form, the Content-Security-Policy, the administrators'
   pages): see [Testing](testing.md#the-browser-tests).
+
+## Security review for 0.3.0 (2026-10-24)
+
+A review of what 0.2.2–0.2.9 added: the Blueprints and fields made in the
+admin, the changes of the schema, the lists and the visitors' filters, the
+content model's export and import, the search, the redirects, the admin's own
+columns and the editor's image picker, and where they meet the existing
+protections (access, CSRF, the Content-Security-Policy, the HTML filter). Each
+area was read and then attacked by tests (`tests/run.php`, "Security review
+(0.3.0)", besides the tests of each release). No critical or high issue was
+found. Fixed:
+
+| Severity | Issue | Fix |
+|---|---|---|
+| Low | The search had no limit: anyone could send query after query, the one page where a visitor's input starts a search of the whole site | At most 30 searches a minute per network (as the login counts addresses), then 429 with `Retry-After` |
+| Low | An imported Blueprint's choice keys were not held to the editor's pattern: a key of any characters and length was stored (always escaped where shown, but it could exceed its column or break an address) | The pattern (1–64 letters, digits, `_ . -`) and at most 200 choices, checked for every stored definition |
+| Low | An imported Blueprint's relation could point to users or the forms' messages (the editor never offers them; the messages stayed hidden by the policy), or to a Blueprint the site does not have | Refused by the import, as by the editor |
+| Low | A redirect to a path with accented letters put them into the `Location` header as they are (browsers read it, but a header is ASCII) | Percent-encoded |
+| Low | An absurdly large page number of the search, or of the redirects' list, ended in an error (500) instead of an empty page | 404 / an empty page, as the other lists already did |
+
+Checked and found sound, among others:
+
+- **Names that become SQL:** a Blueprint's and a field's machine names
+  (`^[a-z][a-z0-9_]{0,39}$`, the reserved ones refused, a capability's names
+  refused) are the only parts of a table or column name, and every identifier
+  is quoted; values always go as parameters. A list's conditions, sort orders
+  and columns, the admin's columns and filters, and the visitors' filters
+  take only names the Blueprint has, checked again whenever they are loaded.
+- **Nothing unpublished through a list:** the list's own conditions, its
+  `published` scope, the visitor's filters and the Query engine's access
+  conditions all apply together; a relation's filter offers only the targets
+  the visitor may see and takes no other value, so it cannot tell whether a
+  hidden object has links. The search filters by the publication status in
+  the database and loads the page's objects through the Query engine again.
+- **The content model's import:** at most 1 MB and 16 levels of JSON; every
+  item through the same checks as the editors'; no object IDs (a list's
+  relations name their objects); all or nothing; the fingerprint stops a
+  confirmation of a plan the site has changed since; the uploaded file is
+  never stored; a backup first when objects are affected.
+- **The schema's changes:** only through the SchemaSync, after the whole model
+  is defined again; a blocked step stops the change; a failure puts back the
+  previous definition; never while an upgrade is pending.
+- **Redirects:** a manual one only from a path no page has to a path of the
+  site (`//`, `\`, white space, `?` and `#` refused), an automatic one only
+  from an object's own old path; never in the admin; at most 5 in a row, a
+  loop is a 404.
+- **The admin's new pages and endpoints:** the system roles only (System),
+  the admin's users only (the image picker, which answers an expired session
+  in JSON); a CSRF token on every POST; the Content-Security-Policy without
+  `unsafe-eval` (the browser tests caught a test of ours that needed it); the
+  image picker builds its dialog from the answer with DOM methods, never HTML.
+- **Output:** every new template escapes; a choice's label, a field's label
+  and a list's title go through Twig's escaping; formatted fields pass the HTML
+  filter on save, also own fields of the `html` type; a web address field
+  links only `http(s)` addresses.
+- **Dependencies:** unchanged since the review of 0.2.0 (Twig 3.30.0,
+  symfony/mailer and symfony/mime 7.4.19, symfony/html-sanitizer 7.4.20,
+  Bootstrap 5.3.8, Jodit 4.17.1); `composer audit` passes in CI.
 
 ## Security review for 0.2.0 (2026-10-11)
 
