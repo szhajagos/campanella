@@ -116,7 +116,7 @@ objects too; a removed one keeps their data.
 | **0.2.7** ✔ | Released 2026-10-24. Search with the database's FULLTEXT index (`/search`, accents folded), redirects (an automatic 301 when a path changes, and System → Redirects), an image picker in the editor. |
 | **0.2.8** ✔ | Released 2026-10-24. **The admin's object list with the own fields** (see below): chosen fields as columns, sortable, with filters by type above the list. |
 | **0.2.9** ✔ | Released 2026-10-24. **Visitors' filters** on a list (see below), e.g. a choice to pick the kind of event, or a date range. |
-| **0.3.0** | The milestone: a security review, the upgrade test, a chapter of the guide on one's own content types, the compatibility promise for 0.3.x. |
+| **0.3.0** | The milestone (see below, agreed 2026-10-24): a security review, upgrade tests from 0.2.0 and 0.2.9, a chapter of the guide on one's own content types, sample content with a Blueprint of its own, a performance check, the compatibility promise for 0.3.x. |
 | **0.3.1** | **Importers, step 1** (see below): importing objects from an uploaded CSV or JSON file, with a mapping, a unique key, a trial run, a log and undoing a run; and the admin's list exported as CSV. Decided 2026-10-23. |
 
 **Lists (0.2.5, agreed 2026-10-15).** System → Lists. A list has a name, a
@@ -158,6 +158,40 @@ list (`list/_filters.html.twig`, a theme can override it): the same filters by
 type, checked the same way, added to the list's own conditions (what is not
 published stays hidden). Paging keeps them; a filtered page is `noindex`, its
 canonical address the list's own.
+
+**The 0.3.0 milestone (agreed 2026-10-24).** No new feature: what 0.2.2–0.2.9
+built, checked, documented and promised for the longer term. Nothing was
+marked Deprecated in 0.2.x, so 0.3.0 breaks nothing. In parts:
+
+1. **A security review** of 0.2.2–0.2.9 (`docs/security.md`), fixes with
+   tests: the Blueprint editor (names that become tables and columns), the
+   content model's import (an untrusted file), the lists and their filters
+   (what reaches a query; nothing unpublished through any filter; the targets
+   a relation's filter shows), the search (its words, its load: throttled by
+   address if the review finds it needed), the redirects (only within the
+   site, loops, normalised paths), the image picker's JSON, and CSRF, the CSP
+   and error messages on every new page.
+2. **Upgrade tests from 0.2.0 and from 0.2.9** besides those from 0.1.0 and
+   0.1.5, the latter with a content model (a Blueprint made in the admin with
+   queryable and multi-valued fields, a list with conditions and filters,
+   redirects, the search's index) that must survive and keep working; the
+   upgrade guide rewritten for 0.3.0 (from any 0.2.x or 0.1.x).
+3. **A performance check** (`tests/performance/`): 10 000 objects of a
+   Blueprint with own fields; a list's page with filters, the admin's list
+   with its columns and filters, and the search answer within set limits,
+   measured on MariaDB and MySQL (the full measurement stays for 1.0).
+4. **The guide: one chapter on one's own content types** (Hungarian and
+   English, with screenshots): an events calendar built step by step (a
+   Blueprint and its fields, changing them, the admin's columns, a list of the
+   upcoming events with filters, a path and a menu item, carrying it to
+   another site); the search and the redirects in the existing chapters.
+   **Sample content** (`seed`) gets an events Blueprint with a list and
+   filters (in Hungarian, like the rest of it until 0.4.0).
+5. **The compatibility promise for 0.3.x** (`docs/compatibility.md`), now also
+   covering the stored forms of Blueprints and lists, the content model's
+   file (format 1), the addresses `/search` and `?f[…]`, the new Public
+   classes and commands; **0.2.x gets security fixes until 0.4.0 is out**. The
+   CHANGELOG's milestone entry, the release.
 
 **Importers (agreed 2026-10-23)**, like Drupal's Feeds. System → Importers.
 An importer is stored as a JSON definition in an `importers` table: its
