@@ -112,9 +112,10 @@ objects too; a removed one keeps their data.
 | **0.2.5** ✔ | Released 2026-10-15. **Lists** made in the admin (see below): conditions on queryable fields and relations with today and now, an order, paging, short cards or a table, a path, `list()` in templates. |
 | **0.2.6** ✔ | Released 2026-10-23. Exporting and importing the content model as a file (System → Content model, `model:export`, `model:import`); an import first lists what it would change, follows the editors' rules and never deletes. |
 | **0.2.7** ✔ | Released 2026-10-24. Search with the database's FULLTEXT index (`/search`, accents folded), redirects (an automatic 301 when a path changes, and System → Redirects), an image picker in the editor. |
-| **0.3.x** | **Visitors' filters** on a list (e.g. a choice to pick the kind of event), and **the admin's object list with the own fields**: chosen fields as columns, sortable, with filters by type above the list (an `admin_columns` key for the Blueprints of the file). Both decided 2026-10-15 to come after 0.2.5. |
-| **0.3.x** | **Importers, step 1** (see below): importing objects from an uploaded CSV or JSON file, with a mapping, a unique key, a trial run, a log and undoing a run. Decided 2026-10-23. |
+| **0.2.8** | **The admin's object list with the own fields** (see below): chosen fields as columns, sortable, with filters by type above the list. |
+| **0.2.9** | **Visitors' filters** on a list (see below), e.g. a choice to pick the kind of event, or a date range. |
 | **0.3.0** | The milestone: a security review, the upgrade test, a chapter of the guide on one's own content types, the compatibility promise for 0.3.x. |
+| **0.3.1** | **Importers, step 1** (see below): importing objects from an uploaded CSV or JSON file, with a mapping, a unique key, a trial run, a log and undoing a run; and the admin's list exported as CSV. Decided 2026-10-23. |
 
 **Lists (0.2.5, agreed 2026-10-15).** System → Lists. A list has a name, a
 machine name and a title; the Blueprint whose objects it shows; conditions
@@ -130,8 +131,31 @@ Conditions only on queryable fields: they have columns and indexes, so a list
 stays fast however many objects there are. Access is unchanged: the Query
 engine adds the visitor's limits to every list. Stored as JSON definitions in
 a `lists` table, like the Blueprints; the content model's export (0.2.6)
-carries them too. Not in 0.2.5: visitors' filters, and the admin's object
-list with the own fields (both 0.3.x).
+carries them too. Not in 0.2.5: visitors' filters (0.2.9), and the admin's
+object list with the own fields (0.2.8).
+
+**The admin's object list with the own fields (0.2.8, agreed 2026-10-24).**
+At most 4 of a Blueprint's own fields as columns of its list in the admin,
+the same for every user: chosen in the Blueprint editor for a Blueprint made
+in the admin (and carried by the content model's export), with an
+`admin_columns` key in `config/blueprints.php`. Any field can be a column (the
+objects are loaded anyway), shown as on the site; a queryable single-valued
+one is sortable by its header. The queryable columns get filters above the
+list by their type: a choice (a dropdown), yes/no, a date or a moment (from,
+to), a number (at least, at most); a relation's column offers its targets (at
+most 200). Filters come with the columns automatically, the simplest for now;
+choosing them apart from the columns (e.g. an `admin_filters` key) can be
+added later without changing what exists. They work with the title search
+and the status filter, in the address (`?f[fajta]=seta`); a value that is not
+valid for its field is ignored. Not in 0.2.8: the list as CSV (0.3.1, with
+the importers).
+
+**Visitors' filters (0.2.9, agreed 2026-10-24).** A list made in the admin
+offers the visitor filters on chosen queryable fields, as a form above the
+list (`list/_filters.html.twig`, a theme can override it): the same filters by
+type, checked the same way, added to the list's own conditions (what is not
+published stays hidden). Paging keeps them; a filtered page is `noindex`, its
+canonical address the list's own.
 
 **Importers (agreed 2026-10-23)**, like Drupal's Feeds. System → Importers.
 An importer is stored as a JSON definition in an `importers` table: its
@@ -156,9 +180,10 @@ on a schedule only from cron (`import:cron`), **never started by a visitor's
 request** (it would slow down their page). Only the system roles set up
 importers.
 
-1. **Step 1, 0.3.x:** an uploaded CSV (with a header row, `;` or `,`, UTF-8)
+1. **Step 1, 0.3.1:** an uploaded CSV (with a header row, `;` or `,`, UTF-8)
    or JSON file (with a path to its items); at most a few MB in the browser,
-   larger ones from the command line. No XML yet.
+   larger ones from the command line. No XML yet. With it, the admin's list
+   exported as CSV (decided 2026-10-24), in the same format.
 2. **Step 2, 0.5.0, as the first official module:** sources at a web address
    (CSV, JSON, RSS and Atom), fetched safely (only `https://` by default, no
    internal addresses after resolving the name, redirects checked again, time
@@ -278,7 +303,7 @@ importers.
   a parent.
 - **E-mail: symfony/mailer** (2026-10-09), MIT licensed; SMTP or PHP's
   `mail()`.
-- **Search: the database's FULLTEXT index** (2026-10-09), in 0.3.x; a more
+- **Search: the database's FULLTEXT index** (2026-10-09), done in 0.2.7; a more
   sophisticated search engine only later, if needed.
 - **The road to 1.0** (2026-10-13): the content model in the admin first
   (0.3.0), then building pages (0.4.0), extensibility (0.5.0), multilingual
@@ -291,7 +316,7 @@ importers.
   changing the existing tables; Blueprints made in the admin stored in the
   database, carried between sites by export and import (see 0.3.0 above).
 - **Importers** (2026-10-23): like Drupal's Feeds, in three steps (files in
-  0.3.x; web addresses and RSS/Atom as a module in 0.5.0; images after the
+  0.3.1; web addresses and RSS/Atom as a module in 0.5.0; images after the
   media of 0.4.0). An import never deletes; a run is never started by a
   visitor's request, only by hand or from cron.
 - **Language:** code, documentation, comments, commit messages and
