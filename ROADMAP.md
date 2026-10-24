@@ -36,6 +36,7 @@ Completed changes are listed in the [CHANGELOG](CHANGELOG.md).
 | 0.2.5 | Lists made in the admin (released 2026-10-15): the counterpart of `config/queries.php` without code, stored in the `lists` table, with a page of their own and `list()` in templates. The fourth step of 0.3.0. |
 | 0.2.6 | The content model's export and import (released 2026-10-23): the Blueprints and lists made in the admin in one JSON file, in the admin (System → Content model) and on the command line; an import shows its plan first, follows the editors' rules, never deletes. The fifth step of 0.3.0. |
 | 0.2.7 | Search, redirects and an image picker (released 2026-10-24): FULLTEXT search of the published pages, with or without accents, at `/search`; a 301 from an object's old path, and System → Redirects; the editor's picker of uploaded images. The sixth step of 0.3.0. |
+| 0.2.8 | The admin's list with the own fields (released 2026-10-24): up to 4 columns per Blueprint (the editor, or `admin_columns`), sortable, with filters by type; carried by the content model's export. The seventh step of 0.3.0. |
 | – | Continuous integration (GitHub Actions): PHPStan, documentation, tests on MariaDB 10.6/11.4 and MySQL 8.0/8.4, an upgrade from 0.1.0, browser tests, the installation package checked before every release (with `vendor/`, for every version tag) |
 
 ## Next: the road to 1.0
@@ -112,7 +113,7 @@ objects too; a removed one keeps their data.
 | **0.2.5** ✔ | Released 2026-10-15. **Lists** made in the admin (see below): conditions on queryable fields and relations with today and now, an order, paging, short cards or a table, a path, `list()` in templates. |
 | **0.2.6** ✔ | Released 2026-10-23. Exporting and importing the content model as a file (System → Content model, `model:export`, `model:import`); an import first lists what it would change, follows the editors' rules and never deletes. |
 | **0.2.7** ✔ | Released 2026-10-24. Search with the database's FULLTEXT index (`/search`, accents folded), redirects (an automatic 301 when a path changes, and System → Redirects), an image picker in the editor. |
-| **0.2.8** | **The admin's object list with the own fields** (see below): chosen fields as columns, sortable, with filters by type above the list. |
+| **0.2.8** ✔ | Released 2026-10-24. **The admin's object list with the own fields** (see below): chosen fields as columns, sortable, with filters by type above the list. |
 | **0.2.9** | **Visitors' filters** on a list (see below), e.g. a choice to pick the kind of event, or a date range. |
 | **0.3.0** | The milestone: a security review, the upgrade test, a chapter of the guide on one's own content types, the compatibility promise for 0.3.x. |
 | **0.3.1** | **Importers, step 1** (see below): importing objects from an uploaded CSV or JSON file, with a mapping, a unique key, a trial run, a log and undoing a run; and the admin's list exported as CSV. Decided 2026-10-23. |

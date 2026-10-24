@@ -102,6 +102,33 @@ The columns follow the Blueprint's capabilities: title, status, weight,
 author (`Authorable`; loaded with one query by the `RelationLoader`),
 publication time, modification time. The column headers sort the list.
 
+**Own columns** (since 0.2.8): after the title, the Blueprint's
+`admin_columns` (at most 4 of its own fields and relations; chosen in the
+Blueprint editor, or the key in `config/blueprints.php`, e.g. the articles'
+`['categories']`). A value is shown as on the site (`field_value()`), a text
+or formatted text as a plain excerpt (80 characters), a relation as its
+targets' titles. A queryable single-valued field's header sorts the list
+(`sort=<field>`). The queryable fields, and the relations, get a filter
+above the list by their type, in `f` (`ListColumns`):
+
+| Type | Filter | Parameter |
+|---|---|---|
+| choice | one of the choices | `f[fajta]=seta` |
+| boolean | yes or no | `f[aktiv]=1`, `f[aktiv]=0` |
+| date, datetime | from, to (days; a moment's day in the site's time zone; both ends included) | `f[nap][from]=2026-11-01&f[nap][to]=2026-11-30` |
+| integer, decimal | at least, at most (a decimal comma and spaces are read) | `f[ar][min]=1000&f[ar][max]=5000` |
+| a relation | one of its targets (only while it has at most 200 the user may see) | `f[kategoria]=12` |
+
+They combine with `q` and `status`, and the pages and the sorting keep them.
+A value that is not valid for its field is ignored (and not shown back). A
+filtered tree is shown as a flat list, without the ↑/↓ buttons.
+
+`Campanella\Admin\ListColumns` · **Internal**: `columns(Blueprint): array`
+(name, label, kind, type, sortable, filter), `apply(Query, Blueprint, array $input, Actor): array`
+(the query with the filters, the valid values, the options),
+`texts(iterable $objects, Blueprint): array` (the text columns' excerpts);
+`MAX_TARGETS` (200), `TEXT_LENGTH` (80).
+
 ### Trees and hand-set order
 
 Since 0.0.7, for Blueprints with `Hierarchical` ([chapter 18](18-trees.md))
@@ -382,6 +409,7 @@ same roles. Its definitions are stored in the database
 | `…/fields/<field>/move-up`, `/move-down` | POST: the order (the form's order follows it) |
 | `…/relations/new`, `…/relations/<relation>` | A relation to the objects of one Blueprint (not users or forms' messages): one or several targets, required; later its label and required flag |
 | `…/fields/<field>/delete`, `…/relations/<relation>/delete` | POST, with the `confirm` box ticked (since 0.2.4): deletes a field or relation. Its page says how many objects have a value (how many links there are); a backup is made first if any; then the definition is saved without it, and its values are deleted: the column (the Blueprint's table, if nothing else is left), its rows in `field_values`, its key in the JSON data; or the relation's links from the Blueprint's objects |
+| `…/columns` | POST (since 0.2.8): the columns of its list in the admin, `columns[]`: at most 4 of its fields and relations, in order (an empty or repeated choice is left out); a deleted field or relation leaves the columns too |
 | `…/delete` | POST: deletes a Blueprint without objects (and its empty table), unless another Blueprint's relation points to it |
 
 Every change is checked by defining all the Blueprints again with it (those of

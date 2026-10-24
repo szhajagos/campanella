@@ -74,11 +74,43 @@
                 </select>
             </div>
         {% endif %}
+        {# The own columns' filters (since 0.2.8), by their type. #}
+        {% for column in columns|filter(c => c.filter is not null and (c.filter not in ['choice', 'relation'] or column_options[c.name] is defined)) %}
+            {% set value = filters.f[column.name] ?? null %}
+            {% if column.filter in ['choice', 'relation', 'boolean'] %}
+                <div class="col-sm-4 col-lg-3">
+                    <label for="filter-{{ column.name }}" class="form-label small mb-1">{{ t(column.label) }}</label>
+                    <select class="form-select form-select-sm" id="filter-{{ column.name }}" name="f[{{ column.name }}]">
+                        <option value="">{{ t('admin.list.all') }}</option>
+                        {% if column.filter == 'boolean' %}
+                            <option value="1"{{ value == '1' ? ' selected' }}>{{ t('admin.form.yes') }}</option>
+                            <option value="0"{{ value == '0' ? ' selected' }}>{{ t('admin.form.no') }}</option>
+                        {% else %}
+                            {% for option in column_options[column.name] %}
+                                <option value="{{ option.value }}"{{ value == option.value ? ' selected' }}>{{ t(option.label) }}</option>
+                            {% endfor %}
+                        {% endif %}
+                    </select>
+                </div>
+            {% else %}
+                {% set ends = column.filter == 'range_date' ? ['from', 'to'] : ['min', 'max'] %}
+                <fieldset class="col-sm-8 col-lg-4">
+                    <legend class="form-label small mb-1 float-none">{{ t(column.label) }}</legend>
+                    <div class="input-group input-group-sm">
+                        {% for end in ends %}
+                            <label class="input-group-text" for="filter-{{ column.name }}-{{ end }}">{{ t('admin.list.range_' ~ end) }}</label>
+                            <input class="form-control" id="filter-{{ column.name }}-{{ end }}" name="f[{{ column.name }}][{{ end }}]" value="{{ value[end] ?? '' }}"
+                                {%- if column.filter == 'range_date' %} type="date"{% else %} type="text" inputmode="decimal" maxlength="30"{% endif %}>
+                        {% endfor %}
+                    </div>
+                </fieldset>
+            {% endif %}
+        {% endfor %}
         <input type="hidden" name="sort" value="{{ filters.sort }}">
         <input type="hidden" name="dir" value="{{ filters.dir }}">
         <div class="col-auto">
             <button type="submit" class="btn btn-sm btn-primary">{{ t('admin.list.filter') }}</button>
-            {% if filters.q or filters.status or (scope and scope.selected) %}
+            {% if filters.q or filters.status or filters.f or (scope and scope.selected) %}
                 <a class="btn btn-sm btn-link" href="{{ url(path) }}">{{ t('admin.list.reset') }}</a>
             {% endif %}
         </div>
@@ -89,7 +121,7 @@
     {% endif %}
 
     {% if result.isEmpty %}
-        <p class="text-body-secondary py-4">{{ filters.q or filters.status or (scope and scope.selected) ? t('admin.list.no_match') : t('admin.recent_empty') }}</p>
+        <p class="text-body-secondary py-4">{{ filters.q or filters.status or filters.f or (scope and scope.selected) ? t('admin.list.no_match') : t('admin.recent_empty') }}</p>
     {% else %}
         <div class="table-responsive">
             <table class="table table-hover align-middle admin-list">
@@ -97,6 +129,7 @@
                     <tr>
                         {% if is_file %}<th scope="col"><span class="visually-hidden">{{ t('admin.media.preview') }}</span></th>{% endif %}
                         <th scope="col">{{ _self.sort_header(searchable ? 'admin.column.title' : 'admin.column.id', searchable ? 'title' : 'id', filters, path, sortable) }}</th>
+                        {% for column in columns %}<th scope="col">{{ _self.sort_header(column.label, column.name, filters, path, sortable) }}</th>{% endfor %}
                         {% if statuses %}<th scope="col">{{ t('field.status') }}</th>{% endif %}
                         {% if has_weight %}<th scope="col" class="text-end">{{ _self.sort_header('field.weight', 'weight', filters, path, sortable) }}</th>{% endif %}
                         {% if is_file %}<th scope="col">{{ _self.sort_header('field.file_size', 'file_size', filters, path, sortable) }}</th>{% endif %}
@@ -110,7 +143,7 @@
                     {% for item in result %}
                         {% set level = levels[item.id] ?? 0 %}
                         {% if groups[item.id] is defined %}
-                            <tr class="admin-list__group"><th colspan="9" scope="colgroup" class="bg-body-tertiary small">{{ t(scope.label) }}: {{ groups[item.id] }}</th></tr>
+                            <tr class="admin-list__group"><th colspan="{{ 9 + columns|length }}" scope="colgroup" class="bg-body-tertiary small">{{ t(scope.label) }}: {{ groups[item.id] }}</th></tr>
                         {% endif %}
                         <tr id="row-{{ item.id }}">
                             {% if is_file %}
@@ -136,6 +169,17 @@
                                     <a class="small ms-2 text-body-secondary" href="{{ admin_url(blueprint.name ~ '/new') }}?parent={{ item.id }}{% if scope and scope_of[item.id] ?? 0 %}&amp;{{ scope.name }}={{ scope_of[item.id] }}{% endif %}" title="{{ t('admin.list.add_child_title', {title: label}) }}">+ {{ t('admin.list.add_child') }}</a>
                                 {% endif %}
                             </td>
+                            {% for column in columns %}
+                                <td class="small">
+                                    {%- if column.kind == 'relation' -%}
+                                        {% for target in related(item, column.name) %}{{ target.title ?? ('#' ~ target.id) }}{{ not loop.last ? ', ' }}{% else %}<span class="text-body-secondary">–</span>{% endfor %}
+                                    {%- elseif column_texts[item.id][column.name] is defined -%}
+                                        {{ column_texts[item.id][column.name] ?: '–' }}
+                                    {%- else -%}
+                                        {% set shown = field_value(item, column.name) %}{{ shown ?: '<span class="text-body-secondary">–</span>' }}
+                                    {%- endif -%}
+                                </td>
+                            {% endfor %}
                             {% if statuses %}<td>{% include '@core/admin/_status.html.twig' with {object: item} only %}</td>{% endif %}
                             {% if has_weight %}<td class="text-end small text-body-secondary">{{ item.weight }}</td>{% endif %}
                             {% if is_file %}

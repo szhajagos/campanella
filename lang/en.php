@@ -837,6 +837,17 @@ return [
     'cli.search_index.description' => 'Puts the pages not in the search index yet into it (--all: every page again)',
     'cli.search_index.needs_upgrade' => 'The database must be installed and up to date first (php bin/campanella migrate).',
     'cli.search_index.done' => '{count} pages indexed.',
+    // The admin's list with own columns (0.2.8)
+    'admin.list.range_from' => 'from',
+    'admin.list.range_to' => 'to',
+    'admin.list.range_min' => 'at least',
+    'admin.list.range_max' => 'at most',
+    'blueprints.columns' => 'Columns of the list',
+    'blueprints.columns_help' => 'At most {max} of the fields and relations, shown as columns of the list of its objects in the admin. The list can be sorted by a queryable field with one value, and gets a filter for each queryable field (a choice, yes/no, a date, a number) and relation.',
+    'blueprints.column' => 'Column {n}',
+    'blueprints.columns_save' => 'Save the columns',
+    'blueprints.columns_saved' => 'The columns of the list are saved.',
+    'transfer.change.admin_columns' => 'The columns of its list in the admin',
     // The editor's image picker (0.2.7)
     'media.picker.button' => 'Choose an uploaded image',
     'media.picker.title' => 'Uploaded images',

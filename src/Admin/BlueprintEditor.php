@@ -106,6 +106,7 @@ final class BlueprintEditor
         return match (true) {
             $rest === [] => $this->edit($request, $blueprint, $render),
             $rest === ['delete'] => $this->delete($request, $blueprint),
+            $rest === ['columns'] => $this->columns($request, $blueprint),
             $rest === ['fields', 'new'] => $this->field($request, $blueprint, null, $render),
             count($rest) === 2 && $rest[0] === 'fields' && isset($blueprint->fields[$rest[1]]) => $this->field($request, $blueprint, $blueprint->fields[$rest[1]], $render),
             count($rest) === 3 && $rest[0] === 'fields' && isset($blueprint->fields[$rest[1]]) && in_array($rest[2], ['move-up', 'move-down'], true)
@@ -195,7 +196,9 @@ final class BlueprintEditor
                 'table' => $blueprint->hasTable() ? $blueprint->tableName() : null,
                 'count' => $count,
                 'list_path' => $this->access->path($blueprint->name),
+                'columns' => $blueprint->adminColumns,
             ],
+            'max_columns' => BlueprintRegistry::MAX_ADMIN_COLUMNS,
             'form' => $form,
             'errors' => $errors,
             'alert_text' => $alert,
@@ -577,7 +580,8 @@ final class BlueprintEditor
         if ($error === null) {
             $stored = $this->stored($blueprint->name);
             $fields = array_values(array_filter($stored['fields'], static fn (array $item): bool => ($item['name'] ?? null) !== $field->name));
-            $error = $this->commit($blueprint->name, ['fields' => $fields] + $stored);
+            $columns = array_values(array_diff($stored['admin_columns'], [$field->name]));
+            $error = $this->commit($blueprint->name, ['fields' => $fields, 'admin_columns' => $columns] + $stored);
         }
         if ($error !== null) {
             $this->flash->add(Flash::DANGER, $error);
@@ -616,7 +620,8 @@ final class BlueprintEditor
         if ($error === null) {
             $stored = $this->stored($blueprint->name);
             $relations = array_values(array_filter($stored['relations'], static fn (array $item): bool => ($item['name'] ?? null) !== $relation->name));
-            $error = $this->commit($blueprint->name, ['relations' => $relations] + $stored);
+            $columns = array_values(array_diff($stored['admin_columns'], [$relation->name]));
+            $error = $this->commit($blueprint->name, ['relations' => $relations, 'admin_columns' => $columns] + $stored);
         }
         if ($error !== null) {
             $this->flash->add(Flash::DANGER, $error);
@@ -722,6 +727,36 @@ final class BlueprintEditor
             'SELECT COUNT(*) FROM {relationships} r JOIN {objects} o ON o.id = r.source_id WHERE o.blueprint = :b AND r.type = :t',
             ['b' => $blueprint->name, 't' => $relation->name],
         );
+    }
+
+    /**
+     * POST: the columns of the Blueprint's list in the admin (since 0.2.8): at most
+     * BlueprintRegistry::MAX_ADMIN_COLUMNS of its fields and relations, in the order chosen
+     * (an empty choice and a repeated one are left out).
+     */
+    private function columns(Request $request, Blueprint $blueprint): Response
+    {
+        if (!$request->isPost()) {
+            throw new HttpException(405, 'error.method_not_allowed');
+        }
+        if (!$this->csrf->isValid($request)) {
+            $this->flash->add(Flash::DANGER, 'auth.form_expired');
+
+            return $this->redirect($request, $blueprint->name);
+        }
+        $posted = is_array($request->post['columns'] ?? null) ? $request->post['columns'] : [];
+        $names = [...array_keys($blueprint->fields), ...array_keys($blueprint->relations)];
+        $columns = [];
+        foreach ($posted as $name) {
+            if (is_string($name) && in_array($name, $names, true) && !in_array($name, $columns, true)) {
+                $columns[] = $name;
+            }
+        }
+        $stored = $this->stored($blueprint->name);
+        $error = $this->commit($blueprint->name, ['admin_columns' => array_slice($columns, 0, BlueprintRegistry::MAX_ADMIN_COLUMNS)] + $stored);
+        $this->flash->add($error === null ? Flash::SUCCESS : Flash::DANGER, $error ?? new Message('blueprints.columns_saved'));
+
+        return $this->redirect($request, $blueprint->name);
     }
 
     /** POST: deletes a Blueprint that has no objects (its empty table too). */
@@ -841,13 +876,14 @@ final class BlueprintEditor
     /**
      * The Blueprint's stored definition, with its lists.
      *
-     * @return array<string, mixed>&array{fields: list<array<string, mixed>>, relations: list<array<string, mixed>>}
+     * @return array<string, mixed>&array{fields: list<array<string, mixed>>, relations: list<array<string, mixed>>, admin_columns: list<string>}
      */
     private function stored(string $name): array
     {
         $stored = $this->store->find($name) ?? throw HttpException::notFound();
         $stored['fields'] = array_values(array_filter(is_array($stored['fields'] ?? null) ? $stored['fields'] : [], is_array(...)));
         $stored['relations'] = array_values(array_filter(is_array($stored['relations'] ?? null) ? $stored['relations'] : [], is_array(...)));
+        $stored['admin_columns'] = array_values(array_filter(is_array($stored['admin_columns'] ?? null) ? $stored['admin_columns'] : [], is_string(...)));
 
         return $stored;
     }

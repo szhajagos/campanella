@@ -835,6 +835,17 @@ return [
     'cli.search_index.description' => 'A keresési indexbe teszi a még benne nem lévő oldalakat (--all: minden oldalt újra)',
     'cli.search_index.needs_upgrade' => 'Előbb telepíteni, illetve frissíteni kell az adatbázist (php bin/campanella migrate).',
     'cli.search_index.done' => '{count} oldal indexelve.',
+    // The admin's list with own columns (0.2.8)
+    'admin.list.range_from' => 'ettől',
+    'admin.list.range_to' => 'eddig',
+    'admin.list.range_min' => 'legalább',
+    'admin.list.range_max' => 'legfeljebb',
+    'blueprints.columns' => 'A lista oszlopai',
+    'blueprints.columns_help' => 'Legfeljebb {max} mező vagy kapcsolat, amelyek oszlopként jelennek meg az objektumok listájában az adminban. A lista a kereshető, egyértékű mezők szerint rendezhető, és minden kereshető mezőhöz (választás, igen/nem, dátum, szám) és kapcsolathoz szűrőt kap.',
+    'blueprints.column' => '{n}. oszlop',
+    'blueprints.columns_save' => 'Oszlopok mentése',
+    'blueprints.columns_saved' => 'A lista oszlopai elmentve.',
+    'transfer.change.admin_columns' => 'A listájának oszlopai az adminban',
     // The editor's image picker (0.2.7)
     'media.picker.button' => 'Feltöltött kép választása',
     'media.picker.title' => 'Feltöltött képek',

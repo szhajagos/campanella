@@ -268,7 +268,7 @@ final class ModelImport
      * A stored or imported definition in one form: each item through BlueprintDefinition.
      *
      * @param array<string, mixed> $definition
-     * @return array{version: int, label: string, capabilities: list<string>, fields: list<array<string, mixed>>, relations: list<array<string, mixed>>}
+     * @return array{version: int, label: string, capabilities: list<string>, fields: list<array<string, mixed>>, relations: list<array<string, mixed>>, admin_columns: list<string>}
      * @throws InvalidArgumentException
      */
     private static function normalize(array $definition): array
@@ -281,14 +281,15 @@ final class ModelImport
             'capabilities' => $checked['capabilities'],
             'fields' => array_map(static fn (array $item): array => BlueprintDefinition::fieldArray(BlueprintDefinition::field($item)), array_values(array_filter((array) ($definition['fields'] ?? []), is_array(...)))),
             'relations' => array_map(static fn (array $item): array => BlueprintDefinition::relationArray(BlueprintDefinition::relation($item)), array_values(array_filter((array) ($definition['relations'] ?? []), is_array(...)))),
+            'admin_columns' => $checked['admin_columns'],
         ];
     }
 
     /**
      * The site's definition with the file's, by the editor's rules.
      *
-     * @param array{version: int, label: string, capabilities: list<string>, fields: list<array<string, mixed>>, relations: list<array<string, mixed>>} $before
-     * @param array{version: int, label: string, capabilities: list<string>, fields: list<array<string, mixed>>, relations: list<array<string, mixed>>} $file
+     * @param array{version: int, label: string, capabilities: list<string>, fields: list<array<string, mixed>>, relations: list<array<string, mixed>>, admin_columns: list<string>} $before
+     * @param array{version: int, label: string, capabilities: list<string>, fields: list<array<string, mixed>>, relations: list<array<string, mixed>>, admin_columns: list<string>} $file
      * @return array{0: array<string, mixed>, 1: list<Message>, 2: list<Message>, 3: Message|null}
      */
     private static function merge(array $before, array $file, Blueprint $blueprint, int $count): array
@@ -367,7 +368,14 @@ final class ModelImport
             }
         }
 
-        return [['fields' => $fields, 'relations' => $relations] + $file, $changes, $warnings, null];
+        // The list's columns in the admin (since 0.2.8): the file's, of the fields and relations there are.
+        $names = [...array_column($fields, 'name'), ...array_column($relations, 'name')];
+        $columns = array_values(array_filter($file['admin_columns'], static fn (string $c): bool => in_array($c, $names, true)));
+        if ($columns !== $before['admin_columns']) {
+            $changes[] = new Message('transfer.change.admin_columns');
+        }
+
+        return [['fields' => $fields, 'relations' => $relations, 'admin_columns' => $columns] + $file, $changes, $warnings, null];
     }
 
     /**

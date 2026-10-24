@@ -50,7 +50,7 @@ final class BlueprintRegistry
     public const int MAX_TABLE_NAME = 40;
 
     /**
-     * @param array<string, array{label?: string, capabilities: list<class-string<Capability>|string>, fields?: list<Field>, queryable?: list<string>, relations?: list<Relation>, cardinality?: array<string, mixed>, form_order?: list<string>, defaults?: array<string, mixed>, editor?: array<string, string>, tree_scope?: string, lists?: array<string, array{label?: string, query: Closure(CampanellaObject): Query}>}> $config
+     * @param array<string, array{label?: string, capabilities: list<class-string<Capability>|string>, fields?: list<Field>, queryable?: list<string>, relations?: list<Relation>, cardinality?: array<string, mixed>, form_order?: list<string>, defaults?: array<string, mixed>, editor?: array<string, string>, tree_scope?: string, admin_columns?: list<string>, lists?: array<string, array{label?: string, query: Closure(CampanellaObject): Query}>}> $config
      */
     public function __construct(private readonly CapabilityRegistry $capabilities, array $config = [])
     {
@@ -60,7 +60,7 @@ final class BlueprintRegistry
     }
 
     /**
-     * @param array{label?: string, capabilities: list<class-string<Capability>|string>, fields?: list<Field>, queryable?: list<string>, relations?: list<Relation>, cardinality?: array<string, mixed>, form_order?: list<string>, defaults?: array<string, mixed>, editor?: array<string, string>, tree_scope?: string, lists?: array<string, array{label?: string, query: Closure(CampanellaObject): Query}>} $definition
+     * @param array{label?: string, capabilities: list<class-string<Capability>|string>, fields?: list<Field>, queryable?: list<string>, relations?: list<Relation>, cardinality?: array<string, mixed>, form_order?: list<string>, defaults?: array<string, mixed>, editor?: array<string, string>, tree_scope?: string, admin_columns?: list<string>, lists?: array<string, array{label?: string, query: Closure(CampanellaObject): Query}>} $definition
      */
     public function define(string $name, array $definition): Blueprint
     {
@@ -135,7 +135,36 @@ final class BlueprintRegistry
             $this->checkFieldKeys($name, 'defaults', $definition['defaults'] ?? [], $capabilities, $fields),
             array_map(strval(...), $this->checkFieldKeys($name, 'editor', $definition['editor'] ?? [], $capabilities, $fields)),
             $this->checkTreeScope($name, $definition['tree_scope'] ?? null, $capabilities, $relations),
+            $this->checkAdminColumns($name, $definition['admin_columns'] ?? [], $fields, $relations),
         );
+    }
+
+    /** The most columns of a Blueprint's list in the admin (since 0.2.8). */
+    public const int MAX_ADMIN_COLUMNS = 4;
+
+    /**
+     * 'admin_columns' (since 0.2.8): at most MAX_ADMIN_COLUMNS of the Blueprint's own fields
+     * (not hidden ones) and relations, each once.
+     *
+     * @param array<string, Field> $fields The Blueprint's own fields.
+     * @param array<string, Relation> $relations The Blueprint's own relations.
+     * @return list<string>
+     */
+    private function checkAdminColumns(string $blueprint, mixed $columns, array $fields, array $relations): array
+    {
+        if (!is_array($columns) || !array_is_list($columns) || count($columns) > self::MAX_ADMIN_COLUMNS) {
+            throw new CapabilityException("Blueprint '{$blueprint}': 'admin_columns' must be a list of at most " . self::MAX_ADMIN_COLUMNS . ' names.');
+        }
+        $checked = [];
+        foreach ($columns as $column) {
+            $known = is_string($column) && ((isset($fields[$column]) && !$fields[$column]->hidden) || isset($relations[$column]));
+            if (!$known || in_array($column, $checked, true)) {
+                throw new CapabilityException("Blueprint '{$blueprint}': 'admin_columns' names an unknown own field or relation, or one twice: " . json_encode($column));
+            }
+            $checked[] = $column;
+        }
+
+        return $checked;
     }
 
     /**

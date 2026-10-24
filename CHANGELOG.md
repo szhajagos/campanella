@@ -10,6 +10,36 @@ backward-incompatible.
 
 ## [Unreleased]
 
+## [0.2.8] – 2026-10-24
+
+**The admin's list with the own fields.** The seventh step towards 0.3.0: a
+Blueprint's list in the admin shows the fields that matter for it, sorts by
+them and filters by them.
+
+**Upgrading from 0.2.7:** upload the new files. The database does not change
+(the schema version stays 16).
+
+### Added
+
+- **Own columns in the admin's lists** ([PHP API](docs/php-api/13-admin.md#the-list)):
+  at most 4 of a Blueprint's own fields and relations as columns, the same for
+  every user, chosen in the Blueprint editor (*Columns of the list*), or with
+  the `admin_columns` key in `config/blueprints.php` (`BlueprintRegistry::MAX_ADMIN_COLUMNS`).
+  A queryable single-valued column sorts the list by its header; the queryable
+  ones get filters above the list by their type: a choice, yes/no, a date or a
+  moment (from, to, in the site's time zone), a number (at least, at most), and
+  a relation's targets (while there are at most 200). They combine with the
+  title search and the status filter, in the address (`?f[fajta]=seta`); a
+  value that is not valid is ignored. A text is shown as a short plain
+  excerpt.
+- The content model's export and import carry the columns (`admin_columns`
+  in the stored form of a Blueprint).
+
+### Changed
+
+- The articles' list in the admin shows their categories, with a filter
+  (`'admin_columns' => ['categories']` in `config/blueprints.php`).
+
 ## [0.2.7] – 2026-10-24
 
 **Search, redirects and an image picker.** The sixth step towards 0.3.0: the

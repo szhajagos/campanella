@@ -86,6 +86,30 @@
         {% endif %}
     </section>
 
+    {% if fields or relations %}
+        {# The columns of the Blueprint's list in the admin (since 0.2.8). #}
+        <form method="post" action="{{ admin_url('system/blueprints/' ~ blueprint.name ~ '/columns') }}" class="admin-form" novalidate>
+            {{ csrf_field() }}
+            <section class="card card-body mb-4" id="columns">
+                <h2 class="h6 mb-1">{{ t('blueprints.columns') }}</h2>
+                <p class="small text-body-secondary">{{ t('blueprints.columns_help', {max: max_columns}) }}</p>
+                <div class="row g-2">
+                    {% for i in 0..(max_columns - 1) %}
+                        <div class="col-sm-6 col-lg-3">
+                            <label for="bp-column-{{ i }}" class="form-label small">{{ t('blueprints.column', {n: i + 1}) }}</label>
+                            <select class="form-select form-select-sm" id="bp-column-{{ i }}" name="columns[]">
+                                <option value="">{{ t('admin.form.none') }}</option>
+                                {% for field in fields %}<option value="{{ field.name }}"{{ (blueprint.columns[i] ?? null) == field.name ? ' selected' }}>{{ t(field.label) }}</option>{% endfor %}
+                                {% for relation in relations %}<option value="{{ relation.name }}"{{ (blueprint.columns[i] ?? null) == relation.name ? ' selected' }}>{{ t(relation.label) }}</option>{% endfor %}
+                            </select>
+                        </div>
+                    {% endfor %}
+                </div>
+                <div class="mt-3"><button type="submit" class="btn btn-primary btn-sm">{{ t('blueprints.columns_save') }}</button></div>
+            </section>
+        </form>
+    {% endif %}
+
     <form method="post" action="{{ admin_url('system/blueprints/' ~ blueprint.name) }}" class="admin-form" novalidate>
         {{ csrf_field() }}
         <section class="card card-body mb-4">

@@ -10,6 +10,7 @@ use Campanella\Access\Actor;
 use Campanella\Access\Operation;
 use Campanella\Admin\AdminAccess;
 use Campanella\Admin\BlueprintEditor;
+use Campanella\Admin\ListColumns;
 use Campanella\Admin\ListEditor;
 use Campanella\Admin\ModelPage;
 use Campanella\Admin\RedirectPages;
@@ -513,6 +514,9 @@ final class AdminController implements Controller
         $publishable = isset($blueprint->capabilities['publishable']);
         $weighted = isset($blueprint->capabilities['weighted']);
 
+        // The Blueprint's own columns (since 0.2.8): the queryable single-valued ones sortable.
+        $own = new ListColumns($this->queries, new \DateTimeZone($this->form->timezone()));
+        $columns = $own->columns($blueprint);
         $sortable = array_values(array_filter([
             $weighted ? 'weight' : null,
             $titled ? 'title' : null,
@@ -520,6 +524,7 @@ final class AdminController implements Controller
             'created',
             $publishable ? 'published_at' : null,
             self::isFile($blueprint) ? 'file_size' : null,
+            ...array_map(static fn (array $c): ?string => $c['sortable'] ? $c['name'] : null, $columns),
         ]));
         // A hand-ordered list (Weighted) is shown in its order by default.
         $explicit = in_array($request->queryString('sort'), $sortable, true);
@@ -544,9 +549,11 @@ final class AdminController implements Controller
         if ($status !== '') {
             $query = $query->whereCondition(self::statusCondition($status));
         }
+        // The own columns' filters (since 0.2.8).
+        [$query, $ownFilters, $options] = $own->apply($query, $blueprint, is_array($request->query['f'] ?? null) ? $request->query['f'] : [], $actor);
         // A tree (Hierarchical), unfiltered and in its default order: all of it, indented.
         $levels = [];
-        $tree = isset($blueprint->capabilities['hierarchical']) && !$explicit && $search === '' && $status === ''
+        $tree = isset($blueprint->capabilities['hierarchical']) && !$explicit && $search === '' && $status === '' && $ownFilters === []
             ? $this->treeRows($query, $weighted, $actor, $scope)
             : null;
         $groups = [];
@@ -561,14 +568,14 @@ final class AdminController implements Controller
             );
         }
         // Up/down buttons: a hand-ordered list in its own order.
-        $moves = $weighted && !$explicit && $search === '' && $status === '' ? self::moves($result, $levels !== [], $scope['name'] ?? null) : [];
+        $moves = $weighted && !$explicit && $search === '' && $status === '' && $ownFilters === [] ? self::moves($result, $levels !== [], $scope['name'] ?? null) : [];
         $scopeOf = [];
         if ($scope !== null) {
             foreach ($result as $item) {
                 $scopeOf[(int) $item->id()] = $item->relatedIds($scope['name'])[0] ?? 0;
             }
         }
-        if (isset($blueprint->capabilities['authorable'])) {
+        if (isset($blueprint->capabilities['authorable']) || in_array('relation', array_column($columns, 'kind'), true)) {
             $this->relations->resolve($result, $actor);
         }
 
@@ -595,7 +602,10 @@ final class AdminController implements Controller
             'title' => $blueprint->label,
             'blueprint' => $blueprint,
             'result' => $result,
-            'filters' => ['q' => $search, 'status' => $status, 'sort' => $sort, 'dir' => $dir]
+            'columns' => $columns,
+            'column_options' => $options,
+            'column_texts' => $own->texts($result, $blueprint),
+            'filters' => ['q' => $search, 'status' => $status, 'sort' => $sort, 'dir' => $dir, 'f' => $ownFilters]
                 + ($scope !== null ? [$scope['name'] => $scope['selected'] > 0 ? (string) $scope['selected'] : ''] : []),
             'scope' => $scope,
             'scope_of' => $scopeOf,

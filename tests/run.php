@@ -7087,6 +7087,124 @@ test('Kernel: the editor\'s image picker lists the uploaded images as JSON', fun
     putenv('CAMPANELLA_DB_PREFIX');
 });
 
+echo "\nThe admin's list with own columns (0.2.8)\n";
+
+test('Blueprint: admin_columns checked; a stored one leaves out the fields gone', function (): void {
+    $capabilities = new CapabilityRegistry([Titled::class]);
+    $define = static fn (mixed $columns) => (new BlueprintRegistry($capabilities))->define('proba', [
+        'capabilities' => [Titled::class],
+        'fields' => [new Field('nap', FieldType::Date), new Field('titok', FieldType::String, hidden: true)],
+        'relations' => [new \Campanella\Relation\Relation('kapcsolat', \Campanella\Relation\Cardinality::Many, targetBlueprints: ['proba'])],
+        'admin_columns' => $columns,
+    ]);
+    check($define(['kapcsolat', 'nap'])->adminColumns === ['kapcsolat', 'nap'] && $define([])->adminColumns === [], 'fields and relations, in order');
+    foreach ([['title'], ['nincs'], ['titok'], ['nap', 'nap'], ['nap', 'kapcsolat', 'nap', 'nap', 'nap'], 'nap'] as $bad) {
+        throws(\Campanella\Capability\CapabilityException::class, fn () => $define($bad));
+    }
+    $stored = \Campanella\Model\BlueprintDefinition::toRegistry(['label' => 'P', 'capabilities' => ['titled'], 'fields' => [['name' => 'nap', 'type' => 'date']], 'admin_columns' => ['torolt', 'nap', 'nap']]);
+    check($stored['admin_columns'] === ['nap'], json_encode($stored['admin_columns']));
+});
+
+test('Kernel: the admin\'s list of a Blueprint shows its columns, sorts and filters by them', function () use ($newUser): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = null;
+    $storage = new ArraySessionStorage();
+    $boot = static function () use (&$kernel, $storage) {
+        $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+        $kernel->container()->set(Session::class, static fn () => new Session($storage));
+
+        return $kernel->container();
+    };
+    $container = $boot();
+    if ($container->get(Connection::class)->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $db = $container->get(Connection::class);
+    $db->execute('DROP TABLE IF EXISTS ' . $db->table('bp_rendezveny')); // left by a run that failed
+    $send = function (string $method, string $path, array $query = [], array $post = []) use (&$kernel, $storage, $boot) {
+        $storage->endRequest();
+        $boot();
+
+        return $kernel->handle(new Request($method, $path, $query, $post));
+    };
+    // A Blueprint with fields of every kind of filter, made as the content model's import makes it.
+    $import = $container->get(\Campanella\Transfer\ModelImport::class);
+    $plan = $import->plan(['blueprints' => ['rendezveny' => ['label' => 'Rendezvény', 'capabilities' => ['titled'],
+        'fields' => [
+            ['name' => 'nap', 'type' => 'date', 'label' => 'Nap', 'queryable' => true],
+            ['name' => 'fajta', 'type' => 'choice', 'label' => 'Fajta', 'queryable' => true, 'choices' => [['key' => 'eloadas', 'label' => 'Előadás'], ['key' => 'seta', 'label' => 'Séta']]],
+            ['name' => 'ar', 'type' => 'decimal', 'label' => 'Ár', 'queryable' => true, 'scale' => 0],
+            ['name' => 'ingyenes', 'type' => 'boolean', 'label' => 'Ingyenes', 'queryable' => true],
+            ['name' => 'kezdes', 'type' => 'datetime', 'label' => 'Kezdés', 'queryable' => true],
+            ['name' => 'leiras', 'type' => 'html', 'label' => 'Leírás'],
+        ],
+        'relations' => [['name' => 'helyszin', 'label' => 'Helyszín', 'targets' => ['category'], 'many' => false]]]], 'lists' => []]);
+    check(!$plan->hasErrors(), json_encode(array_map(static fn ($i) => (string) $i->error, $plan->items)));
+    $import->apply($plan);
+    $repository = $boot()->get(ObjectRepository::class);
+    $hely = $repository->create('category', ['title' => 'Helyszín-0228', 'path' => '/helyszin-0228']);
+    $repository->save($hely);
+    $tz = new DateTimeZone('Europe/Budapest');
+    $make = static function (array $values) use ($repository) {
+        $object = $repository->create('rendezveny', $values);
+        $repository->save($object);
+
+        return $object;
+    };
+    $a = $make(['title' => 'Első-0228', 'nap' => '2026-11-05', 'fajta' => 'eloadas', 'ar' => '1500', 'ingyenes' => false, 'kezdes' => new DateTimeImmutable('2026-11-05 18:00', $tz), 'leiras' => '<p>' . str_repeat('Hosszú leírás szövege. ', 10) . '</p>']);
+    $b = $make(['title' => 'Második-0228', 'nap' => '2026-11-20', 'fajta' => 'seta', 'ar' => '0', 'ingyenes' => true, 'kezdes' => new DateTimeImmutable('2026-11-21 00:30', $tz)]); // 23:30 the day before in UTC
+    $b->relate('helyszin', $hely);
+    $repository->save($b);
+
+    $boot()->get(AuthService::class)->login(new Request('GET', '/'), $newUser('oszlop-admin@example.hu', 'oszlop-jelszo-12', ['administrator']));
+    $edit = $send('GET', '/admin/system/blueprints/rendezveny');
+    check($edit->status === 200 && str_contains($edit->body, 'A lista oszlopai') && str_contains($edit->body, 'name="columns[]"'), 'the editor offers them');
+    $token = preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $edit->body, $m) === 1 ? $m[1] : '';
+    $saved = $send('POST', '/admin/system/blueprints/rendezveny/columns', [], ['_csrf' => $token, 'columns' => ['nap', 'fajta', '', 'nap', 'nincs', 'ingyenes', 'helyszin', 'ar']]);
+    check($saved->status === 303 && $boot()->get(BlueprintRegistry::class)->get('rendezveny')->adminColumns === ['nap', 'fajta', 'ingyenes', 'helyszin'], json_encode($boot()->get(BlueprintRegistry::class)->get('rendezveny')->adminColumns));
+
+    $list = $send('GET', '/admin/rendezveny');
+    check($list->status === 200 && str_contains($list->body, 'Nap') && str_contains($list->body, 'Séta') && str_contains($list->body, 'Helyszín-0228') && str_contains($list->body, 'name="f[fajta]"') && str_contains($list->body, 'name="f[nap][from]"') && str_contains($list->body, 'name="f[helyszin]"'), 'columns and filters');
+    $count = static fn ($r): int => substr_count($r->body, 'id="row-');
+    check($count($send('GET', '/admin/rendezveny', ['f' => ['fajta' => 'seta']])) === 1 && str_contains($send('GET', '/admin/rendezveny', ['f' => ['fajta' => 'seta']])->body, 'Második-0228'), 'a choice');
+    check($count($send('GET', '/admin/rendezveny', ['f' => ['ingyenes' => '1']])) === 1 && $count($send('GET', '/admin/rendezveny', ['f' => ['ingyenes' => '0']])) === 1, 'yes / no');
+    check($count($send('GET', '/admin/rendezveny', ['f' => ['nap' => ['from' => '2026-11-10']]])) === 1 && $count($send('GET', '/admin/rendezveny', ['f' => ['nap' => ['from' => '2026-11-05', 'to' => '2026-11-05']]])) === 1, 'a date range, its ends included');
+    check($count($send('GET', '/admin/rendezveny', ['f' => ['helyszin' => (string) $hely->id()]])) === 1, 'a relation');
+    check($count($send('GET', '/admin/rendezveny', ['f' => ['fajta' => 'nincs', 'nap' => ['from' => '2026-13-45'], 'ingyenes' => 'x', 'helyszin' => '999999', 'leiras' => 'x']])) === 2, 'invalid values are ignored');
+    $sorted = $send('GET', '/admin/rendezveny', ['sort' => 'nap', 'dir' => 'desc'])->body;
+    check(strpos($sorted, 'Második-0228') < strpos($sorted, 'Első-0228') && str_contains($sorted, 'aria-sort="descending"'), 'sorted by a column');
+
+    // The columns of the file's Blueprints: a decimal and a moment, a text cut short.
+    $send('POST', '/admin/system/blueprints/rendezveny/columns', [], ['_csrf' => $token, 'columns' => ['ar', 'kezdes', 'leiras']]);
+    check($count($send('GET', '/admin/rendezveny', ['f' => ['ar' => ['min' => '1 000']]])) === 1 && $count($send('GET', '/admin/rendezveny', ['f' => ['ar' => ['max' => '0']]])) === 1, 'a number range');
+    check($count($send('GET', '/admin/rendezveny', ['f' => ['kezdes' => ['to' => '2026-11-20']]])) === 1 && $count($send('GET', '/admin/rendezveny', ['f' => ['kezdes' => ['from' => '2026-11-21']]])) === 1, 'a moment\'s day in the site\'s time zone');
+    $texts = $send('GET', '/admin/rendezveny')->body;
+    check(str_contains($texts, 'Hosszú leírás szövege.') && str_contains($texts, '…') && !str_contains($texts, '<p>Hosszú'), 'a text, short and plain');
+    check(!str_contains($texts, 'name="f[leiras]"') && !str_contains($texts, 'name="f[nap]'), 'no filter for a text; only the columns\'');
+
+    // Deleting a column's field leaves it out of the columns.
+    $send('POST', '/admin/system/blueprints/rendezveny/fields/leiras/delete', [], ['_csrf' => $token, 'confirm' => '1']);
+    check($boot()->get(BlueprintRegistry::class)->get('rendezveny')->adminColumns === ['ar', 'kezdes'], json_encode($boot()->get(BlueprintRegistry::class)->get('rendezveny')->adminColumns));
+
+    // The articles: their categories (config/blueprints.php).
+    check(str_contains($send('GET', '/admin/article')->body, 'name="f[categories]"'), 'the articles\' list has the categories');
+
+    $repository = $boot()->get(ObjectRepository::class);
+    foreach ([$a, $b, $hely] as $object) {
+        $repository->delete($object);
+    }
+    $boot()->get(\Campanella\Model\BlueprintStore::class)->delete('rendezveny');
+    $db->execute('DROP TABLE IF EXISTS ' . $db->table('bp_rendezveny'));
+    foreach (glob(dirname(__DIR__) . '/var/backups/campanella-*') ?: [] as $file) {
+        if (filemtime($file) >= time() - 120) {
+            @unlink($file);
+        }
+    }
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
 echo "\nDocumentation examples\n";
 
 test('New capability as in the docs example (Featured)', function () use ($db, $admin): void {

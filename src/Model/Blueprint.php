@@ -45,6 +45,8 @@ final readonly class Blueprint
      *        splits the objects into separate trees (e.g. a menu item's `menu`). A parent must have
      *        the same target, siblings are counted within it, and moving a node moves its subtree
      *        with it. Since 0.0.7.
+     * @param list<string> $adminColumns At most 4 of its own fields and relations, shown as columns of its
+     *        list in the admin (the queryable ones sortable, with filters). Since 0.2.8.
      */
     public function __construct(
         public string $name,
@@ -58,6 +60,7 @@ final readonly class Blueprint
         public array $defaults = [],
         public array $editors = [],
         public ?string $treeScope = null,
+        public array $adminColumns = [],
     ) {
     }
 

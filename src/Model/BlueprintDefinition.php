@@ -26,7 +26,8 @@ use InvalidArgumentException;
  *   ],
  *   "relations": [
  *     {"name": "photo", "label": "Kép", "targets": ["image"], "many": false, "required": false}
- *   ]
+ *   ],
+ *   "admin_columns": ["day", "fajta"]
  * }
  * ```
  *
@@ -62,7 +63,7 @@ final class BlueprintDefinition
      * The definition for BlueprintRegistry::define(), from the stored form.
      *
      * @param array<string, mixed> $stored
-     * @return array{label: string, capabilities: list<string>, fields: list<Field>, queryable: list<string>, relations: list<Relation>, form_order: list<string>, defaults: array<string, mixed>, editor: array<string, string>}
+     * @return array{label: string, capabilities: list<string>, fields: list<Field>, queryable: list<string>, relations: list<Relation>, form_order: list<string>, defaults: array<string, mixed>, editor: array<string, string>, admin_columns: list<string>}
      * @throws InvalidArgumentException for a definition that is not valid
      */
     public static function toRegistry(array $stored): array
@@ -91,6 +92,7 @@ final class BlueprintDefinition
         $textual = in_array('textual', $capabilities, true);
 
         return [
+            'admin_columns' => self::adminColumns($stored['admin_columns'] ?? [], $names),
             'label' => self::label($stored['label'] ?? null),
             'capabilities' => $capabilities,
             // The own fields are Data here; 'queryable' lists those that get a column.
@@ -103,6 +105,27 @@ final class BlueprintDefinition
             'defaults' => $textual ? ['format' => 'html'] : [],
             'editor' => $textual ? ['body' => 'full'] : [],
         ];
+    }
+
+    /**
+     * The columns of the Blueprint's list in the admin (since 0.2.8): its own fields and
+     * relations, at most BlueprintRegistry::MAX_ADMIN_COLUMNS. A name that is no longer one
+     * of them (a field deleted since) is left out, so the Blueprint still loads.
+     *
+     * @param list<string> $names The Blueprint's own fields and relations
+     * @return list<string>
+     * @throws InvalidArgumentException
+     */
+    public static function adminColumns(mixed $columns, array $names): array
+    {
+        $checked = [];
+        foreach (self::listOf($columns, 'admin_columns') as $column) {
+            if (is_string($column) && in_array($column, $names, true) && !in_array($column, $checked, true)) {
+                $checked[] = $column;
+            }
+        }
+
+        return array_slice($checked, 0, BlueprintRegistry::MAX_ADMIN_COLUMNS);
     }
 
     /**

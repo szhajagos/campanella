@@ -99,6 +99,8 @@ relation condition is not imported.
   made one while there are objects, a new required queryable field with a
   default while there are objects, a relation's targets and number unchanged.
   Its fields and relations that the file does not have stay, after the others.
+  The columns of its list in the admin (`admin_columns`, since 0.2.8) are the
+  file's, of the fields and relations it has then.
 - Every Blueprint is defined again with the file's (as on every request), and
   the SchemaSync plans the database's changes; what it cannot do (e.g. a field
   made required without a default while objects lack it) is an error of that

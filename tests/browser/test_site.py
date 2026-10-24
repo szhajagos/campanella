@@ -490,6 +490,15 @@ def test_admin_pages(browser):
     check(page.locator(".campanella-picker__item").count() > 0 or "Nincs" in page.locator(".campanella-picker__status").inner_text(),
           "the image picker: neither images nor 'none': %s" % page.locator(".campanella-picker__status").inner_text())
 
+    # The articles' list: their categories as a column, with a filter (since 0.2.8).
+    page.goto(BASE + "/admin/article")
+    check(page.locator("select[name='f[categories]']").count() == 1, "the articles' list has no categories filter")
+    page.select_option("select[name='f[categories]']", index=1)
+    with page.expect_navigation():
+        page.click("form.admin-filters button[type=submit]")
+    check("f%5Bcategories%5D=" in page.url and page.locator("table.admin-list").count() + page.locator("main p.text-body-secondary").count() > 0,
+          "filtering by a category: ended on %s" % page.url)
+
     # The form refuses a save without a CSRF token.
     page.goto(BASE + "/admin/article/new")
     page.fill("#field-title", "CSRF nélkül")

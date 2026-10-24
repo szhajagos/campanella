@@ -49,6 +49,9 @@ use Campanella\Relation\Relation;
  * 'editor':    the toolbar profile of HTML text fields in the admin: 'full' or 'basic'.
  * 'tree_scope': for a Hierarchical Blueprint, a required single relation that splits
  *              the objects into separate trees (a menu item's menu).
+ * 'admin_columns': at most 4 own fields and relations shown as columns of the list in
+ *              the admin; the queryable ones get filters, those with one value sorting
+ *              (since 0.2.8).
  */
 return [
     'article' => [
@@ -64,6 +67,8 @@ return [
         // New articles get a formatted (HTML) body, edited with the editor.
         'defaults' => ['format' => 'html'],
         'editor' => ['body' => 'full'],
+        // The categories in the list of articles in the admin, with a filter (since 0.2.8).
+        'admin_columns' => ['categories'],
     ],
 
     'page' => [

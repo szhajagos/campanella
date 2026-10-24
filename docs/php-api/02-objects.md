@@ -309,6 +309,7 @@ menu item's `'tree_scope' => 'menu'` ([chapter 18](18-trees.md#separate-trees-tr
 | `$defaults` | Initial values of a new object (`defaults` key, since 0.0.5): `ObjectRepository::create()` uses them for the fields not given, instead of the fields' own defaults. E.g. `['format' => 'html']`: new articles get a formatted body |
 | `$editors` | The toolbar profile of HTML text fields in the admin (`editor` key, since 0.0.5), e.g. `['body' => 'full']` ([chapter 13](13-admin.md#formatted-text-the-html-editor)) |
 | `$treeScope` | `tree_scope` key (since 0.0.7): the required single relation that splits a Hierarchical Blueprint's objects into separate trees, or null ([chapter 18](18-trees.md#separate-trees-tree_scope)) |
+| `$adminColumns` | `admin_columns` key (since 0.2.8): at most `BlueprintRegistry::MAX_ADMIN_COLUMNS` (4) of its own fields (not hidden ones) and relations, the columns of its list in the admin ([chapter 13](13-admin.md#the-list)); an unknown name or one twice is a `CapabilityException` |
 | `allFields()` | The capability fields (narrowed where configured) and the own fields together |
 | `narrow(array $fields): array` | Applies the narrowed cardinalities to the given field definitions |
 | `allRelations()` | The capability relations and the own relations together |
@@ -413,7 +414,8 @@ takes. The same form will be the content model's export (0.2.6):
   ],
   "relations": [
     {"name": "kep", "label": "Kép", "targets": ["image"], "many": false, "required": false}
-  ]
+  ],
+  "admin_columns": ["nap", "fajta"]
 }
 ```
 
@@ -423,6 +425,7 @@ takes. The same form will be the content model's export (0.2.6):
 | `static field(array $item): Field` / `static fieldArray(Field $field): array` | A field from its stored form, checked (type, name, at most 100 values or unlimited, length 1–255, choices, a default valid for the field), and back |
 | `static relation(array $item): Relation` / `static relationArray(Relation $relation): array` | A relation to the objects of the listed Blueprints, one or several, required, and back |
 | `static name(mixed $name): string` | A machine name: `^[a-z][a-z0-9_]{0,39}$`; `InvalidArgumentException` otherwise |
+| `static adminColumns(mixed $columns, array $names): array` | The columns of its list in the admin (since 0.2.8): those of the given own fields and relations, each once, at most 4; a name that is no longer one (a field deleted since) is left out, so the Blueprint still loads |
 | `SYSTEM_CAPABILITIES` | The capabilities such a Blueprint cannot have: `identifiable`, `authenticatable`, `media_file`, `submitted`, `keyed`, `link` |
 | `REQUIRED_CAPABILITY`, `MAX_LABEL`, `MAX_FIELDS`, `VERSION` | `titled`; 100 characters; 60 fields and relations; 1 |
 
