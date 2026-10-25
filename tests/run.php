@@ -7504,6 +7504,185 @@ test('Blueprint editor (0.3.0): a Blueprint, field or queryable flag a list uses
     putenv('CAMPANELLA_DB_PREFIX');
 });
 
+echo "\nImporters (0.3.1)\n";
+
+test('ImporterDefinition: the stored form, checked against the Blueprints', function () use ($config): void {
+    $registry = (new \Campanella\Core\Kernel(dirname(__DIR__)))->container()->get(BlueprintRegistry::class);
+    $good = ['label' => 'Cikkek', 'blueprint' => 'article', 'format' => 'csv', 'key' => 'Azonosító', 'user' => 1,
+        'mapping' => [['source' => 'Cím', 'target' => 'title'], ['source' => 'Kategória', 'target' => 'categories', 'separator' => '|']]];
+    $d = \Campanella\Import\ImporterDefinition::fromArray('cikkek', $good, $registry);
+    check($d->blueprint === 'article' && $d->delimiter === 'auto' && $d->missingTarget === 'error' && $d->missingItems === 'keep' && !$d->publish && count($d->mapping) === 2);
+    check(\Campanella\Import\ImporterDefinition::fromArray('cikkek', $d->toArray(), $registry)->toArray() === $d->toArray(), 'the stored form round-trips');
+    foreach ([
+        'a user Blueprint' => ['blueprint' => 'user'],
+        'an unknown Blueprint' => ['blueprint' => 'nincs'],
+        'an unknown target' => ['mapping' => [['source' => 'Cím', 'target' => 'title'], ['source' => 'X', 'target' => 'nincs']]],
+        'a target twice' => ['mapping' => [['source' => 'Cím', 'target' => 'title'], ['source' => 'X', 'target' => 'title']]],
+        'no title' => ['mapping' => [['source' => 'Bevezető', 'target' => 'lead']]],
+        'a status as a target' => ['mapping' => [['source' => 'Cím', 'target' => 'title'], ['source' => 'S', 'target' => 'status']]],
+        'a format' => ['format' => 'xml'],
+        'an empty key' => ['key' => ' '],
+        'a control character' => ['key' => "a\nb"],
+        'no user' => ['user' => 0],
+        'a missing target policy' => ['missing_target' => 'delete'],
+    ] as $what => $change) {
+        throws(InvalidArgumentException::class, static fn () => \Campanella\Import\ImporterDefinition::fromArray('cikkek', $change + $good, $registry));
+    }
+    throws(InvalidArgumentException::class, static fn () => \Campanella\Import\ImporterDefinition::fromArray('Rossz Név', $good, $registry));
+    check(array_keys(\Campanella\Import\ImporterDefinition::targets($registry->get('article'))) === ['title', 'body', 'path', 'published_at', 'lead', 'categories'], 'the targets');
+});
+
+test('ImportSource: a CSV (BOM, delimiter, quotes, line breaks, empty rows, bad bytes) and JSON (a path, nested values)', function (): void {
+    $dir = sys_get_temp_dir() . '/cmp-import-' . bin2hex(random_bytes(4));
+    mkdir($dir);
+    $csv = $dir . '/a.csv';
+    file_put_contents($csv, "\xEF\xBB\xBFAzonosító;Cím;Szöveg\r\n1;Első;\"Két sor\r\nés; pontosvessző\"\r\n\r\n2;\"Idéző \"\"jel\"\"\";\r\n3;\xC3\x28;x\r\n");
+    $source = \Campanella\Import\ImportSource::file($csv, 'csv');
+    check($source->columns() === ['Azonosító', 'Cím', 'Szöveg'], json_encode($source->columns(), JSON_UNESCAPED_UNICODE));
+    $items = iterator_to_array($source->items());
+    check(array_keys($items) === [1, 2, 3] && $items[1]['Szöveg'] === "Két sor\r\nés; pontosvessző" && $items[2]['Cím'] === 'Idéző "jel"' && $items[2]['Szöveg'] === '', json_encode($items, JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR));
+    check($items[3] instanceof \Campanella\Import\ImportException && $items[3]->reason->key === 'import.error.not_utf8', 'a row that is not UTF-8');
+    check($source->count() === 3 && array_keys(iterator_to_array($source->items(2))) === [3], 'counted; from an item on');
+    file_put_contents($csv, "a,b,a\n1,2,3\n");
+    throws(\Campanella\Import\ImportException::class, static fn () => \Campanella\Import\ImportSource::file($csv, 'csv'));
+    file_put_contents($csv, "a\tb\n1\t2\n");
+    check(\Campanella\Import\ImportSource::file($csv, 'csv')->columns() === ['a', 'b'] && \Campanella\Import\ImportSource::file($csv, 'csv', ';')->columns() === ["a\tb"], 'a tab found; a given delimiter kept');
+    file_put_contents($csv, "\xE1rv\xEDz\n1\n");
+    throws(\Campanella\Import\ImportException::class, static fn () => \Campanella\Import\ImportSource::file($csv, 'csv'));
+    $json = $dir . '/a.json';
+    file_put_contents($json, json_encode(['data' => ['items' => [['id' => 7, 'cim' => 'Hét', 'hely' => ['nev' => 'Tér']], 'nem objektum']]]));
+    $j = \Campanella\Import\ImportSource::file($json, 'json', 'auto', 'data.items');
+    $items = iterator_to_array($j->items());
+    check($j->columns() === ['id', 'cim', 'hely.nev'] && \Campanella\Import\ImportSource::value($items[1], 'hely.nev') === 'Tér' && \Campanella\Import\ImportSource::value($items[1], 'nincs') === null, json_encode($j->columns()));
+    check($items[2] instanceof \Campanella\Import\ImportException, 'an item that is not an object');
+    throws(\Campanella\Import\ImportException::class, static fn () => \Campanella\Import\ImportSource::file($json, 'json', 'auto', 'data.nincs'));
+    file_put_contents($json, '{"nem": json');
+    throws(\Campanella\Import\ImportException::class, static fn () => \Campanella\Import\ImportSource::file($json, 'json'));
+    array_map('unlink', glob($dir . '/*') ?: []);
+    rmdir($dir);
+});
+
+test('ImportValues: a value of every type, from a text or JSON', function (): void {
+    $v = new \Campanella\Import\ImportValues(new DateTimeZone('Europe/Budapest'));
+    $f = static fn (FieldType $type, array $more = []) => new Field('x', $type, ...(['label' => 'Mező'] + $more));
+    check($v->convert($f(FieldType::String), '  szöveg ', '|') === 'szöveg' && $v->convert($f(FieldType::String), '', '|') === null);
+    check($v->convert($f(FieldType::Html), "Egy\nkét", '|') === \Campanella\Html\PlainText::toHtml("Egy\nkét") && $v->convert($f(FieldType::Html), '<p>Már <b>HTML</b></p>', '|') === '<p>Már <b>HTML</b></p>', 'plain text becomes paragraphs');
+    check($v->convert($f(FieldType::Integer), ' 1 234 ', '|') === 1234 && $v->convert($f(FieldType::Integer), 7, '|') === 7);
+    check($v->convert($f(FieldType::Decimal, ['scale' => 2]), '1 234,567', '|') === '1234.57' && $v->convert($f(FieldType::Decimal, ['scale' => 0]), 1500, '|') === '1500', 'a decimal comma, rounded');
+    check($v->convert($f(FieldType::Boolean), 'Igen', '|') === true && $v->convert($f(FieldType::Boolean), 'no', '|') === false && $v->convert($f(FieldType::Boolean), false, '|') === false && $v->convert($f(FieldType::Boolean), '', '|') === null);
+    foreach (['2026-11-05', '2026.11.05.', '2026. 11. 5.'] as $day) {
+        check((string) $v->convert($f(FieldType::Date), $day, '|')?->format('Y-m-d') === '2026-11-05', $day);
+    }
+    check($v->convert($f(FieldType::DateTime), '2026. 11. 05. 18:00', '|')?->format('Y-m-d H:i e') === '2026-11-05 17:00 UTC', 'a moment in the site\'s time zone');
+    check($v->convert($f(FieldType::DateTime), '2026-07-01T08:30:00+02:00', '|')?->format('Y-m-d H:i') === '2026-07-01 06:30', 'with an offset');
+    $choice = $f(FieldType::Choice, ['choices' => ['koncert' => 'Koncert', 'seta' => 'Séta']]);
+    check($v->convert($choice, 'koncert', '|') === 'koncert' && $v->convert($choice, 'SÉTA', '|') === 'seta', 'a choice by key or label');
+    $tags = new Field('cimkek', FieldType::String, cardinality: Field::UNLIMITED);
+    check($v->convert($tags, 'zene| tánc ||', '|') === ['zene', 'tánc'] && $v->convert($tags, ['a', 'b'], '|') === ['a', 'b'], 'several values');
+    foreach ([[FieldType::Integer, '1,5'], [FieldType::Decimal, 'sok'], [FieldType::Boolean, 'talán'], [FieldType::Date, '2026-02-30'], [FieldType::DateTime, 'holnap'], [FieldType::String, ['a', 'b']]] as [$type, $raw]) {
+        throws(\Campanella\Import\ImportException::class, static fn () => $v->convert($f($type), $raw, '|'));
+    }
+    throws(\Campanella\Import\ImportException::class, static fn () => $v->convert($choice, 'mozi', '|'));
+});
+
+test('Importer: trial, a run in batches, unchanged, changed, missing items, new targets, errors, undo', function () use ($newUser): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $c = $kernel->container();
+    if ($c->get(Connection::class)->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $db = $c->get(Connection::class);
+    $repository = $c->get(ObjectRepository::class);
+    $service = $c->get(ObjectService::class);
+    $admin = $newUser('import-admin@example.hu', 'import-jelszo-12', ['administrator']);
+    $category = $service->create(Actor::system(), 'category', ['title' => 'Import-meglévő-0301'], publish: true);
+    $store = $c->get(\Campanella\Import\ImporterStore::class);
+    $store->save('teszt_cikkek', ['version' => 1, 'label' => 'Teszt cikkek', 'blueprint' => 'article', 'format' => 'csv', 'delimiter' => 'auto', 'items' => '',
+        'key' => 'Azonosító', 'publish' => true, 'missing_target' => 'create', 'missing_items' => 'draft', 'user' => (int) $admin->id(),
+        'mapping' => [['source' => 'Cím', 'target' => 'title'], ['source' => 'Bevezető', 'target' => 'lead'], ['source' => 'Szöveg', 'target' => 'body'],
+            ['source' => 'Kategória', 'target' => 'categories', 'separator' => '|'], ['source' => 'Megjelenés', 'target' => 'published_at']]]);
+    $importers = $c->get(\Campanella\Import\Importer::class);
+    $importer = $importers->find('teszt_cikkek');
+    check($importer !== null, 'loaded');
+    $file = tempnam(sys_get_temp_dir(), 'imp');
+    $write = static fn (array $rows) => file_put_contents($file, implode("\n", array_map(static fn (array $r): string => implode(';', $r), [['Azonosító', 'Cím', 'Bevezető', 'Szöveg', 'Kategória', 'Megjelenés'], ...$rows])) . "\n");
+    $write([
+        ['A1', 'Import első-0301', 'Bevezető egy', 'Első sor', 'Import-meglévő-0301', ''],
+        ['A2', 'Import második-0301', 'Bevezető kettő', '<p>Már <script>x</script>HTML</p>', 'Import-új-0301|Import-meglévő-0301', '2026. 10. 01. 12:00'],
+        ['A3', 'Import hibás-0301', '', '', '', 'tegnapelőtt'],
+        ['', 'Kulcs nélkül', '', '', '', ''],
+    ]);
+    $trial = $importers->trial($importer, $file);
+    check($trial->total === 4 && $trial->missingSources === [] && array_column($trial->rows, 'action') === ['create', 'create', 'error', 'error'], json_encode(array_column($trial->rows, 'action')));
+    check($trial->rows[1]['creates'] === ['Import-új-0301'] && $trial->rows[2]['error']?->key === 'import.error.date', 'the target to make; the error');
+    check($db->fetchValue("SELECT COUNT(*) FROM {cap_titled} WHERE title LIKE 'Import%-0301'") == 1, 'a trial changes nothing');
+
+    // A run in batches: at least one item a step.
+    $run = $importers->start($importer, $file, 'cikkek.csv', (int) $admin->id());
+    check($run->isRunning() && $run->total === 4 && $run->position === 0);
+    throws(\Campanella\Import\ImportException::class, static fn () => $importers->start($importer, $file, 'megint.csv'));
+    $steps = 0;
+    while ($run->isRunning() && $steps < 10) {
+        $run = $importers->step($run->id, 0.0);
+        $steps++;
+    }
+    check($run->status === 'done' && $steps === 4 && $run->created === 2 && $run->failed === 2 && count($run->errors) === 2, json_encode([$run->status, $steps, $run->created, $run->failed]));
+    check($run->errors[0]['row'] === 3 && $run->errors[0]['key'] === 'A3' && $run->errors[1]['message']->key === 'import.error.no_key', 'the errors by row: ' . json_encode($run->errors));
+    $first = $c->get(QueryEngine::class)->first(Query::objects()->blueprint('article')->where('title', '=', 'Import első-0301'), Actor::system());
+    $second = $c->get(QueryEngine::class)->first(Query::objects()->blueprint('article')->where('title', '=', 'Import második-0301'), Actor::system());
+    check($first !== null && $second !== null && $first->as(Publishable::class)->isPublished() && (string) $first->get('lead') === 'Bevezető egy', 'made and published');
+    check(!str_contains((string) $second->get('body'), 'script') && $second->as(Publishable::class)->publishedAt()?->format('Y-m-d H:i') === '2026-10-01 10:00', 'filtered; published at its own time');
+    $new = $c->get(QueryEngine::class)->first(Query::objects()->blueprint('category')->where('title', '=', 'Import-új-0301'), Actor::system());
+    check($new !== null && count($second->relatedIds('categories')) === 2 && in_array((int) $category->id(), $first->relatedIds('categories'), true), 'a target made, an existing one found');
+    check((int) $first->as(\Campanella\Capability\Authorable::class)->authorId() === (int) $admin->id(), 'in the name of the importer\'s user');
+
+    // Again: unchanged.
+    $again = $importers->start($importer, $file, 'cikkek.csv');
+    $again = $importers->step($again->id, 30.0);
+    check($again->status === 'done' && $again->unchanged === 2 && $again->created === 0 && $again->failed === 2 && $again->missing === 0, json_encode([$again->unchanged, $again->created]));
+
+    // Changed, gone, new; a key twice.
+    $write([
+        ['A1', 'Import első-0301', 'Bevezető egy, másképp', 'Első sor', 'Import-meglévő-0301', ''],
+        ['A4', 'Import negyedik-0301', '', '', '', ''],
+        ['A4', 'Import negyedik megint-0301', '', '', '', ''],
+    ]);
+    $third = $importers->step($importers->start($importer, $file, 'masodik.csv')->id, 30.0);
+    check($third->updated === 1 && $third->created === 1 && $third->failed === 1 && $third->missing === 1 && $third->errors[0]['message']->key === 'import.error.duplicate', json_encode([$third->updated, $third->created, $third->failed, $third->missing]));
+    check((string) $repository->find((int) $first->id())?->get('lead') === 'Bevezető egy, másképp', 'updated');
+    check(!$repository->find((int) $second->id())?->as(Publishable::class)->isPublished(), 'an item gone: a draft');
+    check(count($importers->runs('teszt_cikkek')) === 3 && $importers->objectCount('teszt_cikkek') === 3, 'the log');
+
+    // Undoing the third run deletes what it made only.
+    $fourth = $c->get(QueryEngine::class)->first(Query::objects()->blueprint('article')->where('title', '=', 'Import negyedik-0301'), Actor::system());
+    check($importers->undo($third->id) === 1 && $repository->find((int) $fourth?->id()) === null && $repository->find((int) $first->id()) !== null, 'undone');
+    check($importers->run($third->id)?->status === 'undone');
+    throws(\Campanella\Import\ImportException::class, static fn () => $importers->undo($third->id));
+
+    // A blocked user cannot run it.
+    $admin->as(Authenticatable::class)->block();
+    $repository->save($admin);
+    throws(\Campanella\Import\ImportException::class, static fn () => $importers->start($importer, $file, 'x.csv'));
+    check(glob(dirname(__DIR__) . '/var/imports/*.csv') === [], 'no file left behind');
+
+    $importers->delete('teszt_cikkek');
+    check($store->find('teszt_cikkek') === null && $importers->runs('teszt_cikkek') === [], 'deleted with its log');
+    foreach ([$first, $second, $new, $category] as $object) {
+        if ($object !== null && $repository->find((int) $object->id()) !== null) {
+            $repository->delete($object);
+        }
+    }
+    $repository->delete($admin);
+    @unlink($file);
+    foreach (glob(dirname(__DIR__) . '/var/backups/campanella-*') ?: [] as $backup) {
+        @unlink($backup);
+    }
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
 echo "\nDocumentation examples\n";
 
 test('New capability as in the docs example (Featured)', function () use ($db, $admin): void {

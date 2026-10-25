@@ -10,6 +10,36 @@ backward-incompatible.
 
 ## [Unreleased]
 
+Work towards 0.3.1: importers, step 1 (CSV and JSON files), in parts.
+
+### Added
+
+- **Importers** ([PHP API](docs/php-api/26-importers.md)): an importer turns the
+  rows of a CSV file or the objects of a JSON file into objects of a Blueprint,
+  by a mapping of the file's columns to its fields and relations, with a unique
+  key, so a file can be imported again: an unchanged item is skipped, a changed
+  one updates its object, a new one makes an object. Values are converted by
+  the field types (decimal commas, Hungarian and ISO dates, a choice by key or
+  label, several values with a separator), formatted text goes through the
+  HTML filter; a relation's target is found by machine name, path or title,
+  and if it is not found the item fails, is imported without the link, or the
+  target is made (per importer). A trial shows the first items as they would
+  become, changing nothing; a run goes on in batches, in the name and with the
+  permissions of the importer's user, and leaves a log (made, updated,
+  unchanged, failed, the errors by row); a run can be undone (the objects it
+  made deleted, after a backup). An object whose item left the file is kept or
+  made a draft; an import never deletes. Never started by a visitor's request.
+- `php bin/campanella import:run <importer> <file> [--yes]` (a trial, or the
+  run, e.g. from cron) and `import:undo <run> [--yes]`.
+- The tables `importers`, `import_runs`, `import_items` (schema version 17).
+- The upgrade tests also start from 0.3.0, and run an importer on every
+  upgraded site.
+
+### Fixed
+
+- A throttling window given in negative seconds was read as positive by some
+  PHP 8.3 versions (`+-5 seconds`); it only showed in a test.
+
 ## [0.3.0] – 2026-10-24
 
 **The third milestone: the content model in the admin.** 0.3.0 releases what

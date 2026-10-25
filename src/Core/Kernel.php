@@ -56,6 +56,8 @@ use Campanella\Site\Redirects;
 use Campanella\Capability\Routable;
 use Campanella\Search\SearchCheck;
 use Campanella\Search\SearchIndexer;
+use Campanella\Import\Importer;
+use Campanella\Import\ImporterStore;
 use Campanella\Controller\Controller;
 use Campanella\Controller\ObjectController;
 use Campanella\Controller\QueryController;
@@ -942,6 +944,18 @@ final class Kernel
         $c->set(Redirects::class, static fn (Container $c): Redirects => new Redirects($c->get(Connection::class)));
         // The search (since 0.2.7).
         $c->set(Search::class, static fn (Container $c): Search => new Search($c->get(Connection::class), $c->get(QueryEngine::class), $c->get(BlueprintRegistry::class)));
+        // The importers (since 0.3.1).
+        $c->set(ImporterStore::class, static fn (Container $c): ImporterStore => new ImporterStore($c->get(Connection::class)));
+        $c->set(Importer::class, static fn (Container $c): Importer => new Importer(
+            $c->get(Connection::class),
+            $c->get(BlueprintRegistry::class),
+            $c->get(ImporterStore::class),
+            $c->get(ObjectService::class),
+            $c->get(ObjectRepository::class),
+            $c->get(DatabaseBackup::class),
+            new \DateTimeZone((string) $c->get(Config::class)->get('timezone', 'UTC')),
+            $root . '/var/imports',
+        ));
         $c->set(SearchIndexer::class, static fn (Container $c): SearchIndexer => new SearchIndexer(
             $c->get(Connection::class),
             $c->get(ObjectRepository::class),

@@ -216,6 +216,29 @@ if (is_array($model)) {
     $check(!$again->hasErrors() && !$again->hasChanges(), 'the content model\'s own export would change it: ' . json_encode(array_map(static fn ($i) => [$i->name, $i->action, (string) $i->error], $again->items), JSON_UNESCAPED_UNICODE));
 }
 
+// 8. The importers (since 0.3.1) work on the upgraded site: a CSV of two articles, in the
+// administrator's name, to an old category; run again, nothing changes.
+$adminUser = $c->get(\Campanella\Auth\AuthService::class)->findUserByEmail($snapshot['users']['admin'][0]);
+$oldCategory = $c->get(\Campanella\Query\QueryEngine::class)->first(\Campanella\Query\Query::objects()->blueprint('category')->orderBy('id'), Actor::system());
+if ($adminUser !== null && $oldCategory !== null) {
+    $c->get(\Campanella\Import\ImporterStore::class)->save('frissitesi_import', ['version' => 1, 'label' => 'Frissítési import', 'blueprint' => 'article', 'format' => 'csv',
+        'delimiter' => 'auto', 'items' => '', 'key' => 'id', 'publish' => true, 'missing_target' => 'error', 'missing_items' => 'keep', 'user' => (int) $adminUser->id(),
+        'mapping' => [['source' => 'cim', 'target' => 'title'], ['source' => 'kategoria', 'target' => 'categories']]]);
+    $csv = tempnam(sys_get_temp_dir(), 'upg');
+    file_put_contents($csv, "id;cim;kategoria\n1;Frissítési import egy;" . $oldCategory->get('title') . "\n2;Frissítési import kettő;\n");
+    $importers = $c->get(\Campanella\Import\Importer::class);
+    $importer = $importers->find('frissitesi_import');
+    $check($importer !== null, 'an importer does not load');
+    if ($importer !== null) {
+        $run = $importers->step($importers->start($importer, $csv, 'frissites.csv')->id, 30.0);
+        $check($run->status === 'done' && $run->created === 2 && $run->failed === 0, 'the import: ' . json_encode([$run->status, $run->created, $run->failed, $run->errors]));
+        $again = $importers->step($importers->start($importer, $csv, 'frissites.csv')->id, 30.0);
+        $check($again->unchanged === 2, 'the import again changed something');
+        $check($importers->undo($run->id) === 2, 'the import could not be undone');
+    }
+    @unlink($csv);
+}
+
 echo "{$checks} checks, upgraded from {$snapshot['version']} (schema {$snapshot['schema']}) to " . Version::CAMPANELLA . ' (schema ' . Version::SCHEMA . ").\n";
 if ($problems !== []) {
     echo count($problems) . " problems:\n";

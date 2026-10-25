@@ -26,6 +26,9 @@ final class CoreSchema
     public const string LISTS = 'lists';
     public const string SEARCH_INDEX = 'search_index';
     public const string REDIRECTS = 'redirects';
+    public const string IMPORTERS = 'importers';
+    public const string IMPORT_RUNS = 'import_runs';
+    public const string IMPORT_ITEMS = 'import_items';
 
     /** @return list<Table> */
     public static function tables(): array
@@ -269,6 +272,62 @@ final class CoreSchema
                 primaryKey: ['id'],
                 indexes: ['idx_object' => ['object_id']],
                 uniques: ['uniq_source' => ['source']],
+                foreignKeys: [new ForeignKey('object_id', self::OBJECTS)],
+            ),
+            // The importers (since 0.3.1, schema version 17): the definition as JSON, loaded
+            // but never queried (Campanella\Import\ImporterStore).
+            new Table(
+                name: self::IMPORTERS,
+                columns: [
+                    new Column('name', ColumnType::String, length: 64),
+                    new Column('definition', ColumnType::Json),
+                    new Column('created_at', ColumnType::DateTime),
+                    new Column('updated_at', ColumnType::DateTime),
+                ],
+                primaryKey: ['name'],
+            ),
+            // An importer's runs (since 0.3.1): where a run is, what it did, its errors by row
+            // (Campanella\Import\Importer). Kept as the importer's log.
+            new Table(
+                name: self::IMPORT_RUNS,
+                columns: [
+                    new Column('id', ColumnType::Id, autoIncrement: true),
+                    new Column('importer', ColumnType::String, length: 64),
+                    new Column('status', ColumnType::String, length: 16),
+                    new Column('file', ColumnType::String, length: 255, nullable: true),
+                    new Column('source_name', ColumnType::String, length: 255),
+                    new Column('position', ColumnType::Integer, default: 0),
+                    new Column('total', ColumnType::Integer, default: 0),
+                    new Column('created', ColumnType::Integer, default: 0),
+                    new Column('updated', ColumnType::Integer, default: 0),
+                    new Column('unchanged', ColumnType::Integer, default: 0),
+                    new Column('failed', ColumnType::Integer, default: 0),
+                    new Column('missing', ColumnType::Integer, default: 0),
+                    new Column('errors', ColumnType::Json),
+                    new Column('user_id', ColumnType::Id, nullable: true),
+                    new Column('started_at', ColumnType::DateTime),
+                    new Column('finished_at', ColumnType::DateTime, nullable: true),
+                    new Column('undone_at', ColumnType::DateTime, nullable: true),
+                ],
+                primaryKey: ['id'],
+                indexes: ['idx_importer' => ['importer', 'id']],
+            ),
+            // Which item of a source became which object (since 0.3.1): by the importer and the
+            // item's unique key; its values' hash (an unchanged item is skipped), the run that
+            // made it (to undo the run) and the last one that saw it. Goes with the object.
+            new Table(
+                name: self::IMPORT_ITEMS,
+                columns: [
+                    new Column('importer', ColumnType::String, length: 64),
+                    new Column('item_key', ColumnType::String, length: 191),
+                    new Column('object_id', ColumnType::Id),
+                    new Column('hash', ColumnType::String, length: 64),
+                    new Column('created_run', ColumnType::Id),
+                    new Column('last_run', ColumnType::Id),
+                    new Column('updated_at', ColumnType::DateTime),
+                ],
+                primaryKey: ['importer', 'item_key'],
+                indexes: ['idx_object' => ['object_id'], 'idx_created_run' => ['importer', 'created_run'], 'idx_last_run' => ['importer', 'last_run']],
                 foreignKeys: [new ForeignKey('object_id', self::OBJECTS)],
             ),
             // Throttling of attempts (e.g. login). The SHA-256 hash of the key.

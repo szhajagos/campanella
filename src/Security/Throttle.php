@@ -53,7 +53,8 @@ final class Throttle
     {
         $hash = $this->hash($key);
         $now = self::now();
-        $reset = $now->modify("+{$decaySeconds} seconds")->format(FieldType::STORAGE_DATE_FORMAT);
+        // "%+d": "-5 seconds", not "+-5 seconds", which some PHP 8.3 versions read as +5.
+        $reset = $now->modify(sprintf('%+d seconds', $decaySeconds))->format(FieldType::STORAGE_DATE_FORMAT);
         $nowText = $now->format(FieldType::STORAGE_DATE_FORMAT);
 
         $hits = $this->db->transactional(function (Connection $db) use ($hash, $reset, $nowText): int {

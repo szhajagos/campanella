@@ -187,6 +187,8 @@ from ([chapter 17](17-migrations.md#the-oldest-version-that-can-be-upgraded)).
 | `model:import` | Shows the plan of importing a content model file; `--yes`: does it, if it has no errors (since 0.2.6; [chapter 24](24-content-model.md)) |
 | `submissions:prune` | Deletes the contact form's messages older than `contact.keep_days`, and the expired throttling rows (since 0.1.5; for cron on a quiet site, [chapter 22](22-forms.md#data-protection)) |
 | `search:index` | Puts the pages not in the search's index yet into it (e.g. after the upgrade to 0.2.7); `--all`: every page again (since 0.2.7; [chapter 25](25-search.md#building-the-index-searchindexer)) |
+| `import:run` | Runs an importer on a file: without `--yes` a trial of its first items, with it the run to its end and its log; exit code 1 if an item failed (since 0.3.1; [chapter 26](26-importers.md)) |
+| `import:undo` | Deletes the objects a run of an importer made, after a backup; without `--yes` it only says how many (since 0.3.1; [chapter 26](26-importers.md)) |
 | `media:variants` | Makes the smaller copies of the images that have none yet; `--all`: of every image again (since 0.1.2; [chapter 16](16-media.md#smaller-copies-variants)) |
 | `seed` | Sample content. Can be run repeatedly: whatever already exists by path is not created again. Since 0.3.0 also a content model as the admin makes it: the Blueprint `esemeny` (*Esemény*: a start, a kind, a venue, a ticket price; 3 admin columns), the list `esemenyek` of the upcoming ones at `/esemenyek` (a table, with 3 visitors' filters), and seven events (one in the past); imported as System → Content model does, only if the site has neither of these names |
 | `status` | Version, the system check ([chapter 14](14-system-check.md)), capabilities, Blueprints, object count; reports if the database needs an upgrade. Exits with `1` if a check reports an error |
@@ -230,7 +232,7 @@ module system it will become registrable.
 |---|---|
 | `Console` · **Internal** | `__construct(Kernel $kernel, Output $output = new Output())`, `run(array $argv): int` |
 | `Output` · **Public** | `__construct($stream = STDOUT, $errors = STDERR)`; `line(string $text = '')`, `success(string $text)` (with a ✔ mark), `error(string $text)` (with a ✘ mark, to the error stream), `raw(string $text)` (as it is, without a line break; since 0.2.6) |
-| `InstallCommand`, `SeedCommand`, `StatusCommand`, `HtmlSanitizeCommand`, `SchemaCheckCommand`, `MigrateCommand`, `DbBackupCommand`, `ModelExportCommand`, `ModelImportCommand`, `SearchIndexCommand`, `SubmissionsPruneCommand`, `MigrationRunner` · **Internal** | The built-in commands |
+| `InstallCommand`, `SeedCommand`, `StatusCommand`, `HtmlSanitizeCommand`, `SchemaCheckCommand`, `MigrateCommand`, `DbBackupCommand`, `ModelExportCommand`, `ModelImportCommand`, `SearchIndexCommand`, `ImportRunCommand`, `ImportUndoCommand`, `SubmissionsPruneCommand`, `MigrationRunner` · **Internal** | The built-in commands |
 
 ## Helper classes
 
