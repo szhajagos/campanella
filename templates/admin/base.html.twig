@@ -66,6 +66,7 @@
                             <li class="nav-item"><a class="nav-link admin-subnav{{ (active ?? '') == 'capabilities' ? ' active' : '' }}" href="{{ admin_url('system/capabilities') }}">{{ t('structure.capabilities') }}</a></li>
                             <li class="nav-item"><a class="nav-link admin-subnav{{ (active ?? '') == 'lists' ? ' active' : '' }}" href="{{ admin_url('system/lists') }}">{{ t('lists.title') }}</a></li>
                             <li class="nav-item"><a class="nav-link admin-subnav{{ (active ?? '') == 'model' ? ' active' : '' }}" href="{{ admin_url('system/model') }}">{{ t('model.title') }}</a></li>
+                            <li class="nav-item"><a class="nav-link admin-subnav{{ (active ?? '') == 'importers' ? ' active' : '' }}" href="{{ admin_url('system/importers') }}">{{ t('importers.title') }}</a></li>
                             <li class="nav-item"><a class="nav-link admin-subnav{{ (active ?? '') == 'redirects' ? ' active' : '' }}" href="{{ admin_url('system/redirects') }}">{{ t('redirects.title') }}</a></li>
                         {% endif %}
                     {% endblock %}

@@ -7683,6 +7683,90 @@ test('Importer: trial, a run in batches, unchanged, changed, missing items, new 
     putenv('CAMPANELLA_DB_PREFIX');
 });
 
+test('Kernel: the importers in the admin: made, mapped, a trial, a run step by step, its log, undone', function () use ($newUser): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = null;
+    $storage = new ArraySessionStorage();
+    $boot = static function () use (&$kernel, $storage) {
+        $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+        $kernel->container()->set(Session::class, static fn () => new Session($storage));
+
+        return $kernel->container();
+    };
+    $container = $boot();
+    if ($container->get(Connection::class)->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $send = function (string $method, string $path, array $post = [], array $files = []) use (&$kernel, $storage, $boot) {
+        $storage->endRequest();
+        $boot();
+
+        return $kernel->handle(new Request($method, $path, post: $post, files: $files));
+    };
+    $container->get(AuthService::class)->login(new Request('GET', '/'), $newUser('imp-szerk@example.hu', 'imp-jelszo-123', ['editor']));
+    check($send('GET', '/admin/system/importers')->status === 403, 'not for editors');
+    $admin = $newUser('imp-admin@example.hu', 'imp-jelszo-123', ['administrator']);
+    $boot()->get(AuthService::class)->login(new Request('GET', '/'), $admin);
+    $overview = $send('GET', '/admin/system/importers');
+    check($overview->status === 200 && str_contains($overview->body, 'Új importáló') && str_contains($overview->body, 'href="/admin/system/importers"'), 'the overview, in the menu');
+    $token = preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $overview->body, $m) === 1 ? $m[1] : '';
+    $new = $send('GET', '/admin/system/importers/new');
+    check(str_contains($new->body, '<option value="article"') && !str_contains($new->body, '<option value="user"') && !str_contains($new->body, '<option value="menu_item"'), 'only content Blueprints');
+    check($send('POST', '/admin/system/importers/new', ['_csrf' => $token, 'name' => 'Rossz', 'label' => 'X', 'blueprint' => 'article', 'format' => 'csv', 'key' => 'id', 'title' => 'cim'])->status === 422, 'an invalid name');
+    $made = $send('POST', '/admin/system/importers/new', ['_csrf' => $token, 'name' => 'admin_cikkek', 'label' => 'Admin cikkek', 'blueprint' => 'article', 'format' => 'csv', 'key' => 'id', 'title' => 'cim']);
+    check($made->status === 303 && ($made->headers['Location'] ?? '') === '/admin/system/importers/admin_cikkek', (string) $made->status);
+    $edit = $send('GET', '/admin/system/importers/admin_cikkek');
+    check($edit->status === 200 && str_contains($edit->body, 'name="mapping[0][source]" value="cim"') && str_contains($edit->body, '<option value="categories"') && str_contains($edit->body, '<option value="' . $admin->id() . '"') && str_contains($edit->body, 'imp-szerk@example.hu (editor)'), 'the form; the users with a role');
+    $form = ['_csrf' => $token, 'label' => 'Admin cikkek', 'format' => 'csv', 'delimiter' => 'auto', 'items' => '', 'key' => 'id', 'publish' => '1',
+        'missing_target' => 'skip', 'missing_items' => 'keep', 'user' => (string) $admin->id(),
+        'mapping' => [['source' => 'cim', 'target' => 'title', 'separator' => '|'], ['source' => 'bevezeto', 'target' => 'lead', 'separator' => '|'], ['source' => '', 'target' => '', 'separator' => '|']]];
+    check($send('POST', '/admin/system/importers/admin_cikkek', ['mapping' => [['source' => 'x', 'target' => 'nincs']]] + $form)->status === 422, 'an unknown target');
+    check($send('POST', '/admin/system/importers/admin_cikkek', $form)->status === 303, 'saved');
+    $stored = $boot()->get(\Campanella\Import\ImporterStore::class)->find('admin_cikkek');
+    check(count($stored['mapping'] ?? []) === 2 && ($stored['publish'] ?? null) === true && ($stored['missing_target'] ?? null) === 'skip', json_encode($stored, JSON_UNESCAPED_UNICODE));
+
+    // A trial of an uploaded file, then the run, step by step, its log, undone.
+    $csv = tempnam(sys_get_temp_dir(), 'imp');
+    file_put_contents($csv, "id;cim;bevezeto\n1;Admin import egy-0301;Első\n2;Admin import kettő-0301;Második\n3;;Cím nélkül\n");
+    $file = ['file' => new \Campanella\Http\UploadedFile('cikkek.csv', $csv, (int) filesize($csv))];
+    check($send('POST', '/admin/system/importers/admin_cikkek/run', ['_csrf' => 'x'], $file)->status === 400, 'CSRF');
+    $trial = $send('POST', '/admin/system/importers/admin_cikkek/run', ['_csrf' => $token], $file);
+    check($trial->status === 200 && str_contains($trial->body, 'Admin import egy-0301') && str_contains($trial->body, 'name="token"'), (string) $trial->status);
+    check($boot()->get(QueryEngine::class)->count(Query::objects()->where('title', '=', 'Admin import egy-0301'), Actor::system()) === 0, 'a trial changes nothing');
+    $pending = preg_match('/name="token" value="([0-9a-f]{48})"/', $trial->body, $mm) === 1 ? $mm[1] : '';
+    check($send('POST', '/admin/system/importers/admin_cikkek/start', ['_csrf' => $token, 'token' => str_repeat('0', 48), 'file_name' => 'x.csv'])->status === 303 && !is_file(dirname(__DIR__) . '/var/imports/pending-' . str_repeat('0', 48) . '.csv'), 'an unknown token');
+    $started = $send('POST', '/admin/system/importers/admin_cikkek/start', ['_csrf' => $token, 'token' => $pending, 'file_name' => 'cikkek.csv']);
+    check($started->status === 303 && preg_match('#/admin/system/importers/admin_cikkek/runs/(\d+)$#', $started->headers['Location'] ?? '', $run) === 1, (string) ($started->headers['Location'] ?? ''));
+    check(!is_file(dirname(__DIR__) . '/var/imports/pending-' . $pending . '.csv'), 'the waiting file went');
+    $page = $send('GET', '/admin/system/importers/admin_cikkek/runs/' . $run[1]);
+    check($page->status === 200 && str_contains($page->body, 'data-import-continue') && str_contains($page->body, 'admin-import.js'), 'running: it goes on by itself');
+    check($send('GET', '/admin/system/importers/admin_cikkek/runs/' . $run[1] . '/step')->status === 405, 'a step is a POST');
+    check($send('POST', '/admin/system/importers/admin_cikkek/runs/' . $run[1] . '/step', ['_csrf' => $token])->status === 303);
+    $log = $send('GET', '/admin/system/importers/admin_cikkek/runs/' . $run[1]);
+    check(!str_contains($log->body, 'data-import-continue') && str_contains($log->body, '2 új, 0 módosult') && str_contains($log->body, 'imp-undo-confirm'), 'done, with its log');
+    check($send('GET', '/admin/system/importers/masik/runs/' . $run[1])->status === 404, 'a run of another importer');
+    check(str_contains($send('GET', '/admin/system/importers')->body, '/runs/' . $run[1]), 'the last run in the overview');
+    $send('POST', '/admin/system/importers/admin_cikkek/runs/' . $run[1] . '/undo', ['_csrf' => $token]);
+    check($boot()->get(QueryEngine::class)->count(Query::objects()->where('title', '=', 'Admin import egy-0301'), Actor::system()) === 1, 'undoing needs the box ticked');
+    $send('POST', '/admin/system/importers/admin_cikkek/runs/' . $run[1] . '/undo', ['_csrf' => $token, 'confirm' => '1']);
+    check($boot()->get(QueryEngine::class)->count(Query::objects()->where('title', '=', 'Admin import egy-0301'), Actor::system()) === 0, 'undone');
+
+    // A file too large, one that cannot be read.
+    $big = ['file' => new \Campanella\Http\UploadedFile('nagy.csv', $csv, \Campanella\Admin\ImporterPages::MAX_UPLOAD + 1)];
+    check($send('POST', '/admin/system/importers/admin_cikkek/run', ['_csrf' => $token], $big)->status === 422, 'too large');
+    file_put_contents($csv, "\xE1rv\n1\n");
+    check($send('POST', '/admin/system/importers/admin_cikkek/run', ['_csrf' => $token], $file)->status === 422, 'not UTF-8');
+
+    check($send('POST', '/admin/system/importers/admin_cikkek/delete', ['_csrf' => $token, 'confirm' => '1'])->status === 303 && $boot()->get(\Campanella\Import\ImporterStore::class)->find('admin_cikkek') === null, 'deleted');
+    @unlink($csv);
+    foreach (glob(dirname(__DIR__) . '/var/backups/campanella-*') ?: [] as $backup) {
+        @unlink($backup);
+    }
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
 echo "\nDocumentation examples\n";
 
 test('New capability as in the docs example (Featured)', function () use ($db, $admin): void {

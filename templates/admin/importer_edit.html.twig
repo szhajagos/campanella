@@ -1,0 +1,121 @@
+{% extends '@core/admin/base.html.twig' %}
+{% import '@core/admin/_blueprint_macros.html.twig' as m %}
+
+{% block content %}
+    <p class="small mb-1"><a href="{{ admin_url('system/importers') }}">{{ t('importers.title') }}</a></p>
+    <div class="d-flex flex-wrap align-items-baseline gap-2 mb-2">
+        <h1 class="h3 mb-0">{{ importer.label }}</h1>
+        <code class="small">{{ importer.name }}</code>
+        <span class="small text-body-secondary">{{ t(importer.blueprint) }}</span>
+        {% if not broken %}<a class="btn btn-sm btn-primary ms-auto" href="{{ admin_url('system/importers/' ~ importer.name ~ '/run') }}">{{ t('importers.run') }}</a>{% endif %}
+    </div>
+    {% if broken %}
+        <div class="alert alert-danger" role="alert">{{ t('importers.broken', {blueprint: importer.blueprint}) }}</div>
+    {% else %}
+        <p class="text-body-secondary mb-4">{{ t('importers.edit_intro') }}</p>
+        {% if errors.form ?? null %}<div class="alert alert-danger" role="alert">{{ t(errors.form.key, errors.form.params) }}</div>{% endif %}
+
+        <form method="post" action="{{ admin_url('system/importers/' ~ importer.name) }}" class="admin-form" novalidate>
+            {{ csrf_field() }}
+            <section class="card card-body mb-4">
+                <h2 class="h6">{{ t('importers.file') }}</h2>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="imp-label" class="form-label fw-semibold">{{ t('importers.label') }} <span class="text-danger" aria-hidden="true">*</span></label>
+                        <input type="text" class="form-control" id="imp-label" name="label" value="{{ form.label }}" required maxlength="200">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="imp-format" class="form-label fw-semibold">{{ t('importers.format') }}</label>
+                        <select class="form-select" id="imp-format" name="format">
+                            {% for format in formats %}<option value="{{ format }}"{{ format == form.format ? ' selected' }}>{{ t('importers.format.' ~ format) }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="imp-delimiter" class="form-label fw-semibold">{{ t('importers.delimiter') }}</label>
+                        <select class="form-select" id="imp-delimiter" name="delimiter">
+                            {% for delimiter in delimiters %}<option value="{{ delimiter }}"{{ delimiter == form.delimiter ? ' selected' }}>{{ t('importers.delimiter.' ~ (delimiter == ';' ? 'semicolon' : (delimiter == ',' ? 'comma' : delimiter))) }}</option>{% endfor %}
+                        </select>
+                        <div class="form-text">{{ t('importers.delimiter_help') }}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="imp-key" class="form-label fw-semibold">{{ t('importers.key') }} <span class="text-danger" aria-hidden="true">*</span></label>
+                        <input type="text" class="form-control" id="imp-key" name="key" value="{{ form.key }}" required maxlength="200">
+                        <div class="form-text">{{ t('importers.key_help') }}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="imp-items" class="form-label fw-semibold">{{ t('importers.items') }}</label>
+                        <input type="text" class="form-control font-monospace" id="imp-items" name="items" value="{{ form.items }}" maxlength="200" placeholder="data.items">
+                        <div class="form-text">{{ t('importers.items_help') }}</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="card card-body mb-4">
+                <h2 class="h6">{{ t('importers.mapping') }}</h2>
+                <p class="small text-body-secondary">{{ t('importers.mapping_help') }}</p>
+                <div class="row g-2 mb-1 small fw-semibold d-none d-md-flex">
+                    <div class="col-md-5">{{ t('importers.source') }}</div><div class="col-md-5">{{ t('importers.target') }}</div><div class="col-md-2">{{ t('importers.separator') }}</div>
+                </div>
+                {% for row in mapping %}
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-5"><input type="text" class="form-control form-control-sm" name="mapping[{{ loop.index0 }}][source]" value="{{ row.source }}" maxlength="200" aria-label="{{ t('importers.source') }}"></div>
+                        <div class="col-md-5">
+                            <select class="form-select form-select-sm" name="mapping[{{ loop.index0 }}][target]" aria-label="{{ t('importers.target') }}">
+                                <option value="">–</option>
+                                {% for target in targets %}<option value="{{ target.name }}"{{ target.name == row.target ? ' selected' }}>{{ t(target.label) }} ({{ target.type == 'relation' ? t('importers.relation') : t('field_type.' ~ target.type) }}{{ target.multiple ? ', ' ~ t('importers.several') }})</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2"><input type="text" class="form-control form-control-sm font-monospace" name="mapping[{{ loop.index0 }}][separator]" value="{{ row.separator == "\t" ? '\\t' : row.separator }}" maxlength="5" aria-label="{{ t('importers.separator') }}"></div>
+                    </div>
+                {% endfor %}
+                <p class="small text-body-secondary mb-0">{{ t('importers.mapping_more') }}</p>
+            </section>
+
+            <section class="card card-body mb-4">
+                <h2 class="h6">{{ t('importers.behaviour') }}</h2>
+                {% if publishable %}
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="publish" value="1" id="imp-publish"{{ form.publish ? ' checked' }}>
+                        <label class="form-check-label" for="imp-publish">{{ t('importers.publish') }}</label>
+                        <div class="form-text">{{ t('importers.publish_help') }}</div>
+                    </div>
+                {% endif %}
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="imp-missing-target" class="form-label fw-semibold">{{ t('importers.missing_target') }}</label>
+                        <select class="form-select" id="imp-missing-target" name="missing_target">
+                            {% for choice in missing_target_choices %}<option value="{{ choice }}"{{ choice == form.missing_target ? ' selected' }}>{{ t('importers.missing_target.' ~ choice) }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="imp-missing-items" class="form-label fw-semibold">{{ t('importers.missing_items') }}</label>
+                        <select class="form-select" id="imp-missing-items" name="missing_items">
+                            {% for choice in missing_item_choices %}<option value="{{ choice }}"{{ choice == form.missing_items ? ' selected' }}>{{ t('importers.missing_items.' ~ choice) }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="imp-user" class="form-label fw-semibold">{{ t('importers.user') }}</label>
+                        <select class="form-select" id="imp-user" name="user">
+                            {% for user in users %}<option value="{{ user.id }}"{{ user.id == form.user ? ' selected' }}>{{ user.name }} ({{ user.roles }})</option>{% endfor %}
+                        </select>
+                        <div class="form-text">{{ t('importers.user_help') }}</div>
+                    </div>
+                </div>
+            </section>
+            <button type="submit" class="btn btn-primary">{{ t('admin.form.save') }}</button>
+        </form>
+    {% endif %}
+
+    <section class="card card-body mt-5 border-danger-subtle">
+        <h2 class="h6">{{ t('importers.delete') }}</h2>
+        <p class="small text-body-secondary">{{ t('importers.delete_help', {count: importer.objects ?? 0}) }}</p>
+        <form method="post" action="{{ admin_url('system/importers/' ~ importer.name ~ '/delete') }}">
+            {{ csrf_field() }}
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" name="confirm" value="1" id="imp-delete-confirm">
+                <label class="form-check-label small" for="imp-delete-confirm">{{ t('importers.delete_confirm') }}</label>
+            </div>
+            <button type="submit" class="btn btn-outline-danger btn-sm">{{ t('importers.delete') }}</button>
+        </form>
+    </section>
+{% endblock %}

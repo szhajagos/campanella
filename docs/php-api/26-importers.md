@@ -36,6 +36,24 @@ The tables (schema version 17): `importers` (the definitions, as JSON),
 the object, a hash of its values, the run that made it and the last one that
 saw it; deleted with the object).
 
+## The pages in the admin: ImporterPages
+
+`Campanella\Admin\ImporterPages` · **Internal**, for the system roles
+(`admin.system_roles`), under System in the admin's menu (*Importers*).
+
+| Page | What it does |
+|---|---|
+| `/admin/system/importers` | Every importer: its Blueprint, format, how many objects it made, its last run; those that do not load, with the reason |
+| `…/new` | GET, POST: a new importer: its label, machine name, Blueprint (one of content), format, and the key's and the title's columns; then its page. The current user becomes its user |
+| `…/<name>` | GET, POST: its settings: the file (format, delimiter, JSON items), the key, the mapping (its rows and five empty ones; an empty row is left out), publishing, a missing target, missing items, its user (those who can log in and have a role). Checked by `ImporterDefinition::fromArray()` and `Importer::actor()` (422 otherwise). An importer whose Blueprint is gone can only be deleted |
+| `…/<name>/delete` | POST, with `confirm` ticked: deletes it and its log (`Importer::delete()`); the objects stay |
+| `…/<name>/run` | GET: the upload form and the log. POST, with `file` (at most `MAX_UPLOAD`, 5 MB): its trial (`Importer::trial()`); the file waits in `var/imports/` (`pending-<token>.<format>`, deleted after `PENDING_HOURS` if not confirmed) |
+| `…/<name>/start` | POST, with the trial's `token`: starts its run (`Importer::start()`, the waiting file deleted), then the run's page |
+| `…/<name>/runs/<id>` | A run's progress, counts and errors. While it runs, its *Continue* form is sent by `admin-import.js` again and again (or by hand) |
+| `…/<name>/runs/<id>/step` | POST: goes on for `STEP_SECONDS` (8) seconds |
+| `…/<name>/runs/<id>/cancel` | POST: stops it |
+| `…/<name>/runs/<id>/undo` | POST, with `confirm` ticked: undoes it (`Importer::undo()`, a backup first) |
+
 ## The definition: ImporterDefinition
 
 `Campanella\Import\ImporterDefinition` · **Public** · `final readonly class`

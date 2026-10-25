@@ -455,9 +455,11 @@ ADMIN_PAGES = [
     "/admin/user", "/admin/user/new", "/admin/profile", "/admin/submission",
     "/admin/system", "/admin/system/settings", "/admin/system/mail",
     "/admin/system/blueprints", "/admin/system/lists", "/admin/system/model", "/admin/system/redirects",
+    "/admin/system/importers", "/admin/system/importers/new",
 ]
 ADMINISTRATORS_ONLY = ["/admin/user", "/admin/user/new", "/admin/submission", "/admin/system", "/admin/system/settings", "/admin/system/mail",
-                       "/admin/system/blueprints", "/admin/system/lists", "/admin/system/model", "/admin/system/redirects"]
+                       "/admin/system/blueprints", "/admin/system/lists", "/admin/system/model", "/admin/system/redirects",
+                       "/admin/system/importers", "/admin/system/importers/new"]
 
 
 def test_admin_pages(browser):
@@ -550,6 +552,44 @@ def test_search(browser):
     context.close()
 
 
+def test_importer(browser):
+    """An importer made in the admin, a CSV's trial, the run going on by itself to its end (since 0.3.1)."""
+    import tempfile
+    context = new_context(browser)
+    page = context.new_page()
+    login(page, ADMIN)
+    page.goto(BASE + "/admin/system/importers/new")
+    page.fill("#imp-label", "Böngészős import")
+    page.fill("#imp-name", "bongeszos_import")
+    page.select_option("#imp-blueprint", "article")
+    page.fill("#imp-key", "id")
+    page.fill("#imp-title", "cim")
+    with page.expect_navigation():
+        page.click("form.admin-form button[type=submit]")
+    check(path_of(page) == "/admin/system/importers/bongeszos_import", "making an importer: ended on %s" % page.url)
+    page.fill("input[name='mapping[1][source]']", "bevezeto")
+    page.select_option("select[name='mapping[1][target]']", "lead")
+    with page.expect_navigation():
+        page.click("form.admin-form button[type=submit]")
+    check(page.locator(".alert-success").count() == 1, "saving the importer: no message")
+    rows = ["id;cim;bevezeto"] + ["%d;Böngészős import %d;Bevezető %d" % (i, i, i) for i in range(1, 31)]
+    with tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False, encoding="utf-8") as handle:
+        handle.write("\n".join(rows) + "\n")
+        csv = handle.name
+    page.goto(BASE + "/admin/system/importers/bongeszos_import/run")
+    page.set_input_files("#imp-file", csv)
+    with page.expect_navigation():
+        page.click("form[enctype] button[type=submit]")
+    check(page.locator("#trial tbody tr").count() == 10, "the trial shows %d rows" % page.locator("#trial tbody tr").count())
+    with page.expect_navigation():
+        page.click("form[action$='/start'] button[type=submit]")
+    # The page sends its Continue form by itself (admin-import.js) until the run is done.
+    page.locator("main .badge", has_text="kész").first.wait_for(timeout=30000)
+    check("30 új" in page.locator("main").inner_text(), "the run did not make 30: %s" % page.locator("main").inner_text()[:300])
+    os.unlink(csv)
+    context.close()
+
+
 TESTS = [
     test_security_headers,
     test_login_and_logout,
@@ -559,6 +599,7 @@ TESTS = [
     test_contact_form,
     test_admin_pages,
     test_search,
+    test_importer,
 ]
 
 

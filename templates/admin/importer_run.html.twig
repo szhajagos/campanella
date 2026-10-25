@@ -1,0 +1,77 @@
+{% extends '@core/admin/base.html.twig' %}
+
+{% block content %}
+    <p class="small mb-1"><a href="{{ admin_url('system/importers') }}">{{ t('importers.title') }}</a> › <a href="{{ admin_url('system/importers/' ~ importer.name) }}">{{ importer.label }}</a></p>
+    <h1 class="h3 mb-2">{{ t('importers.run_title', {label: importer.label}) }}</h1>
+    <p class="text-body-secondary mb-4">{{ t('importers.run_intro') }}</p>
+    {% if alert %}<div class="alert alert-danger" role="alert">{{ alert }}</div>{% endif %}
+
+    {% if trial %}
+        <section class="card card-body mb-4" id="trial">
+            <h2 class="h5">{{ t('importers.trial') }}</h2>
+            <p class="mb-2">{{ t('importers.trial_intro', {file: file_name, total: trial.total, shown: trial.shown}) }}</p>
+            {% for source in trial.missing %}<div class="alert alert-warning py-2" role="alert">{{ t('import.trial.missing_source', {source: source}) }}</div>{% endfor %}
+            <p class="small text-body-secondary">{{ t('importers.columns') }}: {% for column in trial.columns %}<code>{{ column }}</code>{{ not loop.last ? ', ' }}{% else %}–{% endfor %}</p>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead><tr><th scope="col">#</th><th scope="col">{{ t('importers.key_short') }}</th><th scope="col">{{ t('importers.what') }}</th><th scope="col">{{ t('importers.values') }}</th></tr></thead>
+                    <tbody>
+                        {% for row in trial.rows %}
+                            <tr>
+                                <td>{{ row.row }}</td>
+                                <td><code>{{ row.key }}</code></td>
+                                <td><span class="badge text-bg-{{ row.action == 'error' ? 'danger' : (row.action == 'create' ? 'primary' : (row.action == 'update' ? 'info' : 'secondary')) }}">{{ t('import.action.' ~ row.action) }}</span></td>
+                                <td class="small">
+                                    {% if row.error %}<span class="text-danger">{{ row.error }}</span>{% endif %}
+                                    {% for name, value in row.values %}{% if value != '' %}<span class="d-block"><span class="text-body-secondary">{{ name }}:</span> {{ value }}</span>{% endif %}{% endfor %}
+                                    {% if row.creates %}<span class="d-block text-body-secondary">{{ t('importers.creates', {titles: row.creates|join(', ')}) }}</span>{% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <form method="post" action="{{ admin_url('system/importers/' ~ importer.name ~ '/start') }}" class="d-flex flex-wrap gap-2 align-items-center">
+                {{ csrf_field() }}
+                <input type="hidden" name="token" value="{{ token }}">
+                <input type="hidden" name="file_name" value="{{ file_name }}">
+                <button type="submit" class="btn btn-primary">{{ t('importers.start', {total: trial.total}) }}</button>
+                <a href="{{ admin_url('system/importers/' ~ importer.name ~ '/run') }}">{{ t('admin.form.cancel') }}</a>
+            </form>
+        </section>
+    {% endif %}
+
+    <section class="card card-body mb-4">
+        <h2 class="h5">{{ t('importers.upload') }}</h2>
+        <form method="post" action="{{ admin_url('system/importers/' ~ importer.name ~ '/run') }}" enctype="multipart/form-data" class="admin-form">
+            {{ csrf_field() }}
+            <div class="mb-3">
+                <label for="imp-file" class="form-label fw-semibold">{{ t('importers.file_' ~ importer.format) }}</label>
+                <input type="file" class="form-control" id="imp-file" name="file" accept="{{ importer.format == 'csv' ? '.csv,text/csv,text/plain' : '.json,application/json' }}" required>
+                <div class="form-text">{{ t('importers.upload_help', {size: (max_bytes / 1048576)|round ~ ' MB'}) }}</div>
+            </div>
+            <button type="submit" class="btn btn-outline-primary">{{ t('importers.check') }}</button>
+        </form>
+    </section>
+
+    <h2 class="h5">{{ t('importers.log') }}</h2>
+    {% if runs %}
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead><tr><th scope="col">#</th><th scope="col">{{ t('importers.started') }}</th><th scope="col">{{ t('importers.source_file') }}</th><th scope="col">{{ t('importers.result') }}</th></tr></thead>
+                <tbody>
+                    {% for run in runs %}
+                        <tr>
+                            <td><a href="{{ admin_url('system/importers/' ~ importer.name ~ '/runs/' ~ run.id) }}">{{ run.id }}</a></td>
+                            <td class="small text-nowrap">{{ date(run.started_at, 'UTC')|date }}</td>
+                            <td class="small">{{ run.source }}</td>
+                            <td>{% include '@core/admin/_import_run_summary.html.twig' %}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="text-body-secondary">{{ t('importers.no_runs') }}</p>
+    {% endif %}
+{% endblock %}

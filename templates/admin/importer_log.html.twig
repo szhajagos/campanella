@@ -1,0 +1,62 @@
+{% extends '@core/admin/base.html.twig' %}
+
+{% block content %}
+    <p class="small mb-1"><a href="{{ admin_url('system/importers') }}">{{ t('importers.title') }}</a> › <a href="{{ admin_url('system/importers/' ~ importer.name ~ '/run') }}">{{ importer.label }}</a></p>
+    <h1 class="h3 mb-2">{{ t('importers.run_number', {id: run.id}) }}</h1>
+    <p class="text-body-secondary mb-3">{{ run.source }} · {{ date(run.started_at, 'UTC')|date }}{% if run.finished_at %} – {{ date(run.finished_at, 'UTC')|date }}{% endif %}</p>
+
+    <section class="card card-body mb-4">
+        <p class="mb-2">{% include '@core/admin/_import_run_summary.html.twig' %}</p>
+        <div class="progress mb-2" role="progressbar" aria-label="{{ t('importers.progress') }}" aria-valuenow="{{ run.percent }}" aria-valuemin="0" aria-valuemax="100">
+            <div class="progress-bar{{ run.running ? ' progress-bar-striped progress-bar-animated' }}" style="width: {{ run.percent }}%"></div>
+        </div>
+        <p class="small text-body-secondary mb-0">{{ t('cli.import_run.progress', {done: run.position, total: run.total}) }}</p>
+        {% if run.running %}
+            <div class="d-flex flex-wrap gap-2 mt-3">
+                <form method="post" action="{{ admin_url('system/importers/' ~ importer.name ~ '/runs/' ~ run.id ~ '/step') }}" data-import-continue>
+                    {{ csrf_field() }}
+                    <button type="submit" class="btn btn-primary btn-sm">{{ t('importers.continue') }}</button>
+                </form>
+                <form method="post" action="{{ admin_url('system/importers/' ~ importer.name ~ '/runs/' ~ run.id ~ '/cancel') }}">
+                    {{ csrf_field() }}
+                    <button type="submit" class="btn btn-outline-secondary btn-sm">{{ t('importers.cancel') }}</button>
+                </form>
+            </div>
+            <p class="small text-body-secondary mt-2 mb-0">{{ t('importers.continue_help') }}</p>
+        {% endif %}
+    </section>
+
+    {% if run.errors %}
+        <h2 class="h5">{{ t('importers.errors') }}</h2>
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead><tr><th scope="col">#</th><th scope="col">{{ t('importers.key_short') }}</th><th scope="col">{{ t('importers.error') }}</th></tr></thead>
+                <tbody>
+                    {% for error in run.errors %}
+                        <tr><td>{{ error.row }}</td><td><code>{{ error.key }}</code></td><td class="small">{{ error.field ? error.field ~ ': ' }}{{ error.text }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if run.more_errors %}<p class="small text-body-secondary">{{ t('importers.more_errors', {count: run.more_errors}) }}</p>{% endif %}
+    {% endif %}
+
+    {% if run.undoable %}
+        <section class="card card-body mt-4 border-danger-subtle">
+            <h2 class="h6">{{ t('importers.undo') }}</h2>
+            <p class="small text-body-secondary">{{ t('importers.undo_help', {count: run.created}) }}</p>
+            <form method="post" action="{{ admin_url('system/importers/' ~ importer.name ~ '/runs/' ~ run.id ~ '/undo') }}">
+                {{ csrf_field() }}
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" name="confirm" value="1" id="imp-undo-confirm">
+                    <label class="form-check-label small" for="imp-undo-confirm">{{ t('importers.undo_confirm') }}</label>
+                </div>
+                <button type="submit" class="btn btn-outline-danger btn-sm">{{ t('importers.undo') }}</button>
+            </form>
+        </section>
+    {% elseif run.undone_at %}
+        <p class="text-body-secondary mt-3">{{ t('importers.undone_at', {time: date(run.undone_at, 'UTC')|date}) }}</p>
+    {% endif %}
+{% endblock %}
+
+{% block scripts %}{% if run.running %}<script src="{{ asset('admin-import.js') }}" defer></script>{% endif %}{% endblock %}

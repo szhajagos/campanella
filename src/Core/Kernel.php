@@ -40,6 +40,7 @@ use Campanella\Controller\AdminController;
 use Campanella\Admin\AdminAccess;
 use Campanella\Admin\BlueprintEditor;
 use Campanella\Admin\ListEditor;
+use Campanella\Admin\ImporterPages;
 use Campanella\Admin\ModelPage;
 use Campanella\Admin\RedirectPages;
 use Campanella\Admin\Form\ObjectForm;
@@ -922,6 +923,17 @@ final class Kernel
                 $c->get(Csrf::class),
                 $c->get(Flash::class),
                 $c->get(AdminAccess::class),
+            ),
+            new ImporterPages(
+                $c->get(Importer::class),
+                $c->get(ImporterStore::class),
+                $c->get(BlueprintRegistry::class),
+                $c->get(QueryEngine::class),
+                $c->get(Csrf::class),
+                $c->get(Flash::class),
+                $c->get(AdminAccess::class),
+                $c->get(Translator::class),
+                $root . '/var/imports',
             ),
         ));
 

@@ -1,0 +1,53 @@
+{% extends '@core/admin/base.html.twig' %}
+{% import '@core/admin/_blueprint_macros.html.twig' as m %}
+
+{% block content %}
+    <p class="small mb-1"><a href="{{ admin_url('system/importers') }}">{{ t('importers.title') }}</a></p>
+    <h1 class="h3 mb-2">{{ t('importers.new') }}</h1>
+    <p class="text-body-secondary mb-4">{{ t('importers.new_intro') }}</p>
+    {% if errors.form ?? null %}<div class="alert alert-danger" role="alert">{{ t(errors.form.key, errors.form.params) }}</div>{% endif %}
+
+    <form method="post" action="{{ admin_url('system/importers/new') }}" class="admin-form" novalidate>
+        {{ csrf_field() }}
+        <section class="card card-body mb-4">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="imp-label" class="form-label fw-semibold">{{ t('importers.label') }} <span class="text-danger" aria-hidden="true">*</span></label>
+                    <input type="text" class="form-control" id="imp-label" name="label" value="{{ form.label }}" required maxlength="200">
+                    <div class="form-text">{{ t('importers.label_help') }}</div>
+                </div>
+                <div class="col-md-6">
+                    <label for="imp-name" class="form-label fw-semibold">{{ t('blueprints.name') }} <span class="text-danger" aria-hidden="true">*</span></label>
+                    <input type="text" class="form-control font-monospace{{ m.invalid(errors, 'name') }}" id="imp-name" name="name" value="{{ form.name }}" required maxlength="40" autocomplete="off">
+                    <div class="form-text">{{ t('importers.name_help') }}</div>
+                    {{ m.error(errors, 'name') }}
+                </div>
+                <div class="col-md-6">
+                    <label for="imp-blueprint" class="form-label fw-semibold">Blueprint <span class="text-danger" aria-hidden="true">*</span></label>
+                    <select class="form-select" id="imp-blueprint" name="blueprint" required>
+                        <option value="">{{ t('admin.form.none') }}</option>
+                        {% for blueprint in blueprints %}<option value="{{ blueprint.name }}"{{ blueprint.name == form.blueprint ? ' selected' }}>{{ t(blueprint.label) }}</option>{% endfor %}
+                    </select>
+                    <div class="form-text">{{ t('importers.blueprint_help') }}</div>
+                </div>
+                <div class="col-md-6">
+                    <label for="imp-format" class="form-label fw-semibold">{{ t('importers.format') }}</label>
+                    <select class="form-select" id="imp-format" name="format">
+                        {% for format in formats %}<option value="{{ format }}"{{ format == form.format ? ' selected' }}>{{ t('importers.format.' ~ format) }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label for="imp-key" class="form-label fw-semibold">{{ t('importers.key') }} <span class="text-danger" aria-hidden="true">*</span></label>
+                    <input type="text" class="form-control" id="imp-key" name="key" value="{{ form.key }}" required maxlength="200" placeholder="id">
+                    <div class="form-text">{{ t('importers.key_help') }}</div>
+                </div>
+                <div class="col-md-6">
+                    <label for="imp-title" class="form-label fw-semibold">{{ t('importers.title_source') }} <span class="text-danger" aria-hidden="true">*</span></label>
+                    <input type="text" class="form-control" id="imp-title" name="title" value="{{ form.title }}" required maxlength="200">
+                    <div class="form-text">{{ t('importers.title_source_help') }}</div>
+                </div>
+            </div>
+        </section>
+        <button type="submit" class="btn btn-primary">{{ t('blueprints.create') }}</button>
+    </form>
+{% endblock %}

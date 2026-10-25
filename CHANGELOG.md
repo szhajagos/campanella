@@ -29,6 +29,12 @@ Work towards 0.3.1: importers, step 1 (CSV and JSON files), in parts.
   unchanged, failed, the errors by row); a run can be undone (the objects it
   made deleted, after a backup). An object whose item left the file is kept or
   made a draft; an import never deletes. Never started by a visitor's request.
+- **System → Importers** in the admin, for the system roles: an importer made
+  (its Blueprint, format, key and title columns), then its settings and
+  mapping (the Blueprint's fields and relations offered by type), its user;
+  a file uploaded (at most 5 MB) shows the trial of its first items, then the
+  run goes on by itself step by step while its page is open (or by hand),
+  with its progress, counts and errors by row; stopping and undoing a run.
 - `php bin/campanella import:run <importer> <file> [--yes]` (a trial, or the
   run, e.g. from cron) and `import:undo <run> [--yes]`.
 - The tables `importers`, `import_runs`, `import_items` (schema version 17).

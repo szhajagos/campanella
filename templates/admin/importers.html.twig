@@ -1,0 +1,43 @@
+{% extends '@core/admin/base.html.twig' %}
+
+{% block content %}
+    <div class="d-flex flex-wrap align-items-baseline gap-2 mb-2">
+        <h1 class="h3 mb-0 me-auto">{{ t('importers.title') }}</h1>
+        <a class="btn btn-primary btn-sm" href="{{ admin_url('system/importers/new') }}">{{ t('importers.new') }}</a>
+    </div>
+    <p class="text-body-secondary mb-4">{{ t('importers.intro') }}</p>
+
+    {% for name, reason in errors %}
+        <div class="alert alert-danger" role="alert">{{ t('importers.not_loaded', {name: name, reason: reason}) }} <a href="{{ admin_url('system/importers/' ~ name) }}">{{ t('importers.edit') }}</a></div>
+    {% endfor %}
+
+    {% if importers %}
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead><tr>
+                    <th scope="col">{{ t('importers.label') }}</th><th scope="col">Blueprint</th><th scope="col">{{ t('importers.format') }}</th>
+                    <th scope="col">{{ t('importers.objects') }}</th><th scope="col">{{ t('importers.last_run') }}</th><th scope="col"></th>
+                </tr></thead>
+                <tbody>
+                    {% for importer in importers %}
+                        <tr>
+                            <td><a href="{{ admin_url('system/importers/' ~ importer.name) }}">{{ importer.label }}</a> <code class="small">{{ importer.name }}</code></td>
+                            <td>{{ t(importer.blueprint) }}</td>
+                            <td>{{ importer.format|upper }}</td>
+                            <td>{{ importer.objects }}</td>
+                            <td class="small">
+                                {% if importer.last %}
+                                    <a href="{{ admin_url('system/importers/' ~ importer.name ~ '/runs/' ~ importer.last.id) }}">{{ t('importers.status.' ~ importer.last.status) }}</a>
+                                    · {{ date(importer.last.started_at, 'UTC')|date }}
+                                {% else %}–{% endif %}
+                            </td>
+                            <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{{ admin_url('system/importers/' ~ importer.name ~ '/run') }}">{{ t('importers.run') }}</a></td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="text-body-secondary">{{ t('importers.none') }}</p>
+    {% endif %}
+{% endblock %}
