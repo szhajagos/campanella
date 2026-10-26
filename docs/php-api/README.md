@@ -31,6 +31,7 @@ namespace, in the `src/` folder (PSR-4).
 24. [The content model's export and import](24-content-model.md): the file (`ModelFile`), `ModelExport`, `ModelImport` and its plan (`ImportPlan`, `ImportItem`), the objects by reference (since 0.2.6)
 25. [Search](25-search.md): the index (`SearchIndex`), `Search` and its results, the page, building the index (`SearchIndexer`, `search:index`) (since 0.2.7)
 26. [Importers](26-importers.md): the definition (`ImporterDefinition`), the file (`ImportSource`), the values (`ImportValues`), running, the log and undoing (`Importer`, `ImportRun`, `ImportTrial`), `import:run`, `import:undo` (since 0.3.1)
+27. [Files](27-files.md): the `file` Blueprint, `Downloadable`, `Restricted`, the checks (`FileInspector`), `FileService`, `FileStorage`, the downloads (`FileController`, `file_url()`) (since 0.3.2)
 
 ## Namespaces
 

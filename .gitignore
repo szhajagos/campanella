@@ -5,3 +5,4 @@
 /public/media/*
 !/public/media/.htaccess
 /var/backups/
+/var/files/

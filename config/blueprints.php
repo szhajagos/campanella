@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 use Campanella\Capability\Authenticatable;
 use Campanella\Capability\Authorable;
+use Campanella\Capability\Downloadable;
 use Campanella\Capability\Hierarchical;
 use Campanella\Capability\Keyed;
 use Campanella\Capability\Link;
 use Campanella\Capability\MediaFile;
 use Campanella\Capability\Publishable;
+use Campanella\Capability\Restricted;
 use Campanella\Capability\Routable;
 use Campanella\Capability\Submitted;
 use Campanella\Capability\Textual;
@@ -95,6 +97,15 @@ return [
             new Field('alt', FieldType::String, label: 'field.alt'),
         ],
         'form_order' => ['title', 'alt', 'author'],
+    ],
+
+    // A file to download (since 0.3.2): a document, a spreadsheet, a text file. Its file
+    // (Downloadable), a title (the original file name at first) and who may download it
+    // (Restricted: everyone, logged-in users, or some roles). The uploader becomes the author.
+    'file' => [
+        'label' => 'blueprint.file',
+        'capabilities' => [Titled::class, Downloadable::class, Restricted::class, Authorable::class],
+        'form_order' => ['title', 'visible_to', 'visible_roles', 'author'],
     ],
 
     'category' => [

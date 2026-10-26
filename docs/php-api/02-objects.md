@@ -440,7 +440,8 @@ pass (e.g. changed by hand) is not loaded.
 
 | Member | Description |
 |---|---|
-| `loadStored(array $stored): void` | Defines the stored Blueprints; one that does not pass, or has the name of one of the file's, is left out |
+| `loadStored(array $stored): void` | Defines the stored Blueprints; one that does not pass is left out. One with the name of one of the file's wins since 0.3.2, and the file's is left out (the admin never lets a taken name be used, so this is a Blueprint made before a later version brought one of its name, e.g. `file`); before 0.3.2 the stored one was left out |
+| `yielded(): list<string>` | The file's Blueprints left out for a stored one of their name (since 0.3.2) |
 | `isEditable(string $name): bool` | Made in the admin (so it can be edited there) |
 | `storedErrors(): array<string, string>` | The stored ones left out, with the reason (shown on the Blueprints page) |
 | `RESERVED_FIELD_NAMES` | `id`, `uuid`, `blueprint`, `created`, `updated`, `object_id`: no own field may have these names (any Blueprint's, since 0.2.3) |

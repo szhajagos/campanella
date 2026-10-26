@@ -650,7 +650,7 @@ final class AdminController implements Controller
             'is_file' => self::isFile($blueprint),
             'type_names' => ImageProcessor::NAMES,
             'upload' => self::isFile($blueprint) && $blueprint->name === 'image' ? $this->uploadSettings($actor) : null,
-            'can_create' => !self::isFile($blueprint) && $this->policy->allows($actor, Operation::Create, $this->repository->create($blueprint->name)),
+            'can_create' => !self::isFile($blueprint) && !isset($blueprint->capabilities['downloadable']) && $this->policy->allows($actor, Operation::Create, $this->repository->create($blueprint->name)),
             'title' => $blueprint->label,
             'blueprint' => $blueprint,
             'result' => $result,
@@ -812,8 +812,8 @@ final class AdminController implements Controller
     /** /admin/<blueprint>/new: the empty form, and creating the object from it. */
     private function create(Request $request, Actor $actor, Blueprint $blueprint): Response
     {
-        // A file (e.g. an image) is created by uploading it, not from an empty form.
-        if (self::isFile($blueprint)) {
+        // A file (e.g. an image, a file to download) is created by uploading it, not from an empty form.
+        if (self::isFile($blueprint) || isset($blueprint->capabilities['downloadable'])) {
             throw HttpException::notFound();
         }
         $object = $this->repository->create($blueprint->name);

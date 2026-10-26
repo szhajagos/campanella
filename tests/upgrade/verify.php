@@ -239,6 +239,32 @@ if ($adminUser !== null && $oldCategory !== null) {
     @unlink($csv);
 }
 
+// 9. Files to download (since 0.3.2). A site that made a Blueprint called `file` in the admin
+// keeps it (and files are off); any other gets files: uploaded, downloaded, for whom they are meant.
+$registry = $c->get(\Campanella\Model\BlueprintRegistry::class);
+$files = $c->get(\Campanella\Media\FileService::class);
+if (is_array($model) && isset($model['own_file'])) {
+    $check($registry->isEditable('file') && $registry->yielded() === ['file'] && !$files->isAvailable(), 'the site\'s own `file` Blueprint did not keep its name');
+    $own = $c->get(\Campanella\Model\ObjectRepository::class)->find($model['own_file']);
+    $check($own?->get('leiras') === 'A webhely saját fájl-Blueprintje.', 'the object of the site\'s own `file` Blueprint is lost');
+    $check($get('/admin/file/' . $model['own_file'], $asAdmin)->status === 200 && $get('/admin/system/blueprints/file', $asAdmin)->status === 200, 'the admin\'s pages of the site\'s own `file` Blueprint');
+    $lines = array_filter($c->get(\Campanella\System\SystemCheck::class)->run(), static fn ($r): bool => $r->label === 'admin.system.files');
+    $check(count($lines) === 1, 'the system page does not tell that files are off');
+} else {
+    $check($files->isAvailable() && $registry->yielded() === [], 'files are not available');
+    $pdf = tempnam(sys_get_temp_dir(), 'upg');
+    file_put_contents($pdf, "%PDF-1.7\nfrissítés\n%%EOF");
+    $public = $files->upload(Actor::system(), $pdf, 'Frissítési műsor.pdf');
+    $private = $files->upload(Actor::system(), $pdf, 'Belső.pdf', \Campanella\Capability\Restricted::USERS);
+    $download = $get($files->url($public));
+    $check($download->status === 200 && $download->file !== null && is_file($download->file) && str_contains((string) ($download->headers['Content-Disposition'] ?? ''), 'frissitesi-musor.pdf'), 'a file cannot be downloaded: ' . $download->status);
+    $check($get($files->url($private))->status === 404, 'a file for logged-in users is downloaded anonymously');
+    $check($get($files->url($private), $asAdmin)->status === 200, 'the administrator cannot download a file for logged-in users');
+    $c->get(\Campanella\Service\ObjectService::class)->delete(Actor::system(), $public);
+    $c->get(\Campanella\Service\ObjectService::class)->delete(Actor::system(), $private);
+    @unlink($pdf);
+}
+
 echo "{$checks} checks, upgraded from {$snapshot['version']} (schema {$snapshot['schema']}) to " . Version::CAMPANELLA . ' (schema ' . Version::SCHEMA . ").\n";
 if ($problems !== []) {
     echo count($problems) . " problems:\n";

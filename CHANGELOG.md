@@ -10,6 +10,40 @@ backward-incompatible.
 
 ## [Unreleased]
 
+Towards 0.3.2 (files), part 1: the engine. Uploading in the admin and the
+media library come in the next part.
+
+### Added
+
+- **Files to download** ([PHP API, chapter 27](docs/php-api/27-files.md)): a
+  `file` Blueprint (`Downloadable`), checked by its content (PDF, Office,
+  OpenDocument, text; zip only by a setting; macro-enabled Office files and
+  OpenDocument files with scripts, HTML, SVG and programs never), stored
+  outside the web root (`var/files/`), always sent by Campanella as a download
+  (`/files/<id>/<name>`, `paths.files`), with an ETag; `file_url()` in templates.
+- **Who may see an object** (`Restricted`): everyone, every logged-in user,
+  or the users with some roles; the `DefaultPolicy` applies it everywhere
+  (lists, relations, the search), and a file not meant for the visitor is a
+  404.
+- **The site's own roles** (`users.roles`, e.g. `member`): given to users in
+  the admin, without entering it.
+- `Response::file()`: a body sent from a file in pieces.
+- The system page's *Images and files* group: the files' folder, types and
+  largest size.
+- The upgrade tests upload and download a file on the upgraded site.
+- The browser tests run PHP's built-in web server under gdb on CI
+  (`CAMPANELLA_TEST_GDB=1`): if PHP itself crashes, as it did once on CI in the
+  importer's test, the log shows the last requests and the backtrace.
+
+### Changed
+
+- **A Blueprint made in the admin keeps its name** when a later version brings
+  one of that name in `config/blueprints.php` (`BlueprintRegistry::yielded()`):
+  a site with its own `file` Blueprint keeps it and its objects, and files are
+  off until `files.blueprint` names another. Before, the stored one was left
+  out.
+- Schema version 18: the `cap_downloadable` and `cap_restricted` tables.
+
 ## [0.3.1] – 2026-10-26
 
 **Importers, step 1: CSV and JSON files.** The first step after the 0.3.0

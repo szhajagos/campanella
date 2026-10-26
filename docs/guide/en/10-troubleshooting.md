@@ -31,7 +31,7 @@ do. When something does not work, always look at the **System** page first
 | "The form has expired. Please try again." | The form was open for too long, or you logged out meanwhile (e.g. in another tab). Reload the page, and send it again. Copy a long text first, so it is not lost. |
 | On upload: "The file is too large" | The image is larger than PHP allows. Make it smaller, or raise `upload_max_filesize` and `post_max_size` in the host's PHP settings (chapter 2, the System page). |
 | On upload: "The image is too large; at most … megapixels" | Images may have at most 25 megapixels: make it smaller (chapter 5). |
-| An image format cannot be uploaded | The image processor of the host's PHP (gd) does not know it. The **Images** part of the System page shows which format does not work; your host can turn it on. |
+| An image format cannot be uploaded | The image processor of the host's PHP (gd) does not know it. The **Images and files** part of the System page shows which format does not work; your host can turn it on. |
 | A menu item does not show | See the table in [chapter 4](04-menus.md#when-the-menu-does-not-look-as-you-want). |
 | The old look after an upgrade or a change | **Clear the template cache** on the System page, and Ctrl+F5 in the browser, help. |
 | The search does not find a page | The page is a draft or scheduled; or the word is shorter than three letters, or a very common English word. After an upgrade, older pages must be added to the search first: the **Search index** row of the System page says if something is missing (chapter 2). |

@@ -27,6 +27,9 @@ if (PHP_SAPI === 'cli-server') {
     if ($file !== __FILE__ && is_file($file)) {
         return false;
     }
+    // For an address with an extension (e.g. /files/12/hirlevel.pdf) the built-in server
+    // names the address itself as the script: it is this one, at the root (since 0.3.2).
+    $_SERVER['SCRIPT_NAME'] = '/index.php';
 }
 
 $root = getenv('CAMPANELLA_ROOT') ?: dirname(__DIR__);

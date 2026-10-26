@@ -77,6 +77,12 @@ if (class_exists(\Campanella\Transfer\ModelImport::class)) {
             ],
             'relations' => [['name' => 'helyszin', 'label' => 'Helyszín', 'targets' => ['category'], 'many' => false]],
             'admin_columns' => ['nap', 'fajta'],
+        ],
+        // A Blueprint called `file`, which 0.3.2 brings in config/blueprints.php too: the
+        // site's own keeps its name and objects.
+        'file' => [
+            'version' => 1, 'label' => 'Saját fájl', 'capabilities' => ['titled'],
+            'fields' => [['name' => 'leiras', 'type' => 'string', 'label' => 'Leírás']],
         ]],
         'lists' => ['frissitesi_esemenyek' => [
             'version' => 1, 'title' => 'Frissítési események', 'blueprint' => 'frissitesi_esemeny',
@@ -108,6 +114,7 @@ if (class_exists(\Campanella\Transfer\ModelImport::class)) {
         }
         $events[] = (int) $event->id();
     }
+    $ownFile = (int) $objects->create($system, 'file', ['title' => 'Saját fájl objektum', 'leiras' => 'A webhely saját fájl-Blueprintje.'])->id();
     $redirect = null;
     if (class_exists(\Campanella\Site\Redirects::class)) {
         // 0.2.7 and later: a changed path leads on from the old one.
@@ -120,7 +127,7 @@ if (class_exists(\Campanella\Transfer\ModelImport::class)) {
         $redirect = ['from' => $old, 'to' => '/frissitesi-eloadas-uj'];
     }
     $model = ['blueprint' => 'frissitesi_esemeny', 'list' => 'frissitesi_esemenyek', 'list_path' => '/frissitesi-esemenyek', 'events' => $events, 'redirect' => $redirect,
-        'filters' => class_exists(\Campanella\Query\FieldFilters::class)];
+        'filters' => class_exists(\Campanella\Query\FieldFilters::class), 'own_file' => $ownFile];
 }
 
 // The snapshot: every row of every table (but the system's own bookkeeping), so

@@ -48,7 +48,7 @@ final class BlueprintDefinition
      * the system (a user, an uploaded file, a form's message, a menu's key or link) with
      * pages of their own.
      */
-    public const array SYSTEM_CAPABILITIES = ['identifiable', 'authenticatable', 'media_file', 'submitted', 'keyed', 'link'];
+    public const array SYSTEM_CAPABILITIES = ['identifiable', 'authenticatable', 'media_file', 'submitted', 'keyed', 'link', 'downloadable', 'restricted'];
 
     /** Every Blueprint made in the admin has a title: the lists and the choices show it. */
     public const string REQUIRED_CAPABILITY = 'titled';

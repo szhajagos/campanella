@@ -336,7 +336,7 @@ site's language:
 
 | Member | |
 |---|---|
-| `__construct(array $paths = [])` | The `paths` setting over `DEFAULTS` (`login` => `/login`, `logout` => `/logout`, `password_reset` => `/password-reset`, `contact` => `/contact` since 0.1.5, `search` => `/search` since 0.2.7). `InvalidArgumentException` for an unknown name, an unusable path (`/`, spaces, `?`, `#`, backslashes) or two names with one path |
+| `__construct(array $paths = [])` | The `paths` setting over `DEFAULTS` (`login` => `/login`, `logout` => `/logout`, `password_reset` => `/password-reset`, `contact` => `/contact` since 0.1.5, `search` => `/search` since 0.2.7, `files` => `/files` since 0.3.2: the downloads, a prefix, `/files/<id>/<name>`). `InvalidArgumentException` for an unknown name, an unusable path (`/`, spaces, `?`, `#`, backslashes) or two names with one path |
 | `get(string $name): string` | A page's path |
 | `all(): array` | name => path |
 | `login(string $return = ''): string` | The login page that sends back afterwards: `/login?return=%2Fadmin` |
@@ -443,7 +443,7 @@ last argument: `?EventDispatcher $events = null`; [chapter 21](21-events-and-mai
 | Method | Description |
 |---|---|
 | `canManage(Actor $actor): bool` | Whether the AccessPolicy lets the actor create and update users (by default: administrators) |
-| `assignableRoles(?CampanellaObject $user = null): list<string>` | The roles offered: `administrator`, the `admin.roles` and `admin.system_roles` settings, and the user's own roles (so an unknown one is not lost) |
+| `assignableRoles(?CampanellaObject $user = null): list<string>` | The roles offered: `administrator`, the `admin.roles` and `admin.system_roles` settings, the site's own roles (`users.roles`, since 0.3.2), and the user's own roles (so an unknown one is not lost) |
 | `all(Actor $actor): list<CampanellaObject>`, `find(Actor $actor, int $id): ?CampanellaObject` | |
 | `create(Actor $actor, string $name, string $email, string $password, array $roles): CampanellaObject` | |
 | `update(Actor $actor, CampanellaObject $user, string $name, string $email, array $roles, bool $active): void` | |

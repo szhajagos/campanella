@@ -52,7 +52,7 @@ server {
     server_name example.hu;
     root /var/www/campanella/public;
     index index.php;
-    client_max_body_size 20m;          # at least the largest image upload
+    client_max_body_size 21m;          # at least the largest upload (files: 20 MB)
 
     ssl_certificate     /etc/letsencrypt/live/example.hu/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/example.hu/privkey.pem;
@@ -233,6 +233,8 @@ The web server's user (e.g. `www-data`) needs to **write** only:
 
 - `var/cache/` (compiled templates),
 - `var/backups/` (backups made by the upgrade page),
+- `var/files/` (uploaded files to download, since 0.3.2; made when the first
+  one is uploaded, so `var/` itself must be writable until then),
 - `public/media/` (uploaded images).
 
 Everything else should be readable but not writable by it, so that even a
@@ -241,13 +243,16 @@ password: readable by the web server's user and yours only (e.g. `0640`).
 
 The System page checks the writable folders. `public/media/` gets a
 `.htaccess` that forbids running scripts there (on nginx, the configuration
-above runs no PHP file but `index.php`).
+above runs no PHP file but `index.php`). The files to download are outside
+the web root (`var/files/`) and are always sent by Campanella, after checking
+who may see them, with the headers of a download: no web server setting is
+needed for them, on nginx either.
 
 ## 5. PHP settings
 
 - `display_errors = Off`, `log_errors = On` (errors go to the log, not to
   the visitors), `expose_php = Off`.
-- `upload_max_filesize` and `post_max_size` above the largest image you want
+- `upload_max_filesize` and `post_max_size` above the largest image or file you want
   to upload (the System page shows the effective limit), and `memory_limit`
   for processing large images ([media settings](php-api/16-media.md#settings-configappphp-media)).
 - OPcache on (faster; the System page shows it).
@@ -264,6 +269,9 @@ A backup has two parts:
   `var/backups/` (a `.sql.gz` readable by its owner only). The upgrade page
   makes one before every upgrade too.
 - **The uploaded images:** the `public/media/` folder.
+- **The uploaded files** (since 0.3.2): the `var/files/` folder (the files
+  for logged-in users and for roles are there too: keep the copy as private
+  as the site).
 
 Copy both regularly to another machine: a backup on the same server is lost
 with the server. A daily job, e.g. with cron:
@@ -321,8 +329,8 @@ An installation older than 0.0.6 is upgraded to 0.0.7 first.
       says how long messages are kept (`contact.keep_days`); on a quiet site,
       `php bin/campanella submissions:prune` runs daily from cron.
 - [ ] `upgrade.key` is not set (unless an upgrade needs it right now).
-- [ ] Only `var/cache/`, `var/backups/` and `public/media/` are writable by the
-      web server; `config/local.php` is not readable by others.
+- [ ] Only `var/cache/`, `var/backups/`, `var/files/` and `public/media/` are
+      writable by the web server; `config/local.php` is not readable by others.
 - [ ] `display_errors` is off.
 - [ ] Backups run, and are copied to another machine.
 - [ ] The administrators have strong passwords; there is no test account.

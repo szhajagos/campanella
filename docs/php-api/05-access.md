@@ -76,12 +76,24 @@ personal data) are for administrators alone; editors and everyone else neither
 see them nor may do anything with them. The list is the constructor's
 argument: `new DefaultPolicy(['submitted', 'my_private_capability'])`.
 
+**Restricted objects** (since 0.3.2): an object with the `Restricted`
+capability (a private file, [chapter 27](27-files.md)) is seen, besides the
+administrators and editors, only by those it is meant for: `visible_to` is
+`public` (everyone), `users` (every logged-in user) or `roles` (the logged-in
+users with one of its `visible_roles`). An anonymous actor's roles count for
+nothing. It is left out of every query (lists, relations, the search), and
+`allows()` denies viewing it, so a template or a controller cannot show it by
+mistake.
+
 `constrain()` expresses the same in the Query as follows (`administrator`
-gets no condition, `editor` only the first line):
+gets no condition, `editor` only the first line; the role line only for a
+logged-in actor with roles, the `users` one for any logged-in actor):
 
 ```
 NOT HasCapability(submitted)
 AND ((NOT HasCapability(publishable)) OR (status = 'published' AND published_at <= now))
+AND ((NOT HasCapability(restricted)) OR visible_to = 'public' OR visible_to = 'users'
+     OR (visible_to = 'roles' AND visible_roles IN (the actor's roles)))
 ```
 
 ## Custom policy

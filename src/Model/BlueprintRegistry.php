@@ -46,6 +46,9 @@ final class BlueprintRegistry
     /** @var array<string, string> Stored Blueprints that could not be defined: name => the reason. */
     private array $storedErrors = [];
 
+    /** @var list<string> Blueprints of config/blueprints.php left out for a stored one of their name (since 0.3.2). */
+    private array $yielded = [];
+
     /** The longest name of a Blueprint with a table (`bp_<name>`, its keys' names fit in 64 characters). */
     public const int MAX_TABLE_NAME = 40;
 
@@ -304,8 +307,11 @@ final class BlueprintRegistry
 
     /**
      * Defines the Blueprints made in the admin, from their stored form (BlueprintStore;
-     * since 0.2.3). One that does not pass its checks, or whose name a Blueprint of
-     * config/blueprints.php already has, is left out; storedErrors() says why.
+     * since 0.2.3). One that does not pass its checks is left out; storedErrors() says
+     * why. If a Blueprint of config/blueprints.php has its name (one a later version
+     * brought, e.g. `file` in 0.3.2: the admin never lets a taken name be used), the
+     * stored one wins and the file's is left out (yielded(); since 0.3.2; before, the
+     * stored one was left out).
      *
      * @param array<string, array<string, mixed>> $stored name => stored definition
      */
@@ -313,9 +319,12 @@ final class BlueprintRegistry
     {
         foreach ($stored as $name => $definition) {
             $name = (string) $name;
-            if (isset($this->blueprints[$name])) {
-                $this->storedErrors[$name] = 'A Blueprint of config/blueprints.php has this name.';
-                continue;
+            if (isset($this->blueprints[$name]) && !isset($this->editable[$name])) {
+                // Made in the admin before a later version brought a Blueprint of this name in
+                // config/blueprints.php (e.g. `file`, 0.3.2): the site's own one keeps its name
+                // and content, the file's is left out (yielded()). Since 0.3.2.
+                unset($this->blueprints[$name]);
+                $this->yielded[] = $name;
             }
             try {
                 BlueprintDefinition::name($name);
@@ -326,6 +335,17 @@ final class BlueprintRegistry
                 $this->storedErrors[$name] = $e->getMessage();
             }
         }
+    }
+
+    /**
+     * The Blueprints of config/blueprints.php left out because one made in the admin has
+     * their name (see loadStored()). Since 0.3.2.
+     *
+     * @return list<string>
+     */
+    public function yielded(): array
+    {
+        return $this->yielded;
     }
 
     /** Whether the Blueprint was made in the admin (stored), so it can be edited there. Since 0.2.3. */

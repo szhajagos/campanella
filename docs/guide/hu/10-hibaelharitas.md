@@ -31,7 +31,7 @@ meg (2. fejezet): a legtöbb beállítási hibát ott látod, a teendővel együ
 | „Az űrlap lejárt. Kérjük, próbáld újra.” | Az űrlap túl sokáig volt nyitva, vagy közben kiléptél (például egy másik lapon). Töltsd újra az oldalt, és küldd el újra. Egy hosszú szöveget előtte másold ki, hogy ne vesszen el. |
 | Képfeltöltéskor: „A fájl túl nagy” | A kép nagyobb, mint amennyit a PHP enged. Kicsinyítsd le, vagy a tárhely PHP-beállításaiban növeld az `upload_max_filesize` és a `post_max_size` értékét (2. fejezet, a Rendszer oldal). |
 | Képfeltöltéskor: „A kép túl nagy; legfeljebb … megapixeles” | Legfeljebb 25 megapixeles képet lehet feltölteni: kicsinyítsd le (5. fejezet). |
-| Egy képformátum nem tölthető fel | A tárhely PHP-jának képfeldolgozója (a gd) nem ismeri. A Rendszer oldal **Képek** része megmutatja, melyik formátum nem megy; a tárhely szolgáltatója tudja bekapcsolni. |
+| Egy képformátum nem tölthető fel | A tárhely PHP-jának képfeldolgozója (a gd) nem ismeri. A Rendszer oldal **Képek és fájlok** része megmutatja, melyik formátum nem megy; a tárhely szolgáltatója tudja bekapcsolni. |
 | Egy menüpont nem látszik | Lásd a [4. fejezet](04-menuk.md#ha-a-menü-nem-úgy-jelenik-meg-ahogy-szeretnéd) táblázatát. |
 | Frissítés vagy egy változtatás után a régi kinézet látszik | A Rendszer oldalon a **Sablon-gyorsítótár ürítése**, a böngészőben a Ctrl+F5 segít. |
 | A keresés nem talál egy oldalt | Az oldal piszkozat vagy időzített; vagy a keresett szó háromnál rövidebb, vagy nagyon gyakori angol szó. Egy frissítés után a régebbi oldalakat előbb a keresésbe kell tenni: a Rendszer oldal **Keresési index** sora jelzi, ha hiányzik valami (2. fejezet). |

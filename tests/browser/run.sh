@@ -19,8 +19,10 @@
 # Needs: PHP, Composer's vendor/ in this folder, Python 3 with Playwright
 # (`pip install -r tests/browser/requirements.txt`, then
 # `python3 -m playwright install chromium`). Ports: CAMPANELLA_TEST_PORT (8099) and
-# CAMPANELLA_TEST_SMTP_PORT (2599). --keep: the temporary site and the tables are
-# kept (the site's folder is printed). --headed: the browser is shown. --site: the
+# CAMPANELLA_TEST_SMTP_PORT (2599). CAMPANELLA_TEST_GDB=1 (with gdb installed, as on CI;
+# since 0.3.2): the web server runs under gdb, so if PHP itself crashes, its backtrace
+# is printed. --keep: the temporary site and the tables are kept (the site's folder is
+# printed). --headed: the browser is shown. --site: the
 # site is a copy of that folder (with its own vendor/), e.g. the unpacked release
 # package (tests/package/check.sh), instead of this folder's files.
 
@@ -74,8 +76,14 @@ cleanup() {
     local status=$?
     for pid in "${PIDS[@]}"; do kill "$pid" 2>/dev/null || true; done
     if [ "$status" != 0 ] && [ -s "$WORK/server.log" ]; then
-        echo "== The web server's log (the end)"
-        tail -n 40 "$WORK/server.log"
+        if grep -q 'received signal SIG' "$WORK/server.log"; then
+            echo "== The web server (PHP itself) crashed: the last requests, and the backtrace"
+            line=$(grep -n 'received signal SIG' "$WORK/server.log" | head -n 1 | cut -d: -f1)
+            sed -n "$(( line > 15 ? line - 15 : 1 )),$(( line + 70 ))p" "$WORK/server.log"
+        else
+            echo "== The web server's log (the end)"
+            tail -n 40 "$WORK/server.log"
+        fi
     fi
     if [ "$KEEP" = 1 ]; then
         echo "Kept: $SITE (server log: $WORK/server.log, mails: $MAILS), and the tables $CAMPANELLA_DB_PREFIX*"
@@ -122,11 +130,19 @@ create_user browser-admin@example.test browser-admin-jelszo-1 administrator "Bö
 create_user browser-editor@example.test browser-editor-jelszo-1 editor "Böngésző Szerkesztő"
 create_user browser-lock@example.test browser-lock-jelszo-1 editor "Kizárási Próba"
 
-echo "== The mail catcher (port $SMTP_PORT) and the web server (port $PORT)"
+echo "== The mail catcher (port $SMTP_PORT) and the web server (port $PORT), $(php -r 'echo "PHP ", PHP_VERSION;')"
 python3 -I "$ROOT/tests/browser/mailcatcher.py" "$SMTP_PORT" "$MAILS" &
 PIDS+=($!)
-(cd "$SITE" && exec php -S "127.0.0.1:$PORT" -t public public/index.php >"$WORK/server.log" 2>&1) &
-PIDS+=($!)
+# With CAMPANELLA_TEST_GDB=1 and gdb installed (as on CI), the web server runs under gdb,
+# so a crash of PHP itself (a segmentation fault) leaves its backtrace in the server log.
+if [ "${CAMPANELLA_TEST_GDB:-}" = 1 ] && command -v gdb >/dev/null 2>&1; then
+    (cd "$SITE" && exec gdb -q -batch -ex 'handle SIGPIPE nostop noprint pass' -ex run -ex 'echo \n== PHP crashed: the backtrace\n' -ex 'bt 60' \
+        --args php -S "127.0.0.1:$PORT" -t public public/index.php >"$WORK/server.log" 2>&1) &
+else
+    (cd "$SITE" && exec php -S "127.0.0.1:$PORT" -t public public/index.php >"$WORK/server.log" 2>&1) &
+fi
+SERVER=$!
+PIDS+=($SERVER)
 wait_for_port "$SMTP_PORT"
 wait_for_port "$PORT"
 

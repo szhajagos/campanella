@@ -38,7 +38,7 @@ an image** ([below](#where-an-image-is-used)), so its delete page lists them.
    (`media.type_not_processable`), so no image is ever stored with its
    metadata. With `media.store_unprocessed` the checked original is stored
    instead, metadata included. The system page shows the formats gd was built
-   with, and which types can be uploaded (the *Images* group).
+   with, and which types can be uploaded (the *Images and files* group).
 6. **Storing:** under a new, random name with the extension of the recognised
    type: `public/media/YYYY/MM/<24 hex characters>.<jpg|png|webp|gif>`. A
    `.htaccess` in `public/media/` forbids running anything there as code.
@@ -387,7 +387,7 @@ instead, or the largest image accepted is smaller (the system page shows it).
 
 On another server put these into `php.ini` (or `.user.ini`, or the hosting
 panel); `upload_max_filesize` and `post_max_size` cannot be changed from PHP
-code. The system page's *Images* group shows whether they are enough.
+code. The system page's *Images and files* group shows whether they are enough.
 
 ## Upgrading
 

@@ -38,11 +38,12 @@ final class ObjectForm
     /**
      * Fields that are not edited in the form: the publication status and time are
      * changed by the publish/unpublish actions, the text format by converting a text
-     * to HTML, a file's data (MediaFile) by uploading it.
+     * to HTML, a file's data (MediaFile, Downloadable) by uploading it.
      */
     public const array MANAGED_FIELDS = [
         'status', 'published_at', 'format',
         'file_path', 'mime_type', 'file_size', 'width', 'height', 'file_hash', 'variants',
+        'download_path', 'download_name', 'download_type', 'download_size', 'download_hash',
     ];
 
     /** The most targets offered for a relation. */

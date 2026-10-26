@@ -41,8 +41,10 @@ If the `.htaccess` in the root directs the request under `public/`,
 
 | Member | Description |
 |---|---|
-| `__construct(string $body = '', int $status = 200, array $headers = [...])` | Default header: `Content-Type: text/html; charset=utf-8` |
-| `$body`, `$status`, `$headers` | Read-only |
+| `__construct(string $body = '', int $status = 200, array $headers = [...], ?string $file = null)` | Default header: `Content-Type: text/html; charset=utf-8`. `$file` (since 0.3.2): a file sent as the body instead of `$body` |
+| `$body`, `$status`, `$headers`, `$file` | Read-only |
+| `static file(string $path, array $headers): self` | A file as the body (e.g. a download), sent in pieces of 1 MB rather than read into the memory, with its `Content-Length` (since 0.3.2) |
+| `length(): int` | The body's length in bytes: the file's, with a file (since 0.3.2) |
 | `static html(string $body, int $status = 200): self` | |
 | `static json(array $data, int $status = 200): self` | JSON (`application/json; charset=utf-8`), never cached (since 0.0.5) |
 | `static redirect(string $url, int $status = 302): self` | |
@@ -322,6 +324,7 @@ templates a request uses are read and hashed once per request.
 | `{{ object\|body }}` | `body(CampanellaObject $object)` | The HTML of the Textual body: escaped and split into paragraphs for the `plain` format; as stored for the `html` format, which is filtered on save ([chapter 15](15-html.md)); since 0.1.2 its images of this site get `srcset`, `sizes`, their size and lazy loading ([chapter 16](16-media.md#smaller-copies-variants)) |
 | `{{ image_url(image, 640) }}` | `imageUrl(CampanellaObject $image, ?int $width = null)` | An image object's address, or of its smallest copy at least `$width` wide (since 0.1.2) |
 | `{{ image_srcset(image) }}` | `imageSrcset(CampanellaObject $image)` | An image object's `srcset`; `''` without copies (since 0.1.2) |
+| `{{ file_url(file) }}` | `fileUrl(CampanellaObject $file)` | A file object's download address, `/files/12/hirlevel.pdf`; `''` for an object that is not a file. Whether the visitor may download it is checked there ([chapter 27](27-files.md); since 0.3.2) |
 | `{% for item in list('name') %}` | `list(string $name)` | The first page of a list made in the admin ([chapter 23](23-lists.md); since 0.2.5) |
 | `{{ field_value(item, 'nap') }}` | `fieldValue(Environment $env, CampanellaObject $object, string $name)` | One field shown by its type, as `object_fields()` shows it (since 0.2.5) |
 | `{% for f in object_fields(item) %}` | `objectFields(Environment $env, CampanellaObject $object)` | The object's own (Blueprint) fields that have a value and are not hidden, each as `name`, `label`, `type` and `html` (safe to print): texts escaped with their line breaks, formatted (`Html`) text as filtered on save, numbers and dates in the current language (`format.decimal_point`, `date.format_day`) and the site's time zone, a choice by its translated label, `yes`/`no` (`field.yes`, `field.no`), e-mail and web addresses as links (since 0.2.2). `object/full.html.twig` shows them (`object/_fields.html.twig`, without `lead`, which is shown above the text) |

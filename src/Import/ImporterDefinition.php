@@ -198,7 +198,7 @@ final readonly class ImporterDefinition
      */
     public static function importable(Blueprint $blueprint): bool
     {
-        foreach (['authenticatable', 'media_file', 'submitted', 'keyed', 'link'] as $capability) {
+        foreach (['authenticatable', 'media_file', 'submitted', 'keyed', 'link', 'downloadable'] as $capability) {
             if (isset($blueprint->capabilities[$capability])) {
                 return false;
             }

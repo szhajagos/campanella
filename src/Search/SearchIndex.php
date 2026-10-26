@@ -28,7 +28,7 @@ use DateTimeZone;
 final class SearchIndex
 {
     /** The capabilities whose objects are never indexed. */
-    public const array NEVER = ['authenticatable', 'submitted', 'media_file'];
+    public const array NEVER = ['authenticatable', 'submitted', 'media_file', 'downloadable'];
 
     /** The longest text kept for an object, in bytes (the rest is not searched). */
     public const int MAX_CONTENT = 60_000;

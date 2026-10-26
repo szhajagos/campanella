@@ -7,6 +7,7 @@ namespace Campanella\Access;
 use Campanella\Capability\Authenticatable;
 use Campanella\Capability\Publishable;
 use Campanella\Capability\PublishStatus;
+use Campanella\Capability\Restricted;
 use Campanella\Model\CampanellaObject;
 use Campanella\Query\Condition\FieldCondition;
 use Campanella\Query\Condition\Group;
@@ -27,7 +28,10 @@ use DateTimeZone;
  *    every other operation is denied;
  *  - objects with an administrators-only capability (by default `submitted`: the
  *    contact form's messages, personal data; since 0.1.5) are for administrators
- *    only: nobody else may see or touch them, editors neither.
+ *    only: nobody else may see or touch them, editors neither;
+ *  - a Restricted object (e.g. a private file; since 0.3.2) is seen, besides the
+ *    administrators and editors, only by those it is meant for: every logged-in
+ *    user, or the users with one of its roles.
  *
  * User objects are visible (their name may appear as author), but the
  * password hash is a hidden field, not accessible from templates.
@@ -57,13 +61,35 @@ final class DefaultPolicy implements AccessPolicy
             return $query;
         }
 
-        return $query->whereCondition(Group::any(
+        $query = $query->whereCondition(Group::any(
             new HasCapability('publishable', negated: true),
             Group::all(
                 new FieldCondition('status', Operator::Equals, PublishStatus::Published),
                 new FieldCondition('published_at', Operator::LessOrEqual, self::now()),
             ),
         ));
+
+        return $query->whereCondition(self::restriction($actor));
+    }
+
+    /** The objects the actor may see as far as Restricted goes (since 0.3.2). */
+    private static function restriction(Actor $actor): Group
+    {
+        $visible = [
+            new HasCapability('restricted', negated: true),
+            new FieldCondition('visible_to', Operator::Equals, Restricted::PUBLIC),
+        ];
+        if (!$actor->isAnonymous()) {
+            $visible[] = new FieldCondition('visible_to', Operator::Equals, Restricted::USERS);
+            if ($actor->roles !== []) {
+                $visible[] = Group::all(
+                    new FieldCondition('visible_to', Operator::Equals, Restricted::ROLES),
+                    new FieldCondition('visible_roles', Operator::In, $actor->roles),
+                );
+            }
+        }
+
+        return Group::any(...$visible);
     }
 
     #[\Override]
@@ -85,6 +111,9 @@ final class DefaultPolicy implements AccessPolicy
             };
         }
         if ($operation !== Operation::View) {
+            return false;
+        }
+        if ($object->has(Restricted::class) && !$object->as(Restricted::class)->isVisibleTo($actor)) {
             return false;
         }
 

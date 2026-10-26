@@ -8,6 +8,7 @@ use Campanella\Access\Actor;
 use Campanella\Admin\AdminAccess;
 use Campanella\Http\Flash;
 use Campanella\Http\SitePaths;
+use Campanella\Capability\Downloadable;
 use Campanella\Capability\MediaFile;
 use Campanella\Capability\Textual;
 use Campanella\Media\ResponsiveImages;
@@ -115,6 +116,7 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
             new TwigFunction('menu', $this->menu(...)),
             new TwigFunction('image_url', $this->imageUrl(...)),
             new TwigFunction('image_srcset', $this->imageSrcset(...)),
+            new TwigFunction('file_url', $this->fileUrl(...)),
             new TwigFunction('object_fields', $this->objectFields(...), ['needs_environment' => true]),
             new TwigFunction('field_value', $this->fieldValue(...), ['needs_environment' => true, 'is_safe' => ['html']]),
             new TwigFunction('list', $this->list(...)),
@@ -379,6 +381,21 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
             : '/media/' . $image->as(MediaFile::class)->path();
 
         return $this->url($path);
+    }
+
+    /**
+     * The download address of a file object (`/files/12/hirlevel.pdf`, with the
+     * installation's folder); '' for an object that is not a file. Whether the visitor
+     * may download it is checked there. Since 0.3.2.
+     */
+    public function fileUrl(CampanellaObject $file): string
+    {
+        if (!$file->has(Downloadable::class) || $file->id() === null) {
+            return '';
+        }
+        $prefix = $this->paths?->get('files') ?? SitePaths::DEFAULTS['files'];
+
+        return $this->url($prefix . '/' . (int) $file->id() . '/' . rawurlencode($file->as(Downloadable::class)->name()));
     }
 
     /** An image object's `srcset` (its copies and the original); '' without copies. Since 0.1.2. */

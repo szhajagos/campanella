@@ -51,6 +51,7 @@ use Campanella\Auth\SessionRegistry;
 use Campanella\Auth\LoginGuard;
 use Campanella\Controller\AuthController;
 use Campanella\Controller\ContactController;
+use Campanella\Controller\FileController;
 use Campanella\Controller\SearchController;
 use Campanella\Search\Search;
 use Campanella\Site\Redirects;
@@ -104,6 +105,11 @@ use Campanella\View\Presentation;
 use Campanella\View\Theme;
 use Campanella\Html\HtmlSanitizer;
 use Campanella\Media\DeleteMediaFile;
+use Campanella\Media\DeleteStoredFile;
+use Campanella\Media\FileCheck;
+use Campanella\Media\FileInspector;
+use Campanella\Media\FileService;
+use Campanella\Media\FileStorage;
 use Campanella\Media\ImageProcessor;
 use Campanella\Media\MediaCheck;
 use Campanella\Media\MediaService;
@@ -190,7 +196,7 @@ final class Kernel
         $compressed = !in_array($zlib, ['', '0', 'off', 'false', 'no'], true);
         $buffered = ob_get_level() > 0 && (int) ob_get_length() > 0;
 
-        return $compressed || $buffered ? $response : $response->withHeader('Content-Length', (string) strlen($response->body));
+        return $compressed || $buffered ? $response : $response->withHeader('Content-Length', (string) $response->length());
     }
 
     /**
@@ -495,6 +501,7 @@ final class Kernel
                 $root,
             );
             $system->add(MediaCheck::checks($c->get(ImageProcessor::class), $c->get(MediaStorage::class), $c->get(MediaService::class)));
+            $system->add(FileCheck::checks($c->get(FileService::class), $c->get(FileStorage::class)));
             $system->add(SearchCheck::checks($c->get(SearchIndexer::class)));
             $system->add(SyncCheck::checks($c->get(Installer::class), $c->get(SchemaSync::class)));
             $system->add(MailCheck::checks($c->get(Mailer::class)));
@@ -557,12 +564,14 @@ final class Kernel
 
         $c->set(UserService::class, static function (Container $c): UserService {
             $config = $c->get(Config::class);
-            // The roles offered in the admin: the admin's and the System page's roles.
-            $roles = array_values(array_unique(array_map(strval(...), array_merge(
+            // The roles offered in the admin: the admin's and the System page's roles, and the
+            // site's own (users.roles, since 0.3.2).
+            $roles = array_values(array_unique(array_filter(array_map(strval(...), array_merge(
                 [Actor::ADMINISTRATOR],
                 (array) $config->get('admin.roles', []),
                 (array) $config->get('admin.system_roles', []),
-            ))));
+                (array) $config->get('users.roles', []),
+            )), static fn (string $role): bool => preg_match('/^[a-z][a-z0-9_]{0,31}$/', $role) === 1)));
 
             return new UserService($c->get(ObjectRepository::class), $c->get(QueryEngine::class), $c->get(AccessPolicy::class), $c->get(Throttle::class), $roles, $c->get(Connection::class), $c->get(EventDispatcher::class));
         });
@@ -616,8 +625,9 @@ final class Kernel
 
         $c->set(ObjectService::class, static function (Container $c): ObjectService {
             $service = new ObjectService($c->get(ObjectRepository::class), $c->get(AccessPolicy::class), $c->get(EventDispatcher::class));
-            // A deleted image takes its file with it.
+            // A deleted image takes its file with it, a file to download too (since 0.3.2).
             $service->addListener(new DeleteMediaFile($c->get(MediaStorage::class)));
+            $service->addListener(new DeleteStoredFile($c->get(FileStorage::class)));
 
             return $service;
         });
@@ -654,6 +664,26 @@ final class Kernel
             'image',
             $c->get(QueryEngine::class),
             $c->get(Connection::class),
+        ));
+        // Files to download (since 0.3.2): stored outside the web root, served by FileController.
+        $c->set(FileStorage::class, static function (Container $c) use ($root): FileStorage {
+            $directory = (string) $c->get(Config::class)->get('files.directory', 'var/files');
+
+            return new FileStorage(str_starts_with($directory, '/') ? $directory : $root . '/' . $directory);
+        });
+        $c->set(FileInspector::class, static fn (Container $c): FileInspector => new FileInspector(
+            array_values((array) $c->get(Config::class)->get('files.types', FileInspector::DEFAULT_TYPES)),
+            (int) $c->get(Config::class)->get('files.max_bytes', FileInspector::DEFAULT_MAX_BYTES),
+        ));
+        $c->set(FileService::class, static fn (Container $c): FileService => new FileService(
+            $c->get(ObjectService::class),
+            $c->get(ObjectRepository::class),
+            $c->get(AccessPolicy::class),
+            $c->get(FileInspector::class),
+            $c->get(FileStorage::class),
+            $c->get(BlueprintRegistry::class),
+            (string) $c->get(Config::class)->get('files.blueprint', 'file'),
+            $c->get(SitePaths::class)->get('files'),
         ));
         $c->set(ResponsiveImages::class, static fn (Container $c): ResponsiveImages => new ResponsiveImages(
             $c->get(QueryEngine::class),
@@ -696,7 +726,8 @@ final class Kernel
             $c->get(BlueprintStore::class),
             $c->get(ListStore::class),
             $c->get(Connection::class),
-            static fn (): array => require $root . '/config/blueprints.php',
+            // The file's Blueprints, but those a stored one of their name took over (since 0.3.2).
+            static fn (): array => array_diff_key(require $root . '/config/blueprints.php', array_flip($c->get(BlueprintRegistry::class)->yielded())),
             $c->get(Installer::class),
             $c->get(Migrator::class),
             $c->get(DatabaseBackup::class),
@@ -830,6 +861,8 @@ final class Kernel
             $router->add($paths->get('contact'), 'contact');
             // The search (since 0.2.7).
             $router->add($paths->get('search'), 'search');
+            // The downloads (since 0.3.2): /files/<id>/<name>.
+            $router->prefix($paths->get('files'), 'file');
             // For search engines (since 0.1.1).
             $router->add('/robots.txt', 'site', ['action' => 'robots']);
             $router->add('/sitemap.xml', 'site', ['action' => 'sitemap']);
@@ -887,7 +920,8 @@ final class Kernel
                 $c->get(CapabilityRegistry::class),
                 $c->get(BlueprintStore::class),
                 $c->get(Connection::class),
-                static fn (): array => require $root . '/config/blueprints.php',
+                // The file's Blueprints, but those a stored one of their name took over (since 0.3.2).
+                static fn (): array => array_diff_key(require $root . '/config/blueprints.php', array_flip($c->get(BlueprintRegistry::class)->yielded())),
                 $c->get(Installer::class),
                 $c->get(Migrator::class),
                 $c->get(DatabaseBackup::class),
@@ -972,6 +1006,11 @@ final class Kernel
             $c->get(Connection::class),
             $c->get(ObjectRepository::class),
             $c->get(BlueprintRegistry::class),
+        ));
+        $c->set('controller.file', static fn (Container $c): Controller => new FileController(
+            $c->get(ObjectRepository::class),
+            $c->get(AccessPolicy::class),
+            $c->get(FileService::class),
         ));
         $c->set('controller.search', static fn (Container $c): Controller => new SearchController(
             $c->get(Search::class),

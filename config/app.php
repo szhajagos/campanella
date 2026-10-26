@@ -5,9 +5,11 @@ declare(strict_types=1);
 use Campanella\Auth\Guard\HoneypotGuard;
 use Campanella\Capability\Authenticatable;
 use Campanella\Capability\Authorable;
+use Campanella\Capability\Downloadable;
 use Campanella\Capability\Identifiable;
 use Campanella\Capability\MediaFile;
 use Campanella\Capability\Publishable;
+use Campanella\Capability\Restricted;
 use Campanella\Capability\Routable;
 use Campanella\Capability\Submitted;
 use Campanella\Capability\Textual;
@@ -51,6 +53,7 @@ return [
         'password_reset' => '/password-reset',   // the forgotten password
         'contact' => '/contact',                 // the contact form (since 0.1.5)
         'search' => '/search',                   // the search (since 0.2.7)
+        'files' => '/files',                     // the downloads: /files/<id>/<name> (since 0.3.2)
     ],
 
     'site' => [
@@ -92,6 +95,8 @@ return [
         Keyed::class,
         Link::class,
         Submitted::class,
+        Downloadable::class,
+        Restricted::class,
     ],
 
     // Uploaded files (images). The folder is under public/, so the files are served
@@ -113,6 +118,29 @@ return [
         // The srcset images' sizes attribute: how wide the text column is (the default theme's
         // is at most 800 pixels). An image with a width of its own uses that instead.
         'sizes' => '(max-width: 800px) 100vw, 800px',
+    ],
+
+    // Files to download (since 0.3.2): documents, spreadsheets, presentations, text. They
+    // are stored outside the web root and always served by Campanella, after checking who
+    // may see them (a file can be for everyone, for logged-in users, or for some roles).
+    'files' => [
+        'directory' => 'var/files',          // relative to the project root; back it up with the database
+        'max_bytes' => 20 * 1024 * 1024,     // the largest file accepted (also limited by php.ini)
+        // The accepted types, checked by the file's content. Possible: pdf, docx, xlsx, pptx,
+        // odt, ods, odp, txt, csv, zip. zip is not accepted by default: what is inside cannot be
+        // checked (it may carry a program); add it only if you trust everyone who uploads.
+        // Macro-enabled Office files, HTML, SVG and programs are never accepted.
+        'types' => ['pdf', 'docx', 'xlsx', 'pptx', 'odt', 'ods', 'odp', 'txt', 'csv'],
+        // The Blueprint of the files. Only if the site made a Blueprint called `file` in the
+        // admin before 0.3.2 (that one keeps its name): another name here gets files again.
+        'blueprint' => 'file',
+    ],
+
+    // Users (since 0.3.2): roles of the site's own, besides administrator and editor, e.g.
+    // ['member']. They can be given to users in the admin, and a file can be limited to
+    // them; they do not let anyone into the admin. Lower-case letters, digits, _.
+    'users' => [
+        'roles' => [],
     ],
 
     // Behind a reverse proxy (load balancer, CDN, the web server of a Docker host): the

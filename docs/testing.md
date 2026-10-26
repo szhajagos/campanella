@@ -35,7 +35,11 @@ CAMPANELLA_DB_HOST=127.0.0.1 CAMPANELLA_DB_PASSWORD=… tests/browser/run.sh
 Options: `--keep` keeps the temporary site, its tables (prefix `brw_`), the web
 server's log and the caught e-mails, and prints where they are; `--headed` shows
 the browser. The ports: `CAMPANELLA_TEST_PORT` (8099) for the site and
-`CAMPANELLA_TEST_SMTP_PORT` (2599) for the mail catcher.
+`CAMPANELLA_TEST_SMTP_PORT` (2599) for the mail catcher. With
+`CAMPANELLA_TEST_GDB=1` and `gdb` installed (as on CI, since 0.3.2) the web
+server runs under gdb: if PHP itself crashes (a segmentation fault: a fault of
+PHP, not of a PHP script), the end of the server's log shows the last requests
+and the backtrace.
 
 `run.sh` copies the working tree (the files `git ls-files` lists, with
 `vendor/`) to a temporary folder with a `config/local.php` of its own (debug off,

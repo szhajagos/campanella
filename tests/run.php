@@ -2195,6 +2195,251 @@ test('MediaService: uploading creates an image object; deleting it deletes the f
     check(\Campanella\Media\MediaService::titleFrom("szamla\u{202E}gpj.exe") === 'szamlagpj', 'direction-changing characters removed');
 });
 
+/**
+ * A ZIP archive made without the zip extension, for the file tests (since 0.3.2): name =>
+ * content, each entry deflated unless its name is in $stored.
+ *
+ * @param array<string, string> $entries
+ * @param list<string> $stored
+ */
+function testZip(array $entries, array $stored = []): string
+{
+    $body = '';
+    $directory = '';
+    foreach ($entries as $name => $content) {
+        $method = in_array($name, $stored, true) ? 0 : 8;
+        $data = $method === 8 ? (string) gzdeflate($content) : $content;
+        $crc = crc32($content);
+        $header = pack('VvvvvvVVVvv', 0x04034b50, 20, 0, $method, 0, 0, $crc, strlen($data), strlen($content), strlen($name), 0);
+        $directory .= pack('VvvvvvvVVVvvvvvVV', 0x02014b50, 20, 20, 0, $method, 0, 0, $crc, strlen($data), strlen($content), strlen($name), 0, 0, 0, 0, 0, strlen($body)) . $name;
+        $body .= $header . $name . $data;
+    }
+
+    return $body . $directory . pack('VvvvvVVv', 0x06054b50, 0, 0, count($entries), count($entries), strlen($directory), strlen($body), 0);
+}
+
+/** A temporary file with the content. */
+function testFile(string $content): string
+{
+    $file = (string) tempnam(sys_get_temp_dir(), 'cf');
+    file_put_contents($file, $content);
+
+    return $file;
+}
+
+/** The content types of an Office document whose main part has the type. */
+function officeTypes(string $main): string
+{
+    return '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+        . '<Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="' . $main . '"/></Types>';
+}
+
+test('FileInspector: files by their content; macros, programs and pages refused', function (): void {
+    $inspector = new \Campanella\Media\FileInspector();
+    $type = static function (string $content, string $name, ?\Campanella\Media\FileInspector $with = null) use ($inspector): string {
+        try {
+            return ($with ?? $inspector)->inspect(testFile($content), $name)['extension'];
+        } catch (ValidationException $e) {
+            return $e->errors['file']->key;
+        }
+    };
+    $docx = testZip(['[Content_Types].xml' => officeTypes('application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml'), 'word/document.xml' => '<w:document/>']);
+    $xlsx = testZip(['[Content_Types].xml' => officeTypes('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml')]);
+    $pptx = testZip(['[Content_Types].xml' => officeTypes('application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml')]);
+    $odt = testZip(['mimetype' => 'application/vnd.oasis.opendocument.text', 'content.xml' => '<office:document-content/>'], ['mimetype']);
+    $ods = testZip(['mimetype' => 'application/vnd.oasis.opendocument.spreadsheet'], ['mimetype']);
+    $odp = testZip(['mimetype' => 'application/vnd.oasis.opendocument.presentation'], ['mimetype']);
+
+    check($type("%PDF-1.7\n1 0 obj\n%%EOF", 'Számla.PDF') === 'pdf');
+    check($type($docx, 'level.docx') === 'docx' && $type($xlsx, 'tabla.xlsx') === 'xlsx' && $type($pptx, 'eloadas.pptx') === 'pptx');
+    check($type($odt, 'level.odt') === 'odt' && $type($ods, 'a.ods') === 'ods' && $type($odp, 'a.odp') === 'odp');
+    check($type("név;kor\nAnna;30\n", 'lista.CSV') === 'csv' && $type('Hello', 'olvass.txt') === 'txt');
+    check($type($docx, 'valami.pdf') === 'docx', 'the content decides, not the name');
+    $info = $inspector->inspect(testFile($docx), 'x.docx');
+    check($info['mime'] === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' && $info['bytes'] === $docx);
+
+    // Macros and scripts, under any name.
+    check($type(testZip(['[Content_Types].xml' => officeTypes('application/vnd.ms-word.document.macroEnabled.main+xml')]), 'a.docx') === 'file.macros', 'a .docm named .docx');
+    check($type(testZip(['[Content_Types].xml' => officeTypes('application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml'), 'word/vbaProject.bin' => 'x']), 'a.docx') === 'file.macros', 'a VBA project');
+    check($type(testZip(['[Content_Types].xml' => officeTypes('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml'), 'xl/activeX/activeX1.bin' => 'x']), 'a.xlsx') === 'file.macros', 'ActiveX');
+    check($type(testZip(['mimetype' => 'application/vnd.oasis.opendocument.text', 'Basic/Standard/Module1.xml' => 'x'], ['mimetype']), 'a.odt') === 'file.macros', 'OpenDocument Basic');
+
+    // Never: pages, images as files, programs; a plain zip only if allowed.
+    check($type('<html><script>alert(1)</script></html>', 'oldal.html') === 'file.not_recognized');
+    check($type('<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"/>', 'kep.svg') === 'file.not_recognized');
+    check($type("MZ\x90\x00\x03\x00\x00\x00", 'program.exe') === 'file.not_recognized' && $type("MZ\x90\x00", 'program.txt') === 'file.not_recognized', 'zero bytes are not text');
+    check($type("\x89PNG\r\n\x1a\n", 'kep.png') === 'file.not_recognized');
+    $zip = testZip(['program.exe' => 'MZ']);
+    check($type($zip, 'csomag.zip') === 'file.type_not_allowed', 'zip is not accepted by default');
+    check($type($zip, 'csomag.zip', new \Campanella\Media\FileInspector([...\Campanella\Media\FileInspector::DEFAULT_TYPES, 'zip'])) === 'zip', 'unless the setting lists it');
+    check((new \Campanella\Media\FileInspector(['pdf', 'svg', 'html', 'exe', 'ZIP']))->types() === ['pdf', 'zip'], 'only the known types can be accepted');
+    check($type("%PDF-1.4", 'a.pdf', new \Campanella\Media\FileInspector(['docx'])) === 'file.type_not_allowed');
+
+    // Damaged, empty, too large.
+    check($type(substr($docx, 0, 40), 'a.docx') === 'file.damaged' && $type("PK\x03\x04" . str_repeat('x', 100), 'a.docx') === 'file.damaged');
+    check($type('', 'a.pdf') === 'file.empty');
+    check($type("%PDF-1.4\n" . str_repeat('x', 2000), 'a.pdf', new \Campanella\Media\FileInspector(maxBytes: 1000)) === 'file.too_large');
+
+    $directory = new \Campanella\Media\ZipDirectory($odt);
+    check($directory->names() === ['mimetype', 'content.xml'] && $directory->read('content.xml') === '<office:document-content/>' && $directory->method('mimetype') === 0);
+    check($directory->read('nincs') === null && !$directory->isEncrypted('mimetype'));
+});
+
+test('FileService: uploading a file, its download name, deleting it with its file', function () use ($repository, $policy, $admin, $editorUser): void {
+    $dir = sys_get_temp_dir() . '/campanella-files-' . bin2hex(random_bytes(4));
+    $storage = new \Campanella\Media\FileStorage($dir);
+    $objects = new ObjectService($repository, $policy);
+    $objects->addListener(new \Campanella\Media\DeleteStoredFile($storage));
+    $files = new \Campanella\Media\FileService($objects, $repository, $policy, new \Campanella\Media\FileInspector(), $storage);
+    $stored = static fn (): array => glob($dir . '/*/*/*') ?: [];
+
+    $editor = new Actor(\Campanella\Access\ActorKind::User, (int) $editorUser->id(), ['editor']);
+    $file = $files->upload($editor, testFile("%PDF-1.7\n%%EOF"), 'C:\\Dokumentumok\\Áprilisi hírlevél.PDF');
+    $download = $file->as(\Campanella\Capability\Downloadable::class);
+    check($file->blueprint() === 'file' && $file->get('title') === 'Áprilisi hírlevél', (string) $file->get('title'));
+    check($download->name() === 'aprilisi-hirlevel.pdf' && $download->mimeType() === 'application/pdf' && $download->size() === 14 && $download->extension() === 'pdf');
+    check(preg_match('#^\d{4}/\d{2}/[0-9a-f]{24}\.pdf$#', $download->path()) === 1 && is_file($storage->path($download->path())));
+    check($download->hash() === hash_file('sha256', $storage->path($download->path())));
+    check($file->as(\Campanella\Capability\Restricted::class)->isPublic() && $file->as(\Campanella\Capability\Authorable::class)->authorId() === $editorUser->id());
+    check($files->url($file) === '/files/' . $file->id() . '/aprilisi-hirlevel.pdf');
+    check(is_file($dir . '/.htaccess') && str_contains((string) file_get_contents($dir . '/.htaccess'), 'Require all denied'), 'the folder denies the web');
+
+    $members = $files->upload($admin, testFile("név;kor\n"), 'tagok.csv', \Campanella\Capability\Restricted::ROLES, ['member', ' member ', '']);
+    check($repository->find((int) $members->id())?->get('visible_to') === 'roles' && $members->as(\Campanella\Capability\Restricted::class)->roles() === ['member']);
+    check($files->upload($admin, testFile('x'), 'Hírek.txt', title: '  Saját cím ')->get('title') === 'Saját cím');
+
+    // Nothing is stored for an invalid file, an invalid restriction, or a user who may not upload.
+    $before = count($stored());
+    check(mediaError(fn () => $files->upload($admin, testFile('<html>'), 'a.html')) === 'file.not_recognized');
+    throws(ValidationException::class, fn () => $files->upload($admin, testFile('x'), 'a.txt', \Campanella\Capability\Restricted::ROLES, []));
+    throws(ValidationException::class, fn () => $files->upload($admin, testFile('x'), 'a.txt', 'everyone'));
+    throws(\Campanella\Access\AccessDeniedException::class, fn () => $files->upload(Actor::anonymous(), testFile('x'), 'a.txt'));
+    check(count($stored()) === $before, 'no file left behind');
+
+    $path = $storage->path($download->path());
+    $objects->delete($admin, $file);
+    check(!is_file($path) && $repository->find((int) $file->id()) === null, 'deleted with its file');
+
+    check(\Campanella\Media\FileService::downloadName('../../etc/passwd', 'txt') === 'passwd.txt');
+    check(\Campanella\Media\FileService::downloadName('.pdf', 'pdf') === 'file.pdf' && \Campanella\Media\FileService::downloadName("szamla\u{202E}fdp.exe", 'pdf') === 'szamla-fdp.pdf');
+    check(\Campanella\Media\FileService::downloadName(str_repeat('a', 300) . '.pdf', 'docx') === str_repeat('a', 80) . '.docx', 'the content\'s extension, a limited length');
+    check(\Campanella\Media\FileService::titleFrom('.pdf') === 'file');
+    throws(\InvalidArgumentException::class, fn () => $storage->path('../../config/local.php'));
+    throws(\InvalidArgumentException::class, fn () => $storage->path('2026/10/' . str_repeat('a', 24) . '.php'));
+});
+
+test('DefaultPolicy: a restricted object for logged-in users or for roles', function () use ($repository, $engine, $policy, $admin, $editorUser): void {
+    $make = static function (string $scope, array $roles = []) use ($repository, $admin): CampanellaObject {
+        $object = $repository->create('file', [
+            'title' => 'Korlátozott ' . $scope,
+            'download_path' => '2026/10/' . bin2hex(random_bytes(12)) . '.pdf',
+            'download_name' => 'a.pdf', 'download_type' => 'application/pdf', 'download_size' => 1, 'download_hash' => str_repeat('0', 64),
+        ]);
+        $object->as(\Campanella\Capability\Restricted::class)->restrict($scope, $roles);
+        $repository->save($object);
+
+        return $object;
+    };
+    $public = $make('public');
+    $users = $make('users');
+    $members = $make('roles', ['member', 'patron']);
+    $staff = $make('roles', ['tanar']);
+    $ids = [(int) $public->id(), (int) $users->id(), (int) $members->id(), (int) $staff->id()];
+    $seen = static function (Actor $actor) use ($engine, $ids): array {
+        return array_map(static fn (CampanellaObject $o): int => (int) $o->id(), $engine->execute(Query::objects()->blueprint('file')->where('id', 'IN', $ids)->orderBy('id'), $actor)->items);
+    };
+    $user = new Actor(\Campanella\Access\ActorKind::User, 9001, []);
+    $member = new Actor(\Campanella\Access\ActorKind::User, 9002, ['patron']);
+    $editor = new Actor(\Campanella\Access\ActorKind::User, (int) $editorUser->id(), ['editor']);
+    check($seen(Actor::anonymous()) === [$ids[0]], 'anonymous: only the public one');
+    check($seen($user) === [$ids[0], $ids[1]], 'a logged-in user: the users\' one too');
+    check($seen($member) === [$ids[0], $ids[1], $ids[2]], 'one of its roles: that one too');
+    check($seen($editor) === $ids && $seen($admin) === $ids, 'the staff: all');
+    check($seen(new Actor(\Campanella\Access\ActorKind::Anonymous, null, ['patron'])) === [$ids[0]], 'a role without a login counts for nothing');
+    foreach ([[Actor::anonymous(), [true, false, false, false]], [$user, [true, true, false, false]], [$member, [true, true, true, false]], [$editor, [true, true, true, true]]] as [$actor, $expected]) {
+        $allowed = array_map(static fn (CampanellaObject $o): bool => $policy->allows($actor, \Campanella\Access\Operation::View, $o), [$public, $users, $members, $staff]);
+        check($allowed === $expected, 'allows() agrees with the query: ' . json_encode($allowed));
+    }
+    check(!$policy->allows($member, \Campanella\Access\Operation::Update, $members), 'seeing is not changing');
+    $members->set('visible_to', 'roles');
+    $members->set('visible_roles', ['patron']);
+    $members->set('visible_to', 'Roles');
+    throws(ValidationException::class, fn () => $repository->save($members));
+});
+
+test('Kernel: downloading a file (GET /files/<id>/<name>), for whom it is meant', function () use ($newUser, $editorUser): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $container = $kernel->container();
+    if ($container->get(Connection::class)->prefix() !== 'test_') {
+        echo "      (skipped: config/local.php sets its own prefix)\n";
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $dir = sys_get_temp_dir() . '/campanella-files-' . bin2hex(random_bytes(4));
+    $container->set(\Campanella\Media\FileStorage::class, static fn () => new \Campanella\Media\FileStorage($dir));
+    $storage = new ArraySessionStorage();
+    $container->set(Session::class, static fn () => new Session($storage));
+    $send = function (string $method, string $path, array $headers = []) use ($kernel, $storage) {
+        $storage->endRequest();
+
+        return $kernel->handle(new Request($method, $path, headers: $headers));
+    };
+    $files = $container->get(\Campanella\Media\FileService::class);
+    check($files->isAvailable());
+    $public = $files->upload(Actor::system(), testFile("%PDF-1.7\nnyilvános\n%%EOF"), 'Műsor 2026.pdf');
+    $private = $files->upload(Actor::system(), testFile("név;tagdíj\n"), 'Tagok.csv', \Campanella\Capability\Restricted::ROLES, ['member']);
+    $url = $files->url($public);
+
+    $ok = $send('GET', $url);
+    check($ok->status === 200 && $ok->file === $files->path($public) && $ok->body === '', 'sent from its file: ' . $ok->status);
+    check(($ok->headers['Content-Type'] ?? '') === 'application/pdf' && ($ok->headers['Content-Disposition'] ?? '') === 'attachment; filename="musor-2026.pdf"', json_encode($ok->headers));
+    check(($ok->headers['Content-Security-Policy'] ?? '') === "default-src 'none'; sandbox" && ($ok->headers['Content-Length'] ?? '') === (string) filesize($files->path($public)));
+    check(($ok->headers['Cache-Control'] ?? '') === 'public, max-age=3600' && ($ok->headers['ETag'] ?? '') === '"' . $public->get('download_hash') . '"' && !isset($ok->headers['X-Robots-Tag']));
+    check($send('GET', $url, ['if-none-match' => '"x", ' . $ok->headers['ETag']])->status === 304, 'not modified');
+    $head = $send('HEAD', $url);
+    check($head->status === 200 && $head->file === null && ($head->headers['Content-Length'] ?? '') === $ok->headers['Content-Length'], 'HEAD: the headers only');
+    check($send('GET', '/files/' . $public->id() . '/regi-nev.pdf')->headers['Location'] === $url && $send('GET', '/files/' . $public->id())->status === 301, 'another name: to its own');
+    check($send('POST', $url)->status === 405);
+    foreach (['/files/0/a.pdf', '/files/abc', '/files', '/files/' . $public->id() . '/a/b', '/files/99999999/a.pdf'] as $path) {
+        check($send('GET', $path)->status === 404, $path);
+    }
+    $page = $container->get(ObjectService::class)->create(Actor::system(), 'page', ['title' => 'Nem fájl', 'body' => 'x']);
+    check($send('GET', '/files/' . $page->id() . '/x')->status === 404, 'an object that is not a file');
+
+    // The members' file: not even its existence, for others.
+    $privateUrl = $files->url($private);
+    $denied = $send('GET', $privateUrl);
+    check($denied->status === 404 && $denied->file === null && !str_contains($denied->body, 'Tagok'), 'anonymous: 404');
+    $auth = $container->get(AuthService::class);
+    $plain = $newUser('letolto-sima@example.hu', 'sima-felhasznalo-1', []);
+    $auth->login(new Request('GET', '/'), $plain);
+    check($send('GET', $privateUrl)->status === 404, 'a user without the role: 404');
+    $auth->logout(new Request('GET', '/'));
+    $member = $newUser('letolto-tag2@example.hu', 'tag-jelszava-1', ['member']);
+    $auth->login(new Request('GET', '/'), $member);
+    $got = $send('GET', $privateUrl);
+    check($got->status === 200 && ($got->headers['Content-Type'] ?? '') === 'text/csv; charset=utf-8' && ($got->headers['X-Robots-Tag'] ?? '') === 'noindex', json_encode($got->headers));
+    check(($got->headers['Cache-Control'] ?? '') === 'private, no-store', 'with a session: never kept by a proxy');
+    $auth->logout(new Request('GET', '/'));
+
+    // A missing file: 404, not an error.
+    @unlink($files->path($public));
+    check($send('GET', $url)->status === 404);
+
+    // Templates link to it; the admin lists and edits files, but does not make one from an empty form.
+    $auth->login(new Request('GET', '/'), $editorUser);
+    check($send('GET', '/admin/file')->status === 200 && $send('GET', '/admin/file/' . $private->id())->status === 200);
+    check($send('GET', '/admin/file/new')->status === 404 && !str_contains($send('GET', '/admin/file')->body, '/admin/file/new'));
+    check(!str_contains($send('GET', '/admin/file/' . $private->id())->body, 'name="f[download_path]"'), 'the file\'s data is not in the form');
+    $auth->logout(new Request('GET', '/'));
+    $twig = $container->get(\Twig\Environment::class);
+    check($twig->createTemplate('{{ file_url(f) }}|{{ file_url(p) }}')->render(['f' => $private, 'p' => $page]) === $privateUrl . '|');
+    check(in_array('file', array_keys($container->get(BlueprintRegistry::class)->all()), true));
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
 test('Kernel: images in the admin are listed, edited, but not created from a form', function () use ($editorUser, $admin, $newUser): void {
     putenv('CAMPANELLA_DB_PREFIX=test_');
     $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
@@ -4943,7 +5188,7 @@ test('SitePaths: English by default, configurable, checked', function (): void {
     $default = new $P();
     check($default->get('login') === '/login' && $default->get('logout') === '/logout' && $default->login('/admin/article?status=draft') === '/login?return=%2Fadmin%2Farticle%3Fstatus%3Ddraft');
     $hu = new $P(['login' => '/belepes/', 'logout' => 'kilepes']);
-    check($hu->all() === ['login' => '/belepes', 'logout' => '/kilepes', 'password_reset' => '/password-reset', 'contact' => '/contact', 'search' => '/search'], json_encode($hu->all()));
+    check($hu->all() === ['login' => '/belepes', 'logout' => '/kilepes', 'password_reset' => '/password-reset', 'contact' => '/contact', 'search' => '/search', 'files' => '/files'], json_encode($hu->all()));
     foreach ([['bejelentkezes' => '/x'], ['login' => '/'], ['login' => '/a b'], ['login' => '/a?b'], ['login' => 42], ['login' => '/x', 'logout' => '/x']] as $bad) {
         throws(\InvalidArgumentException::class, fn () => new $P($bad));
     }
@@ -6169,8 +6414,10 @@ test('BlueprintDefinition: the stored form, checked', function (): void {
 
     $registry = new BlueprintRegistry(new CapabilityRegistry([Titled::class, Textual::class, Routable::class]), ['page' => ['capabilities' => [Titled::class]]]);
     $registry->loadStored(['esemeny' => $stored + ['relations' => []], 'page' => $stored, 'hibas' => ['capabilities' => ['authenticatable']]]);
-    check($registry->isEditable('esemeny') && !$registry->isEditable('page') && $registry->find('hibas') === null, 'loaded, the rest left out');
-    check(array_keys($registry->storedErrors()) === ['page', 'hibas'], json_encode($registry->storedErrors()));
+    check($registry->isEditable('esemeny') && $registry->find('hibas') === null, 'loaded, the rest left out');
+    check(array_keys($registry->storedErrors()) === ['hibas'], json_encode($registry->storedErrors()));
+    // A stored Blueprint keeps its name when the file brings one of it later (since 0.3.2: `file`).
+    check($registry->isEditable('page') && $registry->yielded() === ['page'] && $registry->get('page')->label === $stored['label'], 'the stored one wins');
     throws(CapabilityException::class, static fn () => $registry->define('x', ['capabilities' => [Titled::class], 'fields' => [new Field('updated', FieldType::String)]]));
 });
 
