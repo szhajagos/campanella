@@ -233,19 +233,43 @@ importers.
 
 ### 0.4.0 – building pages and the look
 
-- **Component / Region / Layout / Page:** assembling pages from components,
-  instead of Drupal-style blocks.
-- **Appearance** (2026-10-11): a section of its own in the admin for the
-  site's look: colour and other schemes, each in a light and a dark variant,
-  and the colour mode: following the visitor's system setting (as now,
-  `public/assets/theme.js`), or fixed (e.g. always dark). Whether visitors may
-  switch it themselves, and how that control appears on the site, is decided
-  then, within the Component / Region / Layout system, not as a one-off button
-  built into the header.
-- **Media:** storing other files (documents) besides images.
-- **Sample content in the site's language** (2026-10-12): the sample content
-  (`seed`) is Hungarian only, its listing pages' paths (`/hirek`) too; an
-  English site gets Hungarian samples.
+Planned on 2026-10-26, in steps; each keeps the 0.3.x
+[compatibility promise](docs/compatibility.md). Files come first: a small,
+self-contained step that is sensitive for security, and whose picker the
+components use later.
+
+| Step | Contents |
+|---|---|
+| **0.3.2** | **Files** (see below): documents besides images, as objects; public and private files; one media library in the admin; a file chosen by the relation picker, or linked from the editor. |
+| **0.3.3** | **Components:** the component type (Public API: a class, a Twig template, its settings) and the built-in ones (formatted text, a list made in the admin, a menu, an image, the contact form, the search box, the latest items); their instances set up in the admin. |
+| **0.3.4** | **Regions and layouts:** the regions a theme declares (header, content, sidebar, footer …), layouts made of them, and the components placed in them. |
+| **0.3.5** | **Pages:** pages assembled from components (a front page, an "about us" page); a layout chosen for a Blueprint or an object. |
+| **0.3.6** | **Appearance** (2026-10-11): colour schemes with light and dark variants, the colour mode (the visitor's system setting, or fixed); a visitor's switch as a component, not a button built into the header. |
+| **0.3.7** | **Sample content in the site's language** (2026-10-12): an English site gets English samples and paths (now `seed` is Hungarian only, `/hirek` too). |
+| **0.4.0** | **The milestone**, as 0.3.0: a security review, upgrade tests from 0.3.0 and the last 0.3.x, the guide's chapters, a performance check, the compatibility promise for 0.4.x. |
+
+Decided on 2026-10-26:
+
+- **Who builds what.** Layouts and regions (where a component appears on the
+  site) are a right above an editor's: administrators only. The content of a
+  page assembled from components can be edited by editors too.
+- **Existing themes keep working.** The blocks of `base.html.twig` stay; the
+  regions come beside them, so a theme written for 0.3.x needs no change in
+  0.4.0. Nothing has to be marked Deprecated for it.
+- **Open: how components fit the capability model.** Whether a component is
+  placed in a region with visibility conditions, assembled into a page's own
+  content (a layout builder), or both, and how a page and its components are
+  objects with capabilities, is decided before 0.3.3, not now.
+
+**Files (0.3.2, agreed 2026-10-26).** Documents (PDF, the Office and
+OpenDocument formats, plain text, CSV …, by an allowlist) are objects of a
+`file` Blueprint, as images are of `image`, related to the objects that use
+them. A file is checked by its content, not its name; its stored name is
+random, as an image's. **Public** files are served by the web server from
+`public/media`, never run or shown as a page there (as now: `nosniff`, a
+sandboxing CSP, scripts and HTML refused); **private** ones live outside
+`public/` and are served by PHP only to those allowed to see them, as a
+download. This is decided before 1.0 because it is part of the data model.
 
 ### 0.5.0 – extensibility
 
