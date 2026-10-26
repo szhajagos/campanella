@@ -282,5 +282,5 @@ események** lista, az **Esemény** Blueprint, és a főmenü **Események** pon
 
 ---
 
-Előző: [10. Ha valami nem működik](10-hibaelharitas.md) ·
-[Tartalomjegyzék](README.md)
+Előző: [10. Ha valami nem működik](10-hibaelharitas.md) · Következő:
+[12. Importálás táblázatból](12-importalas.md) · [Tartalomjegyzék](README.md)

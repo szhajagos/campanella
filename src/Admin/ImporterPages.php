@@ -49,7 +49,7 @@ final class ImporterPages
     public const int MAX_UPLOAD = 5 * 1024 * 1024;
 
     /** The empty mapping rows of the form, besides the importer's own. */
-    public const int EMPTY_ROWS = 5;
+    public const int EMPTY_ROWS = 8;
 
     /** The seconds a step of a run in the admin takes at most. */
     public const float STEP_SECONDS = 8.0;

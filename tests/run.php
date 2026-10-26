@@ -7767,6 +7767,67 @@ test('Kernel: the importers in the admin: made, mapped, a trial, a run step by s
     putenv('CAMPANELLA_DB_PREFIX');
 });
 
+test('Kernel: the admin\'s list as CSV: its filters, the importer\'s form, no formulas; it imports again', function () use ($newUser): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = null;
+    $storage = new ArraySessionStorage();
+    $boot = static function () use (&$kernel, $storage) {
+        $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+        $kernel->container()->set(Session::class, static fn () => new Session($storage));
+
+        return $kernel->container();
+    };
+    $container = $boot();
+    if ($container->get(Connection::class)->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $send = function (string $method, string $path, array $query = []) use (&$kernel, $storage, $boot) {
+        $storage->endRequest();
+        $boot();
+
+        return $kernel->handle(new Request($method, $path, $query));
+    };
+    $service = $container->get(ObjectService::class);
+    $repository = $container->get(ObjectRepository::class);
+    $category = $service->create(Actor::system(), 'category', ['title' => 'Export-kategória-0301'], publish: true);
+    $a = $service->create(Actor::system(), 'article', ['title' => 'Export egy-0301', 'lead' => '=HYPERLINK("http://example.com")', 'body' => '<p>Szöveg; "idézőjellel"</p>', 'format' => 'html'], publish: true, relations: ['categories' => [(int) $category->id()]]);
+    $b = $service->create(Actor::system(), 'article', ['title' => 'Export kettő-0301', 'lead' => "Két\nsor"]);
+    $editor = $newUser('export-szerk@example.hu', 'export-jelszo-12', ['editor']);
+    $container->get(AuthService::class)->login(new Request('GET', '/'), $editor);
+    $list = $send('GET', '/admin/article', ['q' => 'Export', 'status' => 'published']);
+    check(str_contains($list->body, 'href="/admin/article/export?q=Export&amp;status=published"'), 'the button carries the filters');
+    $export = $send('GET', '/admin/article/export', ['q' => 'Export']);
+    check($export->status === 200 && str_starts_with($export->headers['Content-Type'] ?? '', 'text/csv') && str_contains($export->headers['Content-Disposition'] ?? '', 'article-'), 'for an editor too, as a file');
+    check(str_starts_with($export->body, "\xEF\xBB\xBFid;title;body;path;published_at;lead;categories;status;created;updated\r\n"), substr($export->body, 0, 120));
+    $file = tempnam(sys_get_temp_dir(), 'exp');
+    file_put_contents($file, $export->body);
+    $source = \Campanella\Import\ImportSource::file($file, 'csv');
+    $rows = [];
+    foreach ($source->items() as $item) {
+        $rows[$item['title']] = $item;
+    }
+    check(count($rows) === 2 && $rows['Export egy-0301']['categories'] === 'Export-kategória-0301' && $rows['Export egy-0301']['status'] === 'published' && $rows['Export kettő-0301']['status'] === 'draft', json_encode(array_keys($rows), JSON_UNESCAPED_UNICODE));
+    check($rows['Export egy-0301']['lead'] === "'=HYPERLINK(\"http://example.com\")" && str_starts_with($rows['Export egy-0301']['body'], '<p>Szöveg; ') && $rows['Export kettő-0301']['lead'] === "Két\nsor", 'no formula; quotes and line breaks kept: ' . json_encode([$rows['Export egy-0301']['lead'], $rows['Export egy-0301']['body'], $rows['Export kettő-0301']['lead']], JSON_UNESCAPED_UNICODE));
+    check(preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $rows['Export egy-0301']['published_at']) === 1, 'a moment in the site\'s time zone');
+    check(count(iterator_to_array(\Campanella\Import\ImportSource::file($file, 'csv')->items())) === 2 && substr_count($send('GET', '/admin/article/export', ['q' => 'Export', 'status' => 'draft'])->body, "\r\n") === 2, 'the filters apply');
+    // The file imports into an importer of the same columns.
+    $container->get(\Campanella\Import\ImporterStore::class)->save('export_vissza', ['version' => 1, 'label' => 'Vissza', 'blueprint' => 'article', 'format' => 'csv', 'delimiter' => 'auto', 'items' => '',
+        'key' => 'id', 'publish' => false, 'missing_target' => 'error', 'missing_items' => 'keep', 'user' => (int) $editor->id(),
+        'mapping' => [['source' => 'title', 'target' => 'title'], ['source' => 'lead', 'target' => 'lead'], ['source' => 'categories', 'target' => 'categories', 'separator' => '|']]]);
+    $importers = $boot()->get(\Campanella\Import\Importer::class);
+    $trial = $importers->trial($importers->find('export_vissza') ?? throw new RuntimeException('no importer'), $file);
+    check($trial->missingSources === [] && array_column($trial->rows, 'action') === ['create', 'create'], json_encode($trial->rows, JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR));
+    check($send('GET', '/admin/image/export')->status === 404 || !str_contains($send('GET', '/admin/image')->body, '/admin/image/export'), 'no export of files');
+    $importers->delete('export_vissza');
+    foreach ([$a, $b, $category, $editor] as $object) {
+        $repository->delete($object);
+    }
+    @unlink($file);
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
 echo "\nDocumentation examples\n";
 
 test('New capability as in the docs example (Featured)', function () use ($db, $admin): void {

@@ -10,7 +10,16 @@ backward-incompatible.
 
 ## [Unreleased]
 
-Work towards 0.3.1: importers, step 1 (CSV and JSON files), in parts.
+## [0.3.1] – 2026-10-26
+
+**Importers, step 1: CSV and JSON files.** The first step after the 0.3.0
+milestone: content can be brought in from a spreadsheet or another system's
+export, again and again, and a list of the admin can be taken out as CSV.
+
+**Upgrading from 0.3.0:** upload the new files and run the upgrade
+(`php bin/campanella install`, or `/admin/upgrade`): it adds the importers'
+three tables (schema version 17). From older versions: see
+[docs/upgrading.md](docs/upgrading.md).
 
 ### Added
 
@@ -38,6 +47,13 @@ Work towards 0.3.1: importers, step 1 (CSV and JSON files), in parts.
 - `php bin/campanella import:run <importer> <file> [--yes]` (a trial, or the
   run, e.g. from cron) and `import:undo <run> [--yes]`.
 - The tables `importers`, `import_runs`, `import_items` (schema version 17).
+- **The admin's list as CSV** (the *CSV export* button of every content
+  list): with its search, filters and order, every page, in the form an
+  importer reads (the machine names as headings, `;`, UTF-8 for Excel); a text
+  a spreadsheet would run as a formula gets an apostrophe in front.
+- The site owners' guide's new chapter, **Importing from a spreadsheet**
+  ([en](docs/guide/en/12-importing.md), [hu](docs/guide/hu/12-importalas.md)),
+  with screenshots.
 - The upgrade tests also start from 0.3.0, and run an importer on every
   upgraded site.
 

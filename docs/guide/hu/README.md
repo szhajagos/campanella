@@ -31,5 +31,7 @@ felületet mutatják, a Campanella saját példatartalmával.
 11. [Saját tartalomtípusok: egy programnaptár](11-sajat-tartalomtipusok.md):
     egy új tartalomtípus és mezői, az admin listája, egy lista a látogatóknak
     szűrőkkel, átvitel egy másik webhelyre.
+12. [Importálás táblázatból](12-importalas.md): CSV- és JSON-fájlok, az
+    importáló beállítása, próbafuttatás, a napló, visszavonás, a CSV-export.
 
 [English version](../en/README.md)

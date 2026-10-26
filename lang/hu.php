@@ -165,6 +165,8 @@ return [
     'admin.list.no_match' => 'Nincs a szűrőknek megfelelő tartalom.',
     'admin.list.view' => 'Megtekintés',
     'admin.column.id' => 'Azonosító',
+    'admin.list.export' => 'CSV-export',
+    'admin.list.export_help' => 'A lista CSV-fájlként, a keresésével, szűrőivel és sorrendjével (minden oldala), ahogy egy importáló olvassa.',
     'admin.list.new' => 'Új',
     'admin.form.new' => 'Új {type}',
     'admin.form.new_short' => 'Új',

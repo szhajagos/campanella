@@ -281,6 +281,16 @@ the live one, export it on its own (System → Content model, or
 plan first and never deletes anything ([PHP API, chapter 24](php-api/24-content-model.md)).
 The content itself is not in that file.
 
+A file imported regularly (since 0.3.1; e.g. another system saves it every
+night) can be imported from cron too, after it is saved:
+
+```cron
+15 4 * * * cd /var/www/campanella && php bin/campanella import:run events_csv /srv/exports/events.csv --yes >/dev/null
+```
+
+The run's log is on its importer's page (System → Importers); the command
+exits with 1 if an item failed. See the [guide](guide/en/12-importing.md).
+
 ## 7. Upgrades
 
 1. Make a backup (above).

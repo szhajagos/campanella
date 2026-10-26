@@ -45,7 +45,7 @@ saw it; deleted with the object).
 |---|---|
 | `/admin/system/importers` | Every importer: its Blueprint, format, how many objects it made, its last run; those that do not load, with the reason |
 | `…/new` | GET, POST: a new importer: its label, machine name, Blueprint (one of content), format, and the key's and the title's columns; then its page. The current user becomes its user |
-| `…/<name>` | GET, POST: its settings: the file (format, delimiter, JSON items), the key, the mapping (its rows and five empty ones; an empty row is left out), publishing, a missing target, missing items, its user (those who can log in and have a role). Checked by `ImporterDefinition::fromArray()` and `Importer::actor()` (422 otherwise). An importer whose Blueprint is gone can only be deleted |
+| `…/<name>` | GET, POST: its settings: the file (format, delimiter, JSON items), the key, the mapping (its rows and eight empty ones; an empty row is left out), publishing, a missing target, missing items, its user (those who can log in and have a role). Checked by `ImporterDefinition::fromArray()` and `Importer::actor()` (422 otherwise). An importer whose Blueprint is gone can only be deleted |
 | `…/<name>/delete` | POST, with `confirm` ticked: deletes it and its log (`Importer::delete()`); the objects stay |
 | `…/<name>/run` | GET: the upload form and the log. POST, with `file` (at most `MAX_UPLOAD`, 5 MB): its trial (`Importer::trial()`); the file waits in `var/imports/` (`pending-<token>.<format>`, deleted after `PENDING_HOURS` if not confirmed) |
 | `…/<name>/start` | POST, with the trial's `token`: starts its run (`Importer::start()`, the waiting file deleted), then the run's page |
@@ -53,6 +53,32 @@ saw it; deleted with the object).
 | `…/<name>/runs/<id>/step` | POST: goes on for `STEP_SECONDS` (8) seconds |
 | `…/<name>/runs/<id>/cancel` | POST: stops it |
 | `…/<name>/runs/<id>/undo` | POST, with `confirm` ticked: undoes it (`Importer::undo()`, a backup first) |
+
+## The admin's list as CSV: ListExport
+
+`Campanella\Admin\ListExport` · **Internal**: `/admin/<blueprint>/export` (the
+*CSV export* button of a content list, for everyone who sees the list) gives
+the list as a CSV file, with its search, status, scope and own columns'
+filters and its order, every page of it (at most `MAX_ROWS`, 20 000), only
+what the user may see. Not for files (images).
+
+It is in the form an importer reads: UTF-8 with a byte order mark (Excel opens
+it as UTF-8), `;` between the values, CRLF, a header row of the machine names:
+`id`, the importer's targets (`title`, `body`, `path`, `published_at`, the own
+fields, the relations), `status` (a Publishable Blueprint), `created`,
+`updated`. A date as `2026-11-05`, a moment in the site's time zone as
+`2026-11-05 18:00:00`, a decimal with a point, yes/no as `1` or `0`, a choice
+by its key, several values and a relation's targets (by title) joined by `|`.
+A text that starts with `=`, `+`, `-`, `@`, a tab or a line break gets an
+apostrophe in front (`safe()`), so a spreadsheet does not run it as a formula;
+importing it back keeps the apostrophe.
+
+| Member | Description |
+|---|---|
+| `__construct(DateTimeZone $timezone)` | The site's time zone, for the moments |
+| `columns(Blueprint $blueprint): array` | The header row |
+| `csv(Blueprint $blueprint, iterable $objects): string` | The file's contents (the objects' relations resolved: their titles) |
+| `static safe(string $text): string` | A text with the apostrophe if a spreadsheet would read it as a formula |
 
 ## The definition: ImporterDefinition
 

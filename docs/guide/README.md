@@ -2,11 +2,11 @@
 
 For people who run a Campanella site but do not develop it: installing it,
 the admin, content, menus, images, users, the contact form, e-mail, privacy,
-backups and upgrades, and one's own content types. No programming knowledge needed.
+backups and upgrades, one's own content types and importing. No programming knowledge needed.
 
 Azoknak, akik Campanella-oldalt üzemeltetnek, de nem fejlesztik: telepítés,
 az admin, tartalom, menük, képek, felhasználók, kapcsolati űrlap, e-mail,
-adatvédelem, mentés és frissítés, saját tartalomtípusok. Programozói tudás nem kell hozzá.
+adatvédelem, mentés és frissítés, saját tartalomtípusok és importálás. Programozói tudás nem kell hozzá.
 
 | Language · Nyelv | |
 |---|---|

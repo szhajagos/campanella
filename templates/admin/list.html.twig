@@ -21,6 +21,7 @@
         <h1 class="h3 mb-0">{{ t(blueprint.label) }}</h1>
         <div class="d-flex align-items-center gap-3">
             <span class="text-body-secondary small">{{ t('admin.list.total', {count: result.total ?? 0}) }}</span>
+            {% if can_export ?? false %}<a class="btn btn-sm btn-outline-secondary" href="{{ admin_url(blueprint.name ~ '/export') }}{{ export_query ? '?' ~ export_query }}" title="{{ t('admin.list.export_help') }}" download>{{ t('admin.list.export') }}</a>{% endif %}
             {% if can_create %}<a class="btn btn-sm btn-primary" href="{{ admin_url(blueprint.name ~ '/new') }}{{ scope and scope.selected ? '?' ~ scope.name ~ '=' ~ scope.selected }}">{{ t('admin.list.new') }}</a>{% endif %}
         </div>
     </div>

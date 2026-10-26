@@ -13,6 +13,7 @@ use Campanella\Admin\BlueprintEditor;
 use Campanella\Admin\ListColumns;
 use Campanella\Admin\ListEditor;
 use Campanella\Admin\ImporterPages;
+use Campanella\Admin\ListExport;
 use Campanella\Admin\ModelPage;
 use Campanella\Admin\RedirectPages;
 use Campanella\Search\SearchIndexer;
@@ -206,9 +207,11 @@ final class AdminController implements Controller
         return match (count($segments)) {
             0 => $this->dashboard($request, $actor),
             1 => $this->listing($request, $actor, $this->contentBlueprint($segments[0])),
-            2 => $segments[1] === 'new'
-                ? $this->create($request, $actor, $this->contentBlueprint($segments[0]))
-                : $this->edit($request, $actor, $this->find($this->contentBlueprint($segments[0]), $segments[1], $actor)),
+            2 => match ($segments[1]) {
+                'new' => $this->create($request, $actor, $this->contentBlueprint($segments[0])),
+                'export' => $this->export($request, $actor, $this->contentBlueprint($segments[0])),
+                default => $this->edit($request, $actor, $this->find($this->contentBlueprint($segments[0]), $segments[1], $actor)),
+            },
             3 => $this->action($request, $actor, $this->find($this->contentBlueprint($segments[0]), $segments[1], $actor), $segments[2]),
             default => throw HttpException::notFound(),
         };
@@ -515,7 +518,14 @@ final class AdminController implements Controller
     /**
      * The list of a Blueprint's objects: /admin/<blueprint>?q=…&status=…&sort=…&dir=…&page=…
      */
-    private function listing(Request $request, Actor $actor, Blueprint $blueprint): Response
+    /**
+     * The admin's list of a Blueprint as the request asks for it: its query with the
+     * search, the status, the scope and the own columns' filters, and its order (shared
+     * by the list and its CSV export, since 0.3.1).
+     *
+     * @return array{query: Query, sort: string, dir: string, explicit: bool, search: string, status: string, page: int, scope: array{name: string, label: string, options: list<array{value: int, label: string}>, selected: int}|null, columns: list<array{name: string, label: string, kind: string, type: string, sortable: bool, filter: string|null}>, own: ListColumns, own_filters: array<string, string|array<string, string>>, options: array<string, list<array{value: string, label: string}>>, sortable: list<string>}
+     */
+    private function listQuery(Request $request, Actor $actor, Blueprint $blueprint): array
     {
         $titled = isset($blueprint->capabilities['titled']);
         $publishable = isset($blueprint->capabilities['publishable']);
@@ -558,6 +568,41 @@ final class AdminController implements Controller
         }
         // The own columns' filters (since 0.2.8).
         [$query, $ownFilters, $options] = $own->apply($query, $blueprint, is_array($request->query['f'] ?? null) ? $request->query['f'] : [], $actor);
+
+        return ['query' => $query, 'sort' => $sort, 'dir' => $dir, 'explicit' => $explicit, 'search' => $search, 'status' => $status, 'page' => $page,
+            'scope' => $scope, 'columns' => $columns, 'own' => $own, 'own_filters' => $ownFilters, 'options' => $options, 'sortable' => $sortable];
+    }
+
+    /**
+     * The list as a CSV file (since 0.3.1), with its search, filters and order: every
+     * object the actor may see (at most ListExport::MAX_ROWS), in the form an importer reads.
+     */
+    private function export(Request $request, Actor $actor, Blueprint $blueprint): Response
+    {
+        $list = $this->listQuery($request, $actor, $blueprint);
+        $result = $this->queries->execute(
+            $list['query']->orderBy($list['sort'], $list['dir'])->orderBy('id', $list['dir'])->limit(ListExport::MAX_ROWS),
+            $actor,
+        );
+        $this->relations->resolve($result, $actor);
+        $csv = (new ListExport(new \DateTimeZone($this->form->timezone())))->csv($blueprint, $result);
+
+        return new Response($csv, 200, [
+            'Content-Type' => 'text/csv; charset=utf-8',
+            'Content-Disposition' => 'attachment; filename="' . $blueprint->name . '-' . gmdate('Ymd') . '.csv"',
+            'Cache-Control' => 'no-store',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
+
+    private function listing(Request $request, Actor $actor, Blueprint $blueprint): Response
+    {
+        $list = $this->listQuery($request, $actor, $blueprint);
+        ['query' => $query, 'sort' => $sort, 'dir' => $dir, 'explicit' => $explicit, 'search' => $search, 'status' => $status, 'page' => $page,
+            'scope' => $scope, 'columns' => $columns, 'own' => $own, 'own_filters' => $ownFilters, 'options' => $options, 'sortable' => $sortable] = $list;
+        $weighted = isset($blueprint->capabilities['weighted']);
+        $publishable = isset($blueprint->capabilities['publishable']);
+        $titled = isset($blueprint->capabilities['titled']);
         // A tree (Hierarchical), unfiltered and in its default order: all of it, indented.
         $levels = [];
         $tree = isset($blueprint->capabilities['hierarchical']) && !$explicit && $search === '' && $status === '' && $ownFilters === []
@@ -627,6 +672,9 @@ final class AdminController implements Controller
             'max_depth' => Hierarchical::MAX_DEPTH,
             'moves' => $moves,
             'path' => $this->access->path($blueprint->name),
+            'export_query' => http_build_query(array_filter(['q' => $search, 'status' => $status, 'sort' => $explicit ? $sort : '', 'dir' => $explicit ? $dir : '', 'f' => $ownFilters]
+                + ($scope !== null && $scope['selected'] > 0 ? [$scope['name'] => (string) $scope['selected']] : []), static fn (mixed $v): bool => $v !== '' && $v !== [])),
+            'can_export' => !self::isFile($blueprint),
         ]);
     }
 

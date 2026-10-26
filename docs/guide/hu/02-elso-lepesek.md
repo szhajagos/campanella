@@ -40,7 +40,7 @@ A bal oldali menü:
 | **Beküldések** | A kapcsolati űrlapon érkezett üzenetek (7. fejezet). Csak az adminisztrátorok látják. |
 | **Felhasználók** | A fiókok kezelése (6. fejezet). Csak az adminisztrátorok látják. |
 | **Profilom** | A saját neved, jelszavad, és hogy hol vagy belépve. |
-| **Rendszer** | A webhely állapota, a **Webhely-beállítások**, az **E-mail** beállítása és naplója. A **Blueprintek** (a tartalomtípusok), a **Listák** és a **Tartalommodell** a saját tartalomtípusokhoz kell (11. fejezet), a **Capability-k** a tartalomtípusok építőköveit mutatják. Az **Átirányítások** a régi címekről vezetnek tovább (3. fejezet). |
+| **Rendszer** | A webhely állapota, a **Webhely-beállítások**, az **E-mail** beállítása és naplója. A **Blueprintek** (a tartalomtípusok), a **Listák** és a **Tartalommodell** a saját tartalomtípusokhoz kell (11. fejezet), a **Capability-k** a tartalomtípusok építőköveit mutatják. Az **Importálók** táblázatokból töltenek fel tartalmat (12. fejezet), az **Átirányítások** a régi címekről vezetnek tovább (3. fejezet). |
 
 Fent a **Vissza az oldalra** link a nyilvános oldalra visz, a neved pedig a
 profilodra.

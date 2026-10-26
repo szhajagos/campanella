@@ -1,4 +1,4 @@
-# Campanella 0.3.0
+# Campanella 0.3.1
 
 [![CI](https://github.com/szhajagos/campanella/actions/workflows/ci.yml/badge.svg)](https://github.com/szhajagos/campanella/actions/workflows/ci.yml)
 
@@ -13,6 +13,16 @@ their fields, lists for visitors with filters, search and redirects, carried
 between sites by export and import; and what 0.3.x keeps is promised (see the
 [compatibility promise](docs/compatibility.md)). Plans are in the
 [ROADMAP](ROADMAP.md), changes in the [CHANGELOG](CHANGELOG.md).
+
+## What is new in 0.3.1
+
+**Importers** (System → Importers): the rows of a CSV file (e.g. saved from
+Excel) or the objects of a JSON file become objects of a Blueprint, by a
+mapping of the columns to its fields. A trial shows the first items first; an
+item's key makes a later run update, not duplicate; a run has a log and can
+be undone; it never deletes. On the command line too, e.g. from cron
+(`import:run`). Every list of the admin can be taken out as CSV in the same
+form ([guide](docs/guide/en/12-importing.md), [PHP API](docs/php-api/26-importers.md)).
 
 ## What is new in 0.3.0
 

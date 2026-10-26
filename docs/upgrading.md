@@ -1,27 +1,27 @@
-# Upgrading to 0.3.0
+# Upgrading to 0.3.x
 
-This guide takes a site from **any 0.2.x version** (0.2.0 to 0.2.9), or from
-**any 0.1.x** (0.1.0 to 0.1.5), to 0.3.0 in one go. You do not need to install
+This guide takes a site from **any 0.3.x, 0.2.x or 0.1.x version** to the newest
+0.3.x (now **0.3.1**) in one go. You do not need to install
 the versions in between: one upgrade runs every change since your version. The
 CHANGELOG has the same steps version by version; this page puts them
 together, and adds what to check and how to go back.
 
 | Your version | What to do |
 |---|---|
+| 0.3.0 | Upload the new files and run the upgrade (steps 1–3): 0.3.1 adds the importers' tables (schema 17). Nothing else to do. CI upgrades 0.3.0 to the current code on every push. |
 | 0.2.0 – 0.2.9 | This guide. Supported and tested: CI upgrades 0.2.0 and 0.2.9 to the current code on every push, the latter with a content model made in the admin (`tests/upgrade/run.sh`). |
 | 0.1.0 – 0.1.5 | This guide, and also [From 0.1.x](#from-01x) below. Tested too: CI upgrades 0.1.0 and 0.1.5. |
 | 0.0.6, 0.0.7 | The upgrade runs (their schema version, 6, is accepted), but it is not tested. Also read the [0.1.0 section of the CHANGELOG](../CHANGELOG.md#010--2026-10-08). |
-| Older than 0.0.6 | Upgrade to 0.0.7 first, then follow this guide. 0.3.0 refuses to upgrade the database and changes nothing. |
+| Older than 0.0.6 | Upgrade to 0.0.7 first, then follow this guide. 0.3.x refuses to upgrade the database and changes nothing. |
 
 Your version is shown on the System page (`/admin/system`), and by
 `php bin/campanella status`.
 
 The requirements did not change: PHP 8.3 or newer, MariaDB 10.6+ or MySQL 8.0+.
 
-**Nothing is incompatible.** 0.2.x marked nothing Deprecated, so 0.3.0 removes
+**Nothing is incompatible.** 0.2.x marked nothing Deprecated, so 0.3.x removes
 and renames nothing: a site, a theme or code written for any 0.2.x keeps
-working. What 0.3.0 promises for the 0.3.x series is in
-[Compatibility](compatibility.md).
+working. What 0.3.x promises is in [Compatibility](compatibility.md).
 
 ## Contents
 
@@ -45,7 +45,7 @@ working. What 0.3.0 promises for the 0.3.x series is in
 
    Copy them off the server.
 
-2. **Upload the new version.** Use the release package (`campanella-0.3.0.zip`
+2. **Upload the new version.** Use the release package (`campanella-0.3.1.zip`
    from the GitHub release); it includes the `vendor/` folder. With git:
    `git pull`, then `composer install --no-dev`.
 
@@ -67,8 +67,8 @@ working. What 0.3.0 promises for the 0.3.x series is in
      logging in does not work, set an `upgrade.key` of at least 20 characters
      in `config/local.php`, open the page with it, then **remove the key**.
 
-   From 0.2.7, 0.2.8 or 0.2.9 the database does not change (0.3.0 adds no
-   table): there is nothing to do, and the site works at once.
+   From 0.2.7 on, the only change is the importers' three new tables (0.3.1):
+   the upgrade is quick, and the site works at once.
 
    Then run `php bin/campanella schema:check`, or look at the System page: the
    tables must match the definitions.
@@ -87,7 +87,7 @@ working. What 0.3.0 promises for the 0.3.x series is in
 ## What the upgrade changes in the database
 
 Nothing is removed or rewritten; only tables and one column are added. 0.2.0
-has schema version 12, 0.3.0 has 16 (from 0.1.x: see [below](#from-01x) for
+has schema version 12, 0.3.0 has 16, 0.3.1 has 17 (from 0.1.x: see [below](#from-01x) for
 6 to 12).
 
 | Schema | Version | Change |
@@ -96,6 +96,7 @@ has schema version 12, 0.3.0 has 16 (from 0.1.x: see [below](#from-01x) for
 | 14 | 0.2.3 | `blueprints` table: the Blueprints made in the admin |
 | 15 | 0.2.5 | `lists` table: the lists made in the admin |
 | 16 | 0.2.7 | `search_index` table (with FULLTEXT indexes), `redirects` table |
+| 17 | 0.3.1 | `importers`, `import_runs`, `import_items` tables: the importers, their runs' log, which item became which object |
 
 With a table prefix, every name starts with it (`cc_lists`, …).
 
@@ -114,6 +115,8 @@ used only when an administrator starts using it.
 | 0.2.7 | Search (`/search`, a field in the header), redirects, the editor's image picker | System → Redirects; `search:index` |
 | 0.2.8 | The admin's lists with own columns, sorting and filters | the Blueprint editor; `admin_columns` |
 | 0.2.9 | Visitors' filters on the lists | the list editor |
+| 0.3.0 | The milestone: the guide's chapter on own content types, sample events, the compatibility promise for 0.3.x | [docs/guide](guide/README.md) |
+| 0.3.1 | Importers from CSV and JSON files, the admin's lists as CSV | System → Importers; `import:run`, `import:undo`; the lists' *CSV export* |
 
 A new setting: `paths.search` (0.2.7, default `/search`), the search page's
 address, like the other `paths`.
@@ -155,7 +158,7 @@ PHP code that uses Campanella's classes.
 
 ## From 0.1.x
 
-From 0.1.0 to 0.1.5, the upgrade to 0.3.0 also runs everything 0.2.0 brought.
+From 0.1.0 to 0.1.5, the upgrade to 0.3.x also runs everything 0.2.0 brought.
 The tables of schema 7 to 12:
 
 | Schema | Version | Change |
@@ -293,7 +296,7 @@ in the [CHANGELOG](../CHANGELOG.md) list every change of the
 
 ## Checklist after the upgrade
 
-- [ ] The System page shows 0.3.0, no error, the tables match the
+- [ ] The System page shows 0.3.1, no error, the tables match the
       definitions, and no page is missing from the search.
 - [ ] The front page, an article with an image, a list, the search
       (`/search?q=…`) and a 404 page look right.

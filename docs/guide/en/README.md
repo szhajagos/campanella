@@ -31,5 +31,7 @@ interface, with Campanella's own sample content (which is in Hungarian).
 11. [Your own kinds of content: an event calendar](11-own-content-types.md):
     a new kind of content and its fields, the admin's list, a list for
     visitors with filters, carrying it to another site.
+12. [Importing from a spreadsheet](12-importing.md): CSV and JSON files,
+    setting up an importer, the trial, the log, undoing, the CSV export.
 
 [Magyar változat](../hu/README.md)

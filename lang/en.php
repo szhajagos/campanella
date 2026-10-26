@@ -167,6 +167,8 @@ return [
     'admin.list.no_match' => 'Nothing matches the filters.',
     'admin.list.view' => 'View',
     'admin.column.id' => 'ID',
+    'admin.list.export' => 'CSV export',
+    'admin.list.export_help' => 'The list as a CSV file, with its search, filters and order (every page), as an importer reads it.',
     'admin.list.new' => 'New',
     'admin.form.new' => 'New {type}',
     'admin.form.new_short' => 'New',

@@ -40,7 +40,8 @@ Completed changes are listed in the [CHANGELOG](CHANGELOG.md).
 | 0.2.8 | The admin's list with the own fields (released 2026-10-24): up to 4 columns per Blueprint (the editor, or `admin_columns`), sortable, with filters by type; carried by the content model's export. The seventh step of 0.3.0. |
 | 0.2.9 | Visitors' filters on the lists (released 2026-10-24): at most 4 fields and relations per list, a form above it, kept by the pages, `noindex` when filtered; `FieldFilters` shared with the admin's lists. The eighth step of 0.3.0. |
 | **0.3.0** | **Third milestone: the content model in the admin** (released 2026-10-24). What 0.2.2–0.2.9 built (fields to filter and sort on, Blueprints and lists made in the admin, the content model's export and import, search and redirects, the admin's own columns, visitors' filters), released as one whole: a security review of 0.2.2–0.2.9, upgrade tests from 0.2.0 and 0.2.9 (with a content model), the upgrade guide for any 0.2.x or 0.1.x, a performance check with 10 000 objects, the guide's chapter on one's own content types, sample events, and the compatibility promise for 0.3.x (0.2.x gets security fixes until 0.4.0). Agreed in detail on 2026-10-24, in five parts. |
-| – | Continuous integration (GitHub Actions): PHPStan, documentation, tests on MariaDB 10.6/11.4 and MySQL 8.0/8.4, upgrades from 0.1.0, 0.1.5, 0.2.0 and 0.2.9, a performance check, browser tests, the installation package checked before every release (with `vendor/`, for every version tag) |
+| 0.3.1 | Importers, step 1 (released 2026-10-26): CSV and JSON files into the objects of a Blueprint, by a mapping and a unique key; a trial, a run in batches with a log, undoing a run; System → Importers and `import:run`, `import:undo`; the admin's lists as CSV; the guide's chapter on importing. |
+| – | Continuous integration (GitHub Actions): PHPStan, documentation, tests on MariaDB 10.6/11.4 and MySQL 8.0/8.4, upgrades from 0.1.0, 0.1.5, 0.2.0, 0.2.9 and 0.3.0, a performance check, browser tests, the installation package checked before every release (with `vendor/`, for every version tag) |
 
 ## Next: the road to 1.0
 
@@ -119,7 +120,7 @@ objects too; a removed one keeps their data.
 | **0.2.8** ✔ | Released 2026-10-24. **The admin's object list with the own fields** (see below): chosen fields as columns, sortable, with filters by type above the list. |
 | **0.2.9** ✔ | Released 2026-10-24. **Visitors' filters** on a list (see below), e.g. a choice to pick the kind of event, or a date range. |
 | **0.3.0** ✔ | Released 2026-10-24. The milestone (see below, agreed 2026-10-24): a security review, upgrade tests from 0.2.0 and 0.2.9, a chapter of the guide on one's own content types, sample content with a Blueprint of its own, a performance check, the compatibility promise for 0.3.x. |
-| **0.3.1** | **Importers, step 1** (see below): importing objects from an uploaded CSV or JSON file, with a mapping, a unique key, a trial run, a log and undoing a run; and the admin's list exported as CSV. Decided 2026-10-23. |
+| **0.3.1** ✔ | Released 2026-10-26. **Importers, step 1** (see below): importing objects from an uploaded CSV or JSON file, with a mapping, a unique key, a trial run, a log and undoing a run; and the admin's list exported as CSV. Decided 2026-10-23. |
 
 **Lists (0.2.5, agreed 2026-10-15).** System → Lists. A list has a name, a
 machine name and a title; the Blueprint whose objects it shows; conditions

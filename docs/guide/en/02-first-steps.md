@@ -39,7 +39,7 @@ The menu on the left:
 | **Submissions** | The messages from the contact form (chapter 7). For administrators only. |
 | **Users** | Managing the accounts (chapter 6). For administrators only. |
 | **My profile** | Your own name and password, and where you are logged in. |
-| **System** | The site's state, the **Site settings**, setting up **E-mail** and its log. **Blueprints** (the kinds of content), **Lists** and **Content model** are for your own kinds of content (chapter 11); **Capabilities** shows their building blocks. **Redirects** lead on from old addresses (chapter 3). |
+| **System** | The site's state, the **Site settings**, setting up **E-mail** and its log. **Blueprints** (the kinds of content), **Lists** and **Content model** are for your own kinds of content (chapter 11); **Capabilities** shows their building blocks. **Importers** bring in content from spreadsheets (chapter 12), **Redirects** lead on from old addresses (chapter 3). |
 
 At the top, **Back to the site** takes you to the public site, and your name
 to your profile.

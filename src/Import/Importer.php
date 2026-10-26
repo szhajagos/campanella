@@ -406,7 +406,11 @@ final class Importer
             } else {
                 $values[$target->name] = $value;
             }
-            $display[$target->name] = $this->show($value);
+            // A choice by its label, as the editors see it.
+            $shown = $target->type === FieldType::Choice
+                ? (is_array($value) ? array_map(static fn (mixed $v): mixed => $target->choices[$v] ?? $v, $value) : ($target->choices[$value] ?? $value))
+                : $value;
+            $display[$target->name] = $this->show($shown);
         }
         if (isset($values['body'])) {
             $values['format'] = 'html'; // the converted body is HTML

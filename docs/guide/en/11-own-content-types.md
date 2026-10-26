@@ -280,5 +280,5 @@ main menu.
 
 ---
 
-Previous: [10. When something does not work](10-troubleshooting.md) ·
-[Contents](README.md)
+Previous: [10. When something does not work](10-troubleshooting.md) · Next:
+[12. Importing from a spreadsheet](12-importing.md) · [Contents](README.md)

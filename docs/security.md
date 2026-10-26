@@ -84,6 +84,16 @@ version: upgrade it to 0.3.x ([Upgrading](upgrading.md)).
   login's answers and limits, the session cookie, the sessions, the forgotten
   password, the contact form, the Content-Security-Policy, the administrators'
   pages): see [Testing](testing.md#the-browser-tests).
+- **Importers** (since 0.3.1): set up and run by the system roles only (or on
+  the command line), never on a visitor's request; an uploaded file (at most 5 MB, UTF-8, read as data,
+  never run) waits outside the public folders under a random name and is
+  deleted when its run starts; every value goes through the field's checks and
+  the HTML filter, in the name and with the permissions of the importer's user
+  (a blocked user cannot run one); a run never deletes, and undoing one makes
+  a backup first. Only files, no addresses are fetched (that comes with 0.5.0,
+  with its own checks). The admin's **CSV export** shows only what the user
+  may see, and puts an apostrophe before a text a spreadsheet would run as a
+  formula (`=`, `+`, `-`, `@`).
 
 ## Security review for 0.3.0 (2026-10-24)
 

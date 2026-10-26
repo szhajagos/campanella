@@ -108,6 +108,34 @@ OWN = {
     },
 }[LANG]
 
+# The importer of chapter 12: a spreadsheet of more events, into the Blueprint of chapter 11.
+IMPORT = {
+    "hu": {
+        "label": "Programok a táblázatból", "name": "programok_csv", "key": "Azonosító", "title": "Cím",
+        "mapping": [("Időpont", "idopont"), ("Fajta", "fajta"), ("Helyszín", "helyszin"), ("Belépő", "belepo"), ("Jelentkezés", "jelentkezes"), ("Leírás", "body")],
+        "file": "programok.csv",
+        "rows": [
+            "Azonosító;Cím;Időpont;Fajta;Helyszín;Belépő;Jelentkezés;Leírás",
+            "P-101;Téli csillagnézés;{d1} 18:30;Előadás;Csillagvizsgáló;0;nem;Távcsöves bemutató a téli égboltról.",
+            "P-102;Adventi koncert;{d2} 17:00;Koncert;Református templom;2 000;nem;Adventi dalok a városi kórussal.",
+            "P-103;Kirándulás a Dobogókőre;{d3} 08:00;Kirándulás;Indulás a buszállomásról;3 500;igen;Egész napos túra, kb. 16 km.",
+            "P-104;Újévi séta;jövő héten;Kirándulás;Fő tér;0;nem;",
+        ],
+    },
+    "en": {
+        "label": "Events from the spreadsheet", "name": "events_csv", "key": "ID", "title": "Title",
+        "mapping": [("Starts", "starts"), ("Kind", "kind"), ("Venue", "venue"), ("Price", "price"), ("Booking", "booking"), ("Description", "body")],
+        "file": "events.csv",
+        "rows": [
+            "ID;Title;Starts;Kind;Venue;Price;Booking;Description",
+            "E-101;Winter stargazing;{d1} 18:30;Talk;The observatory;0;no;Looking at the winter sky through telescopes.",
+            "E-102;Advent concert;{d2} 17:00;Concert;St Mary's church;6.50;no;Advent songs with the town choir.",
+            "E-103;A walk to the beacon;{d3} 08:00;Walk;Meeting at the bus station;4;yes;A day's walk of about 10 miles.",
+            "E-104;New Year walk;next week;Walk;The market square;0;no;",
+        ],
+    },
+}[LANG]
+
 # The example administrator of the guide, in its language.
 ADMIN = {
     "hu": {"name": "Kovács Anna", "email": "anna@pelda.hu", "password": "Hosszu-jelszo-2026"},
@@ -449,6 +477,52 @@ def own_types(page, browser, article_url):
     shot(page, "redirects")
 
 
+def importing(page):
+    """Chapter 12: an importer of a CSV file into chapter 11's Blueprint: made, mapped, a trial, a run, its log."""
+    import datetime
+    # The list's CSV export (its button on the admin's list).
+    page.goto(BASE + "/admin/" + OWN["name"])
+    shot(page, "export-button", element="main .d-flex >> nth=0")
+
+    page.goto(BASE + "/admin/system/importers/new")
+    page.fill("#imp-label", IMPORT["label"])
+    page.fill("#imp-name", IMPORT["name"])
+    page.select_option("#imp-blueprint", OWN["name"])
+    page.fill("#imp-key", IMPORT["key"])
+    page.fill("#imp-title", IMPORT["title"])
+    shot(page, "importer-new", full_page=True)
+    page.locator("form.admin-form button[type=submit]").click()
+    page.wait_for_load_state("load")
+    for i, (source, target) in enumerate(IMPORT["mapping"], start=1):
+        page.fill("input[name='mapping[%d][source]']" % i, source)
+        page.select_option("select[name='mapping[%d][target]']" % i, target)
+    page.check("#imp-publish")
+    page.locator("form.admin-form button[type=submit]").click()
+    page.wait_for_load_state("load")
+    shot(page, "importer-edit", full_page=True)
+
+    # A file: a trial, then the run.
+    today = datetime.date.today()
+    days = {"d1": today + datetime.timedelta(days=30), "d2": today + datetime.timedelta(days=36), "d3": today + datetime.timedelta(days=44)}
+    lines = [row.format(**{k: (v.strftime("%Y. %m. %d.") if LANG == "hu" else v.isoformat()) for k, v in days.items()}) for row in IMPORT["rows"]]
+    folder = os.path.join(SITE, "var", "cache", "guide")
+    os.makedirs(folder, exist_ok=True)
+    path = os.path.join(folder, IMPORT["file"])
+    with open(path, "w", encoding="utf-8") as file:
+        file.write("\r\n".join(lines) + "\r\n")
+    page.goto(BASE + "/admin/system/importers/" + IMPORT["name"] + "/run")
+    page.set_input_files("#imp-file", path)
+    page.locator("form[enctype] button[type=submit]").click()
+    page.wait_for_load_state("load")
+    shot(page, "importer-trial", full_page=True)
+    page.locator("form[action$='/start'] button[type=submit]").click()
+    page.wait_for_load_state("load")
+    page.locator("main .badge", has_text="kész" if LANG == "hu" else "done").first.wait_for(timeout=30000)
+    shot(page, "importer-log", full_page=True)
+    page.goto(BASE + "/admin/system/importers")
+    shot(page, "importers")
+
+
 MAILS = os.environ.get("CAMPANELLA_GUIDE_MAILS", "")
 
 
@@ -616,6 +690,7 @@ def main():
         image_in_text(page, article_url)
         menus(page)
         own_types(page, browser, article_url)
+        importing(page)
         users(page, browser)
         contact(page, browser)
         mail(page)
