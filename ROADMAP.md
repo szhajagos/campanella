@@ -241,9 +241,9 @@ components use later.
 | Step | Contents |
 |---|---|
 | **0.3.2** | **Files** (see below): documents besides images, as objects; public and private files; one media library in the admin; a file chosen by the relation picker, or linked from the editor. |
-| **0.3.3** | **Components:** the component type (Public API: a class, a Twig template, its settings) and the built-in ones (formatted text, a list made in the admin, a menu, an image, the contact form, the search box, the latest items); their instances set up in the admin. |
-| **0.3.4** | **Regions and layouts:** the regions a theme declares (header, content, sidebar, footer …), layouts made of them, and the components placed in them. |
-| **0.3.5** | **Pages:** pages assembled from components (a front page, an "about us" page); a layout chosen for a Blueprint or an object. |
+| **0.3.3** | **Displays and components** ([the design](docs/components.md)): `Display` (Public API: a class with its template, its settings and what it needs: capabilities, a list or a system source) and the built-in ones; the sources (an object, a list, the page's object, the system sources such as the visitor); the `component` Blueprint made in the admin; `full` and `teaser` become displays. |
+| **0.3.4** | **Regions and layouts:** the core's two layouts and the theme's own, `region()`; components placed in regions (order, who sees them, where); a layout for the site and per Blueprint; the upgrade keeps the header and footer as they are. |
+| **0.3.5** | **Pages:** pages assembled from components (a front page, an "about us" page), their own layout; editors edit their components. |
 | **0.3.6** | **Appearance** (2026-10-11): colour schemes with light and dark variants, the colour mode (the visitor's system setting, or fixed); a visitor's switch as a component, not a button built into the header. |
 | **0.3.7** | **Sample content in the site's language** (2026-10-12): an English site gets English samples and paths (now `seed` is Hungarian only, `/hirek` too). |
 | **0.4.0** | **The milestone**, as 0.3.0: a security review, upgrade tests from 0.3.0 and the last 0.3.x, the guide's chapters, a performance check, the compatibility promise for 0.4.x. |
@@ -256,10 +256,14 @@ Decided on 2026-10-26:
 - **Existing themes keep working.** The blocks of `base.html.twig` stay; the
   regions come beside them, so a theme written for 0.3.x needs no change in
   0.4.0. Nothing has to be marked Deprecated for it.
-- **Open: how components fit the capability model.** Whether a component is
-  placed in a region with visibility conditions, assembled into a page's own
-  content (a layout builder), or both, and how a page and its components are
-  objects with capabilities, is decided before 0.3.3, not now.
+- **Components** (decided 2026-10-27, [the design](docs/components.md)): a
+  component is a source, a **display** and its settings. A display is offered
+  for an object because of its capabilities (no "Blockable" capability); a
+  system source (e.g. the visitor: login button, admin button, login form) is
+  code, not a Blueprint. Components are objects of a `component` Blueprint,
+  placed in a layout's regions for the whole site, or on one page as its own
+  content. Layouts come from the theme; editable layouts come later. The names
+  are *Component* and *Display* ("Presentation" is taken).
 
 **Files (0.3.2, agreed 2026-10-26).** Documents (PDF, the Office and
 OpenDocument formats, plain text, CSV …, by an allowlist) are objects of a
