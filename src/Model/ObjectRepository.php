@@ -324,6 +324,7 @@ final class ObjectRepository
                     $id,
                     $textual->format() === TextFormat::Html ? $textual->body() : '',
                     $this->capabilities->get('media_file')->tableName(),
+                    $this->capabilities->has('downloadable') ? $this->capabilities->get('downloadable')->tableName() : null,
                 );
             }
             // The search's index (since 0.2.7), once the database has its table.

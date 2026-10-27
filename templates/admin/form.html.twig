@@ -23,7 +23,7 @@
     {% endfor %}
 
     <div class="row g-4">
-        <div class="{{ publication or can_delete or media_url ? 'col-lg-8' : 'col-12' }}">
+        <div class="{{ publication or can_delete or media_url or download ? 'col-lg-8' : 'col-12' }}">
             <form method="post" action="{{ url(action) }}" class="admin-form" novalidate
                 {%- if upload and has_editor %} data-upload-url="{{ url(upload.url) }}" data-upload-max="{{ upload.max }}"
                     data-upload-too-large="{{ t('media.too_large', {max: upload.max_mb}) }}"
@@ -32,6 +32,12 @@
                     button: t('media.picker.button'), title: t('media.picker.title'), search: t('media.picker.search'),
                     none: t('media.picker.none'), previous: t('media.picker.previous'), next: t('media.picker.next'),
                     error: t('media.picker.error'), session: t('media.session_expired'), page: t('media.picker.page')
+                }|json_encode(constant('JSON_UNESCAPED_UNICODE') b-or constant('JSON_UNESCAPED_SLASHES')) }}"{% endif %}
+                {%- if files_url and has_editor %} data-files-url="{{ url(files_url) }}" data-files-labels="{{ {
+                    button: t('admin.files.picker.button'), title: t('admin.files.picker.title'), search: t('media.picker.search'),
+                    none: t('admin.files.picker.none'), previous: t('media.picker.previous'), next: t('media.picker.next'),
+                    error: t('admin.files.picker.error'), session: t('media.session_expired'), page: t('media.picker.page'),
+                    restricted: t('admin.files.picker.restricted')
                 }|json_encode(constant('JSON_UNESCAPED_UNICODE') b-or constant('JSON_UNESCAPED_SLASHES')) }}"{% endif %}>
                 {{ csrf_field() }}
                 {% if version %}<input type="hidden" name="_version" value="{{ version }}">{% endif %}
@@ -88,10 +94,13 @@
             {% endif %}
         </div>
 
-        {% if publication or can_delete or media_url %}
+        {% if publication or can_delete or media_url or download %}
             <aside class="col-lg-4">
                 {% if media_url %}
                     {% include '@core/admin/_media.html.twig' %}
+                {% endif %}
+                {% if download %}
+                    {% include '@core/admin/_download.html.twig' %}
                 {% endif %}
                 {% if publication %}
                     {% include '@core/admin/_publication.html.twig' %}

@@ -27,22 +27,7 @@
     </div>
 
     {% if upload %}
-        {# Images: uploaded right here. Without JavaScript one file at a time (the server redirects back);
-           with admin-upload.js several, chosen or dropped, each reported. #}
-        <form method="post" action="{{ url(upload.url) }}" enctype="multipart/form-data" class="card card-body mb-4 admin-upload" data-media-upload
-              data-upload-max="{{ upload.max }}" data-upload-too-large="{{ t('media.too_large', {max: upload.max_mb}) }}"
-              data-upload-session="{{ t('media.session_expired') }}" data-uploading="{{ t('admin.media.uploading') }}"
-              data-failed="{{ t('admin.media.failed') }}" data-show-uploaded="{{ t('admin.media.show_uploaded') }}">
-            {{ csrf_field() }}
-            <label for="upload-file" class="form-label fw-semibold">{{ t('admin.media.upload') }}</label>
-            <div class="d-flex flex-wrap gap-2">
-                <input type="file" class="form-control flex-grow-1" id="upload-file" name="file" required
-                       accept="image/jpeg,image/png,image/webp,image/gif" aria-describedby="upload-hint">
-                <button type="submit" class="btn btn-primary" data-upload-submit>{{ t('admin.media.upload') }}</button>
-            </div>
-            <div class="form-text" id="upload-hint">{{ t('admin.media.upload_hint', {max: upload.max_mb}) }}</div>
-            <div class="mt-2" data-upload-status role="status" aria-live="polite"></div>
-        </form>
+        {% include '@core/admin/_upload.html.twig' with {upload: upload, kind: is_download ? 'file' : 'image'} only %}
     {% endif %}
 
     <form method="get" action="{{ url(path) }}" class="row g-2 align-items-end mb-3 admin-filters" role="search">
@@ -134,6 +119,7 @@
                         {% if statuses %}<th scope="col">{{ t('field.status') }}</th>{% endif %}
                         {% if has_weight %}<th scope="col" class="text-end">{{ _self.sort_header('field.weight', 'weight', filters, path, sortable) }}</th>{% endif %}
                         {% if is_file %}<th scope="col">{{ _self.sort_header('field.file_size', 'file_size', filters, path, sortable) }}</th>{% endif %}
+                        {% if is_download %}<th scope="col">{{ _self.sort_header('field.download_size', 'download_size', filters, path, sortable) }}</th><th scope="col">{{ t('field.visible_to') }}</th>{% endif %}
                         {% if has_author %}<th scope="col">{{ t('relation.author') }}</th>{% endif %}
                         {% if 'published_at' in sortable %}<th scope="col">{{ _self.sort_header('field.published_at', 'published_at', filters, path, sortable) }}</th>{% endif %}
                         <th scope="col" class="text-end">{{ _self.sort_header('admin.column.updated', 'updated', filters, path, sortable) }}</th>
@@ -188,6 +174,10 @@
                                     {{ type_names[item.mime_type] ?? item.mime_type }} · {{ item.file_size|file_size }}
                                     {% if item.width and item.height %}<div class="text-body-secondary">{{ t('admin.media.dimensions', {width: item.width, height: item.height}) }}</div>{% endif %}
                                 </td>
+                            {% endif %}
+                            {% if is_download %}
+                                <td class="small text-nowrap">{{ download_types[item.id] ?? '' }} · {{ item.download_size|file_size }}</td>
+                                <td class="small">{% include '@core/admin/_visibility.html.twig' with {object: item} only %}</td>
                             {% endif %}
                             {% if has_author %}
                                 <td class="small">{% for author in related(item, 'author') %}{{ author.title }}{% else %}<span class="text-body-secondary">–</span>{% endfor %}</td>

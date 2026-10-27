@@ -36,7 +36,11 @@ final class Restricted extends Capability
     public static function fields(): array
     {
         return [
-            new Field('visible_to', FieldType::String, required: true, default: self::PUBLIC, indexed: true, length: 16, label: 'field.visible_to'),
+            new Field('visible_to', FieldType::Choice, required: true, default: self::PUBLIC, indexed: true, length: 16, label: 'field.visible_to', choices: [
+                self::PUBLIC => 'restricted.public',
+                self::USERS => 'restricted.users',
+                self::ROLES => 'restricted.roles',
+            ]),
             // With `roles`: the roles whose users may see it.
             new Field('visible_roles', FieldType::String, length: 32, cardinality: self::MAX_ROLES, label: 'field.visible_roles'),
         ];
@@ -101,9 +105,9 @@ final class Restricted extends Capability
         if ($this->object->get('visible_to') === null || $this->object->get('visible_to') === '') {
             $this->object->set('visible_to', self::PUBLIC);
         }
-        if ($this->object->get('visible_to') !== self::ROLES && $this->roles() !== []) {
-            $this->object->set('visible_roles', []);
-        }
+        // Trimmed, without empty and repeated ones (a form's checkboxes send an empty value too).
+        $roles = array_values(array_unique(array_filter(array_map(trim(...), $this->roles()), static fn (string $r): bool => $r !== '')));
+        $this->object->set('visible_roles', $this->object->get('visible_to') === self::ROLES ? $roles : []);
     }
 
     #[\Override]

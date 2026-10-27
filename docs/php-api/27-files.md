@@ -15,9 +15,9 @@ without any configuration. A file can be for **everyone**, for **every
 logged-in user**, or for the users with **some roles**; making a file private
 moves nothing.
 
-0.3.2 builds this in parts: the first one (this chapter) is the engine (the
-checks, the storage, the downloads, the access). Uploading in the admin, the
-media library and picking a file in the editor come next.
+Files are uploaded in the admin ([below](#in-the-admin-filepages)): on the
+*Files* list, or in the **media library** with the images; the editor links
+to one with its file picker.
 
 ## What happens to an uploaded file
 
@@ -123,7 +123,7 @@ lists, relations and the search too.
 
 | Field | Type | |
 |---|---|---|
-| `visible_to` | String(16), required, indexed, default `public` | `public` (everyone), `users` (every logged-in user) or `roles` |
+| `visible_to` | Choice (16), required, indexed, default `public` | `public` (everyone), `users` (every logged-in user) or `roles` |
 | `visible_roles` | String(32), at most 20 values | With `roles`: whose users. At least one is needed; each like a role's name (`member`) |
 
 | Member | |
@@ -219,6 +219,61 @@ Other methods get 405. A template links to a file with `file_url()`
 ```twig
 <a href="{{ file_url(file) }}" download>{{ file.title }}</a> ({{ file.download_size|file_size }})
 ```
+
+## In the admin: FilePages
+
+`Campanella\Admin\FilePages` · **Internal**
+
+The *Media* menu item opens the **media library**, with *Images* and *Files*
+under it (the two Blueprints' own lists).
+
+| Address | |
+|---|---|
+| `GET /admin/media` | The media library: the images and the files together, newest first; `?kind=image` or `file`, `?q=` a title, `?page=`. One upload form for both: an image (as `getimagesize()` sees it) becomes an image, anything else a file |
+| `POST /admin/media/file-upload` | A file (field `file`, with `visible_to` and `visible_roles[]`, and the CSRF token): the *Files* list's form |
+| `POST /admin/media/add` | An image or a file: the media library's form |
+| `GET /admin/media/files?q=&page=` | The files for the editor's file picker, newest first, 20 a page, as JSON: `{success, items: [{id, title, url, name, type, size, restricted}], page, pages, total}`. Only those the actor may see |
+
+The uploads answer as the images' upload does ([chapter 16](16-media.md#uploading-from-the-admin)):
+with `Accept: application/json` (`admin-upload.js`, which sends several files
+one by one, chosen or dropped) `{success, id, kind, url, title, edit}` with
+201, or `{success: false, message}` with 400 (form), 403, 405, 413 (too large),
+422 (not accepted) or 500; without it, a redirect back with a one-time message.
+After the session expired, the scripts get 401 and JSON, not the login page.
+
+**The edit form** of a file shows its type, size, download name and address
+(the side panel, `_download.html.twig`), and who may see it: `visible_to` as a
+choice, `visible_roles` as checkboxes of the site's own roles (`users.roles`,
+and the ones the file has already: `ObjectForm`'s last constructor argument,
+`$roles`). The *Files* list shows the type, the size and who may see each
+(`_visibility.html.twig`). A file is never made from an empty form, and its
+list has no CSV export.
+
+**The editor's file picker:** a form with an HTML field gets
+`data-files-url`; both toolbars (`full` and `basic`) get a button after the
+link button, that lists the files (search, pages), and a click links the
+selected text to the file (or inserts its title as a link). Whether a visitor
+may download it is decided when the link is followed: a link to a file for
+members leads others to a 404, so put it on a page they see.
+
+**Where a file is used:** the texts that link to it are recorded on saving
+(`MediaUsage::record()` with the `Downloadable` table, [chapter 16](16-media.md#where-an-image-is-used)),
+and its delete page lists them, besides the objects related to it.
+
+**On the site,** a relation to a file (e.g. a Blueprint made in the admin
+with a *Files* relation) is shown as the file's download link with its type
+and size (`object/_relations.html.twig`).
+
+| Member | |
+|---|---|
+| `uploadSettings(Actor $actor, bool $library = false): ?array` | The upload form's settings, if the actor may upload: `url`, `max`, `max_mb`, `accept`, `types`, `files`, `images`, `roles` |
+| `upload(Request $request, Actor $actor, bool $library): Response` | |
+| `browse(Request $request, Actor $actor): Response` | |
+| `library(Request $request, Actor $actor, Closure $render): Response` | |
+| `panel(CampanellaObject $file): array` | The side panel's data |
+| `canUpload(Actor $actor): bool`, `canBrowse(): bool` | |
+| `typeName(string $extension): string` | `PDF`, `Word document` … (`file.type.<extension>`) |
+| `static roleOptions(array $roles, Translator $translator): array` | The roles by their translated names (`role.<name>`, or the name) |
 
 ## The system page
 

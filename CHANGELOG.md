@@ -10,8 +10,7 @@ backward-incompatible.
 
 ## [Unreleased]
 
-Towards 0.3.2 (files), part 1: the engine. Uploading in the admin and the
-media library come in the next part.
+Towards 0.3.2 (files). Part 1: the engine; part 2: the admin.
 
 ### Added
 
@@ -27,6 +26,15 @@ media library come in the next part.
   404.
 - **The site's own roles** (`users.roles`, e.g. `member`): given to users in
   the admin, without entering it.
+- **Files in the admin** (part 2): the *Files* list uploads several files at
+  once (chosen or dropped), with who may download them; the edit form shows the
+  file's data and sets who may see it (the site's roles as checkboxes).
+- **The media library** (*Media*, with *Images* and *Files* under it): images
+  and files together, by kind and title, and one upload form for both.
+- **The editor's file picker**: links the selected text to an uploaded file,
+  in both toolbars.
+- A file's delete page lists the texts that link to it; on the site, a
+  relation to a file is its download link with its type and size.
 - `Response::file()`: a body sent from a file in pieces.
 - The system page's *Images and files* group: the files' folder, types and
   largest size.

@@ -97,7 +97,7 @@ final class FileInspector
         }
         $extension = $this->detect($bytes, strtolower(pathinfo(basename(str_replace('\\', '/', $originalName)), PATHINFO_EXTENSION)));
         if (!in_array($extension, $this->types, true)) {
-            throw self::error('file.type_not_allowed', ['types' => implode(', ', $this->types)]);
+            throw self::error('file.type_not_allowed', ['types' => implode(', ', array_map(strtoupper(...), $this->types))]);
         }
 
         return ['extension' => $extension, 'mime' => self::KNOWN[$extension], 'bytes' => $bytes];
@@ -120,7 +120,7 @@ final class FileInspector
             return $nameExtension;
         }
 
-        throw self::error('file.not_recognized', ['types' => implode(', ', $this->types)]);
+        throw self::error('file.not_recognized', ['types' => implode(', ', array_map(strtoupper(...), $this->types))]);
     }
 
     private function archive(string $bytes): string

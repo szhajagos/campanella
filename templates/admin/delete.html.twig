@@ -21,11 +21,12 @@
     <div class="alert alert-warning" role="alert">
         {{ t('admin.delete.warning') }}
         {% if media_url and (usage or share_image) %}<div class="mt-2">{{ t('admin.delete.image_warning') }}</div>{% endif %}
+        {% if (is_download ?? false) and usage %}<div class="mt-2">{{ t('admin.delete.file_warning') }}</div>{% endif %}
     </div>
 
-    {% if media_url %}
+    {% if media_url or (is_download ?? false) %}
         {% if usage %}
-            <p>{{ t('admin.delete.usage') }}</p>
+            <p>{{ t(media_url ? 'admin.delete.usage' : 'admin.delete.file_usage') }}</p>
             <ul class="admin-referrers">
                 {% for item in usage %}
                     <li>
@@ -36,7 +37,7 @@
                 {% if more_usage %}<li class="text-body-secondary">{{ t('admin.delete.more', {count: more_usage}) }}</li>{% endif %}
             </ul>
         {% elseif not share_image %}
-            <p class="text-body-secondary">{{ t('admin.delete.unused') }}</p>
+            <p class="text-body-secondary">{{ t(media_url ? 'admin.delete.unused' : 'admin.delete.file_unused') }}</p>
         {% endif %}
         {% if share_image %}
             <p>{{ t('admin.delete.share_image') }} <a href="{{ admin_url('system/settings') }}">{{ t('settings.title') }}</a></p>

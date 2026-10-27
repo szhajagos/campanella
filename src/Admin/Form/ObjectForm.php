@@ -8,6 +8,7 @@ use Campanella\Tree\TreeBuilder;
 use Campanella\Capability\Weighted;
 use Campanella\Capability\Hierarchical;
 use Campanella\Capability\Link;
+use Campanella\Capability\Restricted;
 use Campanella\Access\Actor;
 use Campanella\Capability\TextFormat;
 use Campanella\Capability\Textual;
@@ -67,11 +68,16 @@ final class ObjectForm
      * @param HtmlSanitizer|null $html Its allowlist is given to the HTML editor, so the editor
      *        offers and keeps what the filter keeps (since 0.0.5); null: the built-in allowlist
      */
+    /**
+     * @param list<string> $roles The roles a restricted object can be limited to (`visible_roles`,
+     *        since 0.3.2): the site's own (`users.roles`); a role the object already has is offered too
+     */
     public function __construct(
         private readonly QueryEngine $queries,
         private readonly Translator $translator,
         string $timezone = 'UTC',
         ?HtmlSanitizer $html = null,
+        private readonly array $roles = [],
     ) {
         $this->timezone = new DateTimeZone($timezone);
         $this->html = $html ?? new HtmlSanitizer();
@@ -111,19 +117,24 @@ final class ObjectForm
             $form[] = new FormField(
                 name: $name,
                 kind: 'field',
-                widget: $htmlBody ? 'html' : $this->widget($field),
+                widget: $htmlBody ? 'html' : ($name === 'visible_roles' && $object->has(Restricted::class) ? 'checkboxes' : $this->widget($field)),
                 label: $field->label !== '' ? $field->label : $name,
                 required: $field->required && $name !== 'path',
                 multiple: $field->isMultiple(),
                 max: $field->isMultiple() && !$field->isUnlimited() ? $field->cardinality : null,
                 value: $value,
-                options: $field->type === FieldType::Choice ? $this->choiceOptions($field) : [],
+                options: match (true) {
+                    $field->type === FieldType::Choice => $this->choiceOptions($field),
+                    $name === 'visible_roles' && $object->has(Restricted::class) => $this->roleOptions($object),
+                    default => [],
+                },
                 error: isset($errors[$name]) ? $errors[$name]->translate($this->translator) : null,
                 help: match (true) {
                     $htmlBody => 'admin.form.html_help',
                     $name === 'path' => 'admin.form.path_help',
                     $name === 'url' && $object->has(Link::class) => 'admin.form.url_help',
                     $name === 'machine_name' => 'admin.form.machine_name_help',
+                    $name === 'visible_roles' && $object->has(Restricted::class) => $this->roles === [] ? 'admin.form.visible_roles_none' : 'admin.form.visible_roles_help',
                     default => null,
                 },
                 attributes: match (true) {
@@ -268,6 +279,24 @@ final class ObjectForm
             FieldType::Choice => 'choice',
             FieldType::Html => 'html',
         };
+    }
+
+    /**
+     * The roles a restricted object can be limited to (since 0.3.2): the site's own, and those
+     * it has already (so none is lost by saving), each by its translated name (`role.<name>`).
+     *
+     * @return list<array{value: string, label: string}>
+     */
+    private function roleOptions(CampanellaObject $object): array
+    {
+        $options = [];
+        foreach (array_values(array_unique([...$this->roles, ...$object->as(Restricted::class)->roles()])) as $role) {
+            $key = 'role.' . $role;
+            $label = $this->translator->translate($key);
+            $options[] = ['value' => $role, 'label' => $label === $key ? $role : $label];
+        }
+
+        return $options;
     }
 
     /**

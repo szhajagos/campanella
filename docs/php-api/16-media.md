@@ -252,7 +252,8 @@ records nothing. A row disappears with either object.
 |---|---|
 | `__construct(Connection $db, QueryEngine $queries, ?SiteSettings $site = null)` | |
 | `static pathsIn(string $html): list<string>` | The stored files an HTML text refers to: their originals' paths, each once |
-| `static record(Connection $db, int $objectId, string $html, string $table = 'cap_media_file'): void` | Replaces what was recorded for the object |
+| `static downloadsIn(string $html): list<int>` | The files to download an HTML text links to (`…/<id>/<name>.<extension>`, under any prefix): their objects' IDs, each once (since 0.3.2) |
+| `static record(Connection $db, int $objectId, string $html, string $table = 'cap_media_file', ?string $downloads = null): void` | Replaces what was recorded for the object; with `$downloads` (the `Downloadable` capability's table, since 0.3.2) the links to files to download too, so a file's delete page lists the texts that link to it |
 | `usedBy(CampanellaObject $media, Actor $actor, int $limit = 20): array{items: list<CampanellaObject>, total: int}` | The objects that use the file (those the actor may see), newest change first |
 | `sharedBySite(CampanellaObject $media): bool` | Whether it is the site's share image ([chapter 20](20-site.md)) |
 

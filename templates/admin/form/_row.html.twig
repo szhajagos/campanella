@@ -8,7 +8,7 @@
         </label>
     {% endif %}
 
-    {% if field.kind == 'field' and field.multiple %}
+    {% if field.kind == 'field' and field.multiple and field.widget != 'checkboxes' %}
         <div data-multi{% if field.max %} data-multi-max="{{ field.max }}"{% endif %}>
             <div class="vstack gap-2" data-multi-rows>
                 {% for value in field.value %}

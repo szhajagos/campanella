@@ -451,7 +451,7 @@ def test_contact_form(browser):
 
 
 ADMIN_PAGES = [
-    "/admin", "/admin/article", "/admin/article/new", "/admin/page", "/admin/image", "/admin/menu",
+    "/admin", "/admin/article", "/admin/article/new", "/admin/page", "/admin/image", "/admin/file", "/admin/media", "/admin/menu",
     "/admin/user", "/admin/user/new", "/admin/profile", "/admin/submission",
     "/admin/system", "/admin/system/settings", "/admin/system/mail",
     "/admin/system/blueprints", "/admin/system/lists", "/admin/system/model", "/admin/system/redirects",
@@ -590,6 +590,60 @@ def test_importer(browser):
     context.close()
 
 
+def test_files(browser):
+    """Files uploaded on the Files list (two at once), downloaded by whom they are meant for; the editor links one (since 0.3.2)."""
+    import tempfile
+    folder = tempfile.mkdtemp()
+    public = os.path.join(folder, "Nyilvános műsor.pdf")
+    members = os.path.join(folder, "Belső lista.csv")
+    with open(public, "wb") as handle:
+        handle.write(b"%PDF-1.7\nbongeszo\n%%EOF")
+    with open(members, "w", encoding="utf-8") as handle:
+        handle.write("nev;kor\nAnna;30\n")
+    context = new_context(browser)
+    page = context.new_page()
+    login(page, ADMIN)
+    page.goto(BASE + "/admin/file")
+    page.check("#upload-visible-users")
+    page.set_input_files("#upload-file", [members])
+    page.wait_for_url(BASE + "/admin/file", wait_until="load")
+    page.locator("table.admin-list a", has_text="Belső lista").first.wait_for(timeout=15000)
+    page.goto(BASE + "/admin/file")
+    page.set_input_files("#upload-file", [public])
+    page.locator("table.admin-list a", has_text="Nyilvános műsor").first.wait_for(timeout=15000)
+    check(page.locator("table.admin-list tbody tr").count() == 2, "the Files list shows %d files" % page.locator("table.admin-list tbody tr").count())
+    library = page.goto(BASE + "/admin/media")
+    check(library.status == 200 and "Belső lista" in page.locator("main").inner_text(), "the media library does not list the files")
+
+    # The editor's file picker links the selected text to a file.
+    page.goto(BASE + "/admin/page/new")
+    page.fill("#field-title", "Letöltések oldala")
+    page.locator(".jodit-wysiwyg").first.click()
+    page.keyboard.type("A műsor")
+    page.keyboard.press("Shift+Home")
+    page.locator(".jodit-toolbar-button_campanellaFiles button").first.click()
+    page.locator(".campanella-picker__file", has_text="Nyilvános műsor").first.click()
+    value = page.locator("textarea[data-editor]").first.input_value()
+    check(re.search(r'<a href="/files/\d+/nyilvanos-musor\.pdf">A műsor</a>', value) is not None, "the file picker inserted: %s" % value[:200])
+    public_url = re.search(r'/files/\d+/nyilvanos-musor\.pdf', value).group(0) if "nyilvanos-musor" in value else "/files/0/x.pdf"
+    members_url = page.evaluate("""async () => (await (await fetch('/admin/media/files?q=Bels', {headers: {Accept: 'application/json'}})).json()).items[0].url""")
+    context.close()
+
+    # A visitor: the public file is a download, the users' one does not exist.
+    context = new_context(browser)
+    page = context.new_page()
+    response = page.request.get(BASE + public_url)
+    check(response.status == 200 and response.headers.get("content-disposition", "").startswith("attachment") and response.body().startswith(b"%PDF"), "the public file: %s" % response.status)
+    check(response.headers.get("content-security-policy") == "default-src 'none'; sandbox", "the download's CSP")
+    check(page.request.get(BASE + members_url).status == 404, "the logged-in users' file is downloaded anonymously")
+    login(page, EDITOR)
+    check(page.request.get(BASE + members_url).status == 200, "a logged-in editor cannot download the users' file")
+    context.close()
+    for name in (public, members):
+        os.unlink(name)
+    os.rmdir(folder)
+
+
 TESTS = [
     test_security_headers,
     test_login_and_logout,
@@ -600,6 +654,7 @@ TESTS = [
     test_admin_pages,
     test_search,
     test_importer,
+    test_files,
 ]
 
 

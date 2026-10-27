@@ -13,6 +13,7 @@ use Campanella\Admin\BlueprintEditor;
 use Campanella\Admin\ListColumns;
 use Campanella\Admin\ListEditor;
 use Campanella\Admin\ImporterPages;
+use Campanella\Admin\FilePages;
 use Campanella\Admin\ListExport;
 use Campanella\Admin\ModelPage;
 use Campanella\Admin\RedirectPages;
@@ -142,6 +143,7 @@ final class AdminController implements Controller
         private readonly ?SearchIndexer $searchIndexer = null,
         private readonly ?RedirectPages $redirectPages = null,
         private readonly ?ImporterPages $importerPages = null,
+        private readonly ?FilePages $filePages = null,
     ) {
     }
 
@@ -153,15 +155,19 @@ final class AdminController implements Controller
     {
         $this->actor = null;
         $uploading = $request->path === $this->access->path('media/upload');
-        // The editor's upload and image picker expect JSON: an expired session gets a message, not the login page.
-        if ($actor->isAnonymous() && ($uploading || $request->path === $this->access->path('media/browse')) && self::wantsJson($request)) {
+        $json = array_map(fn (string $p): string => $this->access->path('media/' . $p), ['upload', 'browse', 'file-upload', 'add', 'files']);
+        // The editor's upload and pickers expect JSON: an expired session gets a message, not the login page.
+        if ($actor->isAnonymous() && in_array($request->path, $json, true) && self::wantsJson($request)) {
             return Response::json(['success' => false, 'message' => $this->translator->translate('media.session_expired')], 401);
         }
         if ($actor->isAnonymous()) {
-            // Back to the requested admin page after logging in (from the upload form: its list).
-            $target = $uploading
-                ? $this->access->path('image')
-                : $request->path . ($request->query === [] ? '' : '?' . http_build_query($request->query));
+            // Back to the requested admin page after logging in (from an upload form: its list).
+            $target = match ($request->path) {
+                $this->access->path('media/upload') => $this->access->path('image'),
+                $this->access->path('media/file-upload') => $this->access->path('file'),
+                $this->access->path('media/add') => $this->access->path('media'),
+                default => $request->path . ($request->query === [] ? '' : '?' . http_build_query($request->query)),
+            };
 
             return Response::redirect($request->basePath . $this->paths->login($target));
         }
@@ -346,6 +352,20 @@ final class AdminController implements Controller
     {
         if ($segments === ['browse']) {
             return $this->mediaBrowse($request, $actor);
+        }
+        // The media library and the files to download (since 0.3.2).
+        if ($this->filePages !== null) {
+            $render = fn (string $template, string $active, array $context): Response => $this->render($template, $active, $context);
+            switch ($segments) {
+                case []:
+                    return $this->filePages->library($request, $actor, $render);
+                case ['file-upload']:
+                    return $this->filePages->upload($request, $actor, false);
+                case ['add']:
+                    return $this->filePages->upload($request, $actor, true);
+                case ['files']:
+                    return $this->filePages->browse($request, $actor);
+            }
         }
         if ($segments !== ['upload']) {
             throw HttpException::notFound();
@@ -541,6 +561,7 @@ final class AdminController implements Controller
             'created',
             $publishable ? 'published_at' : null,
             self::isFile($blueprint) ? 'file_size' : null,
+            self::isDownload($blueprint) ? 'download_size' : null,
             ...array_map(static fn (array $c): ?string => $c['sortable'] ? $c['name'] : null, $columns),
         ]));
         // A hand-ordered list (Weighted) is shown in its order by default.
@@ -644,13 +665,27 @@ final class AdminController implements Controller
             }
         }
 
+        // Files to download (since 0.3.2): their types' names.
+        $downloadTypes = [];
+        if (self::isDownload($blueprint) && $this->filePages !== null) {
+            foreach ($result as $item) {
+                $downloadTypes[(int) $item->id()] = $this->filePages->typeName($item->as(\Campanella\Capability\Downloadable::class)->extension());
+            }
+        }
+
         return $this->render('list', $blueprint->name, [
             'editable' => $editable,
             'media' => $media,
+            'download_types' => $downloadTypes,
             'is_file' => self::isFile($blueprint),
             'type_names' => ImageProcessor::NAMES,
-            'upload' => self::isFile($blueprint) && $blueprint->name === 'image' ? $this->uploadSettings($actor) : null,
-            'can_create' => !self::isFile($blueprint) && !isset($blueprint->capabilities['downloadable']) && $this->policy->allows($actor, Operation::Create, $this->repository->create($blueprint->name)),
+            'upload' => match (true) {
+                self::isFile($blueprint) && $blueprint->name === 'image' => $this->uploadSettings($actor),
+                self::isDownload($blueprint) => $this->filePages?->uploadSettings($actor),
+                default => null,
+            },
+            'is_download' => self::isDownload($blueprint),
+            'can_create' => !self::isFile($blueprint) && !self::isDownload($blueprint) && $this->policy->allows($actor, Operation::Create, $this->repository->create($blueprint->name)),
             'title' => $blueprint->label,
             'blueprint' => $blueprint,
             'result' => $result,
@@ -674,7 +709,7 @@ final class AdminController implements Controller
             'path' => $this->access->path($blueprint->name),
             'export_query' => http_build_query(array_filter(['q' => $search, 'status' => $status, 'sort' => $explicit ? $sort : '', 'dir' => $explicit ? $dir : '', 'f' => $ownFilters]
                 + ($scope !== null && $scope['selected'] > 0 ? [$scope['name'] => (string) $scope['selected']] : []), static fn (mixed $v): bool => $v !== '' && $v !== [])),
-            'can_export' => !self::isFile($blueprint),
+            'can_export' => !self::isFile($blueprint) && !self::isDownload($blueprint),
         ]);
     }
 
@@ -813,7 +848,7 @@ final class AdminController implements Controller
     private function create(Request $request, Actor $actor, Blueprint $blueprint): Response
     {
         // A file (e.g. an image, a file to download) is created by uploading it, not from an empty form.
-        if (self::isFile($blueprint) || isset($blueprint->capabilities['downloadable'])) {
+        if (self::isFile($blueprint) || self::isDownload($blueprint)) {
             throw HttpException::notFound();
         }
         $object = $this->repository->create($blueprint->name);
@@ -944,6 +979,9 @@ final class AdminController implements Controller
             // The editor's image picker (since 0.2.7): the uploaded images, if there are any.
             'browse_url' => $this->blueprints->find('image') !== null ? $this->access->path('media/browse') : null,
             'media_url' => self::isFile($blueprint) && !$object->isNew() ? $this->media->url($object) : null,
+            // A file to download (since 0.3.2): its data, and the editor's file picker.
+            'download' => self::isDownload($blueprint) && !$object->isNew() ? $this->filePages?->panel($object) : null,
+            'files_url' => $this->filePages !== null && $this->filePages->canBrowse() ? $this->access->path('media/files') : null,
             'type_names' => ImageProcessor::NAMES,
             'scoped' => $object->isNew() ? [] : $this->scopedTrees($object, $actor),
         ]);
@@ -1171,7 +1209,7 @@ final class AdminController implements Controller
             ? $this->queries->execute(Hierarchical::childrenOf(Query::objects(), $object)->orderBy('title')->limit(self::MAX_REFERRERS), Actor::system())->items
             : [];
         // A file: the texts that show it (since 0.1.2), and whether it is the site's share image.
-        $usage = self::isFile($blueprint) && $this->usage !== null ? $this->usage->usedBy($object, $actor, self::MAX_REFERRERS) : null;
+        $usage = (self::isFile($blueprint) || self::isDownload($blueprint)) && $this->usage !== null ? $this->usage->usedBy($object, $actor, self::MAX_REFERRERS) : null;
         $response = $this->render('delete', $blueprint->name, [
             'children' => $children,
             'usage' => $usage['items'] ?? [],
@@ -1182,6 +1220,7 @@ final class AdminController implements Controller
             'blueprint' => $blueprint,
             'object' => $object,
             'media_url' => self::isFile($blueprint) ? $this->media->thumbnailUrl($object) : null,
+            'is_download' => self::isDownload($blueprint),
             'referrers' => $referrers,
             'more_referrers' => $total - count($referrers),
             'alert' => $alert,
@@ -1298,6 +1337,12 @@ final class AdminController implements Controller
         ];
     }
 
+    /** Whether the Blueprint's objects are files to download (Downloadable; since 0.3.2): created by uploading. */
+    private static function isDownload(Blueprint $blueprint): bool
+    {
+        return isset($blueprint->capabilities['downloadable']);
+    }
+
     /** Whether the Blueprint's objects are files (MediaFile): created by uploading, not by a form. */
     private static function isFile(Blueprint $blueprint): bool
     {
@@ -1408,8 +1453,15 @@ final class AdminController implements Controller
     private function render(string $template, string $active, array $context): Response
     {
         $menu = [];
+        $mediaMenu = [];
         foreach ($this->blueprints->all() as $name => $blueprint) {
-            if (!self::ownPages($blueprint)) {
+            if (self::ownPages($blueprint)) {
+                continue;
+            }
+            // Images and files under the media library (since 0.3.2).
+            if ($this->filePages !== null && (self::isFile($blueprint) || self::isDownload($blueprint))) {
+                $mediaMenu[] = ['name' => $name, 'label' => $blueprint->label];
+            } else {
                 $menu[] = ['name' => $name, 'label' => $blueprint->label];
             }
         }
@@ -1427,6 +1479,8 @@ final class AdminController implements Controller
             'unread_submissions' => $unreadSubmissions ?? 0,
             'min_password' => \Campanella\Capability\Authenticatable::MIN_PASSWORD_LENGTH,
             'blueprints' => $this->blueprints->all(),
+            // The media library (since 0.3.2), if there are images or files.
+            'media_menu' => $mediaMenu,
         ]));
     }
 }

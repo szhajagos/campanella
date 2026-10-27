@@ -1,0 +1,9 @@
+{# Who may see a restricted object (a file to download; since 0.3.2): a badge. #}
+{%- set scope = object.visible_to ?? 'public' -%}
+{%- if scope == 'public' -%}
+    <span class="badge text-bg-light border fw-normal">{{ t('restricted.public') }}</span>
+{%- elseif scope == 'users' -%}
+    <span class="badge text-bg-info fw-normal">{{ t('restricted.users') }}</span>
+{%- else -%}
+    <span class="badge text-bg-warning fw-normal" title="{{ (object.visible_roles ?? [])|join(', ') }}">{{ t('restricted.roles') }}: {{ (object.visible_roles ?? [])|map(r => t('role.' ~ r) == 'role.' ~ r ? r : t('role.' ~ r))|join(', ') }}</span>
+{%- endif -%}

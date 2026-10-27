@@ -1,0 +1,97 @@
+{% extends '@core/admin/base.html.twig' %}
+
+{# The media library (since 0.3.2): the images and the files to download together. #}
+{% macro url_with(q, kind, page) %}{{ admin_url('media') }}?{{ {kind: kind, q: q, page: page > 1 ? page : null}|filter(v => v is not same as(null) and v != '')|url_encode }}{% endmacro %}
+
+{% block content %}
+    <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2 mb-3">
+        <h1 class="h3 mb-0">{{ t('admin.library.title') }}</h1>
+        <span class="text-body-secondary small">{{ t('admin.list.total', {count: total}) }}</span>
+    </div>
+
+    {% if upload %}
+        {% include '@core/admin/_upload.html.twig' with {upload: upload, kind: 'any'} only %}
+    {% endif %}
+
+    <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+        {% if kinds|length > 1 %}
+            <ul class="nav nav-pills nav-sm" aria-label="{{ t('admin.library.kinds') }}">
+                {% for value, label in {'': 'admin.library.all', image: 'admin.library.images', file: 'admin.library.files'} %}
+                    {% if value == '' or value in kinds %}
+                        <li class="nav-item"><a class="nav-link py-1{{ kind == value ? ' active' }}" href="{{ _self.url_with(q, value, 1) }}"{% if kind == value %} aria-current="page"{% endif %}>{{ t(label) }}</a></li>
+                    {% endif %}
+                {% endfor %}
+            </ul>
+        {% endif %}
+        <form method="get" action="{{ admin_url('media') }}" class="d-flex gap-2 ms-auto" role="search">
+            {% if kind %}<input type="hidden" name="kind" value="{{ kind }}">{% endif %}
+            <label class="visually-hidden" for="library-q">{{ t('admin.list.search') }}</label>
+            <input type="search" class="form-control form-control-sm" id="library-q" name="q" value="{{ q }}" placeholder="{{ t('admin.list.search') }}">
+            <button type="submit" class="btn btn-sm btn-outline-secondary">{{ t('admin.list.filter') }}</button>
+        </form>
+    </div>
+
+    {% if items is empty %}
+        <p class="text-body-secondary py-4">{{ q ? t('admin.list.no_match') : t('admin.library.empty') }}</p>
+    {% else %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle admin-list admin-library">
+                <thead>
+                    <tr>
+                        <th scope="col"><span class="visually-hidden">{{ t('admin.media.preview') }}</span></th>
+                        <th scope="col">{{ t('admin.column.title') }}</th>
+                        <th scope="col">{{ t('field.download_type') }}</th>
+                        <th scope="col">{{ t('field.visible_to') }}</th>
+                        <th scope="col" class="text-end">{{ t('admin.library.uploaded') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                        <tr id="media-{{ item.id }}">
+                            <td class="admin-thumb-cell">
+                                {% if item.kind == 'image' %}
+                                    <img class="admin-thumb" src="{{ url(item.thumb) }}" alt="" width="64" height="64" loading="lazy" decoding="async">
+                                {% else %}
+                                    <span class="admin-file-icon" aria-hidden="true">{{ item.extension|upper }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% set label = item.title ?: t('admin.untitled') %}
+                                {% if item.edit %}<a class="fw-semibold" href="{{ url(item.edit) }}">{{ label }}</a>{% else %}{{ label }}{% endif %}
+                                {% if item.kind == 'image' and not item.alt %}
+                                    <div><span class="badge bg-body-tertiary text-body-secondary border fw-normal">{{ t('admin.media.no_alt') }}</span></div>
+                                {% endif %}
+                            </td>
+                            <td class="small text-nowrap">
+                                {{ item.type }} · {{ item.size|file_size }}
+                                {% if item.kind == 'image' and item.width and item.height %}<div class="text-body-secondary">{{ t('admin.media.dimensions', {width: item.width, height: item.height}) }}</div>{% endif %}
+                            </td>
+                            <td class="small">
+                                {% if item.kind == 'file' %}{% include '@core/admin/_visibility.html.twig' with {object: {visible_to: item.visible_to, visible_roles: item.roles}} only %}{% else %}<span class="text-body-secondary">–</span>{% endif %}
+                            </td>
+                            <td class="text-end small text-body-secondary"><time datetime="{{ item.created|date('c') }}">{{ item.created|date }}</time></td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if pages > 1 %}
+            <nav aria-label="{{ t('content.pager') }}">
+                <ul class="pagination pagination-sm">
+                    {% for p in 1..pages %}
+                        {% if p == page %}
+                            <li class="page-item active" aria-current="page"><span class="page-link">{{ p }}</span></li>
+                        {% else %}
+                            <li class="page-item"><a class="page-link" href="{{ _self.url_with(q, kind, p) }}">{{ p }}</a></li>
+                        {% endif %}
+                    {% endfor %}
+                </ul>
+            </nav>
+        {% endif %}
+    {% endif %}
+{% endblock %}
+
+{% block scripts %}
+    {{ parent() }}
+    {% if upload %}<script src="{{ asset('admin-upload.js') }}" defer></script>{% endif %}
+{% endblock %}

@@ -1,0 +1,17 @@
+{# The file of a file to download (since 0.3.2): its data and its address (the edit form's side panel). #}
+<section class="card mb-3 admin-download" aria-labelledby="download-heading">
+    <div class="card-body small">
+        <h2 class="h6" id="download-heading">{{ t('admin.media.file') }}</h2>
+        <p class="mb-2"><span class="badge text-bg-secondary admin-file-type">{{ download.extension|upper }}</span> <strong class="text-break">{{ download.name }}</strong></p>
+        <dl class="row mb-0">
+            <dt class="col-5 fw-normal text-body-secondary">{{ t('field.download_type') }}</dt>
+            <dd class="col-7">{{ download.type }}</dd>
+            <dt class="col-5 fw-normal text-body-secondary">{{ t('field.download_size') }}</dt>
+            <dd class="col-7">{{ download.size|file_size }}</dd>
+            <dt class="col-5 fw-normal text-body-secondary">{{ t('admin.media.address') }}</dt>
+            <dd class="col-7 mb-0"><code class="text-break user-select-all">{{ url(download.url) }}</code></dd>
+        </dl>
+        <p class="form-text mb-2">{{ t('admin.files.address_help') }}</p>
+        <a class="d-inline-block" href="{{ url(download.url) }}" download>{{ t('admin.files.download') }}</a>
+    </div>
+</section>

@@ -41,6 +41,7 @@ use Campanella\Admin\AdminAccess;
 use Campanella\Admin\BlueprintEditor;
 use Campanella\Admin\ListEditor;
 use Campanella\Admin\ImporterPages;
+use Campanella\Admin\FilePages;
 use Campanella\Admin\ModelPage;
 use Campanella\Admin\RedirectPages;
 use Campanella\Admin\Form\ObjectForm;
@@ -142,6 +143,22 @@ final class Kernel
 
     public function __construct(private readonly string $rootDir)
     {
+    }
+
+    /**
+     * The site's own roles (`users.roles`, since 0.3.2): those of a role's form, each once;
+     * not the admin's.
+     *
+     * @return list<string>
+     */
+    private static function siteRoles(Config $config): array
+    {
+        $admin = [Actor::ADMINISTRATOR, ...array_map(strval(...), (array) $config->get('admin.roles', [])), ...array_map(strval(...), (array) $config->get('admin.system_roles', []))];
+
+        return array_values(array_unique(array_filter(
+            array_map(static fn ($role): string => trim((string) $role), (array) $config->get('users.roles', [])),
+            static fn (string $role): bool => preg_match('/^[a-z][a-z0-9_]{0,31}$/', $role) === 1 && !in_array($role, $admin, true),
+        )));
     }
 
     public function rootDir(): string
@@ -566,12 +583,12 @@ final class Kernel
             $config = $c->get(Config::class);
             // The roles offered in the admin: the admin's and the System page's roles, and the
             // site's own (users.roles, since 0.3.2).
-            $roles = array_values(array_unique(array_filter(array_map(strval(...), array_merge(
+            $roles = array_values(array_unique(array_merge(
                 [Actor::ADMINISTRATOR],
-                (array) $config->get('admin.roles', []),
-                (array) $config->get('admin.system_roles', []),
-                (array) $config->get('users.roles', []),
-            )), static fn (string $role): bool => preg_match('/^[a-z][a-z0-9_]{0,31}$/', $role) === 1)));
+                array_map(strval(...), (array) $config->get('admin.roles', [])),
+                array_map(strval(...), (array) $config->get('admin.system_roles', [])),
+                self::siteRoles($config),
+            )));
 
             return new UserService($c->get(ObjectRepository::class), $c->get(QueryEngine::class), $c->get(AccessPolicy::class), $c->get(Throttle::class), $roles, $c->get(Connection::class), $c->get(EventDispatcher::class));
         });
@@ -898,6 +915,7 @@ final class Kernel
                 $c->get(Translator::class),
                 (string) $c->get(Config::class)->get('timezone', 'UTC'),
                 $c->get(HtmlSanitizer::class),
+                self::siteRoles($c->get(Config::class)),
             ),
             $c->get(Csrf::class),
             $c->get(Flash::class),
@@ -968,6 +986,19 @@ final class Kernel
                 $c->get(AdminAccess::class),
                 $c->get(Translator::class),
                 $root . '/var/imports',
+            ),
+            new FilePages(
+                $c->get(FileService::class),
+                $c->get(MediaService::class),
+                $c->get(QueryEngine::class),
+                $c->get(BlueprintRegistry::class),
+                $c->get(ObjectRepository::class),
+                $c->get(AccessPolicy::class),
+                $c->get(Csrf::class),
+                $c->get(Flash::class),
+                $c->get(Translator::class),
+                $c->get(AdminAccess::class),
+                self::siteRoles($c->get(Config::class)),
             ),
         ));
 

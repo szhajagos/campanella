@@ -17,6 +17,11 @@
 // image with its alternative text. The server adds the smaller copies (srcset) when
 // the text is shown.
 //
+// The file picker (since 0.3.2): if the form carries a files address (data-files-url),
+// both toolbars get a button that lists the files to download (GET /admin/media/files,
+// JSON); a click inserts a link to the file, around the selected text or with the file's
+// title. Whether a visitor may download it is checked when the link is followed.
+//
 // Switching to another editor (e.g. SunEditor) means replacing this file and
 // the html widget template; nothing else depends on Jodit.
 (() => {
@@ -156,14 +161,16 @@
         return node;
     };
 
-    // The image picker: a dialog of the uploaded images; a click inserts one.
-    const openPicker = (editor, form) => {
+    // The pickers: a dialog of the uploaded images (or of the files: `files`); a click inserts one.
+    const openPicker = (editor, form, files = false) => {
         let labels = {};
         try {
-            labels = JSON.parse(form.dataset.browseLabels || '{}');
+            labels = JSON.parse((files ? form.dataset.filesLabels : form.dataset.browseLabels) || '{}');
         } catch (e) {
             labels = {};
         }
+        // The selected text becomes a file's link.
+        const selected = files ? editor.s.sel?.toString() || '' : '';
         editor.s.save();
         const dialog = editor.dlg({ closeOnClickOverlay: true, closeOnEsc: true });
         const box = el('div', 'campanella-picker');
@@ -190,6 +197,16 @@
         const insert = (item) => {
             dialog.close();
             editor.s.restore();
+            if (files) {
+                // Built as an element (the texts never become HTML), inserted as HTML, so the
+                // editor replaces the selection and keeps its textarea in step.
+                const link = document.createElement('a');
+                link.setAttribute('href', item.url);
+                link.textContent = selected.trim() !== '' ? selected : item.title;
+                editor.s.insertHTML(link.outerHTML);
+                editor.synchronizeValues();
+                return;
+            }
             const img = editor.createInside.element('img');
             img.setAttribute('src', item.url);
             img.setAttribute('alt', item.alt || '');
@@ -198,7 +215,7 @@
         };
         const load = async () => {
             const ticket = ++loading;
-            const url = new URL(form.dataset.browseUrl, window.location.href);
+            const url = new URL(files ? form.dataset.filesUrl : form.dataset.browseUrl, window.location.href);
             url.searchParams.set('page', String(page));
             if (search.value.trim() !== '') {
                 url.searchParams.set('q', search.value.trim());
@@ -224,7 +241,21 @@
                 return; // an older answer, after a newer request
             }
             pages = result.pages;
+            grid.classList.toggle('campanella-picker__grid--files', files);
             grid.replaceChildren(...result.items.map((item) => {
+                if (files) {
+                    const row = el('button', 'campanella-picker__file');
+                    row.type = 'button';
+                    row.setAttribute('role', 'listitem');
+                    row.title = item.name;
+                    const meta = el('span', 'campanella-picker__meta small text-body-secondary', item.type + ' · ' + item.size);
+                    row.append(el('span', 'campanella-picker__title', item.title), meta);
+                    if (item.restricted) {
+                        row.append(el('span', 'badge text-bg-warning fw-normal', labels.restricted || 'Restricted'));
+                    }
+                    row.addEventListener('click', () => insert(item));
+                    return row;
+                }
                 const button = el('button', 'campanella-picker__item');
                 button.type = 'button';
                 button.setAttribute('role', 'listitem');
@@ -264,7 +295,7 @@
             }
         });
 
-        dialog.setHeader(labels.title || 'Images');
+        dialog.setHeader(labels.title || (files ? 'Files' : 'Images'));
         dialog.setContent(box);
         dialog.setSize(Math.min(760, window.innerWidth - 32), Math.min(620, window.innerHeight - 64));
         dialog.open();
@@ -276,11 +307,23 @@
         const form = area.form;
         const canUpload = Boolean(form && form.dataset.uploadUrl);
         const canBrowse = Boolean(form && form.dataset.browseUrl);
-        let buttons = profiles[area.dataset.editor] || profiles.full;
-        if ((canUpload || canBrowse) && buttons === profiles.full) {
+        const canLinkFiles = Boolean(form && form.dataset.filesUrl);
+        const profile = profiles[area.dataset.editor] || profiles.full;
+        let buttons = profile;
+        if ((canUpload || canBrowse) && profile === profiles.full) {
             // The image buttons come after the link button: uploading, and the picker.
             const images = [...(canUpload ? ['image'] : []), ...(canBrowse ? ['campanellaImages'] : [])];
             buttons = buttons.flatMap((b) => (b === 'link' ? ['link', ...images] : [b]));
+        }
+        if (canLinkFiles) {
+            // The file picker, right after the link button, in both profiles (since 0.3.2).
+            buttons = buttons.flatMap((b) => (b === 'link' ? ['link', 'campanellaFiles'] : [b]));
+        }
+        let filesLabel = 'Files';
+        try {
+            filesLabel = JSON.parse(form && form.dataset.filesLabels ? form.dataset.filesLabels : '{}').button || filesLabel;
+        } catch (e) {
+            filesLabel = 'Files';
         }
         let pickerLabel = 'Images';
         try {
@@ -309,6 +352,8 @@
                 paragraph: { list: window.Jodit.atom(paragraphs) },
                 // The image picker (since 0.2.7).
                 campanellaImages: { icon: 'folder', tooltip: pickerLabel, exec: (jodit) => openPicker(jodit, form) },
+                // The file picker (since 0.3.2).
+                campanellaFiles: { icon: 'file', tooltip: filesLabel, exec: (jodit) => openPicker(jodit, form, true) },
             },
 
             // Nothing is loaded from other servers: the HTML view is a plain textarea

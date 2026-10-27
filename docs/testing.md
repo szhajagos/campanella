@@ -62,6 +62,8 @@ What they check:
 | Forgotten password | The same answer for an unknown address, and no e-mail; the e-mail's link works once, its token leaves the address bar, a short password is refused; the new password ends the sessions of before and replaces the old one |
 | Contact form | Too quick a sending is shown again, and not saved; the honeypot is told "sent" and nothing is saved or e-mailed; a missing CSRF token is refused without showing the text again; a real message is saved, e-mailed to the administrator with `Reply-To` the sender and none of the sender's text in the subject; markup in it stays text in the admin |
 | Admin | Every list and form opens for the administrator; a new article is saved, one without a CSRF token is not; the profile is saved; the System page shows the version; an editor gets 403 on the administrators' pages (users, Submissions, System) |
+| Search and importers | The header's search finds and marks the words, never a draft; an importer made in the admin, its trial, its run going on by itself to its end |
+| Files (since 0.3.2) | Two files uploaded on the Files list, one for the logged-in users; the media library lists them; the editor's file picker links the selected text to one; a visitor downloads the public one (an attachment, with the download's CSP) and gets 404 for the other, which a logged-in editor can download |
 
 A new feature with a protection of its own adds its check to `test_site.py`, in
 the area it belongs to. The test users and passwords exist only on the temporary

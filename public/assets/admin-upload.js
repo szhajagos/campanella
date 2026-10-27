@@ -1,7 +1,9 @@
-// The upload form of the Images list: several files at once, chosen or dropped on
-// the form, each sent to the upload address (POST /admin/media/upload) asking for
-// JSON. When all succeed the list is reloaded; otherwise the failures are listed.
-// Without JavaScript the form still works: one file, and the server redirects back.
+// The upload forms of the Images list, the Files list and the media library: several
+// files at once, chosen or dropped on the form, each sent to the form's address (POST
+// /admin/media/upload, /file-upload or /add) asking for JSON, with the form's other
+// fields (a file's visibility; since 0.3.2). When all succeed the list is reloaded;
+// otherwise the failures are listed. Without JavaScript the form still works: one file,
+// and the server redirects back.
 (() => {
     'use strict';
 
@@ -14,6 +16,16 @@
     const status = form.querySelector('[data-upload-status]');
     const max = Number(form.dataset.uploadMax || 0);
 
+    // A file's roles count only with "some roles": shown only then.
+    const roles = form.querySelector('[data-visibility-roles]');
+    const showRoles = () => {
+        if (roles) {
+            roles.classList.toggle('d-none', form.querySelector('input[name="visible_to"]:checked')?.value !== 'roles');
+        }
+    };
+    form.querySelectorAll('input[name="visible_to"]').forEach((radio) => radio.addEventListener('change', showRoles));
+    showRoles();
+
     input.multiple = true;
     input.required = false;
     submit.hidden = true; // choosing (or dropping) files starts the upload
@@ -23,9 +35,9 @@
         if (max > 0 && file.size > max) {
             return form.dataset.uploadTooLarge || 'Too large';
         }
-        const body = new FormData();
-        body.append('_csrf', form.querySelector('input[name="_csrf"]')?.value || '');
-        body.append('file', file, file.name || 'image');
+        const body = new FormData(form);
+        body.delete('file');
+        body.append('file', file, file.name || 'file');
         try {
             const response = await fetch(form.action, {
                 method: 'POST',

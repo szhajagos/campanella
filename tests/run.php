@@ -2594,6 +2594,122 @@ test('Kernel: uploading an image from the admin (POST /admin/media/upload)', fun
     putenv('CAMPANELLA_DB_PREFIX');
 });
 
+test('Kernel: files in the admin: uploading, the media library, who may see them, the file picker', function () use ($editorUser, $newUser): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $container = $kernel->container();
+    if ($container->get(Connection::class)->prefix() !== 'test_') {
+        echo "      (skipped: config/local.php sets its own prefix)\n";
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $dir = sys_get_temp_dir() . '/campanella-files-' . bin2hex(random_bytes(4));
+    $container->set(\Campanella\Media\FileStorage::class, static fn () => new \Campanella\Media\FileStorage($dir));
+    $mediaDir = sys_get_temp_dir() . '/campanella-media-' . bin2hex(random_bytes(4));
+    $container->set(\Campanella\Media\MediaStorage::class, static fn () => new \Campanella\Media\MediaStorage($mediaDir));
+    $storage = new ArraySessionStorage();
+    $container->set(Session::class, static fn () => new Session($storage));
+    $auth = $container->get(AuthService::class);
+    $auth->login(new Request('GET', '/'), $editorUser);
+    $send = function (string $method, string $path, array $post = [], array $files = [], array $headers = ['accept' => 'application/json']) use ($kernel, $storage) {
+        $storage->endRequest();
+        parse_str((string) parse_url($path, PHP_URL_QUERY), $query);
+
+        return $kernel->handle(new Request($method, (string) parse_url($path, PHP_URL_PATH), query: $query, post: $post, headers: $headers, files: $files));
+    };
+    $json = static fn ($response): array => (array) json_decode($response->body, true);
+    $upload = static fn (string $content, string $name) => ['file' => new \Campanella\Http\UploadedFile($name, testFile($content), strlen($content))];
+    $html = ['accept' => 'text/html'];
+
+    // The Files list: its upload form, with who may download them.
+    $list = $send('GET', '/admin/file', [], [], $html);
+    preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $list->body, $m);
+    $csrf = $m[1] ?? '';
+    check($list->status === 200 && str_contains($list->body, 'action="/admin/media/file-upload"') && str_contains($list->body, 'name="visible_to" id="upload-visible-users" value="users"'), 'the Files list offers the upload');
+    check(!str_contains($list->body, 'upload-visible-roles'), 'no "some roles" without roles of the site\'s own');
+    check(str_contains($list->body, 'accept=".pdf,application/pdf,.docx'), 'the accepted types');
+
+    $ok = $send('POST', '/admin/media/file-upload', ['_csrf' => $csrf, 'visible_to' => 'users'], $upload("%PDF-1.7\n%%EOF", 'Belső szabályzat.pdf'));
+    $data = $json($ok);
+    check($ok->status === 201 && $data['success'] === true && $data['kind'] === 'file' && $data['title'] === 'Belső szabályzat', $ok->body);
+    check(preg_match('#^/files/\d+/belso-szabalyzat\.pdf$#', (string) $data['url']) === 1 && $data['edit'] === '/admin/file/' . $data['id'], $ok->body);
+    $file = $container->get(ObjectRepository::class)->find((int) $data['id']);
+    check($file?->get('visible_to') === 'users', 'uploaded for the logged-in users');
+    $bad = $send('POST', '/admin/media/file-upload', ['_csrf' => $csrf], $upload('<html><script>x</script>', 'oldal.html'));
+    check($bad->status === 422 && str_contains((string) $json($bad)['message'], 'PDF'), $bad->body);
+    check($send('POST', '/admin/media/file-upload', [], $upload('x', 'a.txt'))->status === 400, 'without the CSRF token');
+    check($send('POST', '/admin/media/file-upload', ['_csrf' => $csrf, 'visible_to' => 'roles'], $upload('x', 'a.txt'))->status === 422, 'some roles, without a role');
+    $plain = $send('POST', '/admin/media/file-upload', ['_csrf' => $csrf], $upload("név;kor\n", 'Lista.csv'), $html);
+    check($plain->status === 303 && ($plain->headers['Location'] ?? '') === '/admin/file', 'without JavaScript: back to the list');
+    $list = $send('GET', '/admin/file', [], [], $html);
+    check(str_contains($list->body, 'Feltöltve: Lista') && str_contains($list->body, 'CSV-táblázat') && str_contains($list->body, 'Bejelentkezett felhasználók'), 'the list: the message, the type, who may see it');
+
+    // The media library: images and files, one form for both.
+    $library = $send('GET', '/admin/media', [], [], $html);
+    check($library->status === 200 && str_contains($library->body, 'action="/admin/media/add"') && str_contains($library->body, 'Belső szabályzat') && str_contains($library->body, 'Lista'), 'the library: ' . $library->status);
+    check(str_contains($library->body, 'href="/admin/media"') && str_contains($library->body, '>Fájlok</a>'), 'the menu: Media, with Images and Files under it');
+    $added = $send('POST', '/admin/media/add', ['_csrf' => $csrf], $upload("%PDF-1.4\n%%EOF", 'Műsor.pdf'));
+    check($json($added)['kind'] === 'file', $added->body);
+    if (extension_loaded('gd')) {
+        $image = $send('POST', '/admin/media/add', ['_csrf' => $csrf], ['file' => new \Campanella\Http\UploadedFile('Fotó.png', testImage('png', 20, 20), 100)]);
+        check($image->status === 201 && $json($image)['kind'] === 'image' && str_starts_with((string) $json($image)['url'], '/media/'), 'an image becomes an image: ' . $image->body);
+        check(str_contains($send('GET', '/admin/media?kind=image', [], [], $html)->body, 'Fotó') && !str_contains($send('GET', '/admin/media?kind=image', [], [], $html)->body, 'Műsor'), 'the images only');
+    }
+    $files = $send('GET', '/admin/media?kind=file&q=Műsor', [], [], $html)->body;
+    check(str_contains($files, 'Műsor') && !str_contains($files, 'Belső szabályzat'), 'the files, by title');
+
+    // The edit form: the file's data, who may see it.
+    $form = $send('GET', '/admin/file/' . $file->id(), [], [], $html);
+    check(str_contains($form->body, 'belso-szabalyzat.pdf') && str_contains($form->body, 'href="/files/' . $file->id() . '/belso-szabalyzat.pdf" download'), 'the side panel');
+    check(str_contains($form->body, 'name="f[visible_to]"') && str_contains($form->body, '<option value="users" selected>Bejelentkezett felhasználók</option>'), 'who may see it: a choice');
+    check(str_contains($form->body, 'config/local.php, users.roles'), 'no roles of its own: the hint');
+    preg_match('/name="_version" value="([^"]+)"/', $form->body, $v);
+    $saved = $send('POST', '/admin/file/' . $file->id(), ['_csrf' => $csrf, '_version' => $v[1] ?? '', 'f' => ['title' => 'Szabályzat', 'visible_to' => 'public', 'visible_roles' => ['']]], [], $html);
+    check($saved->status === 303, 'saved: ' . $saved->status);
+    check($container->get(ObjectRepository::class)->find((int) $file->id())?->get('visible_to') === 'public', 'made public');
+
+    // The editor's file picker.
+    $article = $send('GET', '/admin/article/new', [], [], $html);
+    check(str_contains($article->body, 'data-files-url="/admin/media/files"') && str_contains($article->body, 'Hivatkozás feltöltött fájlra'), 'the article form offers the file picker');
+    $picked = $json($send('GET', '/admin/media/files?q=szab'));
+    check($picked['success'] === true && $picked['total'] === 1 && $picked['items'][0]['url'] === '/files/' . $file->id() . '/belso-szabalyzat.pdf' && $picked['items'][0]['type'] === 'PDF', json_encode($picked));
+
+    // A text that links to it: shown on its delete page.
+    $text = $container->get(ObjectService::class)->create(Actor::system(), 'page', ['title' => 'Letöltések', 'format' => 'html', 'body' => '<p><a href="/files/' . $file->id() . '/belso-szabalyzat.pdf">A szabályzat</a></p>']);
+    check(\Campanella\Media\MediaUsage::downloadsIn('<a href="/x/files/12/a-b.pdf?v=1">x</a> <a href=\'/files/3/c.txt\'>y</a> <a href="/files/4/d.exe">z</a>') === [12, 3]);
+    $auth->logout();
+    $auth->login(new Request('GET', '/'), $newUser('fajl-admin@example.hu', 'fajl-admin-jelszo', ['administrator']));
+    $delete = $send('GET', '/admin/file/' . $file->id() . '/delete', [], [], $html);
+    check($delete->status === 200 && str_contains($delete->body, 'Letöltések') && str_contains($delete->body, 'Ezek a szövegek hivatkoznak a fájlra'), 'the delete page lists the text that links to it');
+
+    // An expired session: JSON for the scripts.
+    $auth->logout();
+    check($send('GET', '/admin/media/files')->status === 401 && $send('POST', '/admin/media/file-upload', ['_csrf' => $csrf], $upload('x', 'a.txt'))->status === 401);
+    check(str_ends_with($send('POST', '/admin/media/file-upload', [], [], $html)->headers['Location'] ?? '', '?return=%2Fadmin%2Ffile'), 'without JavaScript: to the login page, then back to the Files list');
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('ObjectForm: a restricted object\'s roles are checkboxes of the site\'s own roles', function () use ($engine, $repository): void {
+    $translator = \Campanella\I18n\Translator::fromDirectory(dirname(__DIR__) . '/lang', 'hu');
+    $form = new \Campanella\Admin\Form\ObjectForm($engine, $translator, 'UTC', null, ['member', 'patron']);
+    $file = $repository->create('file', ['title' => 'Tagoknak']);
+    $file->as(\Campanella\Capability\Restricted::class)->restrict('roles', ['regi']);
+    $fields = [];
+    foreach ($form->build($file, Actor::system()) as $field) {
+        $fields[$field->name] = $field;
+    }
+    $roles = $fields['visible_roles'];
+    check($roles->widget === 'checkboxes' && $roles->inputName() === 'f[visible_roles][]', $roles->widget);
+    check(array_column($roles->options, 'value') === ['member', 'patron', 'regi'], 'the site\'s roles, and the one it has');
+    check($fields['visible_to']->widget === 'choice' && array_column($fields['visible_to']->options, 'value') === ['public', 'users', 'roles']);
+    $read = $form->read($file, ['f' => ['title' => 'Tagoknak', 'visible_to' => 'roles', 'visible_roles' => ['', 'member']]], Actor::system());
+    check($read['values']['visible_roles'] === ['', 'member'] && $read['errors'] === [], json_encode($read['values']));
+    $file->fill($read['values']);
+    $file->as(\Campanella\Capability\Restricted::class)->prepareForSave();
+    check($file->get('visible_roles') === ['member'], 'the empty value of the checkboxes is left out');
+});
+
 echo "\nDatabase schema\n";
 
 // A database of its own (prefix sch_), so the comparison sees only these tables.

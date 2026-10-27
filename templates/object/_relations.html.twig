@@ -8,7 +8,10 @@
             {% for item in items -%}
                 {%- if not loop.first %}, {% endif -%}
                 {%- set label = item.title is defined and item.title ? item.title : '#' ~ item.id -%}
-                {%- if item.path is defined and item.path -%}
+                {%- if file_url(item) -%}
+                    {# A file to download (since 0.3.2): its link, type and size. #}
+                    <a href="{{ file_url(item) }}" download>{{ label }}</a> <span class="relations__file">({{ item.download_name|split('.')|last|upper }}, {{ item.download_size|file_size }})</span>
+                {%- elseif item.path is defined and item.path -%}
                     <a href="{{ url(item.path) }}">{{ label }}</a>
                 {%- else -%}
                     {{ label }}
