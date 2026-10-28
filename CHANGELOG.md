@@ -77,6 +77,13 @@ version 19). If you keep a `config/blueprints.php` of your own, add the
   `object/<mode>.html.twig`), with the same HTML; they also get `settings`
   (`show_title`; `show_date`, `show_lead`), which the core's templates use.
 
+### Security
+
+- **symfony/mime 7.4.22** (CVE-2026-45070, an e-mail header injection through
+  parameter names with characters that are not allowed there). Campanella's own
+  e-mails do not put text from a visitor into such a name, so it was not
+  reachable through them; updated anyway, as `composer audit` requires.
+
 ### Fixed
 
 - The browser tests waited for a click, not for the page it loads, before
