@@ -33,5 +33,7 @@ felületet mutatják, a Campanella saját példatartalmával.
     szűrőkkel, átvitel egy másik webhelyre.
 12. [Importálás táblázatból](12-importalas.md): CSV- és JSON-fájlok, az
     importáló beállítása, próbafuttatás, a napló, visszavonás, a CSV-export.
+13. [Komponensek](13-komponensek.md): szövegrészletek, egy komponens három
+    lépésben (forrás, megjelenítés, beállítások), ki láthatja, a sablonban.
 
 [English version](../en/README.md)

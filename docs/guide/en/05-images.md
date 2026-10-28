@@ -2,8 +2,8 @@
 
 Campanella keeps the images and the files to download (documents,
 spreadsheets) itself: you upload them, and use them in texts. This chapter
-shows how. Both are under **Media** in the menu on the left: **Images** and
-**Files** are their own lists, Media shows them together
+shows how. Both are in the **Media library** group of the menu on the left:
+**Images** and **Files** are their own lists, **All** shows them together
 ([below](#the-media-library)).
 
 ## Uploading in the Images list
@@ -155,8 +155,8 @@ read only by those it is meant for.
 
 ## The media library
 
-**Media** in the menu on the left shows the images and the files together,
-the newest first:
+**Media library → All** in the menu on the left shows the images and the
+files together, the newest first:
 
 ![The media library](../images/en/media-library.png)
 

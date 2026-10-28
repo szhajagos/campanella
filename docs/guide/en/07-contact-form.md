@@ -42,7 +42,7 @@ Nothing to set up for this.
 
 ## Reading the messages
 
-A number next to **Submissions** in the menu on the left shows the new
+A number next to **Audience → Submissions** in the menu on the left shows the new
 messages. The list:
 
 ![The list of Submissions](../images/en/submissions.png)

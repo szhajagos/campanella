@@ -33,7 +33,7 @@ In Campanella the kinds of content are called **Blueprints**. A Blueprint says
 what an item is made of: its **capabilities** (whether it has a title, a text,
 a page of its own, whether it must be published), and its **own fields**.
 
-The **System → Blueprints** page lists them all: those defined in code
+The **Structure → Blueprints** page lists them all: those defined in code
 (article, page …), which cannot be changed here, and those made in the admin,
 with an **Edit** button. **New Blueprint** at the top right starts a new one:
 
@@ -168,7 +168,7 @@ which shows its fields below its description.
 ## The calendar for visitors
 
 The events' own pages are not a calendar yet: a list is needed that shows the
-upcoming events in order. It is made on the **System → Lists** page, with
+upcoming events in order. It is made on the **Structure → Lists** page, with
 **New list**:
 
 ![New list](../images/en/list-new.png)
@@ -226,7 +226,7 @@ the front page. That needs no path.
 ## Carrying it to another site
 
 If you made the kind of content and the list on a test site, you do not need
-to set it all up again on the live one. On the **System → Content model** page:
+to set it all up again on the live one. On the **Structure → Content model** page:
 
 ![The Content model page](../images/en/model.png)
 

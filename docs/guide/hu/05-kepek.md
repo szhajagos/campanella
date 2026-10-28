@@ -2,8 +2,8 @@
 
 A képeket és a letölthető fájlokat (dokumentumokat, táblázatokat) a
 Campanella maga tárolja: feltöltöd őket, és a szövegekben használod őket. Ez a
-fejezet arról szól, hogyan. Mindkettő a bal oldali menü **Médiatár** pontja
-alatt van: a **Képek** és a **Fájlok** a saját listájuk, a Médiatár együtt
+fejezet arról szól, hogyan. Mindkettő a bal oldali menü **Médiatár** csoportjában
+van: a **Képek** és a **Fájlok** a saját listájuk, az **Összes** együtt
 mutatja őket ([lent](#a-médiatár)).
 
 ## Feltöltés a Képek listában
@@ -161,7 +161,7 @@ akiknek szól.
 
 ## A Médiatár
 
-A bal oldali menü **Médiatár** pontja a képeket és a fájlokat együtt mutatja,
+A bal oldali menü **Médiatár → Összes** pontja a képeket és a fájlokat együtt mutatja,
 a legújabbal kezdve:
 
 ![A Médiatár](../images/hu/media-library.png)

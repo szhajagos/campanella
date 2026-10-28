@@ -1,7 +1,7 @@
 # 10. Ha valami nem működik
 
 Ez a fejezet a leggyakoribb jelenségeket gyűjti össze, az okukkal és a
-teendővel. Ha valami nem működik, először mindig a **Rendszer** oldalt nézd
+teendővel. Ha valami nem működik, először mindig a **Rendszer → Állapot** oldalt nézd
 meg (2. fejezet): a legtöbb beállítási hibát ott látod, a teendővel együtt.
 
 ## Az oldal nem jelenik meg
@@ -40,7 +40,7 @@ meg (2. fejezet): a legtöbb beállítási hibát ott látod, a teendővel együ
 | Frissítés vagy egy változtatás után a régi kinézet látszik | A Rendszer oldalon a **Sablon-gyorsítótár ürítése**, a böngészőben a Ctrl+F5 segít. |
 | A keresés nem talál egy oldalt | Az oldal piszkozat vagy időzített; vagy a keresett szó háromnál rövidebb, vagy nagyon gyakori angol szó. Egy frissítés után a régebbi oldalakat előbb a keresésbe kell tenni: a Rendszer oldal **Keresési index** sora jelzi, ha hiányzik valami (2. fejezet). |
 | Egy mező, egy Blueprint vagy a „Szűrhető és rendezhető” jelölés nem törölhető | Egy lista használja (feltételben, a sorrendben, oszlopként vagy szűrőként): az üzenet megnevezi. Előbb a listát módosítsd vagy töröld (11. fejezet). Egy Blueprint addig sem törölhető, amíg vannak elemei. |
-| Egy lista oldala nem jelenik meg | A listának nincs útvonala, vagy a listákban (**Rendszer → Listák**) hibát jelez, például mert a Blueprintje megváltozott a fájlban. A lista csak a közzétett elemeket mutatja. |
+| Egy lista oldala nem jelenik meg | A listának nincs útvonala, vagy a listákban (**Szerkezet → Listák**) hibát jelez, például mert a Blueprintje megváltozott a fájlban. A lista csak a közzétett elemeket mutatja. |
 | Hibás címek a megosztási linkekben vagy az e-mailekben | A **Rendszer → Webhely-beállítások** oldalon a **Webcím (URL)** nem a webhely mostani címe (például a HTTPS bekapcsolása vagy egy domaincsere után). Írd át (2. fejezet). |
 
 ## A kapcsolati űrlap és az e-mail

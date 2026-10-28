@@ -31,23 +31,23 @@ lépj ki.
 
 ![Az admin irányítópultja](../images/hu/admin-dashboard.png)
 
-A bal oldali menü:
+A bal oldali menü csoportokban:
 
-| Menüpont | Mire való? |
+| Csoport | Mire való? |
 |---|---|
 | **Irányítópult** | Áttekintés: hány elem van az egyes tartalomtípusokból, és mi változott legutóbb. |
-| **Tartalom** | A tartalomtípusok listái: **Cikk**, **Oldal**, **Kategória**, **Menü**, **Menüpont**, és a saját tartalomtípusaid (a példatartalomban az **Esemény**). Itt hozol létre, szerkesztesz és teszel közzé tartalmat (3–4. és 11. fejezet). |
-| **Médiatár** | A feltöltött képek és fájlok együtt, alatta a **Képek** és a **Fájlok** listája (5. fejezet). |
-| **Beküldések** | A kapcsolati űrlapon érkezett üzenetek (7. fejezet). Csak az adminisztrátorok látják. |
-| **Felhasználók** | A fiókok kezelése (6. fejezet). Csak az adminisztrátorok látják. |
-| **Profilom** | A saját neved, jelszavad, és hogy hol vagy belépve. |
-| **Rendszer** | A webhely állapota, a **Webhely-beállítások**, az **E-mail** beállítása és naplója. A **Blueprintek** (a tartalomtípusok), a **Listák** és a **Tartalommodell** a saját tartalomtípusokhoz kell (11. fejezet), a **Capability-k** a tartalomtípusok építőköveit mutatják. Az **Importálók** táblázatokból töltenek fel tartalmat (12. fejezet), az **Átirányítások** a régi címekről vezetnek tovább (3. fejezet). |
+| **Tartalom** | A tartalomtípusok listái: **Cikk**, **Oldal**, **Kategória**, **Menü**, **Menüpont**, **Szövegrészlet**, és a saját tartalomtípusaid (a példatartalomban az **Esemény**). Itt hozol létre, szerkesztesz és teszel közzé tartalmat (3–4. és 11. fejezet). |
+| **Médiatár** | **Összes**: a feltöltött képek és fájlok együtt; a **Képek** és a **Fájlok** listája (5. fejezet). |
+| **Közönség** | A **Beküldések**: a kapcsolati űrlapon érkezett üzenetek (7. fejezet), és a **Felhasználók** (6. fejezet). Csak az adminisztrátorok látják. |
+| **Megjelenés** | A **Komponensek**: mi jelenjen meg a webhelyen, és hogyan (13. fejezet). Csak az adminisztrátorok látják. |
+| **Szerkezet** | A **Blueprintek** (a tartalomtípusok), a **Capability-k** (az építőköveik), a **Listák** és a **Tartalommodell**: a saját tartalomtípusokhoz kellenek (11. fejezet). Csak az adminisztrátorok látják. |
+| **Rendszer** | Az **Állapot** (a webhely állapota, lent), a **Webhely-beállítások**, az **E-mail** beállítása és naplója, az **Importálók** (táblázatokból töltenek fel tartalmat, 12. fejezet) és az **Átirányítások** (a régi címekről vezetnek tovább, 3. fejezet). Csak az adminisztrátorok látják. |
 
 Fent a **Vissza az oldalra** link a nyilvános oldalra visz, a neved pedig a
-profilodra.
+profilodra: a saját neved, jelszavad, és hogy hol vagy belépve (6. fejezet).
 
 A szerkesztők (az `editor` szerepkör) kevesebbet látnak: tartalmat kezelhetnek,
-de a Beküldéseket, a Felhasználókat és a Rendszer oldalt nem.
+de a Közönség, a Megjelenés, a Szerkezet és a Rendszer csoportot nem.
 
 ## A webhely beállításai
 
@@ -93,7 +93,7 @@ A végén kattints a **Mentés** gombra.
 
 ## A Rendszer oldal
 
-A **Rendszer** oldal megmutatja, hogy minden rendben van-e a tárhelyen és a
+A **Rendszer → Állapot** oldal megmutatja, hogy minden rendben van-e a tárhelyen és a
 beállításokban. Telepítés után, és minden frissítés után nézz rá.
 
 ![A Rendszer oldal teteje](../images/hu/system.png)

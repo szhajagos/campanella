@@ -168,5 +168,5 @@ a látogatók oldala ettől nem lassul.
 
 ---
 
-Előző: [11. Saját tartalomtípusok](11-sajat-tartalomtipusok.md) ·
-[Tartalomjegyzék](README.md)
+Előző: [11. Saját tartalomtípusok](11-sajat-tartalomtipusok.md) · Következő:
+[13. Komponensek](13-komponensek.md) · [Tartalomjegyzék](README.md)

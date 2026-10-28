@@ -34,7 +34,7 @@ nobody. Two good ways:
    **Forgot your password?** on the login page. Then only they know their
    password. This needs e-mail to be set up (chapter 8).
 2. If that does not work, tell them the password safely (in person, by
-   phone), and ask them to change it on **My profile** after logging in.
+   phone), and ask them to change it on their profile after logging in (their name at the top right).
 
 ## The list of users, and editing an account
 
@@ -67,7 +67,7 @@ colleague leaves, block their account.
 
 ## Your own profile
 
-On **My profile** (or by clicking your name at the top right):
+On **My profile** (click your name at the top right):
 
 ![The My profile page](../images/en/profile.png)
 

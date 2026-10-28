@@ -1,14 +1,14 @@
 # Upgrading to 0.3.x
 
 This guide takes a site from **any 0.3.x, 0.2.x or 0.1.x version** to the newest
-0.3.x (now **0.3.2**) in one go. You do not need to install
+0.3.x (now **0.3.3**) in one go. You do not need to install
 the versions in between: one upgrade runs every change since your version. The
 CHANGELOG has the same steps version by version; this page puts them
 together, and adds what to check and how to go back.
 
 | Your version | What to do |
 |---|---|
-| 0.3.0, 0.3.1 | Upload the new files and run the upgrade (steps 1–3): 0.3.1 adds the importers' tables (schema 17), 0.3.2 the files' (schema 18). Back up `var/files/` from now on (step 1). CI upgrades 0.3.0 and 0.3.1 to the current code on every push. |
+| 0.3.0 – 0.3.2 | Upload the new files and run the upgrade (steps 1–3): 0.3.1 adds the importers' tables (schema 17), 0.3.2 the files' (schema 18), 0.3.3 the components' (schema 19). Back up `var/files/` from 0.3.2 on (step 1). CI upgrades 0.3.0, 0.3.1 and 0.3.2 to the current code on every push. |
 | 0.2.0 – 0.2.9 | This guide. Supported and tested: CI upgrades 0.2.0 and 0.2.9 to the current code on every push, the latter with a content model made in the admin (`tests/upgrade/run.sh`). |
 | 0.1.0 – 0.1.5 | This guide, and also [From 0.1.x](#from-01x) below. Tested too: CI upgrades 0.1.0 and 0.1.5. |
 | 0.0.6, 0.0.7 | The upgrade runs (their schema version, 6, is accepted), but it is not tested. Also read the [0.1.0 section of the CHANGELOG](../CHANGELOG.md#010--2026-10-08). |
@@ -46,7 +46,7 @@ working. What 0.3.x promises is in [Compatibility](compatibility.md).
 
    Copy them off the server.
 
-2. **Upload the new version.** Use the release package (`campanella-0.3.2.zip`
+2. **Upload the new version.** Use the release package (`campanella-0.3.3.zip`
    from the GitHub release); it includes the `vendor/` folder. With git:
    `git pull`, then `composer install --no-dev`.
 
@@ -91,7 +91,7 @@ working. What 0.3.x promises is in [Compatibility](compatibility.md).
 ## What the upgrade changes in the database
 
 Nothing is removed or rewritten; only tables and one column are added. 0.2.0
-has schema version 12, 0.3.0 has 16, 0.3.1 has 17, 0.3.2 has 18 (from 0.1.x: see [below](#from-01x) for
+has schema version 12, 0.3.0 has 16, 0.3.1 has 17, 0.3.2 has 18, 0.3.3 has 19 (from 0.1.x: see [below](#from-01x) for
 6 to 12).
 
 | Schema | Version | Change |
@@ -124,12 +124,15 @@ used only when an administrator starts using it.
 | 0.3.0 | The milestone: the guide's chapter on own content types, sample events, the compatibility promise for 0.3.x | [docs/guide](guide/README.md) |
 | 0.3.1 | Importers from CSV and JSON files, the admin's lists as CSV | System → Importers; `import:run`, `import:undo`; the lists' *CSV export* |
 | 0.3.2 | Files to download (for everyone, for logged-in users, or for some roles), the media library, the editor's file picker, the site's own roles | Media → Files; `files`, `users.roles` |
+| 0.3.3 | Components (a source shown with a display), snippets, the displays in templates, the admin's menu in groups | Appearance → Components; Content → Snippet; `displays`, `display_sources` |
 
 New settings: `paths.search` (0.2.7, default `/search`), the search page's
 address, like the other `paths`; `paths.files` (0.3.2, default `/files`), the
 downloads' address; `files` (0.3.2: the folder, the largest file, the accepted
 types, the Blueprint); `users.roles` (0.3.2: the site's own roles, e.g.
 `['member']`). See [chapter 27 of the PHP API](php-api/27-files.md#settings-configappphp-files).
+`displays` and `display_sources` (0.3.3: the displays and the system sources; without
+them, the core's own; [chapter 28](php-api/28-displays.md#the-registry)).
 
 ## What behaves differently
 
@@ -332,9 +335,11 @@ in the [CHANGELOG](../CHANGELOG.md) list every change of the
 
 ## Checklist after the upgrade
 
-- [ ] The System page shows 0.3.2, no error, the tables match the
+- [ ] The System page (*System → Status*) shows 0.3.3, no error, the tables match the
       definitions, and no page is missing from the search; under *Images and
       files* the files' folder is writable.
+- [ ] Under *Appearance → Components* a new component (e.g. *The visitor* as
+      *Log in/out button*) is saved, and listed without a *Not working* mark.
 - [ ] A file uploaded under *Media → Files* downloads from its address; one
       for logged-in users gives "Page not found" in a private window.
 - [ ] The front page, an article with an image, a list, the search

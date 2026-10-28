@@ -35,7 +35,7 @@ küldi el senkinek. Két jó megoldás:
    jelszavát csak ő ismeri. Ehhez az e-mail-küldésnek működnie kell (8.
    fejezet).
 2. Ha ez nem megy, mondd el neki a jelszót biztonságos úton (személyesen,
-   telefonon), és kérd, hogy első belépés után a **Profilom** oldalon
+   telefonon), és kérd, hogy első belépés után a profilja oldalán (a jobb felső sarokban a nevére kattintva)
    cserélje le.
 
 ## A felhasználók listája és egy fiók szerkesztése
@@ -71,7 +71,7 @@ belépni. Ha egy munkatárs távozik, tiltsd le a fiókját.
 
 ## A saját profilod
 
-A **Profilom** oldalon (vagy a jobb felső sarokban a nevedre kattintva):
+A **Profilom** oldalon (a jobb felső sarokban a nevedre kattintva):
 
 ![A Profilom oldal](../images/hu/profile.png)
 

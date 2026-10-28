@@ -361,12 +361,16 @@ for real (`tests/upgrade/`). CI runs it on every push:
 | 0.2.0 | MySQL 8.4 | the oldest 0.2.x (since 0.3.0) |
 | 0.2.9 | MariaDB 10.6, MySQL 8.0 | the newest 0.2.x, with a content model made in the admin (since 0.3.0) |
 | 0.3.0 | MariaDB 11.4 | the start of the 0.3.x promise (since 0.3.1) |
-| 0.3.1 | MySQL 8.4 | the previous version (since 0.3.2) |
+| 0.3.1 | MySQL 8.4 | (since 0.3.2) |
+| 0.3.2 | MariaDB 10.6 | the previous version (since 0.3.3) |
 
-From 0.2.6 on the old site's content model also has a Blueprint called `file`
-(since 0.3.2): it must keep its name and objects on the upgrade, and files must
-say they are off. On the others a file is uploaded and downloaded (for
-everyone, and for logged-in users only).
+From 0.2.6 on the old site's content model also has Blueprints called `file`
+(since 0.3.2, up to 0.3.1) and `snippet` (since 0.3.3, up to 0.3.2), made in
+the admin before the version that brought them: they must keep their names and
+objects on the upgrade, and files must say they are off. On the others a file
+is uploaded and downloaded (for everyone, and for logged-in users only). On
+every upgraded site two components are made and shown (since 0.3.3), one only
+to logged-in users.
 
 ```bash
 git worktree add /tmp/campanella-0.1.0 v0.1.0

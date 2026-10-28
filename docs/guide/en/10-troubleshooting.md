@@ -1,7 +1,7 @@
 # 10. When something does not work
 
 This chapter collects the most common problems, with their causes and what to
-do. When something does not work, always look at the **System** page first
+do. When something does not work, always look at the **System → Status** page first
 (chapter 2): it shows most setting problems, with what to do.
 
 ## The site does not show
@@ -35,12 +35,12 @@ do. When something does not work, always look at the **System** page first
 | On uploading a file: "This type of file is not accepted", or "The file is none of the accepted types" | Only PDF, Word, Excel, PowerPoint, OpenDocument, TXT and CSV files can be uploaded, and Campanella looks at the content, not the name. Save the file as one of these (e.g. as a PDF). A password-protected or damaged file is refused too (chapter 5). |
 | On uploading a file: "Files with macros or scripts are not accepted" | Save it without macros: in Word as `.docx` (not `.docm`), in Excel as `.xlsx` (not `.xlsm`). |
 | A file's link: "Page not found" | The file is for logged-in users or for some roles, and the visitor is not logged in, or lacks the role; or the file was deleted. Logged in, administrators and editors see everything: look at it logged out, or in a private window (chapter 5). |
-| There is no Files list under Media | The **Images and files** part of the System page says why: if the site already had a kind of content of its own called "file", it stays, and a developer has to give the files another name in `config/local.php`. |
+| There is no Files list under Media library | The **Images and files** part of the System page says why: if the site already had a kind of content of its own called "file", it stays, and a developer has to give the files another name in `config/local.php`. |
 | A menu item does not show | See the table in [chapter 4](04-menus.md#when-the-menu-does-not-look-as-you-want). |
 | The old look after an upgrade or a change | **Clear the template cache** on the System page, and Ctrl+F5 in the browser, help. |
 | The search does not find a page | The page is a draft or scheduled; or the word is shorter than three letters, or a very common English word. After an upgrade, older pages must be added to the search first: the **Search index** row of the System page says if something is missing (chapter 2). |
 | A field, a Blueprint or "Filter and sort by it" cannot be removed | A list uses it (in a condition, the order, a column or a filter): the message names it. Change or delete the list first (chapter 11). A Blueprint cannot be deleted while it has items either. |
-| A list's page does not show | The list has no path, or the lists (**System → Lists**) show an error for it, e.g. because its Blueprint changed in the file. A list shows only published items. |
+| A list's page does not show | The list has no path, or the lists (**Structure → Lists**) show an error for it, e.g. because its Blueprint changed in the file. A list shows only published items. |
 | Wrong addresses in share links or e-mails | The **Web address (URL)** under **System → Site settings** is not the site's current address (e.g. after turning on HTTPS or a domain change). Correct it (chapter 2). |
 
 ## The contact form and e-mail

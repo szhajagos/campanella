@@ -30,23 +30,24 @@ else's computer, always log out.
 
 ![The admin's dashboard](../images/en/admin-dashboard.png)
 
-The menu on the left:
+The menu on the left, in groups:
 
-| Item | What it is for |
+| Group | What it is for |
 |---|---|
 | **Dashboard** | An overview: how many items of each kind of content there are, and what changed lately. |
-| **Content** | The lists of the kinds of content: **Article**, **Page**, **Category**, **Menu**, **Menu item**, and your own kinds of content (**Esemény** in the sample content). Here you create, edit and publish content (chapters 3–4 and 11). |
-| **Media** | The uploaded images and files together, with the **Images** and **Files** lists under it (chapter 5). |
-| **Submissions** | The messages from the contact form (chapter 7). For administrators only. |
-| **Users** | Managing the accounts (chapter 6). For administrators only. |
-| **My profile** | Your own name and password, and where you are logged in. |
-| **System** | The site's state, the **Site settings**, setting up **E-mail** and its log. **Blueprints** (the kinds of content), **Lists** and **Content model** are for your own kinds of content (chapter 11); **Capabilities** shows their building blocks. **Importers** bring in content from spreadsheets (chapter 12), **Redirects** lead on from old addresses (chapter 3). |
+| **Content** | The lists of the kinds of content: **Article**, **Page**, **Category**, **Menu**, **Menu item**, **Snippet**, and your own kinds of content (**Esemény** in the sample content). Here you create, edit and publish content (chapters 3–4 and 11). |
+| **Media library** | **All**: the uploaded images and files together; the **Images** and **Files** lists (chapter 5). |
+| **Audience** | The **Submissions**: the messages from the contact form (chapter 7), and the **Users** (chapter 6). For administrators only. |
+| **Appearance** | The **Components**: what appears on the site, and how (chapter 13). For administrators only. |
+| **Structure** | **Blueprints** (the kinds of content), **Capabilities** (their building blocks), **Lists** and **Content model**: for your own kinds of content (chapter 11). For administrators only. |
+| **System** | The **Status** (the site's state, below), the **Site settings**, setting up **E-mail** and its log, the **Importers** (they bring in content from spreadsheets, chapter 12) and the **Redirects** (they lead on from old addresses, chapter 3). For administrators only. |
 
 At the top, **Back to the site** takes you to the public site, and your name
-to your profile.
+to your profile: your own name and password, and where you are logged in
+(chapter 6).
 
 Editors (the `editor` role) see less: they manage content, but not the
-Submissions, the Users or the System page.
+Audience, Appearance, Structure and System groups.
 
 ## The site's settings
 
@@ -90,7 +91,7 @@ Finally, click **Save**.
 
 ## The System page
 
-The **System** page shows whether everything is right with the host and the
+The **System → Status** page shows whether everything is right with the host and the
 settings. Look at it after installing, and after every upgrade.
 
 ![The top of the System page](../images/en/system.png)

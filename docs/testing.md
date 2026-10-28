@@ -8,7 +8,7 @@ run locally too.
 |---|---|---|
 | Tests | `composer test` | The PHP code, on a real database (table prefix `test_`) |
 | Static analysis and docs | `composer analyse`, `composer docs:check`, `composer docs:links`, `composer lang:check` | Types (PHPStan level 8); every public class and method documented; links; translations |
-| Upgrade test | `tests/upgrade/run.sh <old source>` | A real upgrade from 0.1.0, 0.1.5, 0.2.0, 0.2.9, 0.3.0 or 0.3.1 (from 0.2.9 on with a content model): nothing is lost (since 0.2.0; see [The upgrade test](php-api/17-migrations.md#the-upgrade-test)) |
+| Upgrade test | `tests/upgrade/run.sh <old source>` | A real upgrade from 0.1.0, 0.1.5, 0.2.0, 0.2.9, 0.3.0, 0.3.1 or 0.3.2 (from 0.2.9 on with a content model): nothing is lost (since 0.2.0; see [The upgrade test](php-api/17-migrations.md#the-upgrade-test)) |
 | Performance check | `tests/performance/run.sh` | 10 000 objects; the busiest pages answer within their limits of time and SQL queries (since 0.3.0; [below](#the-performance-check)) |
 | Browser tests | `tests/browser/run.sh` | The site in a real browser, its protections first (since 0.2.0; below) |
 | Release package | `tests/package/check.sh` | The installation package as a site owner gets it: its contents, installing it from the browser on a minimal PHP, the browser tests on it (since 0.2.0; below) |
@@ -61,8 +61,9 @@ What they check:
 | Sessions | The profile lists the user's own sessions only; ending one, and ending every other, logs those out and keeps the current one |
 | Forgotten password | The same answer for an unknown address, and no e-mail; the e-mail's link works once, its token leaves the address bar, a short password is refused; the new password ends the sessions of before and replaces the old one |
 | Contact form | Too quick a sending is shown again, and not saved; the honeypot is told "sent" and nothing is saved or e-mailed; a missing CSRF token is refused without showing the text again; a real message is saved, e-mailed to the administrator with `Reply-To` the sender and none of the sender's text in the subject; markup in it stays text in the admin |
-| Admin | Every list and form opens for the administrator; a new article is saved, one without a CSRF token is not; the profile is saved; the System page shows the version; an editor gets 403 on the administrators' pages (users, Submissions, System) |
+| Admin | Every list and form opens for the administrator; a new article is saved, one without a CSRF token is not; the profile is saved; the System page shows the version; an editor gets 403 on the administrators' pages (users, Submissions, System, Components) |
 | Search and importers | The header's search finds and marks the words, never a draft; an importer made in the admin, its trial, its run going on by itself to its end |
+| Components (since 0.3.3) | A component made in the three steps (a menu as navigation, for logged-in users): the Appearance group in the menu, a setting out of range refused, the saved one listed; an editor gets 403 on the components' pages |
 | Files (since 0.3.2) | Two files uploaded on the Files list, one for the logged-in users; the media library lists them; the editor's file picker links the selected text to one; a visitor downloads the public one (an attachment, with the download's CSP) and gets 404 for the other, which a logged-in editor can download |
 
 A new feature with a protection of its own adds its check to `test_site.py`, in

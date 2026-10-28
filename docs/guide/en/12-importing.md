@@ -161,5 +161,5 @@ down because of it.
 
 ---
 
-Previous: [11. Your own kinds of content](11-own-content-types.md) ·
-[Contents](README.md)
+Previous: [11. Your own kinds of content](11-own-content-types.md) · Next:
+[13. Components](13-components.md) · [Contents](README.md)

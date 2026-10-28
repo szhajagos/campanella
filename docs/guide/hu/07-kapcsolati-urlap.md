@@ -42,7 +42,7 @@ Ehhez neked nem kell semmit beállítanod.
 
 ## Az üzenetek olvasása
 
-Az új üzenetek számát a bal oldali menüben a **Beküldések** mellett egy szám
+Az új üzenetek számát a bal oldali menüben a **Közönség → Beküldések** mellett egy szám
 jelzi. A lista:
 
 ![A Beküldések listája](../images/hu/submissions.png)

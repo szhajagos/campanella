@@ -34,5 +34,7 @@ interface, with Campanella's own sample content (which is in Hungarian).
     visitors with filters, carrying it to another site.
 12. [Importing from a spreadsheet](12-importing.md): CSV and JSON files,
     setting up an importer, the trial, the log, undoing, the CSV export.
+13. [Components](13-components.md): snippets, a component in three steps (the
+    source, the display, the settings), who sees it, in a template.
 
 [Magyar változat](../hu/README.md)

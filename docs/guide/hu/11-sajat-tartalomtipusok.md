@@ -33,7 +33,7 @@ megmondja, milyen részei vannak egy elemnek: ezek egyrészt a **képességei**
 (capability-k: van-e címe, szövege, saját oldala, közzé kell-e tenni), másrészt
 a **saját mezői**.
 
-A **Rendszer → Blueprintek** oldal mindet felsorolja: a kódban megadottakat
+A **Szerkezet → Blueprintek** oldal mindet felsorolja: a kódban megadottakat
 (cikk, oldal …), amelyek itt nem változtathatók, és az adminban készülteket,
 amelyek mellett a **Szerkesztés** gomb áll. Jobb fent az **Új Blueprint**
 gombbal kezdesz egy újat:
@@ -172,7 +172,7 @@ azonnal közzétéve mentheted, időzítheted, és a program saját oldalt kap a
 ## A naptár a látogatóknak
 
 A programok saját oldala még nem naptár: kell egy lista, amely a közelgő
-programokat időrendben mutatja. Ezt a **Rendszer → Listák** oldalon készíted,
+programokat időrendben mutatja. Ezt a **Szerkezet → Listák** oldalon készíted,
 az **Új lista** gombbal:
 
 ![Új lista](../images/hu/list-new.png)
@@ -230,7 +230,7 @@ programot. Ehhez nem kell útvonal.
 ## Átvitel egy másik webhelyre
 
 Ha a tartalomtípust és a listát egy tesztoldalon készítetted el, nem kell az
-élesen mindent újra beállítanod. A **Rendszer → Tartalommodell** oldalon:
+élesen mindent újra beállítanod. A **Szerkezet → Tartalommodell** oldalon:
 
 ![A Tartalommodell oldal](../images/hu/model.png)
 

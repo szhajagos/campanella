@@ -1,4 +1,4 @@
-# Campanella 0.3.2
+# Campanella 0.3.3
 
 [![CI](https://github.com/szhajagos/campanella/actions/workflows/ci.yml/badge.svg)](https://github.com/szhajagos/campanella/actions/workflows/ci.yml)
 
@@ -14,7 +14,19 @@ between sites by export and import; and what 0.3.x keeps is promised (see the
 [compatibility promise](docs/compatibility.md)). Plans are in the
 [ROADMAP](ROADMAP.md), changes in the [CHANGELOG](CHANGELOG.md).
 
-## What is new in 0.3.2
+## What is new in 0.3.3
+
+**Components** (Appearance → Components): a component shows a source with a
+display: a menu as navigation, a **snippet** (a short text such as the opening
+hours) in an info box, a list's newest items as cards, the visitor's login
+button or card. It is made in three steps (what to show, how, the settings),
+for administrators only, and shown to whom it is meant for; a template shows it
+by its machine name, `{{ component('contact_box') }}`, and from 0.3.4 on the
+site's layout will place it. A theme can use the 16 built-in **displays**
+directly too (`display()`). The admin's menu is in groups now
+([guide](docs/guide/en/13-components.md), [PHP API](docs/php-api/28-displays.md)).
+
+## What was new in 0.3.2
 
 **Files to download** (Media → Files): PDF, Office, OpenDocument, text and CSV
 files, checked by their content (never macros, pages or programs), kept outside

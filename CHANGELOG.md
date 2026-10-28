@@ -10,14 +10,18 @@ backward-incompatible.
 
 ## [Unreleased]
 
+## [0.3.3] – 2026-10-28
+
 **Displays and components.** The second step towards 0.4.0: the ways of
 showing something (a menu as navigation, a file as a download, a list as cards,
 the visitor as a login button), and components, made in the admin, that show a
 source with a display; the admin's menu in groups.
 
-**Upgrading:** the upgrade adds a table (schema version 19). If you keep a
-`config/blueprints.php` of your own, add the `snippet` and `component`
-Blueprints from the new one.
+**Upgrading from 0.3.0–0.3.2:** upload the new files and run the upgrade
+(`php bin/campanella install`, or `/admin/upgrade`): it adds a table (schema
+version 19). If you keep a `config/blueprints.php` of your own, add the
+`snippet` and `component` Blueprints from the new one. From older versions: see
+[docs/upgrading.md](docs/upgrading.md).
 
 ### Added
 
@@ -55,6 +59,14 @@ Blueprints from the new one.
   links. The admin's addresses did not change.
 - `DefaultPolicy::ADMINISTRATORS_EDIT` (by default `component`): objects only
   administrators may change, seen as any object.
+- The guide's chapter **13. Components** ([hu](docs/guide/hu/13-komponensek.md),
+  [en](docs/guide/en/13-components.md)): snippets, a component in three steps,
+  who sees it, in a template; the other chapters follow the new menu, and the
+  screenshots are new.
+- Tests: the displays' and the components' (a source read with the visitor's
+  rights, the admin's three steps, administrators only); a browser test making
+  a component; the upgrade test from 0.3.2 too, and a site with a Blueprint of
+  its own called `snippet`.
 
 ### Changed
 
@@ -64,6 +76,12 @@ Blueprints from the new one.
   displays. Their templates are the same (`object/<blueprint>--<mode>.html.twig`,
   `object/<mode>.html.twig`), with the same HTML; they also get `settings`
   (`show_title`; `show_date`, `show_lead`), which the core's templates use.
+
+### Fixed
+
+- The browser tests waited for a click, not for the page it loads, before
+  checking an error message (the forgotten password's, the honeypot's): a
+  failure now and then on a slower machine.
 
 ## [0.3.2] – 2026-10-28
 

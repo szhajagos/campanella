@@ -141,6 +141,8 @@ jobs:
     # Since 0.3.1 also from 0.3.0, the start of the 0.3.x promise; an importer is run on
     # every upgraded site. Since 0.3.2 also from 0.3.1; a file is uploaded and downloaded
     # on every upgraded site, and from 0.2.9 on the old site has a Blueprint called `file`.
+    # Since 0.3.3 also from 0.3.2; components are made and shown on every upgraded site,
+    # and up to 0.3.2 the old site has a Blueprint called `snippet`.
     name: Upgrade from ${{ matrix.from }} – ${{ matrix.db }}
     if: inputs.tag == ''
     runs-on: ubuntu-latest
@@ -156,6 +158,7 @@ jobs:
           - { from: 'v0.2.9', db: 'mysql:8.0' }
           - { from: 'v0.3.0', db: 'mariadb:11.4' }
           - { from: 'v0.3.1', db: 'mysql:8.4' }
+          - { from: 'v0.3.2', db: 'mariadb:10.6' }
 
     services:
       db:

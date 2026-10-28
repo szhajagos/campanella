@@ -123,6 +123,41 @@ version: upgrade it to 0.3.x ([Upgrading](upgrading.md)).
   may see, and puts an apostrophe before a text a spreadsheet would run as a
   formula (`=`, `+`, `-`, `@`).
 
+## Review of the displays and components, 0.3.3 (2026-10-28)
+
+What 0.3.3 added was checked as it was built, with tests for each point:
+
+- **What is shown:** a display's source is read through the Query engine and
+  the policy with the visitor's rights, its relations too; a component is
+  found by a query, so its own `Restricted` setting counts. A component never
+  holds a copy of what it shows, so nothing can be shown that the visitor
+  could not read on its page. (An object a theme passes to `display()` itself
+  is the theme's, as with `render_object()`.)
+- **The stored form:** a source is written strictly (`object:<digits>`,
+  `list:<machine name>`, `current`, `system:<name>`; the patterns are anchored
+  at the very end, so a trailing line break is refused too: found and fixed
+  while building); a display's name likewise; the settings are a JSON object
+  of at most 16 KB, never queried, cast to their fields' types when shown, and
+  anything else is replaced by the default. Checked by the capability on every
+  save, whoever saves it, and by `ComponentService` against the displays.
+- **Output:** every display template runs in the sandbox with autoescaping;
+  a setting's text (a link's text, a placeholder), the search box's words and
+  a snippet's title are escaped, a snippet's body is the HTML filtered on save.
+- **Who changes them:** components are made, changed and deleted only by
+  administrators: the policy (`ADMINISTRATORS_EDIT`) refuses an editor even
+  through the PHP API, and their pages are for the system roles; every POST
+  checks the CSRF token. The admin's menu shows the system groups only to the
+  system roles; the pages behind them check it again.
+- **The visitor's displays:** the admin button only for those who may enter
+  the admin; the login button returns to the page through the login page's own
+  check of the return address (a path of the site only); the login form posts
+  to the login page with its CSRF token and the login guards' fields, so the
+  login's limits apply, and starts a session like the login page (a reason to
+  place it where visitors log in).
+- **Limits:** a list's display shows at most 100 objects, the source picker at
+  most 50, its title search is at most 100 characters with `%` and `_` taken
+  literally.
+
 ## Review of the files to download, 0.3.2 (2026-10-28)
 
 What 0.3.2 added was checked as it was built, with tests for each point:

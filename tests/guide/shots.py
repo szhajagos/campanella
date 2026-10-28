@@ -418,6 +418,60 @@ def menus(page):
     shot(page, "site-menu")
 
 
+# Chapter 13, components (since 0.3.3): a snippet in an info box, and the visitor's card.
+COMPONENTS = {
+    "hu": {
+        "snippet_title": "Elérhetőség",
+        "snippet_body": "Telefon: +36 1 234 5678, e-mail: info@pelda.hu. Hétköznap 9 és 17 óra között.",
+        "box_title": "Elérhetőség az oldalsávban",
+        "box_key": "elerhetoseg_doboz",
+        "card_title": "Bejelentkezett felhasználó",
+        "card_key": "felhasznaloi_kartya",
+    },
+    "en": {
+        "snippet_title": "Contact us",
+        "snippet_body": "Phone: +44 20 7946 0000, e-mail: info@example.com. On weekdays from 9 am to 5 pm.",
+        "box_title": "Contact in the sidebar",
+        "box_key": "contact_box",
+        "card_title": "Logged-in user",
+        "card_key": "user_card",
+    },
+}[LANG]
+
+
+def components(page):
+    """Chapter 13 (since 0.3.3): a snippet, a component in three steps, the list."""
+    page.goto(BASE + "/admin/snippet/new")
+    page.fill("#field-title", COMPONENTS["snippet_title"])
+    page.locator(".jodit-wysiwyg").first.click()
+    page.keyboard.type(COMPONENTS["snippet_body"])
+    shot(page, "snippet-form", full_page=True)
+    page.locator("form.admin-form button[type=submit]:not([name])").click()
+    page.wait_for_load_state("load")
+
+    page.goto(BASE + "/admin/component/new/source?blueprint=snippet")
+    shot(page, "component-source", full_page=True)
+    page.locator("main .list-group a", has_text=COMPONENTS["snippet_title"]).first.click()
+    page.wait_for_load_state("load")
+    shot(page, "component-display", full_page=True)
+    page.locator(".admin-displays a[href*='display=info_box']").first.click()
+    page.wait_for_load_state("load")
+    page.fill("#field-title", COMPONENTS["box_title"])
+    page.fill("#field-machine_name", COMPONENTS["box_key"])
+    page.select_option("#setting-style", "info")
+    shot(page, "component-form", full_page=True)
+    page.locator("form.admin-form button[type=submit]").first.click()
+    page.wait_for_load_state("load")
+
+    page.goto(BASE + "/admin/component/new?source=system:visitor&display=user_card")
+    page.fill("#field-title", COMPONENTS["card_title"])
+    page.fill("#field-machine_name", COMPONENTS["card_key"])
+    page.select_option("#field-visible_to", "users")
+    page.locator("form.admin-form button[type=submit]").first.click()
+    page.wait_for_load_state("load")
+    shot(page, "component-list")
+
+
 def own_types(page, browser, article_url):
     """Chapter 11: an own content type (an events calendar) made in the admin, step by step."""
     import datetime
@@ -767,6 +821,7 @@ def main():
         image_in_text(page, article_url)
         files(page, article_url)
         menus(page)
+        components(page)
         own_types(page, browser, article_url)
         importing(page)
         users(page, browser)
