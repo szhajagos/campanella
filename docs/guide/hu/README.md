@@ -17,8 +17,8 @@ felületet mutatják, a Campanella saját példatartalmával.
 3. [Tartalom](03-tartalom.md): cikkek, oldalak, kategóriák, a szövegszerkesztő,
    közzététel (később is), keresés, átirányítások, törlés.
 4. [Menük](04-menuk.md): a főmenü pontjai, lenyíló almenük, sorrend.
-5. [Képek](05-kepek.md): feltöltés, alternatív szöveg, kép a szövegben,
-   törlés.
+5. [Képek és fájlok](05-kepek.md): feltöltés, alternatív szöveg, kép a
+   szövegben, letölthető fájlok és ki töltheti le őket, a Médiatár, törlés.
 6. [Felhasználók és a saját fiókod](06-felhasznalok.md): szerepkörök, új
    felhasználó, letiltás, profil, belépések, elfelejtett jelszó.
 7. [Kapcsolati űrlap és adatvédelem](07-kapcsolati-urlap.md): az űrlap, az

@@ -1,4 +1,4 @@
-# Campanella 0.3.1
+# Campanella 0.3.2
 
 [![CI](https://github.com/szhajagos/campanella/actions/workflows/ci.yml/badge.svg)](https://github.com/szhajagos/campanella/actions/workflows/ci.yml)
 
@@ -14,7 +14,17 @@ between sites by export and import; and what 0.3.x keeps is promised (see the
 [compatibility promise](docs/compatibility.md)). Plans are in the
 [ROADMAP](ROADMAP.md), changes in the [CHANGELOG](CHANGELOG.md).
 
-## What is new in 0.3.1
+## What is new in 0.3.2
+
+**Files to download** (Media → Files): PDF, Office, OpenDocument, text and CSV
+files, checked by their content (never macros, pages or programs), kept outside
+the web root and always sent as a download, for **everyone**, for the
+**logged-in users**, or for **some roles** of the site's own (e.g. members). The
+**media library** shows the images and the files together, with one upload
+form; the editor links the selected text to a file
+([guide](docs/guide/en/05-images.md), [PHP API](docs/php-api/27-files.md)).
+
+## What was new in 0.3.1
 
 **Importers** (System → Importers): the rows of a CSV file (e.g. saved from
 Excel) or the objects of a JSON file become objects of a Blueprint, by a
@@ -24,7 +34,7 @@ be undone; it never deletes. On the command line too, e.g. from cron
 (`import:run`). Every list of the admin can be taken out as CSV in the same
 form ([guide](docs/guide/en/12-importing.md), [PHP API](docs/php-api/26-importers.md)).
 
-## What is new in 0.3.0
+## What was new in 0.3.0
 
 0.3.0 brings together what 0.2.1–0.2.9 built (below), checked, documented and
 promised for the longer term:

@@ -92,9 +92,13 @@ logged-in actor with roles, the `users` one for any logged-in actor):
 ```
 NOT HasCapability(submitted)
 AND ((NOT HasCapability(publishable)) OR (status = 'published' AND published_at <= now))
-AND ((NOT HasCapability(restricted)) OR visible_to = 'public' OR visible_to = 'users'
+AND (visible_to IS NULL OR visible_to = 'public' OR visible_to = 'users'
      OR (visible_to = 'roles' AND visible_roles IN (the actor's roles)))
 ```
+
+(`visible_to IS NULL`: not Restricted. The field is required where the
+capability is, so only an object without it has no value: a LEFT JOIN, with no
+subquery per object.)
 
 ## Custom policy
 

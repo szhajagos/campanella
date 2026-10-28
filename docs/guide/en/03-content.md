@@ -71,7 +71,8 @@ The toolbar's buttons from left to right:
 | **B**, *I*, strikethrough, subscript, superscript | Text styles. |
 | Bulleted and numbered list | Lists; the small arrow chooses the bullet or number style. |
 | Chain | A link: select the text, click it, and enter the address. |
-| Image | Uploads an image into the text (chapter 5). |
+| Page | A link to an uploaded file, from the selected text (chapter 5). |
+| Image, folder | Uploads an image into the text, or inserts one uploaded before (chapter 5). |
 | Table, horizontal line | Inserts a table, or a dividing line. |
 | Eraser | Removes the formatting of the selected text. |
 | Undo, redo | Takes back the last change, or does it again. |

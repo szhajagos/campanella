@@ -136,6 +136,20 @@ IMPORT = {
     },
 }[LANG]
 
+# Chapter 5's files to download (since 0.3.2): one for everyone, one for the members.
+FILES = {
+    "hu": {
+        "public": "Őszi programfüzet.pdf", "public_text": "Az őszi programok",
+        "members": "Tagnévsor 2026.csv", "members_rows": ["Név;Belépés éve", "Kovács Anna;2019", "Szabó Péter;2023"],
+        "link_text": "Letölthető programfüzet",
+    },
+    "en": {
+        "public": "Autumn programme.pdf", "public_text": "The autumn programme",
+        "members": "Members 2026.csv", "members_rows": ["Name;Joined", "Anna Smith;2019", "Peter Brown;2023"],
+        "link_text": "Download the programme",
+    },
+}[LANG]
+
 # The example administrator of the guide, in its language.
 ADMIN = {
     "hu": {"name": "Kovács Anna", "email": "anna@pelda.hu", "password": "Hosszu-jelszo-2026"},
@@ -323,6 +337,69 @@ def image_in_text(page, article_url):
     href = view.get_attribute("href")
     page.goto(BASE + href if href.startswith("/") else href)
     shot(page, "site-article", full_page=True)
+
+
+def example_pdf(text):
+    """A small, real PDF with one line of text (so no document is needed in the repository)."""
+    stream = "BT /F1 24 Tf 72 720 Td (%s) Tj ET" % text.encode("ascii", "replace").decode()
+    objects = [
+        "<< /Type /Catalog /Pages 2 0 R >>",
+        "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>",
+        "<< /Length %d >>\nstream\n%s\nendstream" % (len(stream), stream),
+        "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    ]
+    out = "%PDF-1.4\n"
+    offsets = []
+    for number, body in enumerate(objects, start=1):
+        offsets.append(len(out))
+        out += "%d 0 obj\n%s\nendobj\n" % (number, body)
+    xref = len(out)
+    out += "xref\n0 %d\n0000000000 65535 f \n" % (len(objects) + 1) + "".join("%010d 00000 n \n" % o for o in offsets)
+    out += "trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (len(objects) + 1, xref)
+    return out.encode("latin-1")
+
+
+def files(page, article_url):
+    """Chapter 5, files to download (since 0.3.2): the Files list, who may download, the media library, the file picker."""
+    # The site's own role, as its owner sets it in config/local.php.
+    set_local_config("<?php\nreturn [\n    'debug' => false,\n    'users' => ['roles' => ['member']],\n];\n")
+    # Given as buffers with their names: the browser here may not take non-ASCII file paths.
+    public = {"name": FILES["public"], "mimeType": "application/pdf", "buffer": example_pdf(FILES["public_text"])}
+    members = {"name": FILES["members"], "mimeType": "text/csv", "buffer": ("\r\n".join(FILES["members_rows"]) + "\r\n").encode("utf-8")}
+
+    page.goto(BASE + "/admin/file")
+    page.set_input_files("#upload-file", public)
+    page.locator("table.admin-list tbody tr").first.wait_for(timeout=15000)
+    page.goto(BASE + "/admin/file")
+    page.check("#upload-visible-roles")
+    page.check("#upload-role-member")
+    shot(page, "file-upload", element="form[data-media-upload]")
+    page.set_input_files("#upload-file", members)
+    page.wait_for_timeout(2500)
+    page.goto(BASE + "/admin/file")
+    shot(page, "file-list")
+    page.locator("table.admin-list tbody a", has_text=os.path.splitext(FILES["members"])[0]).first.click()
+    page.wait_for_load_state("load")
+    shot(page, "file-form", full_page=True)
+
+    page.goto(BASE + "/admin/media")
+    shot(page, "media-library")
+
+    # The editor's file picker: the selected text becomes a link to the file.
+    page.goto(article_url)
+    page.locator(".jodit-wysiwyg").first.click()
+    page.keyboard.press("Control+End")
+    page.keyboard.press("Enter")
+    page.keyboard.type(FILES["link_text"])
+    page.keyboard.press("Shift+Home")
+    page.locator(".jodit-toolbar-button_campanellaFiles button").first.click()
+    page.locator(".campanella-picker__file").first.wait_for(timeout=10000)
+    shot(page, "editor-file", element=".jodit-dialog__panel")
+    page.locator(".campanella-picker__file", has_text=os.path.splitext(FILES["public"])[0]).first.click()
+    page.wait_for_function("() => (document.querySelector('textarea[data-editor]') || {}).value.includes('/files/')", timeout=5000)
+    page.locator("form.admin-form button[type=submit]:not([name])").click()
+    page.wait_for_load_state("load")
 
 
 def menus(page):
@@ -688,6 +765,7 @@ def main():
         article_url = content(page)
         images(page)
         image_in_text(page, article_url)
+        files(page, article_url)
         menus(page)
         own_types(page, browser, article_url)
         importing(page)

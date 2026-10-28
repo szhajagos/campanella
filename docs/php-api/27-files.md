@@ -149,6 +149,7 @@ first.
 | `url(CampanellaObject $file): string` | The download address, relative to the site root: `/files/12/aprilisi-hirlevel.pdf` |
 | `path(CampanellaObject $file): string` | The stored file's absolute path |
 | `isAvailable(): bool` | Whether the Blueprint exists and has `Downloadable` ([below](#upgrading)) |
+| `unavailableReason(): ?string` | Why not: `yielded` (a Blueprint of its name was made in the admin), `missing` (e.g. an older `config/blueprints.php` was kept), `not_files`; null if available. The system page tells it |
 | `blueprint(): string` | `file` |
 | `maxUploadBytes(): int` | The largest file that can be uploaded: `files.max_bytes`, or less if PHP's limits are lower |
 | `maxBytesSetting(): int` | `files.max_bytes` |

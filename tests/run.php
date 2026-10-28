@@ -2285,7 +2285,7 @@ test('FileInspector: files by their content; macros, programs and pages refused'
     check($directory->read('nincs') === null && !$directory->isEncrypted('mimetype'));
 });
 
-test('FileService: uploading a file, its download name, deleting it with its file', function () use ($repository, $policy, $admin, $editorUser): void {
+test('FileService: uploading a file, its download name, deleting it with its file', function () use ($repository, $policy, $admin, $editorUser, $blueprints): void {
     $dir = sys_get_temp_dir() . '/campanella-files-' . bin2hex(random_bytes(4));
     $storage = new \Campanella\Media\FileStorage($dir);
     $objects = new ObjectService($repository, $policy);
@@ -2324,6 +2324,13 @@ test('FileService: uploading a file, its download name, deleting it with its fil
     check(\Campanella\Media\FileService::downloadName('.pdf', 'pdf') === 'file.pdf' && \Campanella\Media\FileService::downloadName("szamla\u{202E}fdp.exe", 'pdf') === 'szamla-fdp.pdf');
     check(\Campanella\Media\FileService::downloadName(str_repeat('a', 300) . '.pdf', 'docx') === str_repeat('a', 80) . '.docx', 'the content\'s extension, a limited length');
     check(\Campanella\Media\FileService::titleFrom('.pdf') === 'file');
+    // Why files may be off: the reason the system page tells.
+    $withFiles = new \Campanella\Media\FileService($objects, $repository, $policy, new \Campanella\Media\FileInspector(), $storage, $blueprints);
+    check($withFiles->isAvailable() && $withFiles->unavailableReason() === null);
+    $other = new \Campanella\Media\FileService($objects, $repository, $policy, new \Campanella\Media\FileInspector(), $storage, $blueprints, 'nincs_ilyen');
+    check(!$other->isAvailable() && $other->unavailableReason() === 'missing');
+    $notFiles = new \Campanella\Media\FileService($objects, $repository, $policy, new \Campanella\Media\FileInspector(), $storage, $blueprints, 'page');
+    check($notFiles->unavailableReason() === 'not_files');
     throws(\InvalidArgumentException::class, fn () => $storage->path('../../config/local.php'));
     throws(\InvalidArgumentException::class, fn () => $storage->path('2026/10/' . str_repeat('a', 24) . '.php'));
 });

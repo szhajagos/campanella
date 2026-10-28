@@ -35,7 +35,8 @@ The menu on the left:
 | Item | What it is for |
 |---|---|
 | **Dashboard** | An overview: how many items of each kind of content there are, and what changed lately. |
-| **Content** | The lists of the kinds of content: **Article**, **Page**, **Image**, **Category**, **Menu**, **Menu item**, and your own kinds of content (**Esemény** in the sample content). Here you create, edit and publish content (chapters 3–5 and 11). |
+| **Content** | The lists of the kinds of content: **Article**, **Page**, **Category**, **Menu**, **Menu item**, and your own kinds of content (**Esemény** in the sample content). Here you create, edit and publish content (chapters 3–4 and 11). |
+| **Media** | The uploaded images and files together, with the **Images** and **Files** lists under it (chapter 5). |
 | **Submissions** | The messages from the contact form (chapter 7). For administrators only. |
 | **Users** | Managing the accounts (chapter 6). For administrators only. |
 | **My profile** | Your own name and password, and where you are logged in. |
@@ -78,7 +79,7 @@ page titles, to search engines, and when shared.
 
 - **Share image:** shown when someone shares your site on a social site and
   the page has no image of its own. Ideally 1200×630 pixels. Upload it first
-  in the **Image** list (chapter 5), then choose it here.
+  in the **Images** list (chapter 5), then choose it here.
 
 **Privacy**
 

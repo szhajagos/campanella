@@ -24,7 +24,7 @@ final class FileCheck
             $group = 'admin.system.group.media';
             if (!$files->isAvailable()) {
                 return [new CheckResult($group, 'admin.system.files', CheckStatus::Warning, 'admin.system.off',
-                    new Message('admin.system.files_unavailable', ['blueprint' => $files->blueprint()]))];
+                    new Message('admin.system.files_' . $files->unavailableReason(), ['blueprint' => $files->blueprint()]))];
             }
             $results = [$storage->isWritable()
                 ? new CheckResult($group, 'admin.system.files_folder', CheckStatus::Ok, $storage->directory())

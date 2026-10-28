@@ -72,7 +72,8 @@ Az eszköztár gombjai balról jobbra:
 | **B**, *I*, áthúzás, alsó és felső index | Betűstílusok. |
 | Felsorolás, számozott lista | Listák. A kis nyíllal a jelölés fajtája is választható. |
 | Lánc | Link. Jelöld ki a szöveget, kattints rá, és írd be a címet. |
-| Kép | Kép feltöltése a szövegbe (5. fejezet). |
+| Lap | Hivatkozás egy feltöltött fájlra: a kijelölt szövegből (5. fejezet). |
+| Kép, mappa | Kép feltöltése a szövegbe, illetve egy már feltöltött kép beszúrása (5. fejezet). |
 | Táblázat, vízszintes vonal | Táblázat, illetve elválasztó vonal beszúrása. |
 | Radír | A kijelölt szöveg formázásának törlése. |
 | Visszavonás, újra | Az utolsó módosítás visszavonása vagy megismétlése. |

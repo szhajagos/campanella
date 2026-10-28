@@ -36,7 +36,8 @@ A bal oldali menü:
 | Menüpont | Mire való? |
 |---|---|
 | **Irányítópult** | Áttekintés: hány elem van az egyes tartalomtípusokból, és mi változott legutóbb. |
-| **Tartalom** | A tartalomtípusok listái: **Cikk**, **Oldal**, **Kép**, **Kategória**, **Menü**, **Menüpont**, és a saját tartalomtípusaid (a példatartalomban az **Esemény**). Itt hozol létre, szerkesztesz és teszel közzé tartalmat (3–5. és 11. fejezet). |
+| **Tartalom** | A tartalomtípusok listái: **Cikk**, **Oldal**, **Kategória**, **Menü**, **Menüpont**, és a saját tartalomtípusaid (a példatartalomban az **Esemény**). Itt hozol létre, szerkesztesz és teszel közzé tartalmat (3–4. és 11. fejezet). |
+| **Médiatár** | A feltöltött képek és fájlok együtt, alatta a **Képek** és a **Fájlok** listája (5. fejezet). |
 | **Beküldések** | A kapcsolati űrlapon érkezett üzenetek (7. fejezet). Csak az adminisztrátorok látják. |
 | **Felhasználók** | A fiókok kezelése (6. fejezet). Csak az adminisztrátorok látják. |
 | **Profilom** | A saját neved, jelszavad, és hogy hol vagy belépve. |
@@ -79,7 +80,7 @@ webhely: az oldalcímekben, a keresőknek és megosztáskor.
 
 - **Megosztási kép:** ez a kép jelenik meg, ha valaki az oldaladat
   megosztja egy közösségi oldalon, és az adott oldalnak nincs saját képe.
-  Ideális mérete 1200×630 képpont. Előbb fel kell töltened a **Kép** listában
+  Ideális mérete 1200×630 képpont. Előbb fel kell töltened a **Képek** listában
   (5. fejezet), utána választhatod ki itt.
 
 **Adatvédelem**

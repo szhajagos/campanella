@@ -60,6 +60,24 @@ final class FileService
     }
 
     /**
+     * Why files are not available (null: they are): `yielded` (a Blueprint of that name was
+     * made in the admin), `missing` (no such Blueprint, e.g. an older config/blueprints.php
+     * was kept), `not_files` (it has no Downloadable capability).
+     */
+    public function unavailableReason(): ?string
+    {
+        if ($this->isAvailable()) {
+            return null;
+        }
+
+        return match (true) {
+            in_array($this->blueprint, $this->blueprints?->yielded() ?? [], true) => 'yielded',
+            $this->blueprints?->find($this->blueprint) === null => 'missing',
+            default => 'not_files',
+        };
+    }
+
+    /**
      * @param string $file The uploaded file (e.g. the temporary file of a PHP upload)
      * @param string $originalName The name the uploader gave it: the title, and the download's name
      * @param string $visibleTo Who may download it: Restricted::PUBLIC, USERS or ROLES

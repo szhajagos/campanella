@@ -64,4 +64,4 @@ A **Létrehozás** után a menüpont azonnal megjelenik a webhelyen:
 ---
 
 Előző: [3. Tartalom](03-tartalom.md) · Következő:
-[5. Képek](05-kepek.md) · [Tartalomjegyzék](README.md)
+[5. Képek és fájlok](05-kepek.md) · [Tartalomjegyzék](README.md)

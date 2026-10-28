@@ -10,6 +10,7 @@ what to back up and how, and how to upgrade Campanella to a newer version.
 |---|---|---|
 | **The database** | On the host's database server | All the content, users, settings and messages. |
 | **The uploaded images** | The `public/media/` folder | The images' files (the database holds only their details). |
+| **The uploaded files** | The `var/files/` folder | The files to download (since 0.3.2). The files for members only are here too: keep the backup as safe as the site. |
 | **The settings file** | `config/local.php` | The database and e-mail settings. |
 | *Your own theme, if any* | `themes/` | If someone made a custom look for the site. |
 
@@ -45,7 +46,7 @@ something if it can be restored.
 1. Restore the database from the backup file with phpMyAdmin's **Import**
    (phpMyAdmin accepts the `.sql.gz` file compressed too). The backup drops
    the tables and creates them again as they were.
-2. Put the `public/media/` folder back with the file manager.
+2. Put the `public/media/` and `var/files/` folders back with the file manager.
 
 Whatever happened since the backup (new content, messages) is lost by the
 restore.

@@ -17,7 +17,8 @@ interface, with Campanella's own sample content (which is in Hungarian).
 3. [Content](03-content.md): articles, pages, categories, the editor,
    publishing (later too), the search, redirects, deleting.
 4. [Menus](04-menus.md): the main menu's items, drop-downs, the order.
-5. [Images](05-images.md): uploading, alternative text, images in texts,
+5. [Images and files](05-images.md): uploading, alternative text, images in
+   texts, files to download and who may download them, the media library,
    deleting.
 6. [Users and your own account](06-users.md): roles, new users, blocking,
    the profile, logins, a forgotten password.

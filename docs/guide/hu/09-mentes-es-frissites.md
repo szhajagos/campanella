@@ -10,6 +10,7 @@ hogyan ments, és hogyan frissítsd a Campanellát egy újabb verzióra.
 |---|---|---|
 | **Az adatbázis** | A tárhely adatbázis-szerverén | Minden tartalom, felhasználó, beállítás és üzenet. |
 | **A feltöltött képek** | A `public/media/` mappa | A képek fájljai (az adatbázisban csak az adataik vannak). |
+| **A feltöltött fájlok** | A `var/files/` mappa | A letölthető fájlok (0.3.2-től). A csak tagoknak szóló fájlok is itt vannak: a mentést ugyanúgy őrizd, mint a webhelyet. |
 | **A beállítási fájl** | `config/local.php` | Az adatbázis és az e-mail beállításai. |
 | *A saját téma, ha van* | `themes/` | Ha valaki egyedi kinézetet készített az oldalnak. |
 
@@ -44,7 +45,7 @@ mentés csak akkor ér valamit, ha vissza is lehet tölteni.
 1. Az adatbázist a phpMyAdmin **Importálás** funkciójával töltsd vissza a
    mentett fájlból (a `.sql.gz` fájlt a phpMyAdmin tömörítve is elfogadja).
    A mentés a táblákat törli, és a mentett állapotukban hozza létre újra.
-2. A `public/media/` mappát a fájlkezelővel töltsd vissza.
+2. A `public/media/` és a `var/files/` mappát a fájlkezelővel töltsd vissza.
 
 Ami a mentés óta történt (új tartalom, üzenetek), az a visszaállítással
 elveszik.

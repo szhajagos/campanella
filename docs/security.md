@@ -55,6 +55,21 @@ version: upgrade it to 0.3.x ([Upgrading](upgrading.md)).
 - **Files:** uploaded images are recognised by their content and re-encoded;
   random names; the media folder runs no script; backups are not reachable
   from the web.
+- **Files to download** (since 0.3.2): recognised by their content (PDF,
+  Office, OpenDocument, text; the name only tells a `.txt` from a `.csv`), and
+  stored and downloaded with the extension of what they are; macro-enabled
+  Office files (also renamed ones), OpenDocument files with scripts, HTML, SVG
+  and programs are never accepted, and ZIP only by a setting; the archives are
+  read without unpacking (a bounded read of the few entries that tell their
+  type). Stored outside the web root under random names; every download goes
+  through PHP: `Content-Disposition: attachment`, `nosniff`, a
+  Content-Security-Policy that allows nothing, the same headers on every web
+  server. **Who may see an object** (`Restricted`: everyone, logged-in users,
+  some roles) is applied by the access policy to every query and check, so a
+  restricted file is left out of lists, relations, the editor's picker and the
+  search, and its address answers 404 to others, as if it did not exist; a
+  role counts only for a logged-in user. Restricted downloads are
+  `noindex` and kept only by the visitor's own browser.
 - **Installing and upgrading:** from the browser only with a long key (wrong
   keys limited) or as an administrator; backups before migrations.
 - **E-mail:** the mail server's address (with its password) is set only in
@@ -94,6 +109,35 @@ version: upgrade it to 0.3.x ([Upgrading](upgrading.md)).
   with its own checks). The admin's **CSV export** shows only what the user
   may see, and puts an apostrophe before a text a spreadsheet would run as a
   formula (`=`, `+`, `-`, `@`).
+
+## Review of the files to download, 0.3.2 (2026-10-28)
+
+What 0.3.2 added was checked as it was built, with tests for each point:
+
+- **The upload:** the type comes from the content, never from the name or the
+  browser's claim; a ZIP archive's table of contents is read with bounds (at
+  most 20 000 entries, no ZIP64, entries read up to 2 MB unpacked, so an
+  archive bomb cannot fill the memory); a macro-enabled document is refused
+  by its content types and by its entries (VBA, ActiveX, Basic, scripts),
+  under any name; a file that is none of the accepted types is refused, and
+  nothing is left behind of a refused or failed upload.
+- **The storage:** outside the web root (`var/files/`, with a `.htaccess` that
+  denies everything in case it is reachable); paths are checked against their
+  fixed form, so no other file can be read or deleted through them.
+- **The download:** only through the access policy (a file the visitor may
+  not see is a 404, as is a missing one, without telling which); always an
+  attachment with an ASCII name made from the uploaded one; `nosniff` and a
+  sandboxing CSP; streamed from the disk; a public file may be cached, a
+  restricted one is `private`, and with a session `no-store`.
+- **The access:** `Restricted` is a system capability (a Blueprint made in
+  the admin cannot have it yet: restricted pages would need the same in the
+  site's menus and sitemap first); `visible_to` is a choice, the roles have a
+  strict pattern; the admin's forms send only the roles offered, and an
+  unknown one only restricts further. The editor's file picker lists only the
+  files the user may see.
+- **Compatibility as security:** a Blueprint named `file` made in the admin
+  before 0.3.2 keeps its objects (the new one is left out), rather than being
+  hidden by the upgrade.
 
 ## Security review for 0.3.0 (2026-10-24)
 
@@ -275,6 +319,16 @@ reach its database from the review's environment: it runs in CI instead.
 ## Known and accepted (decided 2026-10-08)
 
 Weighed again for 0.2.0 on 2026-10-11: each still stands.
+
+- **What a document does when opened is not checked** (2026-10-28): a PDF
+  can carry scripts, an Office document links or embedded objects. The files
+  are always downloaded, never shown in the site's pages, so it is the
+  reader's program (and its protections) that opens them, as with any file
+  from the web. Refusing every PDF with scripts would refuse many forms; the
+  check would not be complete either (scripts can hide in compressed parts).
+- **A link to a restricted file can be seen by anyone who sees the text**
+  (2026-10-28): its address tells the file's ID and download name, not its
+  content. Put such links on pages meant for the same readers.
 
 - **An account can be locked for 15 minutes** by someone who sends 30 wrong
   passwords for it from several addresses. This is the price of limiting

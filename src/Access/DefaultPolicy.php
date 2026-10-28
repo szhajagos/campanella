@@ -75,8 +75,10 @@ final class DefaultPolicy implements AccessPolicy
     /** The objects the actor may see as far as Restricted goes (since 0.3.2). */
     private static function restriction(Actor $actor): Group
     {
+        // Not Restricted: no row in its table (a LEFT JOIN gives NULL; `visible_to` is required
+        // where there is one), which needs no subquery per object.
         $visible = [
-            new HasCapability('restricted', negated: true),
+            new FieldCondition('visible_to', Operator::IsNull),
             new FieldCondition('visible_to', Operator::Equals, Restricted::PUBLIC),
         ];
         if (!$actor->isAnonymous()) {

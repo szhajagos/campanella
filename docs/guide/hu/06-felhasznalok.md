@@ -11,6 +11,7 @@ elfelejtett jelszó.
 | **Adminisztrátor** | Mindent: tartalom, felhasználók, Beküldések, a Rendszer oldal és a beállítások. |
 | **Szerkesztő** | Tartalmat hoz létre, szerkeszt és publikál. Nem töröl, nem látja a Beküldéseket, nem kezel felhasználókat, és nem látja a Rendszer oldalt. |
 | *Szerepkör nélkül* | Be tud lépni, de az adminba nem. |
+| *A webhely saját szerepkörei* (például **Tag**) | Mint szerepkör nélkül, és letöltheti a neki szóló fájlokat. A webhely gazdája adja meg őket (5. fejezet, [Saját szerepkörök](05-kepek.md#saját-szerepkörök)). |
 
 Csak annyi adminisztrátor legyen, amennyi feltétlenül kell: aki csak írni
 fog, annak elég a szerkesztő szerepkör.
@@ -144,6 +145,6 @@ Tudnivalók:
 
 ---
 
-Előző: [5. Képek](05-kepek.md) · Következő:
+Előző: [5. Képek és fájlok](05-kepek.md) · Következő:
 [7. Kapcsolati űrlap és adatvédelem](07-kapcsolati-urlap.md) ·
 [Tartalomjegyzék](README.md)

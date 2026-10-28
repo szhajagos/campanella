@@ -1,12 +1,14 @@
-# 5. Képek
+# 5. Képek és fájlok
 
-A képeket a Campanella maga tárolja: feltöltöd őket, és a szövegekbe, illetve
-megosztási képnek használod őket. Ez a fejezet arról szól, hogyan.
+A képeket és a letölthető fájlokat (dokumentumokat, táblázatokat) a
+Campanella maga tárolja: feltöltöd őket, és a szövegekben használod őket. Ez a
+fejezet arról szól, hogyan. Mindkettő a bal oldali menü **Médiatár** pontja
+alatt van: a **Képek** és a **Fájlok** a saját listájuk, a Médiatár együtt
+mutatja őket ([lent](#a-médiatár)).
 
-## Feltöltés a Kép listában
+## Feltöltés a Képek listában
 
-A bal oldali menüben a **Kép** a feltöltött képek listáját nyitja meg, felül a
-feltöltő mezővel:
+A **Képek** a feltöltött képek listáját nyitja meg, felül a feltöltő mezővel:
 
 ![A képek listája a feltöltő mezővel](../images/hu/image-list.png)
 
@@ -76,19 +78,115 @@ A szöveg mentése után a cikk így jelenik meg a webhelyen:
 
 ![A cikk a képpel a webhelyen](../images/hu/site-article.png)
 
+## Fájlok
+
+Letölthető fájlt (például programfüzetet, jelentkezési lapot, tagnévsort)
+a **Fájlok** listán tölthetsz fel. Elfogadott fájlok: **PDF, Word (DOCX),
+Excel (XLSX), PowerPoint (PPTX), OpenDocument (ODT, ODS, ODP), szöveg (TXT) és
+CSV**, legfeljebb 20 MB-osak (ha a tárhely PHP-ja kevesebbet enged, a mező
+alatt az látszik).
+
+![A fájlok feltöltő mezője, a láthatósággal](../images/hu/file-upload.png)
+
+- Válassz egy vagy több fájlt, vagy húzd őket a dobozba: a feltöltés azonnal
+  elindul.
+- Feltöltés előtt add meg, **ki töltheti le** őket (a dobozban jelölt
+  beállítás a következő feltöltésekre érvényes):
+  - **Mindenki:** a webhely bármely látogatója;
+  - **Bejelentkezett felhasználók:** csak aki be van lépve;
+  - **Egyes szerepkörök:** csak azok a bejelentkezett felhasználók, akiknek
+    a bejelölt szerepkörük van (például a *Tag*). Ez a lehetőség akkor jelenik
+    meg, ha a webhelynek vannak saját szerepkörei ([lent](#saját-szerepkörök)).
+- Az adminisztrátorok és a szerkesztők minden fájlt letölthetnek.
+
+A Campanella feltöltéskor **a fájl tartalmát** nézi meg, nem a nevét: egy
+átnevezett fájl a valódi típusa szerint kerül be, vagy nem fogadja el.
+**Makrót vagy szkriptet tartalmazó fájlt** (például `.docm`, makrós Excel
+munkafüzet, szkriptes OpenDocument) nem fogad el, akkor sem, ha a neve
+`.docx`: mentsd el makrók nélkül. Weboldalt (HTML), SVG-t és programot sem
+lehet feltölteni. A ZIP-et a tárhely gazdája engedélyezheti, de csak ha
+mindenkiben megbízik, aki feltölt: a tartalmát nem lehet ellenőrizni.
+
+A lista mutatja a fájlok típusát, méretét, és azt, ki láthatja őket:
+
+![A fájlok listája](../images/hu/file-list.png)
+
+A fájl címe kezdetben a fájl neve, a **letöltési neve** pedig ugyanez, ékezet
+és szóköz nélkül (`Őszi programfüzet.pdf` → `oszi-programfuzet.pdf`): ezen a
+néven tölti le a látogató.
+
+### Egy fájl adatai, és ki láthatja
+
+A fájl címére kattintva megnyílik a szerkesztő oldala:
+
+![Egy fájl szerkesztése](../images/hu/file-form.png)
+
+- **Cím:** így jelenik meg a listákban és a fájlválasztóban.
+- **Ki láthatja:** mint feltöltéskor. Ha *Egyes szerepkörök*, a
+  **Szerepkörök** közül jelöld be, kiknek szól.
+- Jobb oldalt a fájl típusa, mérete és **címe**: ezzel a címmel hivatkozhatsz
+  rá bárhonnan. A webhely mindig letöltésként adja (a böngésző nem nyitja meg
+  oldalként), és csak annak, aki láthatja: másnak úgy válaszol, mintha nem is
+  létezne („Az oldal nem található.”).
+
+### Saját szerepkörök
+
+Az adminisztrátor és a szerkesztő mellett a webhely gazdája saját
+szerepköröket is megadhat a `config/local.php` fájlban, például egy *Tag*
+szerepkört:
+
+```php
+'users' => ['roles' => ['member']],
+```
+
+(A `member` neve a magyar felületen *Tag*.) Ezután a felhasználók
+szerkesztésekor ez a szerepkör is bejelölhető (6. fejezet), és egy fájl
+csak a tagoknak szólhat. Ez a szerepkör az adminba nem enged be: a tag csak a
+webhelyen lép be, és letöltheti, ami neki szól.
+
+### Fájl a szövegben
+
+A szövegszerkesztő **fájl** gombja (*Hivatkozás feltöltött fájlra*) a
+feltöltött fájlokat mutatja. Jelöld ki a szövegben azt a részt, amelyből
+hivatkozás legyen (például „Letölthető programfüzet”), kattints a gombra,
+majd a fájlra:
+
+![A szerkesztő fájlválasztója](../images/hu/editor-file.png)
+
+A kijelölt szöveg a fájlra mutató hivatkozás lesz. Ha nem jelölsz ki
+semmit, a fájl címe kerül be hivatkozásként. A *Nem mindenkinek* jelzés a
+korlátozott fájlokat mutatja: egy ilyen fájl hivatkozása a többi látogatónak
+nem vezet sehová, ezért azt olyan oldalra tedd, amelyet csak azok olvasnak,
+akiknek szól.
+
+## A Médiatár
+
+A bal oldali menü **Médiatár** pontja a képeket és a fájlokat együtt mutatja,
+a legújabbal kezdve:
+
+![A Médiatár](../images/hu/media-library.png)
+
+- Felül egyetlen feltöltő mező van: ami kép, az a Képek közé kerül, minden
+  más a Fájlok közé (a *Ki töltheti le* beállítás a fájlokra vonatkozik).
+- A **Mind**, **Képek**, **Fájlok** gombokkal szűkíthetsz, és cím szerint
+  kereshetsz.
+
 ## Megosztási kép
 
 Az a kép, amely akkor jelenik meg, ha valaki az oldaladat egy közösségi
 oldalon megosztja, a **Rendszer → Webhely-beállítások** oldalon választható ki
 (2. fejezet). Ideális mérete 1200×630 képpont.
 
-## Kép törlése
+## Kép vagy fájl törlése
 
 Egy kép szerkesztő oldalán a **Törlés** gomb előbb megmutatja, **mely
 szövegekben szerepel a kép**. Ha mégis törlöd, azokban a szövegekben a kép
 helyén egy hibás kép (vagy csak az alternatív szövege) látszik, ezért előbb
 vedd ki a képet ezekből a szövegekből, vagy cseréld le. A törléssel a fájl és a kisebb változatai is
 törlődnek, és nem állíthatók vissza.
+
+Egy fájl törlése ugyanígy megmutatja, mely szövegek hivatkoznak rá: törlés után
+ezek a hivatkozások nem vezetnek sehová.
 
 ---
 

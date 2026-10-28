@@ -1,14 +1,14 @@
 # Upgrading to 0.3.x
 
 This guide takes a site from **any 0.3.x, 0.2.x or 0.1.x version** to the newest
-0.3.x (now **0.3.1**) in one go. You do not need to install
+0.3.x (now **0.3.2**) in one go. You do not need to install
 the versions in between: one upgrade runs every change since your version. The
 CHANGELOG has the same steps version by version; this page puts them
 together, and adds what to check and how to go back.
 
 | Your version | What to do |
 |---|---|
-| 0.3.0 | Upload the new files and run the upgrade (steps 1–3): 0.3.1 adds the importers' tables (schema 17). Nothing else to do. CI upgrades 0.3.0 to the current code on every push. |
+| 0.3.0, 0.3.1 | Upload the new files and run the upgrade (steps 1–3): 0.3.1 adds the importers' tables (schema 17), 0.3.2 the files' (schema 18). Back up `var/files/` from now on (step 1). CI upgrades 0.3.0 and 0.3.1 to the current code on every push. |
 | 0.2.0 – 0.2.9 | This guide. Supported and tested: CI upgrades 0.2.0 and 0.2.9 to the current code on every push, the latter with a content model made in the admin (`tests/upgrade/run.sh`). |
 | 0.1.0 – 0.1.5 | This guide, and also [From 0.1.x](#from-01x) below. Tested too: CI upgrades 0.1.0 and 0.1.5. |
 | 0.0.6, 0.0.7 | The upgrade runs (their schema version, 6, is accepted), but it is not tested. Also read the [0.1.0 section of the CHANGELOG](../CHANGELOG.md#010--2026-10-08). |
@@ -39,13 +39,14 @@ working. What 0.3.x promises is in [Compatibility](compatibility.md).
 1. **Make a backup.** You need all three parts to go back:
    - the database: `php bin/campanella db:backup`, which writes into
      `var/backups/`. The upgrade makes one too, but have your own;
-   - the uploaded files: the `public/media/` folder;
+   - the uploaded files: the `public/media/` folder (images), and from 0.3.2
+     on the `var/files/` folder (files to download);
    - your own files: `config/local.php`, your theme (`themes/`), and any
      file of the program you changed (e.g. `config/blueprints.php`).
 
    Copy them off the server.
 
-2. **Upload the new version.** Use the release package (`campanella-0.3.1.zip`
+2. **Upload the new version.** Use the release package (`campanella-0.3.2.zip`
    from the GitHub release); it includes the `vendor/` folder. With git:
    `git pull`, then `composer install --no-dev`.
 
@@ -55,7 +56,9 @@ working. What 0.3.x promises is in [Compatibility](compatibility.md).
    `templates/`, `vendor/`). Do not copy them over the old ones: files removed
    since your version would stay behind. If you changed `config/blueprints.php`,
    compare your copy with the new one (0.2.8 added `'admin_columns'` to the
-   articles) and keep yours.
+   articles, 0.3.2 the `file` Blueprint) and keep yours, with what is new
+   added: without the `file` Blueprint there are no files to download (the
+   System page says so).
 
 3. **Run the upgrade.** Until then the site answers 503 to visitors, but
    logging in works. Either:
@@ -67,8 +70,8 @@ working. What 0.3.x promises is in [Compatibility](compatibility.md).
      logging in does not work, set an `upgrade.key` of at least 20 characters
      in `config/local.php`, open the page with it, then **remove the key**.
 
-   From 0.2.7 on, the only change is the importers' three new tables (0.3.1):
-   the upgrade is quick, and the site works at once.
+   From 0.2.7 on, the only changes are new tables (the importers' in 0.3.1,
+   the files' in 0.3.2): the upgrade is quick, and the site works at once.
 
    Then run `php bin/campanella schema:check`, or look at the System page: the
    tables must match the definitions.
@@ -87,7 +90,7 @@ working. What 0.3.x promises is in [Compatibility](compatibility.md).
 ## What the upgrade changes in the database
 
 Nothing is removed or rewritten; only tables and one column are added. 0.2.0
-has schema version 12, 0.3.0 has 16, 0.3.1 has 17 (from 0.1.x: see [below](#from-01x) for
+has schema version 12, 0.3.0 has 16, 0.3.1 has 17, 0.3.2 has 18 (from 0.1.x: see [below](#from-01x) for
 6 to 12).
 
 | Schema | Version | Change |
@@ -97,6 +100,7 @@ has schema version 12, 0.3.0 has 16, 0.3.1 has 17 (from 0.1.x: see [below](#from
 | 15 | 0.2.5 | `lists` table: the lists made in the admin |
 | 16 | 0.2.7 | `search_index` table (with FULLTEXT indexes), `redirects` table |
 | 17 | 0.3.1 | `importers`, `import_runs`, `import_items` tables: the importers, their runs' log, which item became which object |
+| 18 | 0.3.2 | `cap_downloadable` and `cap_restricted` tables: the files to download, and who may see an object |
 
 With a table prefix, every name starts with it (`cc_lists`, …).
 
@@ -117,9 +121,13 @@ used only when an administrator starts using it.
 | 0.2.9 | Visitors' filters on the lists | the list editor |
 | 0.3.0 | The milestone: the guide's chapter on own content types, sample events, the compatibility promise for 0.3.x | [docs/guide](guide/README.md) |
 | 0.3.1 | Importers from CSV and JSON files, the admin's lists as CSV | System → Importers; `import:run`, `import:undo`; the lists' *CSV export* |
+| 0.3.2 | Files to download (for everyone, for logged-in users, or for some roles), the media library, the editor's file picker, the site's own roles | Media → Files; `files`, `users.roles` |
 
-A new setting: `paths.search` (0.2.7, default `/search`), the search page's
-address, like the other `paths`.
+New settings: `paths.search` (0.2.7, default `/search`), the search page's
+address, like the other `paths`; `paths.files` (0.3.2, default `/files`), the
+downloads' address; `files` (0.3.2: the folder, the largest file, the accepted
+types, the Blueprint); `users.roles` (0.3.2: the site's own roles, e.g.
+`['member']`). See [chapter 27 of the PHP API](php-api/27-files.md#settings-configappphp-files).
 
 ## What behaves differently
 
@@ -137,6 +145,17 @@ address, like the other `paths`.
 - **The content model's import is stricter** (0.3.0): a choice's key must
   follow the editor's pattern, and a relation cannot point to users or the
   forms' messages. What the editor made always did.
+- **The downloads are at `/files/`** (0.3.2, a prefix: `/files/<id>/<name>`).
+  If a page of your site had a path under `/files/`, the downloads answer
+  there now: give them another address (`'paths' => ['files' => '/letoltes']`)
+  or the page another path.
+- **A Blueprint called `file` made in the admin keeps its name** (0.3.2): the
+  new `file` Blueprint of `config/blueprints.php` is left out, and files are
+  off until `files.blueprint` names another Blueprint (the System page says
+  so, *Images and files*). See [chapter 27](php-api/27-files.md#upgrading).
+- **The admin's menu has *Media*** (0.3.2), with *Images* and *Files* under it;
+  the images are no longer under *Content*. The System page's *Images* group is
+  *Images and files*.
 
 ## Themes and custom code
 
@@ -152,6 +171,13 @@ PHP code that uses Campanella's classes.
   should include `list/_filters.html.twig` to offer a list's filters, and its
   pager should keep `filter_query`.
 - **`Admin\ListColumns`** (0.2.8, Internal) takes a `FieldFilters` since 0.2.9.
+- **New templates** (0.3.2): `admin/_upload.html.twig`, `admin/_download.html.twig`,
+  `admin/_visibility.html.twig`, `admin/media.html.twig` (the admin's, Internal).
+  `object/_relations.html.twig` shows a relation to a file as its download
+  link: a theme's own copy can do the same with `file_url()`.
+- **`Response`** has a fourth constructor parameter, `$file` (0.3.2), and
+  `Response::file()`: code that builds a Response with three arguments keeps
+  working.
 - For anything else, the **Changed** sections of 0.2.1–0.2.9 in the
   [CHANGELOG](../CHANGELOG.md) list every change of the
   [PHP API](php-api/README.md).
@@ -296,8 +322,11 @@ in the [CHANGELOG](../CHANGELOG.md) list every change of the
 
 ## Checklist after the upgrade
 
-- [ ] The System page shows 0.3.1, no error, the tables match the
-      definitions, and no page is missing from the search.
+- [ ] The System page shows 0.3.2, no error, the tables match the
+      definitions, and no page is missing from the search; under *Images and
+      files* the files' folder is writable.
+- [ ] A file uploaded under *Media → Files* downloads from its address; one
+      for logged-in users gives "Page not found" in a private window.
 - [ ] The front page, an article with an image, a list, the search
       (`/search?q=…`) and a 404 page look right.
 - [ ] Logging in and out work.
@@ -339,7 +368,8 @@ to your old version:
    later upgrade creates them again, and works over them too.
 3. **Put back `public/media/`** only if images were uploaded or deleted after
    the upgrade. The upgrade itself only adds the smaller copies, which the old
-   version ignores.
+   version ignores. The files uploaded after the upgrade (`var/files/`, 0.3.2)
+   mean nothing to an older version: keep them aside, or delete them.
 
 What was done on the site between the upgrade and going back is lost with the
 restore: new content, users and messages.

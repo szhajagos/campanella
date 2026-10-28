@@ -10,7 +10,19 @@ backward-incompatible.
 
 ## [Unreleased]
 
-Towards 0.3.2 (files). Part 1: the engine; part 2: the admin.
+## [0.3.2] – 2026-10-28
+
+**Files to download.** The first step towards 0.4.0: besides images, a site
+offers documents, spreadsheets and text files to download, for everyone, for
+the logged-in users, or for some roles; images and files are kept together
+in the admin's media library, and the editor links to a file.
+
+**Upgrading from 0.3.1 or 0.3.0:** upload the new files and run the upgrade
+(`php bin/campanella install`, or `/admin/upgrade`): it adds two tables
+(schema version 18). Back up `var/files/` from now on, with the database and
+`public/media/`. If you keep a `config/blueprints.php` of your own, add the
+`file` Blueprint from the new one. From older versions: see
+[docs/upgrading.md](docs/upgrading.md).
 
 ### Added
 
@@ -38,7 +50,14 @@ Towards 0.3.2 (files). Part 1: the engine; part 2: the admin.
 - `Response::file()`: a body sent from a file in pieces.
 - The system page's *Images and files* group: the files' folder, types and
   largest size.
-- The upgrade tests upload and download a file on the upgraded site.
+- The guide's chapter 5, *Images and files* (Hungarian and English, with
+  screenshots): the Files list, who may download, the site's own roles, a file
+  in a text, the media library; backups, troubleshooting and the menu updated.
+- **Upgrade tests from 0.3.1** too; they upload and download a file on the
+  upgraded site, and from 0.2.9 on the old site has a Blueprint called `file`
+  that must keep its name.
+- The security notes on files ([security](docs/security.md#review-of-the-files-to-download-032-2026-10-28)):
+  what is checked, and what is accepted (what a document does when opened).
 - The browser tests run PHP's built-in web server under gdb on CI
   (`CAMPANELLA_TEST_GDB=1`): if PHP itself crashes, as it did once on CI in the
   importer's test, the log shows the last requests and the backtrace.
@@ -51,6 +70,18 @@ Towards 0.3.2 (files). Part 1: the engine; part 2: the admin.
   off until `files.blueprint` names another. Before, the stored one was left
   out.
 - Schema version 18: the `cap_downloadable` and `cap_restricted` tables.
+- **The admin's menu** has *Media*, with *Images* and *Files* under it; the
+  images left *Content*. The System page's *Images* group is *Images and
+  files*. The image upload's button says *Upload*.
+- **The design of 0.4.0's pages** ([components](docs/components.md)): a
+  component is a source, a display and its settings, placed in a layout's
+  regions (built in 0.3.3–0.3.5).
+
+### Fixed
+
+- **PHP's built-in web server** (development, tests) handed an address with
+  an extension (`/files/12/a.pdf`) to the site with a wrong base path; the
+  site's `public/index.php` corrects it.
 
 ## [0.3.1] – 2026-10-26
 

@@ -61,4 +61,4 @@ After **Create** the item appears on the site at once:
 ---
 
 Previous: [3. Content](03-content.md) · Next:
-[5. Images](05-images.md) · [Contents](README.md)
+[5. Images and files](05-images.md) · [Contents](README.md)

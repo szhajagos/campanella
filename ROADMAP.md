@@ -41,7 +41,8 @@ Completed changes are listed in the [CHANGELOG](CHANGELOG.md).
 | 0.2.9 | Visitors' filters on the lists (released 2026-10-24): at most 4 fields and relations per list, a form above it, kept by the pages, `noindex` when filtered; `FieldFilters` shared with the admin's lists. The eighth step of 0.3.0. |
 | **0.3.0** | **Third milestone: the content model in the admin** (released 2026-10-24). What 0.2.2–0.2.9 built (fields to filter and sort on, Blueprints and lists made in the admin, the content model's export and import, search and redirects, the admin's own columns, visitors' filters), released as one whole: a security review of 0.2.2–0.2.9, upgrade tests from 0.2.0 and 0.2.9 (with a content model), the upgrade guide for any 0.2.x or 0.1.x, a performance check with 10 000 objects, the guide's chapter on one's own content types, sample events, and the compatibility promise for 0.3.x (0.2.x gets security fixes until 0.4.0). Agreed in detail on 2026-10-24, in five parts. |
 | 0.3.1 | Importers, step 1 (released 2026-10-26): CSV and JSON files into the objects of a Blueprint, by a mapping and a unique key; a trial, a run in batches with a log, undoing a run; System → Importers and `import:run`, `import:undo`; the admin's lists as CSV; the guide's chapter on importing. |
-| – | Continuous integration (GitHub Actions): PHPStan, documentation, tests on MariaDB 10.6/11.4 and MySQL 8.0/8.4, upgrades from 0.1.0, 0.1.5, 0.2.0, 0.2.9 and 0.3.0, a performance check, browser tests, the installation package checked before every release (with `vendor/`, for every version tag) |
+| 0.3.2 | Files to download (released 2026-10-28): documents checked by their content, stored outside the web root and always downloaded through the site, for everyone, logged-in users or some roles (`Restricted`, applied by the access policy everywhere); the site's own roles; the media library; the editor's file picker; the guide's chapter on images and files. The first step of 0.4.0. |
+| – | Continuous integration (GitHub Actions): PHPStan, documentation, tests on MariaDB 10.6/11.4 and MySQL 8.0/8.4, upgrades from 0.1.0, 0.1.5, 0.2.0, 0.2.9, 0.3.0 and 0.3.1, a performance check, browser tests, the installation package checked before every release (with `vendor/`, for every version tag) |
 
 ## Next: the road to 1.0
 
@@ -240,7 +241,7 @@ components use later.
 
 | Step | Contents |
 |---|---|
-| **0.3.2** | **Files** (see below): documents besides images, as objects; public and private files; one media library in the admin; a file chosen by the relation picker, or linked from the editor. |
+| **0.3.2** ✔ | Released 2026-10-28. **Files** (see below): documents besides images, as objects; public and private files; one media library in the admin; a file chosen by the relation picker, or linked from the editor. |
 | **0.3.3** | **Displays and components** ([the design](docs/components.md)): `Display` (Public API: a class with its template, its settings and what it needs: capabilities, a list or a system source) and the built-in ones; the sources (an object, a list, the page's object, the system sources such as the visitor); the `component` Blueprint made in the admin; `full` and `teaser` become displays. |
 | **0.3.4** | **Regions and layouts:** the core's two layouts and the theme's own, `region()`; components placed in regions (order, who sees them, where); a layout for the site and per Blueprint; the upgrade keeps the header and footer as they are. |
 | **0.3.5** | **Pages:** pages assembled from components (a front page, an "about us" page), their own layout; editors edit their components. |
@@ -269,11 +270,13 @@ Decided on 2026-10-26:
 OpenDocument formats, plain text, CSV …, by an allowlist) are objects of a
 `file` Blueprint, as images are of `image`, related to the objects that use
 them. A file is checked by its content, not its name; its stored name is
-random, as an image's. **Public** files are served by the web server from
-`public/media`, never run or shown as a page there (as now: `nosniff`, a
-sandboxing CSP, scripts and HTML refused); **private** ones live outside
-`public/` and are served by PHP only to those allowed to see them, as a
-download. This is decided before 1.0 because it is part of the data model.
+random, as an image's. Every file, public or not, lives outside `public/`
+(`var/files/`) and is served by PHP as a download, only to those allowed to see
+it (changed on 2026-10-27 from public files served by the web server: the same
+headers on every server, readable download names, nothing moved when a file
+becomes private). Who may see one (everyone, logged-in users, some roles) is a
+capability, `Restricted`, applied by the access policy. This is decided before
+1.0 because it is part of the data model.
 
 ### 0.5.0 – extensibility
 

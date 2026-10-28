@@ -11,6 +11,7 @@ logins, a forgotten password.
 | **Administrator** | Everything: content, users, Submissions, the System page and the settings. |
 | **Editor** | Creates, edits and publishes content. Does not delete, does not see the Submissions, does not manage users, and does not see the System page. |
 | *No role* | Can log in, but cannot enter the admin. |
+| *The site's own roles* (e.g. **Member**) | As with no role, and can download the files meant for them. The site's owner sets them (chapter 5, [Roles of the site's own](05-images.md#roles-of-the-sites-own)). |
 
 Have only as many administrators as needed: for someone who only writes, the
 editor role is enough.
@@ -141,5 +142,5 @@ Good to know:
 
 ---
 
-Previous: [5. Images](05-images.md) · Next:
+Previous: [5. Images and files](05-images.md) · Next:
 [7. The contact form and privacy](07-contact-form.md) · [Contents](README.md)
