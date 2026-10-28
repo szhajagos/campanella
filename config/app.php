@@ -18,6 +18,7 @@ use Campanella\Capability\Keyed;
 use Campanella\Capability\Link;
 use Campanella\Capability\Titled;
 use Campanella\Capability\Weighted;
+use Campanella\Display\DisplayRegistry;
 
 /*
  * Base settings. Machine-specific values (database, debug) are overridden
@@ -98,6 +99,12 @@ return [
         Downloadable::class,
         Restricted::class,
     ],
+
+    // The displays (since 0.3.3): the ways of showing an object, a list or a system source,
+    // and the system sources (the visitor, the search …). A module will later register its
+    // own here. Without these keys, the core's own (DisplayRegistry::BUILTIN, BUILTIN_SOURCES).
+    'displays' => DisplayRegistry::BUILTIN,
+    'display_sources' => DisplayRegistry::BUILTIN_SOURCES,
 
     // Uploaded files (images). The folder is under public/, so the files are served
     // directly by the web server; a .htaccess there forbids running scripts.

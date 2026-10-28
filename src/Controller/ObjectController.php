@@ -9,6 +9,7 @@ use Campanella\Capability\Hierarchical;
 use Campanella\Capability\Routable;
 use Campanella\Capability\Titled;
 use Campanella\Capability\Weighted;
+use Campanella\Display\CurrentPage;
 use Campanella\Http\HttpException;
 use Campanella\Http\Request;
 use Campanella\Http\Response;
@@ -39,6 +40,7 @@ final class ObjectController implements Controller
         private readonly BlueprintRegistry $blueprints,
         private readonly RelationLoader $relations,
         private readonly ?MetaBuilder $meta = null,
+        private readonly ?CurrentPage $page = null,
     ) {
     }
 
@@ -51,6 +53,8 @@ final class ObjectController implements Controller
         $object = $this->queries->first(Query::objects()->where('path', '=', $path), $actor)
             ?? throw HttpException::notFound();
         $this->relations->resolve([$object], $actor);
+        // The page's object, for the `current` source and the breadcrumbs (since 0.3.3).
+        $this->page?->set($object);
 
         /** @var array<string, array{label: string, result: ResultSet}> $lists */
         $lists = [];

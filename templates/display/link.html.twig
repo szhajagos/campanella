@@ -1,0 +1,4 @@
+{# The link display (since 0.3.3): a link to the object's page. Variables: object, settings.text #}
+{%- if object.path is defined and object.path -%}
+<a class="display-link" href="{{ url(object.path) }}">{{ settings.text ?: object.title }}</a>
+{%- endif -%}

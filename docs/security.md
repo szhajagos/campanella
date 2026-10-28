@@ -70,6 +70,16 @@ version: upgrade it to 0.3.x ([Upgrading](upgrading.md)).
   search, and its address answers 404 to others, as if it did not exist; a
   role counts only for a logged-in user. Restricted downloads are
   `noindex` and kept only by the visitor's own browser.
+- **Displays** (since 0.3.3): a display's source is always read with the
+  visitor's rights (the Query engine and the policy, as every page), so a
+  draft, a restricted file or page shows nothing to one who may not see it; a
+  component stores where its content comes from, never a copy of it. A source
+  is written in a strict form (`object:<digits>`, `list:<machine name>`,
+  `current`, `system:<name>`); settings are cast to their fields' types, with
+  the defaults for anything else; the templates run in the sandbox. The admin
+  button is shown only to those who may enter the admin; the login form is
+  sent to the login page, with its CSRF token and the login guards' fields,
+  and so starts a session (a cookie) like the login page.
 - **Installing and upgrading:** from the browser only with a long key (wrong
   keys limited) or as an administrator; backups before migrations.
 - **E-mail:** the mail server's address (with its password) is set only in

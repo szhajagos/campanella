@@ -1,9 +1,11 @@
 # Components, displays, regions and layouts
 
-*Design, agreed on 2026-10-27; built in 0.3.3–0.3.5, towards 0.4.0.* This
-chapter describes how a site's pages are assembled from parts in 0.4.0, and
-why so. The [PHP API](php-api/README.md) will document the classes once they
-exist; the names below are the agreed ones, the signatures a draft.
+*Design, agreed on 2026-10-27 (details on 2026-10-28); built in 0.3.3–0.3.5,
+towards 0.4.0.* This chapter describes how a site's pages are assembled from
+parts in 0.4.0, and why so. The [PHP API](php-api/README.md) documents the
+classes as they come: the displays and sources in
+[chapter 28](php-api/28-displays.md) (0.3.3); the rest below is the agreed
+design, its signatures a draft.
 
 ## The idea in one paragraph
 
@@ -65,17 +67,24 @@ The built-in displays, first (more come with need):
 
 | Display | For | Settings |
 |---|---|---|
-| `full` | `Textual` | the title shown or not |
-| `teaser` (card) | `Titled` | the lead, the image |
+| `full` | `Titled` | the title shown or not |
+| `teaser` (card) | `Titled` | the date, the lead |
 | `link` | `Routable` | the text |
-| `navigation` | a menu (`Hierarchical` + `Link`) | depth |
+| `info_box` | `Titled` (+ `Textual`) | the title, a colour (the Bootstrap ones until the colour schemes of 0.3.6) |
+| `navigation` | a menu | horizontal or vertical, depth |
 | `image` | `MediaFile` | width, caption |
 | `download` | `Downloadable` | type and size shown or not |
-| `info_box` | `Titled` (+ `Textual`) | a frame, a colour scheme |
 | `cards`, `table` | a list | the number, the columns |
-| `login_button`, `admin_button`, `login_form`, `user_card` | the visitor | — |
+| `login_button`, `admin_button`, `login_form`, `user_card` | the visitor | the forgotten password's link |
 | `search_box` | the search | the placeholder |
-| `breadcrumbs` | the page | — |
+| `branding` | the site | its name, its slogan (the logo with the appearance) |
+| `breadcrumbs` | the page | the front page first |
+
+The texts a component shows in a box (opening hours, a contact) are objects of
+a **`snippet`** Blueprint (decided 2026-10-28): a title and a formatted text,
+without a page of its own, shown with `info_box` or `full`. A component holds
+no text of its own: a text is content, edited, searched and exported as
+content.
 
 **What exists already becomes displays, without breaking anything.** The
 templates `object/full.html.twig` and `object/teaser.html.twig` are the `full`
@@ -97,6 +106,9 @@ the modules of 0.5.0 can bring new ones. `Display`, `AsDisplay`, `Subject`,
 | A list made in the admin | its machine name | the next five events |
 | The page's object | `current` | the author box beside an article, its files |
 | A system source | its name | `visitor`, `search`, `site`, `breadcrumbs` |
+
+In templates, `display()` takes the same: `{{ display('list:esemenyek',
+'cards', {count: 3}) }}` (0.3.3).
 
 **System sources** (decided 2026-10-27) are classes in code, not Blueprints:
 logging in is not data, it has no objects to store. The **visitor** source is
@@ -130,6 +142,11 @@ needs no capability of its own:
 Being objects, components get what objects have: the admin's list and form
 (the settings' form built from the display's fields), events, the content
 model's export (0.4.0), and later translations and revisions (0.6.0).
+
+A component has a **machine name**, so a template can show it anywhere,
+before regions exist: `{{ component('fo-menu') }}` (0.3.3). In the admin,
+components are under a new group, *Appearance*, for administrators (decided
+2026-10-28), where layouts (0.3.4) and colour schemes (0.3.6) will come too.
 
 **Who places them:** administrators (decided 2026-10-26: where something
 appears on the site is a right above an editor's). Editors edit the content
@@ -182,7 +199,7 @@ is why every display says which context it uses (`DisplayContext`).
 
 | Step | What |
 |---|---|
-| **0.3.3** | Displays and sources: `Display`, `AsDisplay`, the registry, the built-in displays and system sources; `full` and `teaser` as displays; the `component` Blueprint, made in the admin (source, display, its settings' form), and `component()` in templates to show one anywhere |
+| **0.3.3** | Displays and sources: `Display`, `AsDisplay`, the registry, the built-in displays and system sources, `display()` in templates; `full` and `teaser` as displays; the `snippet` Blueprint (part 1). The admin's menu in groups; the `component` Blueprint, made in the admin (source, display, its settings' form), and `component()` in templates to show one anywhere (part 2) |
 | **0.3.4** | Regions and layouts: the core's two layouts, `region()`, the theme's own layouts; placing components (region, order, who sees them, where); the layout of the site and of a Blueprint; the upgrade's components that keep the header and footer as they are |
 | **0.3.5** | Pages assembled from components: a component's `page`, a page's layout, editing a page's components (editors too), the front page made of components |
 | **0.3.6** | Appearance: colour schemes; the visitor's colour-mode switch as a display of a system source |

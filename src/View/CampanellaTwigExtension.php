@@ -14,6 +14,10 @@ use Campanella\Capability\Textual;
 use Campanella\Media\ResponsiveImages;
 use Campanella\Capability\TextFormat;
 use Campanella\Core\Version;
+use Campanella\Display\DisplayContext;
+use Campanella\Display\DisplayException;
+use Campanella\Display\DisplayRenderer;
+use Campanella\Display\Subject;
 use Campanella\I18n\Translator;
 use Campanella\Menu\MenuEntry;
 use Campanella\Model\CampanellaObject;
@@ -38,7 +42,10 @@ use Twig\TwigFunction;
  *   {{ path('login') }}                 a system page's URL (SitePaths: login, logout …; since 0.1.4)
  *   {{ asset('campanella.css') }}       a file under public/assets/
  *   {{ theme_asset('style.css') }}      a file of the active theme (public/themes/<name>/)
- *   {{ render_object(item, 'teaser') }} an object in a presentation mode
+ *   {{ render_object(item, 'teaser') }} an object in a presentation mode (a display, since 0.3.3)
+ *   {{ display(file, 'download') }}     something shown with a display (since 0.3.3): an object, a list of objects,
+ *                                       or a source: 'object:12', 'list:esemenyek', 'current', 'system:visitor';
+ *                                       with settings: display('list:hirek', 'cards', {count: 3, columns: '3'})
  *   {{ related(object, 'categories') }} the loaded target objects of a relation
  *   {{ current_user() }}                the logged-in user or null
  *   {{ csrf_field() }}                  hidden CSRF field for POST forms
@@ -74,6 +81,8 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
      *        visitor and page: key, levels (MenuBuilder; since 0.0.7).
      * @param (Closure(): ResponsiveImages)|null $images The images' copies (lazy; since 0.1.2).
      * @param SitePaths|null $paths The system pages' paths, for path() (since 0.1.4).
+     * @param (Closure(): DisplayRenderer)|null $displays The displays (lazy; since 0.3.3).
+     * @param (Closure(): DisplayContext)|null $displayContext Where they are shown: the visitor, the page (since 0.3.3).
      */
     public function __construct(
         private readonly Closure $presentation,
@@ -91,6 +100,8 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
         private readonly ?SitePaths $paths = null,
         private readonly ?Closure $contactForm = null,
         private readonly ?Closure $lists = null,
+        private readonly ?Closure $displays = null,
+        private readonly ?Closure $displayContext = null,
     ) {
     }
 
@@ -102,6 +113,7 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
             new TwigFunction('path', $this->path(...)),
             new TwigFunction('asset', $this->asset(...)),
             new TwigFunction('render_object', $this->renderObject(...), ['is_safe' => ['html']]),
+            new TwigFunction('display', $this->display(...), ['needs_environment' => true, 'is_safe' => ['html']]),
             new TwigFunction('related', $this->related(...)),
             new TwigFunction('current_user', $this->currentUser(...)),
             new TwigFunction('csrf_field', $this->csrfField(...), ['is_safe' => ['html']]),
@@ -176,9 +188,61 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
         return $this->url('/' . $theme->assetPath($path)) . '?v=' . rawurlencode(Version::CAMPANELLA);
     }
 
+    /**
+     * An object in a mode: the display of that name if there is one that can show it (full,
+     * teaser; since 0.3.3), else the object's template for the mode (object/<blueprint>--<mode>,
+     * object/<mode>), as before.
+     */
     public function renderObject(CampanellaObject $object, string $mode = Presentation::TEASER): string
     {
+        if ($this->displays !== null && $this->displayContext !== null) {
+            $renderer = ($this->displays)();
+            $subject = Subject::object($object);
+            if ($renderer->registry()->accepts($mode, $subject)) {
+                return $renderer->render($mode, $subject, [], ($this->displayContext)());
+            }
+        }
+
         return ($this->presentation)()->renderObject($object, $mode);
+    }
+
+    /**
+     * Something shown with a display (since 0.3.3): an object, a list of objects (e.g. a
+     * query's result), or a source as a component stores it ('object:12', 'list:esemenyek',
+     * 'current', 'system:visitor'), read with the visitor's rights. '' if there is nothing to
+     * show; an unknown display or one that cannot show the subject is an error in debug
+     * mode, else '' (and a line in the error log).
+     *
+     * @param mixed $subject An object, a list of objects, or a source
+     * @param array<string, mixed> $settings
+     */
+    public function display(Environment $env, mixed $subject, string $display, array $settings = []): string
+    {
+        if ($this->displays === null || $this->displayContext === null) {
+            return '';
+        }
+        try {
+            $renderer = ($this->displays)();
+            $context = ($this->displayContext)();
+            if (is_string($subject)) {
+                return $renderer->show($subject, $display, $settings, $context);
+            }
+            if ($subject instanceof CampanellaObject) {
+                return $renderer->render($display, Subject::object($subject), $settings, $context);
+            }
+            if (is_iterable($subject)) {
+                return $renderer->render($display, Subject::list($subject), $settings, $context);
+            }
+
+            throw new DisplayException('display() shows an object, a list of objects or a source, not ' . get_debug_type($subject) . '.');
+        } catch (DisplayException $e) {
+            if ($env->isDebug()) {
+                throw $e;
+            }
+            error_log('Campanella: ' . $e->getMessage());
+
+            return '';
+        }
     }
 
     /**

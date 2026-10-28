@@ -1,0 +1,18 @@
+{# The login form display (since 0.3.3), for an anonymous visitor; sent to the login page. #}
+<form method="post" action="{{ path('login') }}" class="display-login-form">
+    {{ csrf_field() }}
+    <input type="hidden" name="return" value="{{ target }}">
+    {{ guard_fields|raw }}
+    <div class="mb-2">
+        <label for="{{ id }}-email" class="form-label">{{ t('auth.email') }}</label>
+        <input type="email" class="form-control form-control-sm" id="{{ id }}-email" name="email" autocomplete="username" required>
+    </div>
+    <div class="mb-3">
+        <label for="{{ id }}-password" class="form-label">{{ t('auth.password') }}</label>
+        <input type="password" class="form-control form-control-sm" id="{{ id }}-password" name="password" autocomplete="current-password" required>
+    </div>
+    <button type="submit" class="btn btn-sm btn-primary">{{ t('auth.login') }}</button>
+    {%- if settings.show_reset and reset_available %}
+        <a class="small ms-2" href="{{ path('password_reset') }}">{{ t('auth.reset.link') }}</a>
+    {%- endif %}
+</form>

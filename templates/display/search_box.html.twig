@@ -1,0 +1,5 @@
+{# The search box display (since 0.3.3); query: the words searched for, on the search page. #}
+<form method="get" action="{{ path('search') }}" class="display-search-box d-flex" role="search">
+    <label for="{{ id }}-q" class="visually-hidden">{{ t('search.label') }}</label>
+    <input type="search" class="form-control form-control-sm" id="{{ id }}-q" name="q" maxlength="200" value="{{ query }}" placeholder="{{ settings.placeholder ?: t('search.placeholder') }}">
+</form>

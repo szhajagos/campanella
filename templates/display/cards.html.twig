@@ -1,0 +1,15 @@
+{# The cards display (since 0.3.3): a list's objects with the teaser display; settings.columns, settings.show_more (the list's page). #}
+<div class="display-cards{{ list ? ' result--' ~ list.name }}">
+    {%- if items is empty %}
+        <p class="empty text-body-secondary">{{ t('content.empty') }}</p>
+    {%- elseif settings.columns > 1 %}
+        <div class="row row-cols-1 row-cols-md-{{ settings.columns }} g-4">
+            {%- for item in items %}<div class="col">{{ render_object(item, 'teaser') }}</div>{% endfor %}
+        </div>
+    {%- else %}
+        {%- for item in items %}{{ render_object(item, 'teaser') }}{% endfor %}
+    {%- endif %}
+    {%- if settings.show_more and list and list.path %}
+        <p class="mt-3 mb-0"><a class="more" href="{{ url(list.path) }}">{{ t('display.more', {list: list.title}) }}</a></p>
+    {%- endif %}
+</div>

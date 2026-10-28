@@ -1,0 +1,9 @@
+{# The login button display (since 0.3.3): logging in (back to this page), or out. #}
+{%- if subject.object %}
+<form method="post" action="{{ path('logout') }}" class="display-login-button d-inline-block m-0">
+    {{ csrf_field() }}
+    <button type="submit" class="btn btn-sm btn-outline-secondary">{{ t('auth.logout') }}</button>
+</form>
+{%- else %}
+<a class="display-login-button btn btn-sm btn-outline-primary" href="{{ path('login') }}{{ page_path != '/' ? '?return=' ~ page_path|url_encode }}">{{ t('auth.login') }}</a>
+{%- endif %}

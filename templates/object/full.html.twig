@@ -1,6 +1,8 @@
-{# Full rendering of an object. Blueprint-specific variant: object/<blueprint>--full.html.twig #}
+{# Full rendering of an object: the full display (since 0.3.3; settings.show_title). Blueprint-specific variant: object/<blueprint>--full.html.twig #}
 <article class="object object--full object--{{ object.blueprint }}">
+    {%- if settings.show_title ?? true %}
     <h1 class="mb-2">{{ object.title }}</h1>
+    {%- endif %}
     {% if object.published_at is defined and object.published_at %}
         <p class="meta small text-body-secondary"><time datetime="{{ object.published_at|date('c') }}">{{ object.published_at|date }}</time></p>
     {% endif %}

@@ -60,6 +60,16 @@ final class MenuBuilder
             return null;
         }
 
+        return $this->buildFor($menu, $actor, $currentPath, $levels, $basePath);
+    }
+
+    /**
+     * The items of a menu already read (e.g. a component's source; since 0.3.3), as build().
+     *
+     * @return list<MenuEntry>
+     */
+    public function buildFor(CampanellaObject $menu, Actor $actor, string $currentPath = '/', int $levels = 2, string $basePath = ''): array
+    {
         $items = $this->queries->execute(
             Query::objects()
                 ->having(Link::class, Hierarchical::class)

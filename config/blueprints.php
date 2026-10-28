@@ -149,6 +149,16 @@ return [
         'form_order' => ['title', 'menu', 'parent', 'weight', 'target', 'url'],
     ],
 
+    // A snippet (since 0.3.3): a short text with a title (opening hours, a contact, a notice) to be
+    // shown by a component, e.g. in an info box. It has no page of its own.
+    'snippet' => [
+        'label' => 'blueprint.snippet',
+        'capabilities' => [Titled::class, Textual::class],
+        'form_order' => ['title', 'body'],
+        'defaults' => ['format' => 'html'],
+        'editor' => ['body' => 'basic'],
+    ],
+
     // A message sent through the contact form (since 0.1.5): the sender's name (Titled),
     // e-mail address, subject and message. Only administrators may see it (DefaultPolicy);
     // in the admin under Submissions, read-only.

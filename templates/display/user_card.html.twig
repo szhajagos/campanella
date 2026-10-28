@@ -1,0 +1,9 @@
+{# The user card display (since 0.3.3): the logged-in user's name, the admin and logout buttons. #}
+<div class="display-user-card d-flex flex-wrap align-items-center gap-2">
+    <span class="display-user-card__name">{{ user.title }}</span>
+    {%- if admin_access() %}<a class="btn btn-sm btn-primary" href="{{ admin_url() }}">{{ t('admin.link') }}</a>{% endif %}
+    <form method="post" action="{{ path('logout') }}" class="m-0">
+        {{ csrf_field() }}
+        <button type="submit" class="btn btn-sm btn-outline-secondary">{{ t('auth.logout') }}</button>
+    </form>
+</div>

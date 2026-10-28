@@ -1512,6 +1512,241 @@ test('Admin form widgets: multi-valued rows render', function () use ($contactRe
     check(substr_count($html, '<select class="form-select" id="field-flags') === 3 && !str_contains($html, 'name="f[flags][]" value="0">'), 'yes/no rows (2 + the template row) are selects');
 });
 
+// --- Displays (0.3.3) ----------------------------------------------------------
+
+echo "\nDisplays (0.3.3)\n";
+
+/** For testing: a display that claims to be for objects and for a list at once. */
+#[\Campanella\Display\AsDisplay('confused', requires: [Titled::class], many: true)]
+final class ConfusedDisplay extends \Campanella\Display\Display
+{
+}
+
+/** A kernel on the test tables, with its display renderer; null if config/local.php sets its own prefix. */
+$displayKernel = static function (): ?\Campanella\Core\Kernel {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $prefix = $kernel->container()->get(Connection::class)->prefix();
+    putenv('CAMPANELLA_DB_PREFIX');
+    if ($prefix !== 'test_') {
+        echo "      (skipped: config/local.php sets its own prefix)\n";
+
+        return null;
+    }
+
+    return $kernel;
+};
+
+test('DisplayRegistry: the core\'s displays, which one shows what; a display declared wrong is refused', function () use ($repository): void {
+    $registry = new \Campanella\Display\DisplayRegistry(\Campanella\Display\DisplayRegistry::BUILTIN, \Campanella\Display\DisplayRegistry::BUILTIN_SOURCES);
+    $names = static fn (\Campanella\Display\Subject $s): array => array_map(static fn ($d): string => $d->name, $registry->for($s));
+    $S = \Campanella\Display\Subject::class;
+
+    $article = $repository->create('article', ['title' => 'Cikk', 'path' => '/cikk-display']);
+    check($names($S::object($article)) === ['full', 'teaser', 'link', 'info_box'], implode(',', $names($S::object($article))));
+    $menu = $repository->create('menu', ['title' => 'Fő', 'machine_name' => 'fo']);
+    check(in_array('navigation', $names($S::object($menu)), true) && !in_array('link', $names($S::object($menu)), true));
+    $category = $repository->create('category', ['title' => 'Kat']);
+    check(!in_array('navigation', $names($S::object($category)), true), 'navigation is only for menus');
+    $file = $repository->create('file', ['title' => 'Fájl']);
+    check(in_array('download', $names($S::object($file)), true));
+    $image = $repository->create('image', ['title' => 'Kép']);
+    check(in_array('image', $names($S::object($image)), true) && !in_array('download', $names($S::object($image)), true));
+    check($names($S::list([$article])) === ['cards', 'table']);
+    check($names($S::system('visitor', Actor::anonymous())) === ['login_button', 'admin_button', 'login_form', 'user_card']);
+    check($names($S::system('search', '')) === ['search_box'] && $names($S::system('site')) === ['branding'] && $names($S::system('breadcrumbs')) === ['breadcrumbs']);
+    check(array_keys($registry->sources()) === ['visitor', 'search', 'site', 'breadcrumbs']);
+    check(!$registry->accepts('nincs-ilyen', $S::object($article)), 'an unknown display accepts nothing');
+
+    throws(\Campanella\Display\DisplayException::class, static fn () => new \Campanella\Display\DisplayRegistry([ConfusedDisplay::class]));
+    throws(\Campanella\Display\DisplayException::class, static fn () => new \Campanella\Display\DisplayRegistry([\Campanella\Display\Builtin\FullDisplay::class, \Campanella\Display\Builtin\FullDisplay::class]));
+    throws(\Campanella\Display\DisplayException::class, static fn () => new \Campanella\Display\DisplayRegistry([Titled::class]));
+    throws(\Campanella\Display\DisplayException::class, static fn () => $registry->display('nincs-ilyen'));
+    throws(\Campanella\Display\DisplayException::class, static fn () => $registry->source('nincs-ilyen'));
+});
+
+test('DisplayRenderer: sources written as stored; settings cast, defaults for the missing and invalid, problems for a form', function () use ($displayKernel): void {
+    $R = \Campanella\Display\DisplayRenderer::class;
+    check($R::parseSource('object:12') === ['object', '12'] && $R::parseSource('list:esemenyek') === ['list', 'esemenyek']);
+    check($R::parseSource('current') === ['current', ''] && $R::parseSource('system:visitor') === ['system', 'visitor']);
+    foreach (['object:0', 'object:-1', 'object:x', 'list:', 'list:Nagy', 'system:a b', 'curren', '', 'page:1', "list:a\n"] as $bad) {
+        throws(\Campanella\Display\DisplayException::class, static fn () => $R::parseSource($bad));
+    }
+
+    $kernel = $displayKernel();
+    if ($kernel === null) {
+        return;
+    }
+    $renderer = $kernel->container()->get(\Campanella\Display\DisplayRenderer::class);
+    check($renderer->settings('cards', []) === ['count' => 5, 'columns' => 1, 'show_more' => true]);
+    check($renderer->settings('cards', ['count' => '3', 'columns' => 9, 'show_more' => '0', 'other' => 1]) === ['count' => 3, 'columns' => 1, 'show_more' => false], 'out of range: the default; unknown: left out');
+    check($renderer->settings('cards', ['count' => 'sok', 'columns' => 1000])['count'] === 5);
+    check($renderer->settings('navigation', ['style' => 'diagonal'])['style'] === 'horizontal', 'a choice not offered: the default');
+    check($renderer->settings('link', ['text' => str_repeat('a', 101)])['text'] === null, 'too long: none');
+
+    $checked = $renderer->check('cards', ['count' => '0', 'columns' => '2', 'show_more' => '1']);
+    check(array_keys($checked['errors']) === ['count'] && $checked['settings']['columns'] === 2, json_encode(array_keys($checked['errors'])));
+    $checked = $renderer->check('cards', ['count' => 'sok']);
+    check(isset($checked['errors']['count']), 'not a number');
+    $checked = $renderer->check('navigation', ['style' => 'diagonal', 'depth' => '2']);
+    check(array_keys($checked['errors']) === ['style']);
+    $checked = $renderer->check('image', ['width' => '8']);
+    check(isset($checked['errors']['width']), 'too narrow');
+    check($renderer->check('image', [])['errors'] === [] && $renderer->check('image', [])['settings']['caption'] === false, 'the defaults are valid');
+    throws(\Campanella\Display\DisplayException::class, static fn () => $renderer->settings('nincs-ilyen', []));
+});
+
+test('DisplayRenderer: a source is read with the visitor\'s rights: a draft, a file for users, a list\'s hidden items', function () use ($displayKernel, $newUser): void {
+    $kernel = $displayKernel();
+    if ($kernel === null) {
+        return;
+    }
+    $c = $kernel->container();
+    $renderer = $c->get(\Campanella\Display\DisplayRenderer::class);
+    $objects = $c->get(ObjectService::class);
+    $system = Actor::system();
+    $anonymous = new \Campanella\Display\DisplayContext(Actor::anonymous());
+    $administrator = new \Campanella\Display\DisplayContext($system);
+
+    $draft = $objects->create($system, 'article', ['title' => 'Komponens piszkozat', 'path' => '/komponens-piszkozat', 'body' => 'Titkos szöveg']);
+    check($renderer->show('object:' . $draft->id(), 'teaser', [], $anonymous) === '', 'a draft is shown to an anonymous visitor');
+    check(str_contains($renderer->show('object:' . $draft->id(), 'teaser', [], $administrator), 'Komponens piszkozat'));
+    check($renderer->show('object:999999999', 'teaser', [], $administrator) === '', 'a deleted object shows nothing');
+
+    $file = $objects->create($system, 'file', [
+        'title' => 'Tagoknak szóló', 'download_path' => '2026/10/' . str_repeat('a', 24) . '.pdf', 'download_name' => 'tagoknak.pdf',
+        'download_type' => 'application/pdf', 'download_size' => 2048, 'download_hash' => str_repeat('0', 64),
+        'visible_to' => \Campanella\Capability\Restricted::USERS,
+    ]);
+    check($renderer->show('object:' . $file->id(), 'download', [], $anonymous) === '', 'a file for users is shown to an anonymous visitor');
+    $user = $newUser('komponens-tag@example.hu', 'komponens-jelszo');
+    $member = new \Campanella\Display\DisplayContext(\Campanella\Auth\AuthService::actorFor($user));
+    $html = $renderer->show('object:' . $file->id(), 'download', [], $member);
+    check(str_contains($html, 'href="/files/' . $file->id() . '/tagoknak.pdf"') && str_contains($html, '(PDF, 2 kB)'), $html);
+    check(!str_contains($renderer->show('object:' . $file->id(), 'download', ['show_details' => false], $member), 'PDF,'), 'the details are not left out');
+    throws(\Campanella\Display\DisplayException::class, static fn () => $renderer->show('object:' . $file->id(), 'navigation', [], $member));
+    throws(\Campanella\Display\DisplayException::class, static fn () => $renderer->show('system:nincs', 'branding', [], $member));
+
+    // A list made in the admin: only what the visitor may see, at most `count`.
+    $c->get(\Campanella\Lists\ListStore::class)->save('komponens_cikkek', \Campanella\Lists\ListDefinition::fromArray('komponens_cikkek', [
+        'version' => 1, 'title' => 'Komponens cikkek', 'blueprint' => 'article', 'sort' => [['field' => 'title', 'dir' => 'asc']], 'per_page' => 20, 'display' => 'teaser', 'path' => '/komponens-cikkek',
+    ], $c->get(BlueprintRegistry::class))->toArray());
+    $kernel = $displayKernel(); // the registry reads the lists again
+    $renderer = $kernel->container()->get(\Campanella\Display\DisplayRenderer::class);
+    $html = $renderer->show('list:komponens_cikkek', 'cards', ['count' => 50], $anonymous);
+    check(str_contains($html, 'object--teaser') && !str_contains($html, 'Komponens piszkozat'), 'the draft is in the list for an anonymous visitor');
+    check(str_contains($html, 'href="/komponens-cikkek"'), 'the link to the list\'s page is missing');
+    check(substr_count($renderer->show('list:komponens_cikkek', 'cards', ['count' => 1, 'show_more' => false], $administrator), 'object--teaser') === 1, 'count is not kept');
+    check(str_contains($renderer->show('list:komponens_cikkek', 'cards', ['count' => 2, 'columns' => 3], $administrator), 'row-cols-md-3'));
+    check(str_contains($renderer->show('list:komponens_cikkek', 'table', [], $administrator), '<table'));
+    check($renderer->show('list:nincs_ilyen', 'cards', [], $administrator) === '', 'an unknown list shows nothing');
+    check($renderer->show('current', 'full', [], $anonymous) === '', 'no page object, nothing');
+    $current = new \Campanella\Display\DisplayContext(Actor::anonymous(), '/x', $draft);
+    check(str_contains($renderer->show('current', 'link', ['text' => 'Ide <b>'], $current), '>Ide &lt;b&gt;</a>'), 'the link text is not escaped');
+});
+
+test('Displays: render_object() is the display, as before; the snippet in an info box; an image; display() in a template', function () use ($displayKernel): void {
+    $kernel = $displayKernel();
+    if ($kernel === null) {
+        return;
+    }
+    $c = $kernel->container();
+    $system = Actor::system();
+    $objects = $c->get(ObjectService::class);
+    $article = $objects->create($system, 'article', ['title' => 'Megjelenített cikk', 'path' => '/megjelenitett', 'lead' => 'A bevezető', 'body' => 'A szöveg'], publish: true);
+    // The page's object, for the `current` source: set on its page, forgotten on the next request.
+    check($kernel->handle(new Request('GET', '/megjelenitett'))->status === 200);
+    check($c->get(\Campanella\Display\CurrentPage::class)->object()?->id() === $article->id(), 'the page object is not set');
+    $kernel->handle(new Request('GET', '/nincs-ilyen-oldal'));
+    check($c->get(\Campanella\Display\CurrentPage::class)->object() === null, 'the page object is kept for the next request');
+    $presentation = $c->get(\Campanella\View\Presentation::class);
+    $twig = $c->get(\Twig\Environment::class);
+    $render = static fn (string $template, array $context = []): string => $twig->createTemplate($template)->render($context);
+
+    foreach (['teaser', 'full'] as $mode) {
+        check($render("{{ render_object(a, '{$mode}') }}", ['a' => $article]) === $presentation->renderObject($article, $mode), "render_object({$mode}) changed");
+    }
+    $teaser = $render("{{ display(a, 'teaser', {show_lead: false, show_date: false}) }}", ['a' => $article]);
+    check(str_contains($teaser, 'Megjelenített cikk') && !str_contains($teaser, 'A bevezető') && !str_contains($teaser, '<time'), $teaser);
+    check(!str_contains($render("{{ display(a, 'full', {show_title: false}) }}", ['a' => $article]), '<h1'), 'the title is shown');
+
+    $snippet = $objects->create($system, 'snippet', ['title' => 'Nyitvatartás', 'body' => '<p>Hétfőtől péntekig</p>']);
+    check(!$snippet->has(Routable::class) && $snippet->as(Textual::class)->format() === TextFormat::Html, 'a snippet has no page; its text is formatted');
+    $box = $render("{{ display(s, 'info_box', {style: 'warning'}) }}", ['s' => $snippet]);
+    check(str_contains($box, 'bg-warning-subtle') && str_contains($box, '<h2 class="h5" id="display-') && str_contains($box, '<p>Hétfőtől péntekig</p>'), $box);
+    check(str_contains($render("{{ display(s, 'info_box') }}", ['s' => $snippet]), 'bg-body-tertiary'));
+
+    $image = $c->get(ObjectRepository::class)->create('image', ['title' => 'Kép címe', 'alt' => 'Egy "kép"', 'file_path' => '2026/10/' . str_repeat('b', 24) . '.jpg', 'mime_type' => 'image/jpeg', 'file_size' => 10, 'width' => 800, 'height' => 600]);
+    $html = $render("{{ display(i, 'image', {caption: true}) }}", ['i' => $image]);
+    check(str_contains($html, 'src="/media/2026/10/' . str_repeat('b', 24) . '.jpg"') && str_contains($html, 'alt="Egy &quot;kép&quot;"') && str_contains($html, '<figcaption class="figure-caption">Kép címe</figcaption>'), $html);
+    check(str_contains($render("{{ display(i, 'image', {width: 300}) }}", ['i' => $image]), 'width="300"'));
+
+    // A list of objects given by the template, e.g. a query's result.
+    check(substr_count($render("{{ display([a, a, a], 'cards', {count: 2}) }}", ['a' => $article]), 'object--teaser') === 2);
+    if (!$twig->isDebug()) {
+        check($render("{{ display(a, 'nincs_ilyen') }}|{{ display(a, 'download') }}|{{ display('rossz', 'teaser') }}", ['a' => $article]) === '||', 'an error is not left out');
+    }
+    $twig->enableDebug();
+    throws(\Twig\Error\RuntimeError::class, static fn () => $render("{{ display(a, 'download') }}", ['a' => $article]));
+    $twig->disableDebug();
+});
+
+test('Displays: the visitor\'s (login, admin, form, card), the search box, the site\'s name, the breadcrumbs, a menu', function () use ($displayKernel, $newUser): void {
+    $kernel = $displayKernel();
+    if ($kernel === null) {
+        return;
+    }
+    $c = $kernel->container();
+    $c->set(Session::class, static fn () => new Session(new ArraySessionStorage()));
+    $renderer = $c->get(\Campanella\Display\DisplayRenderer::class);
+    $anonymous = new \Campanella\Display\DisplayContext(Actor::anonymous(), '/hirek/egy cikk');
+    $user = $newUser('komponens-szerkeszto@example.hu', 'komponens-jelszo', ['editor']);
+    $editor = new \Campanella\Display\DisplayContext(\Campanella\Auth\AuthService::actorFor($user), '/', loadUser: static fn () => $user);
+    $memberUser = $newUser('komponens-latogato@example.hu', 'komponens-jelszo');
+    $member = new \Campanella\Display\DisplayContext(\Campanella\Auth\AuthService::actorFor($memberUser), '/', loadUser: static fn () => $memberUser);
+
+    $button = $renderer->show('system:visitor', 'login_button', [], $anonymous);
+    check(str_contains($button, 'href="/login?return=%2Fhirek%2Fegy%20cikk"'), $button);
+    check(str_contains($renderer->show('system:visitor', 'login_button', [], $editor), 'action="/logout"'));
+    check($renderer->show('system:visitor', 'admin_button', [], $anonymous) === '' && $renderer->show('system:visitor', 'admin_button', [], $member) === '', 'the admin button for one who may not enter');
+    check(str_contains($renderer->show('system:visitor', 'admin_button', [], $editor), 'href="/admin"'));
+    $form = $renderer->show('system:visitor', 'login_form', [], $anonymous);
+    check(str_contains($form, 'name="_csrf"') && str_contains($form, 'name="website"') && str_contains($form, 'name="return" value="/hirek/egy cikk"') && str_contains($form, 'id="display-'), $form);
+    check($renderer->show('system:visitor', 'login_form', [], $member) === '', 'the login form for a logged-in visitor');
+    check($renderer->show('system:visitor', 'user_card', [], $anonymous) === '');
+    $card = $renderer->show('system:visitor', 'user_card', [], $member);
+    check(str_contains($card, 'Teszt komponens-latogato@example.hu') && str_contains($card, 'action="/logout"') && !str_contains($card, 'href="/admin"'), $card);
+
+    $search = new \Campanella\Display\DisplayContext(Actor::anonymous(), '/kereses', search: '"><script>');
+    $box = $renderer->show('system:search', 'search_box', ['placeholder' => 'Mit keresel?'], $search);
+    check(str_contains($box, 'value="&quot;&gt;&lt;script&gt;"') && str_contains($box, 'placeholder="Mit keresel?"'), $box);
+    check(str_contains($renderer->show('system:search', 'search_box', [], $anonymous), 'placeholder="Keresés…"'));
+    check(str_contains($renderer->show('system:site', 'branding', [], $anonymous), 'display-branding__name'));
+
+    // Breadcrumbs: the ancestors the visitor may see, and the page.
+    $system = Actor::system();
+    $objects = $c->get(ObjectService::class);
+    $top = $objects->create($system, 'category', ['title' => 'Felső kat', 'path' => '/felso-kat'], publish: true);
+    $hidden = $objects->create($system, 'category', ['title' => 'Rejtett kat', 'path' => '/rejtett-kat'], relations: ['parent' => [$top]]);
+    $leaf = $objects->create($system, 'category', ['title' => 'Alsó kat', 'path' => '/also-kat'], publish: true, relations: ['parent' => [$hidden]]);
+    $crumbs = $renderer->show('system:breadcrumbs', 'breadcrumbs', [], new \Campanella\Display\DisplayContext(Actor::anonymous(), '/also-kat', $leaf));
+    check(str_contains($crumbs, 'href="/felso-kat"') && !str_contains($crumbs, 'Rejtett kat') && str_contains($crumbs, 'aria-current="page">Alsó kat') && str_contains($crumbs, 'href="/"'), $crumbs);
+    check(!str_contains($renderer->show('system:breadcrumbs', 'breadcrumbs', ['show_home' => false], new \Campanella\Display\DisplayContext(Actor::anonymous(), '/also-kat', $leaf)), 'href="/"'));
+    check($renderer->show('system:breadcrumbs', 'breadcrumbs', [], $anonymous) === '', 'breadcrumbs without a page object');
+
+    // A menu: the items the visitor may see, as a bar or a list.
+    $menu = $objects->create($system, 'menu', ['title' => 'Lábléc', 'machine_name' => 'komponens_lablec']);
+    $first = $objects->create($system, 'menu_item', ['title' => 'Első pont', 'url' => '/elso'], relations: ['menu' => [$menu]]);
+    $objects->create($system, 'menu_item', ['title' => 'Alpont', 'url' => '/alpont'], relations: ['menu' => [$menu], 'parent' => [$first]]);
+    $objects->create($system, 'menu_item', ['title' => 'Rejtett cél'], relations: ['menu' => [$menu], 'target' => [$hidden]]);
+    $bar = $renderer->show('object:' . $menu->id(), 'navigation', [], new \Campanella\Display\DisplayContext(Actor::anonymous(), '/alpont'));
+    check(str_contains($bar, 'dropdown-toggle active') && str_contains($bar, 'aria-current="page">Alpont') && !str_contains($bar, 'Rejtett cél'), $bar);
+    $list = $renderer->show('object:' . $menu->id(), 'navigation', ['style' => 'vertical', 'depth' => 1], $anonymous);
+    check(str_contains($list, 'nav flex-column') && str_contains($list, 'Első pont') && !str_contains($list, 'Alpont'), $list);
+    $empty = $objects->create($system, 'menu', ['title' => 'Üres', 'machine_name' => 'komponens_ures']);
+    check($renderer->show('object:' . $empty->id(), 'navigation', [], $anonymous) === '', 'an empty menu shows a nav');
+});
+
 // --- Documentation examples -------------------------------------------------
 
 echo "\nSystem\n";

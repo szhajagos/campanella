@@ -1,0 +1,10 @@
+{# The image display (since 0.3.3): an image; at settings.width, or with its copies (srcset) at the column's width; settings.caption: its title below it. #}
+<figure class="display-image figure">
+    {%- if settings.width %}
+        <img class="figure-img img-fluid" src="{{ image_url(object, settings.width) }}" width="{{ settings.width }}" alt="{{ object.alt ?? '' }}" loading="lazy">
+    {%- else %}
+        {%- set srcset = image_srcset(object) %}
+        <img class="figure-img img-fluid" src="{{ image_url(object) }}"{% if srcset %} srcset="{{ srcset }}"{% endif %} alt="{{ object.alt ?? '' }}" loading="lazy">
+    {%- endif %}
+    {%- if settings.caption and object.title %}<figcaption class="figure-caption">{{ object.title }}</figcaption>{% endif %}
+</figure>

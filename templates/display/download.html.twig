@@ -1,0 +1,5 @@
+{# The download display (since 0.3.3): a link to download the file; extension and size, if settings.show_details. #}
+<p class="display-download mb-2">
+    <a href="{{ file_url(object) }}" download>{{ object.title }}</a>
+    {%- if settings.show_details %} <span class="small text-body-secondary">({{ extension }}, {{ size|file_size }})</span>{% endif %}
+</p>

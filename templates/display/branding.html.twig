@@ -1,0 +1,5 @@
+{# The branding display (since 0.3.3): the site's name (a link to the front page) and its slogan. #}
+<div class="display-branding">
+    <a class="display-branding__name text-reset text-decoration-none fw-semibold" href="{{ url('/') }}">{{ site.name }}</a>
+    {%- if settings.show_slogan and site.slogan %}<div class="display-branding__slogan small text-body-secondary">{{ site.slogan }}</div>{% endif %}
+</div>

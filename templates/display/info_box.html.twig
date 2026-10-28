@@ -1,0 +1,5 @@
+{# The info box display (since 0.3.3): the object's title and text in a frame; settings.style: light, primary, info, warning. #}
+<aside class="display-info-box rounded border p-3 mb-3 {{ settings.style == 'light' ? 'bg-body-tertiary' : 'bg-' ~ settings.style ~ '-subtle border-' ~ settings.style ~ '-subtle' }}"{% if settings.show_title and object.title %} aria-labelledby="{{ id }}"{% endif %}>
+    {%- if settings.show_title and object.title %}<h2 class="h5" id="{{ id }}">{{ object.title }}</h2>{% endif %}
+    <div class="body">{{ object|body }}</div>
+</aside>

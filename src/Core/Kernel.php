@@ -84,6 +84,7 @@ use Campanella\Http\Router;
 use Campanella\Http\Session;
 use Campanella\I18n\Translator;
 use Campanella\Menu\MenuBuilder;
+use Campanella\Model\CampanellaObject;
 use Campanella\Model\BlueprintRegistry;
 use Campanella\Model\BlueprintStore;
 use Campanella\Lists\ListPathCheck;
@@ -102,6 +103,15 @@ use Campanella\Transfer\ObjectReferences;
 use Campanella\Tree\SiblingOrder;
 use Campanella\Service\ObjectService;
 use Campanella\View\CampanellaTwigExtension;
+use Campanella\Display\Builtin\AdminButtonDisplay;
+use Campanella\Display\Builtin\LoginFormDisplay;
+use Campanella\Display\Builtin\NavigationDisplay;
+use Campanella\Display\Builtin\TableDisplay;
+use Campanella\Display\CurrentPage;
+use Campanella\Display\DisplayContext;
+use Campanella\Display\DisplayRegistry;
+use Campanella\Display\DisplayRenderer;
+use Campanella\Display\Source\BreadcrumbsSource;
 use Campanella\View\Presentation;
 use Campanella\View\Theme;
 use Campanella\Html\HtmlSanitizer;
@@ -140,6 +150,7 @@ final class Kernel
     private ?Container $container = null;
     private string $basePath = '';
     private ?Request $request = null;
+    private ?CurrentPage $currentPage = null;
 
     public function __construct(private readonly string $rootDir)
     {
@@ -285,6 +296,7 @@ final class Kernel
         // container (and the services overridden in it) persists between requests.
         $this->basePath = $request->basePath;
         $this->request = $request;
+        $this->currentPage?->set(null);
         // The settings are read again for every request (one may have saved them since).
         try {
             $this->container()->get(SiteSettings::class)->reset();
@@ -850,6 +862,21 @@ final class Kernel
                         $c->get(AuthService::class)->currentActor($currentRequest()),
                     );
                 },
+                // display() (since 0.3.3): the displays, and where they are shown.
+                static fn (): DisplayRenderer => $c->get(DisplayRenderer::class),
+                static function () use ($c, $currentRequest, $basePath): DisplayContext {
+                    $request = $currentRequest();
+                    $search = $request->path === $c->get(SitePaths::class)->get('search') ? mb_substr(trim($request->queryString('q')), 0, 200, 'UTF-8') : '';
+
+                    return new DisplayContext(
+                        $c->get(AuthService::class)->currentActor($request),
+                        $request->path,
+                        $c->get(CurrentPage::class)->object(),
+                        static fn (): ?CampanellaObject => $c->get(AuthService::class)->currentUser($request),
+                        $search,
+                        $basePath(),
+                    );
+                },
             ));
 
             return $twig;
@@ -862,6 +889,36 @@ final class Kernel
 
         $c->set(Presentation::class, static fn (Container $c): Presentation => new Presentation(
             $c->get(Environment::class),
+        ));
+
+        // The displays and system sources (since 0.3.3); those that need services are made here.
+        $currentPage = $this->currentPage = new CurrentPage();
+        $c->instance(CurrentPage::class, $currentPage);
+        $c->set(DisplayRegistry::class, static function (Container $c): DisplayRegistry {
+            $config = $c->get(Config::class);
+
+            return new DisplayRegistry(
+                $config->get('displays', DisplayRegistry::BUILTIN),
+                $config->get('display_sources', DisplayRegistry::BUILTIN_SOURCES),
+                static fn (string $class): object => $c->has($class) ? $c->get($class) : new $class(),
+            );
+        });
+        $c->set(NavigationDisplay::class, static fn (Container $c): NavigationDisplay => new NavigationDisplay($c->get(MenuBuilder::class)));
+        $c->set(TableDisplay::class, static fn (Container $c): TableDisplay => new TableDisplay($c->get(BlueprintRegistry::class)));
+        $c->set(AdminButtonDisplay::class, static fn (Container $c): AdminButtonDisplay => new AdminButtonDisplay($c->get(AdminAccess::class)));
+        $c->set(LoginFormDisplay::class, static fn (Container $c): LoginFormDisplay => new LoginFormDisplay(
+            $c->get(AuthService::class),
+            $c->get(PasswordReset::class),
+        ));
+        $c->set(BreadcrumbsSource::class, static fn (Container $c): BreadcrumbsSource => new BreadcrumbsSource($c->get(QueryEngine::class)));
+        $c->set(DisplayRenderer::class, static fn (Container $c): DisplayRenderer => new DisplayRenderer(
+            $c->get(DisplayRegistry::class),
+            static fn (): Presentation => $c->get(Presentation::class),
+            $c->get(QueryEngine::class),
+            $c->get(ListRegistry::class),
+            $c->get(BlueprintRegistry::class),
+            $c->get(RelationLoader::class),
+            new \DateTimeZone((string) $c->get(Config::class)->get('timezone', 'UTC')),
         ));
 
         $c->set(Router::class, static function (Container $c) use ($root): Router {
@@ -899,6 +956,7 @@ final class Kernel
             $c->get(BlueprintRegistry::class),
             $c->get(RelationLoader::class),
             $c->get(MetaBuilder::class),
+            $c->get(CurrentPage::class),
         ));
 
         $c->set('controller.admin', static fn (Container $c): Controller => new AdminController(

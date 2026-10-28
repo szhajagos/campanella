@@ -242,7 +242,7 @@ components use later.
 | Step | Contents |
 |---|---|
 | **0.3.2** ✔ | Released 2026-10-28. **Files** (see below): documents besides images, as objects; public and private files; one media library in the admin; a file chosen by the relation picker, or linked from the editor. |
-| **0.3.3** | **Displays and components** ([the design](docs/components.md)): `Display` (Public API: a class with its template, its settings and what it needs: capabilities, a list or a system source) and the built-in ones; the sources (an object, a list, the page's object, the system sources such as the visitor); the `component` Blueprint made in the admin; `full` and `teaser` become displays. |
+| **0.3.3** | **Displays and components** ([the design](docs/components.md), detailed below): `Display` (Public API: a class with its template, its settings and what it needs: capabilities, a list or a system source) and the built-in ones; the sources (an object, a list, the page's object, the system sources such as the visitor); the `snippet` Blueprint; the `component` Blueprint made in the admin, and `component()` in templates; the admin's menu in groups; `full` and `teaser` become displays. |
 | **0.3.4** | **Regions and layouts:** the core's two layouts and the theme's own, `region()`; components placed in regions (order, who sees them, where); a layout for the site and per Blueprint; the upgrade keeps the header and footer as they are. |
 | **0.3.5** | **Pages:** pages assembled from components (a front page, an "about us" page), their own layout; editors edit their components. |
 | **0.3.6** | **Appearance** (2026-10-11): colour schemes with light and dark variants, the colour mode (the visitor's system setting, or fixed); a visitor's switch as a component, not a button built into the header. |
@@ -265,6 +265,36 @@ Decided on 2026-10-26:
   placed in a layout's regions for the whole site, or on one page as its own
   content. Layouts come from the theme; editable layouts come later. The names
   are *Component* and *Display* ("Presentation" is taken).
+
+**Displays and components (0.3.3, agreed 2026-10-28),** in three parts:
+
+1. **Displays** (part 1): `Display`, `AsDisplay`, `DisplayRegistry`
+   (`config/app.php` `displays` and `display_sources`), `Subject`,
+   `DisplayContext`, `DisplayRenderer`; the sources `object:<id>`,
+   `list:<name>`, `current` (the page's object, from 0.3.3 on) and the system
+   sources `visitor`, `search`, `site`, `breadcrumbs`, always read with the
+   visitor's rights. The built-in displays: `full`, `teaser`, `link`,
+   `info_box` (in the Bootstrap colours until the colour schemes),
+   `navigation`, `image`, `download`, `cards` (1–4 columns), `table`,
+   `login_button`, `admin_button`, `login_form`, `user_card`, `search_box`,
+   `branding` (the site's name and slogan), `breadcrumbs`. `display()` in
+   templates; `render_object()` renders `full` and `teaser` as displays, with
+   the same templates. A **`snippet`** Blueprint (a title and a formatted text,
+   no page of its own) for the texts components show: opening hours, a contact.
+2. **Components in the admin** (part 2): the admin's menu in groups, built in
+   PHP (`AdminMenu`, so modules can add to it): *Content*, *Media library*,
+   *Audience* (submissions, users), and for administrators *Appearance*
+   (components; layouts in 0.3.4, colour schemes in 0.3.6), *Structure*
+   (Blueprints, capabilities, lists, the content model), *System* (status,
+   settings, mail log, importers, redirects); the profile in the top bar. The
+   admin's addresses stay. The `component` Blueprint (a title, a machine name,
+   `Restricted`, and a capability of its own for the source, the display and
+   the settings, which are stored in `data` and checked on every save); its
+   form in three steps (the source, the displays it can have, the settings'
+   form from the display's fields); the components that no longer work are
+   marked. `component('fo-menu')` in templates. Administrators only.
+3. **The guide, the docs and the release** (part 3): a guide chapter on
+   components, the PHP API, the security review, the upgrade test.
 
 **Files (0.3.2, agreed 2026-10-26).** Documents (PDF, the Office and
 OpenDocument formats, plain text, CSV …, by an allowlist) are objects of a

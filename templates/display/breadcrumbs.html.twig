@@ -1,0 +1,10 @@
+{# The breadcrumbs display (since 0.3.3): ancestors (objects, from the top) and current, the page's object. #}
+<nav class="display-breadcrumbs" aria-label="{{ t('content.breadcrumbs') }}">
+    <ol class="breadcrumb small">
+        {%- if settings.show_home %}<li class="breadcrumb-item"><a href="{{ url('/') }}">{{ t('site.nav.home') }}</a></li>{% endif %}
+        {%- for ancestor in ancestors %}
+            <li class="breadcrumb-item">{% if ancestor.path is defined and ancestor.path %}<a href="{{ url(ancestor.path) }}">{{ ancestor.title }}</a>{% else %}{{ ancestor.title }}{% endif %}</li>
+        {%- endfor %}
+        <li class="breadcrumb-item active" aria-current="page">{{ current.title }}</li>
+    </ol>
+</nav>

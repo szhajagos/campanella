@@ -10,6 +10,40 @@ backward-incompatible.
 
 ## [Unreleased]
 
+**Displays and components, part 1: displays.** The second step towards
+0.4.0: the ways of showing something (a menu as navigation, a file as a
+download, a list as cards, the visitor as a login button), which the
+components of the admin will place on the site.
+
+### Added
+
+- **Displays** ([PHP API, chapter 28](docs/php-api/28-displays.md)): `Display`
+  and `AsDisplay` (a display is offered for an object because of its
+  capabilities, for a list, or for a system source), `DisplayRegistry`
+  (`config/app.php`: `displays`, `display_sources`), `Subject`,
+  `DisplayContext`, `DisplayRenderer`. The built-in displays: `full`,
+  `teaser`, `link`, `info_box`, `navigation`, `image`, `download`, `cards`,
+  `table`, `login_button`, `admin_button`, `login_form`, `user_card`,
+  `search_box`, `branding`, `breadcrumbs`, each with its settings and its
+  template (`templates/display/`, which a theme can override).
+- **Sources:** an object (`object:12`), a list made in the admin
+  (`list:esemenyek`), the page's object (`current`), and the system sources
+  `visitor`, `search`, `site`, `breadcrumbs`. A source is always read with the
+  visitor's rights: a draft, a file for members or a restricted page is not
+  shown to one who may not see it.
+- `display()` in templates: `{{ display('list:hirek', 'cards', {count: 3}) }}`,
+  `{{ display(file, 'download') }}`.
+- The **`snippet`** Blueprint: a title and a formatted text, without a page of
+  its own, for the texts a display shows in a box (opening hours, a contact).
+- `MenuBuilder::buildFor()`: the items of a menu already read.
+
+### Changed
+
+- `render_object(item, 'teaser')` and `'full'` render the `teaser` and `full`
+  displays. Their templates are the same (`object/<blueprint>--<mode>.html.twig`,
+  `object/<mode>.html.twig`), with the same HTML; they also get `settings`
+  (`show_title`; `show_date`, `show_lead`), which the core's templates use.
+
 ## [0.3.2] – 2026-10-28
 
 **Files to download.** The first step towards 0.4.0: besides images, a site

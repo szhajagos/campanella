@@ -108,6 +108,7 @@ by weight), and their targets.
 |---|---|
 | `__construct(QueryEngine $queries, RelationLoader $relations)` | |
 | `build(string $key, Actor $actor, string $currentPath = '/', int $levels = 2, string $basePath = ''): ?list<MenuEntry>` | The top items, each with its children; null if there is no such menu |
+| `buildFor(CampanellaObject $menu, Actor $actor, string $currentPath = '/', int $levels = 2, string $basePath = ''): list<MenuEntry>` | The same for a menu already read, e.g. a display's subject (since 0.3.3; [chapter 28](28-displays.md)) |
 | `MENU_BLUEPRINT`, `MENU_RELATION` | `menu`, `menu`: the menus' Blueprint and the items' relation to their menu |
 | `MAX_ITEMS` | 500: the most items read for one menu |
 

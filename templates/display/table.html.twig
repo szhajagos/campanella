@@ -1,0 +1,28 @@
+{# The table display (since 0.3.3): a list's objects as a table, with its columns; settings.show_more (the list's page). #}
+<div class="display-table{{ list ? ' result--' ~ list.name }}">
+    {%- if items is empty %}
+        <p class="empty text-body-secondary">{{ t('content.empty') }}</p>
+    {%- else %}
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead>
+                    <tr>
+                        <th scope="col">{{ t('field.title') }}</th>
+                        {% for column in columns %}<th scope="col">{{ t(column.label) }}</th>{% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {%- for item in items %}
+                        <tr>
+                            <td>{% if item.path is defined and item.path %}<a href="{{ url(item.path) }}">{{ item.title }}</a>{% else %}{{ item.title }}{% endif %}</td>
+                            {% for column in columns %}<td>{{ field_value(item, column.name) }}</td>{% endfor %}
+                        </tr>
+                    {%- endfor %}
+                </tbody>
+            </table>
+        </div>
+    {%- endif %}
+    {%- if settings.show_more and list and list.path %}
+        <p class="mb-0"><a class="more" href="{{ url(list.path) }}">{{ t('display.more', {list: list.title}) }}</a></p>
+    {%- endif %}
+</div>
