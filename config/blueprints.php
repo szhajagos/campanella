@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Campanella\Capability\Authenticatable;
 use Campanella\Capability\Authorable;
+use Campanella\Capability\Component;
 use Campanella\Capability\Downloadable;
 use Campanella\Capability\Hierarchical;
 use Campanella\Capability\Keyed;
@@ -157,6 +158,15 @@ return [
         'form_order' => ['title', 'body'],
         'defaults' => ['format' => 'html'],
         'editor' => ['body' => 'basic'],
+    ],
+
+    // A component (since 0.3.3): a source (an object, a list, the page's object, the visitor …)
+    // shown with a display, with its settings; for administrators only. Templates show one by
+    // its machine name: component('lablec_menu'); from 0.3.4 on, in a region of the layout.
+    'component' => [
+        'label' => 'blueprint.component',
+        'capabilities' => [Titled::class, Keyed::class, Restricted::class, Component::class],
+        'form_order' => ['title', 'machine_name', 'visible_to', 'visible_roles'],
     ],
 
     // A message sent through the contact form (since 0.1.5): the sender's name (Titled),

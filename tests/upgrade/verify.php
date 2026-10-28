@@ -244,14 +244,14 @@ if ($adminUser !== null && $oldCategory !== null) {
 $registry = $c->get(\Campanella\Model\BlueprintRegistry::class);
 $files = $c->get(\Campanella\Media\FileService::class);
 if (is_array($model) && isset($model['own_file'])) {
-    $check($registry->isEditable('file') && $registry->yielded() === ['file'] && !$files->isAvailable(), 'the site\'s own `file` Blueprint did not keep its name');
+    $check($registry->isEditable('file') && in_array('file', $registry->yielded(), true) && !$files->isAvailable(), 'the site\'s own `file` Blueprint did not keep its name');
     $own = $c->get(\Campanella\Model\ObjectRepository::class)->find($model['own_file']);
     $check($own?->get('leiras') === 'A webhely saját fájl-Blueprintje.', 'the object of the site\'s own `file` Blueprint is lost');
     $check($get('/admin/file/' . $model['own_file'], $asAdmin)->status === 200 && $get('/admin/system/blueprints/file', $asAdmin)->status === 200, 'the admin\'s pages of the site\'s own `file` Blueprint');
     $lines = array_filter($c->get(\Campanella\System\SystemCheck::class)->run(), static fn ($r): bool => $r->label === 'admin.system.files');
     $check(count($lines) === 1, 'the system page does not tell that files are off');
 } else {
-    $check($files->isAvailable() && $registry->yielded() === [], 'files are not available');
+    $check($files->isAvailable() && !in_array('file', $registry->yielded(), true), 'files are not available');
     $pdf = tempnam(sys_get_temp_dir(), 'upg');
     file_put_contents($pdf, "%PDF-1.7\nfrissítés\n%%EOF");
     $public = $files->upload(Actor::system(), $pdf, 'Frissítési műsor.pdf');
@@ -264,6 +264,25 @@ if (is_array($model) && isset($model['own_file'])) {
     $c->get(\Campanella\Service\ObjectService::class)->delete(Actor::system(), $private);
     @unlink($pdf);
 }
+
+// 10. Displays and components (since 0.3.3). A site's own `snippet` Blueprint keeps its name;
+// components are made, shown by their machine name, and only for those they are meant for.
+if (is_array($model) && isset($model['own_snippet'])) {
+    $check($registry->isEditable('snippet') && in_array('snippet', $registry->yielded(), true), 'the site\'s own `snippet` Blueprint did not keep its name');
+    $check($c->get(\Campanella\Model\ObjectRepository::class)->find($model['own_snippet'])?->get('reszlet') === 'A webhely saját részlete.', 'the object of the site\'s own `snippet` Blueprint is lost');
+} else {
+    $check(!$registry->isEditable('snippet') && $registry->find('snippet') !== null, 'the snippet Blueprint is missing');
+}
+$components = $c->get(\Campanella\Display\ComponentService::class);
+$check($components->isAvailable(), 'components are not available');
+$button = $components->create(Actor::system(), ['title' => 'Frissítési gomb', 'machine_name' => 'frissitesi_gomb'], 'system:visitor', 'login_button');
+$members = $components->create(Actor::system(), ['title' => 'Frissítési tagoknak', 'machine_name' => 'frissitesi_tagoknak', 'visible_to' => \Campanella\Capability\Restricted::USERS], 'system:visitor', 'login_button');
+$anonymous = new \Campanella\Display\DisplayContext(Actor::anonymous());
+$check(str_contains($components->show('frissitesi_gomb', $anonymous), 'display-login-button') && $components->show('frissitesi_tagoknak', $anonymous) === '', 'a component is not shown, or shown to whom it is not meant for');
+$check($get('/admin/component', $asAdmin)->status === 200 && str_contains($get('/admin/component', $asAdmin)->body, 'Frissítési gomb'), 'the admin\'s components');
+$check(str_contains($get('/', $asAdmin)->body, '<html'), 'the front page after the components');
+$c->get(\Campanella\Service\ObjectService::class)->delete(Actor::system(), $button);
+$c->get(\Campanella\Service\ObjectService::class)->delete(Actor::system(), $members);
 
 echo "{$checks} checks, upgraded from {$snapshot['version']} (schema {$snapshot['schema']}) to " . Version::CAMPANELLA . ' (schema ' . Version::SCHEMA . ").\n";
 if ($problems !== []) {

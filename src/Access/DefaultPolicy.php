@@ -29,6 +29,9 @@ use DateTimeZone;
  *  - objects with an administrators-only capability (by default `submitted`: the
  *    contact form's messages, personal data; since 0.1.5) are for administrators
  *    only: nobody else may see or touch them, editors neither;
+ *  - objects with an administrator-edited capability (by default `component`: where
+ *    something appears on the site; since 0.3.3) are seen as any object, but only
+ *    administrators may create, change or delete them, editors not;
  *  - a Restricted object (e.g. a private file; since 0.3.2) is seen, besides the
  *    administrators and editors, only by those it is meant for: every logged-in
  *    user, or the users with one of its roles.
@@ -43,9 +46,17 @@ final class DefaultPolicy implements AccessPolicy
     /** The capabilities whose objects only administrators may see (since 0.1.5). */
     public const array ADMINISTRATORS_ONLY = ['submitted'];
 
-    /** @param list<string> $administratorsOnly Capability names */
-    public function __construct(private readonly array $administratorsOnly = self::ADMINISTRATORS_ONLY)
-    {
+    /** The capabilities whose objects only administrators may change (since 0.3.3). */
+    public const array ADMINISTRATORS_EDIT = ['component'];
+
+    /**
+     * @param list<string> $administratorsOnly Capability names
+     * @param list<string> $administratorsEdit Capability names (since 0.3.3)
+     */
+    public function __construct(
+        private readonly array $administratorsOnly = self::ADMINISTRATORS_ONLY,
+        private readonly array $administratorsEdit = self::ADMINISTRATORS_EDIT,
+    ) {
     }
 
     #[\Override]
@@ -103,6 +114,13 @@ final class DefaultPolicy implements AccessPolicy
         foreach ($this->administratorsOnly as $capability) {
             if ($object->has($capability)) {
                 return false;
+            }
+        }
+        if ($operation !== Operation::View) {
+            foreach ($this->administratorsEdit as $capability) {
+                if ($object->has($capability)) {
+                    return false;
+                }
             }
         }
         if ($actor->hasRole(self::EDITOR)) {

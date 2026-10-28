@@ -465,8 +465,9 @@ ADMIN_PAGES = [
     "/admin/system", "/admin/system/settings", "/admin/system/mail",
     "/admin/system/blueprints", "/admin/system/lists", "/admin/system/model", "/admin/system/redirects",
     "/admin/system/importers", "/admin/system/importers/new",
+    "/admin/component", "/admin/component/new/source", "/admin/snippet/new",
 ]
-ADMINISTRATORS_ONLY = ["/admin/user", "/admin/user/new", "/admin/submission", "/admin/system", "/admin/system/settings", "/admin/system/mail",
+ADMINISTRATORS_ONLY = ["/admin/component", "/admin/component/new/source", "/admin/user", "/admin/user/new", "/admin/submission", "/admin/system", "/admin/system/settings", "/admin/system/mail",
                        "/admin/system/blueprints", "/admin/system/lists", "/admin/system/model", "/admin/system/redirects",
                        "/admin/system/importers", "/admin/system/importers/new"]
 
@@ -653,6 +654,39 @@ def test_files(browser):
     os.rmdir(folder)
 
 
+def test_components(browser):
+    """A component made in the three steps: a menu as navigation, for logged-in users only (since 0.3.3)."""
+    context = new_context(browser)
+    page = context.new_page()
+    login(page, ADMIN)
+    page.goto(BASE + "/admin/component")
+    check(page.locator(".admin-sidebar .admin-menu-group--appearance").count() == 1, "the Appearance group is missing from the menu")
+    page.click("main a[href$='/admin/component/new/source']")
+    page.select_option("#source-blueprint", "menu")
+    with page.expect_navigation():
+        page.click("form[action$='/component/new/source'] button[type=submit]")
+    with page.expect_navigation():
+        page.locator("main .list-group a", has_text="Főmenü").first.click()
+    check("/admin/component/new/display" in page.url, "the second step: %s" % page.url)
+    with page.expect_navigation():
+        page.locator(".admin-displays a", has_text="navigation").first.click()
+    page.fill("#field-title", "Böngésző menü")
+    page.fill("#field-machine_name", "bongeszo_menu")
+    page.select_option("#field-visible_to", "users")
+    page.select_option("#setting-style", "vertical")
+    page.fill("#setting-depth", "9")
+    with page.expect_navigation():
+        page.click("form.admin-form button[type=submit]")
+    check(page.locator("#setting-depth.is-invalid").count() == 1, "a depth out of range: no error")
+    page.fill("#setting-depth", "1")
+    with page.expect_navigation():
+        page.click("form.admin-form button[type=submit]")
+    check(page.url.endswith("/admin/component") and page.locator(".alert-success").count() == 1, "saving the component: %s" % page.url)
+    row = page.locator("table.admin-components tbody tr", has_text="Böngésző menü")
+    check(row.count() == 1 and "bongeszo_menu" in row.inner_text() and "Navigáció" in row.inner_text(), "the component is not listed")
+    context.close()
+
+
 TESTS = [
     test_security_headers,
     test_login_and_logout,
@@ -664,6 +698,7 @@ TESTS = [
     test_search,
     test_importer,
     test_files,
+    test_components,
 ]
 
 

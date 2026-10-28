@@ -11,7 +11,7 @@ namespace Campanella\Admin\Form;
 final readonly class FormField
 {
     /**
-     * @param string $kind 'field' or 'relation'
+     * @param string $kind 'field', 'relation', or 'setting' (a display's setting; since 0.3.3)
      * @param string $widget string, text, html, integer, boolean, datetime, list, select, checkboxes
      * @param string|list<string> $value The value in form form (a list for a multi-valued field or a Many relation)
      * @param int|null $max The value limit of a multi-valued field or a Many relation (null: none)
@@ -35,10 +35,14 @@ final readonly class FormField
     ) {
     }
 
-    /** The name of the input in the form: f[title], f[tags][], r[categories][] … */
+    /** The name of the input in the form: f[title], f[tags][], r[categories][], s[depth] … */
     public function inputName(): string
     {
-        $base = ($this->kind === 'relation' ? 'r' : 'f') . '[' . $this->name . ']';
+        $base = match ($this->kind) {
+            'relation' => 'r',
+            'setting' => 's',
+            default => 'f',
+        } . '[' . $this->name . ']';
 
         return $this->multiple ? $base . '[]' : $base;
     }
@@ -46,6 +50,6 @@ final readonly class FormField
     /** The id of the (first) input, for <label for="…">. */
     public function inputId(): string
     {
-        return 'field-' . $this->name;
+        return ($this->kind === 'setting' ? 'setting-' : 'field-') . $this->name;
     }
 }

@@ -45,6 +45,7 @@ final class ObjectForm
         'status', 'published_at', 'format',
         'file_path', 'mime_type', 'file_size', 'width', 'height', 'file_hash', 'variants',
         'download_path', 'download_name', 'download_type', 'download_size', 'download_hash',
+        'component_source', 'component_display', 'component_settings',
     ];
 
     /** The most targets offered for a relation. */
@@ -178,6 +179,40 @@ final class ObjectForm
             $natural = array_flip(array_map(static fn (FormField $f): string => $f->name, $form));
             usort($form, static fn (FormField $a, FormField $b): int
                 => [$position[$a->name] ?? PHP_INT_MAX, $natural[$a->name]] <=> [$position[$b->name] ?? PHP_INT_MAX, $natural[$b->name]]);
+        }
+
+        return $form;
+    }
+
+    /**
+     * The form of settings given as fields, e.g. a display's (since 0.3.3): posted as
+     * `s[name]`. A Choice's labels are translated; a yes/no is a checkbox.
+     *
+     * @param array<string, Field> $fields
+     * @param array<string, mixed> $values The settings, or as posted after a failed save
+     * @param array<string, Message> $errors setting name => message
+     * @return list<FormField>
+     */
+    public function settings(array $fields, array $values, array $errors = []): array
+    {
+        $form = [];
+        foreach ($fields as $name => $field) {
+            $value = $values[$name] ?? null;
+            $form[] = new FormField(
+                name: $name,
+                kind: 'setting',
+                widget: $this->widget($field),
+                label: $field->label !== '' ? $field->label : $name,
+                required: $field->required && $field->type !== FieldType::Boolean,
+                value: match (true) {
+                    is_bool($value) => $value ? '1' : '',
+                    is_scalar($value) => (string) $value,
+                    default => '',
+                },
+                options: $field->type === FieldType::Choice ? $this->choiceOptions($field) : [],
+                error: isset($errors[$name]) ? $errors[$name]->translate($this->translator) : null,
+                attributes: in_array($field->type, [FieldType::String, FieldType::Email, FieldType::Url], true) ? ['maxlength' => $field->length] : [],
+            );
         }
 
         return $form;

@@ -205,6 +205,15 @@ A node of a tree: a `parent` relation within the same Blueprint, and the
 materialized path kept by the repository. Since 0.0.7; described in chapter
 [18. Trees](18-trees.md).
 
+### Component
+
+`Component` (`component`, since 0.3.3): the object is a component, a source
+shown with a display: `component_source` and `component_display` (queryable),
+`component_settings` (JSON in the data column). `source()`, `display()`,
+`settings()`, `configure($source, $display, $settings)`; it checks only their
+form, `ComponentService` the rest. Described in chapter
+[28. Displays](28-displays.md#components).
+
 ### Keyed and Link
 
 `Keyed` (`keyed`): a unique machine name (`machine_name`), by which templates

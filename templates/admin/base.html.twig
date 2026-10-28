@@ -44,37 +44,15 @@
                 <ul class="nav flex-column">
                     {% block menu %}
                         <li class="nav-item"><a class="nav-link{{ (active ?? '') == 'dashboard' ? ' active' : '' }}" href="{{ admin_url() }}">{{ t('admin.dashboard') }}</a></li>
-                        {% if menu is defined and menu %}
-                            <li class="nav-item mt-3 mb-1 px-3 small text-uppercase text-body-secondary">{{ t('admin.content') }}</li>
-                            {% for item in menu %}
-                                <li class="nav-item"><a class="nav-link{{ (active ?? '') == item.name ? ' active' : '' }}" href="{{ admin_url(item.name) }}">{{ t(item.label) }}</a></li>
+                        {# The menu in groups (since 0.3.3: AdminMenu). #}
+                        {% for group in admin_menu ?? [] %}
+                            <li class="nav-item mt-3 mb-1 px-3 small text-uppercase text-body-secondary admin-menu-group admin-menu-group--{{ group.name }}">{{ t(group.label) }}</li>
+                            {% for item in group.items %}
+                                {%- set label = item.plural and t(item.label ~ '.plural') != item.label ~ '.plural' ? t(item.label ~ '.plural') : t(item.label) %}
+                                <li class="nav-item"><a class="nav-link d-flex align-items-center{{ item.sub ? ' admin-subnav' }}{{ (active ?? '') == item.name ? ' active' : '' }}" href="{{ admin_url(item.path) }}"{% if (active ?? '') == item.name %} aria-current="page"{% endif %}>{{ label }}
+                                    {%- if item.badge > 0 %} <span class="badge rounded-pill text-bg-primary ms-auto">{{ item.badge }}{% if item.badgeLabel %}<span class="visually-hidden"> {{ t(item.badgeLabel) }}</span>{% endif %}</span>{% endif %}</a></li>
                             {% endfor %}
-                        {% endif %}
-                        {% if media_menu is defined and media_menu %}
-                            <li class="nav-item mt-3"><a class="nav-link{{ (active ?? '') == 'media' ? ' active' : '' }}" href="{{ admin_url('media') }}">{{ t('admin.library.title') }}</a></li>
-                            {% for item in media_menu %}
-                                <li class="nav-item"><a class="nav-link admin-subnav{{ (active ?? '') == item.name ? ' active' : '' }}" href="{{ admin_url(item.name) }}">{{ t(item.label ~ '.plural') == item.label ~ '.plural' ? t(item.label) : t(item.label ~ '.plural') }}</a></li>
-                            {% endfor %}
-                        {% endif %}
-                        {% if can_submissions ?? false %}
-                            <li class="nav-item mt-3"><a class="nav-link d-flex align-items-center{{ (active ?? '') == 'submission' ? ' active' : '' }}" href="{{ admin_url('submission') }}">{{ t('submissions.title') }}
-                                {%- if (unread_submissions ?? 0) > 0 %} <span class="badge rounded-pill text-bg-primary ms-auto">{{ unread_submissions }}<span class="visually-hidden"> {{ t('submissions.unread') }}</span></span>{% endif %}</a></li>
-                        {% endif %}
-                        {% if can_users ?? false %}
-                            <li class="nav-item mt-3"><a class="nav-link{{ (active ?? '') == 'user' ? ' active' : '' }}" href="{{ admin_url('user') }}">{{ t('users.title') }}</a></li>
-                        {% endif %}
-                        <li class="nav-item{{ (can_users ?? false) ? '' : ' mt-3' }}"><a class="nav-link{{ (active ?? '') == 'profile' ? ' active' : '' }}" href="{{ admin_url('profile') }}">{{ t('users.profile') }}</a></li>
-                        {% if can_system ?? false %}
-                            <li class="nav-item mt-3"><a class="nav-link{{ (active ?? '') == 'system' ? ' active' : '' }}" href="{{ admin_url('system') }}">{{ t('admin.system.title') }}</a></li>
-                            <li class="nav-item"><a class="nav-link admin-subnav{{ (active ?? '') == 'settings' ? ' active' : '' }}" href="{{ admin_url('system/settings') }}">{{ t('settings.title') }}</a></li>
-                            <li class="nav-item"><a class="nav-link admin-subnav{{ (active ?? '') == 'mail' ? ' active' : '' }}" href="{{ admin_url('system/mail') }}">{{ t('mail.log.menu') }}</a></li>
-                            <li class="nav-item"><a class="nav-link admin-subnav{{ (active ?? '') == 'blueprints' ? ' active' : '' }}" href="{{ admin_url('system/blueprints') }}">{{ t('structure.blueprints') }}</a></li>
-                            <li class="nav-item"><a class="nav-link admin-subnav{{ (active ?? '') == 'capabilities' ? ' active' : '' }}" href="{{ admin_url('system/capabilities') }}">{{ t('structure.capabilities') }}</a></li>
-                            <li class="nav-item"><a class="nav-link admin-subnav{{ (active ?? '') == 'lists' ? ' active' : '' }}" href="{{ admin_url('system/lists') }}">{{ t('lists.title') }}</a></li>
-                            <li class="nav-item"><a class="nav-link admin-subnav{{ (active ?? '') == 'model' ? ' active' : '' }}" href="{{ admin_url('system/model') }}">{{ t('model.title') }}</a></li>
-                            <li class="nav-item"><a class="nav-link admin-subnav{{ (active ?? '') == 'importers' ? ' active' : '' }}" href="{{ admin_url('system/importers') }}">{{ t('importers.title') }}</a></li>
-                            <li class="nav-item"><a class="nav-link admin-subnav{{ (active ?? '') == 'redirects' ? ' active' : '' }}" href="{{ admin_url('system/redirects') }}">{{ t('redirects.title') }}</a></li>
-                        {% endif %}
+                        {% endfor %}
                     {% endblock %}
                 </ul>
             </nav>

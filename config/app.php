@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Campanella\Auth\Guard\HoneypotGuard;
 use Campanella\Capability\Authenticatable;
 use Campanella\Capability\Authorable;
+use Campanella\Capability\Component;
 use Campanella\Capability\Downloadable;
 use Campanella\Capability\Identifiable;
 use Campanella\Capability\MediaFile;
@@ -98,6 +99,7 @@ return [
         Submitted::class,
         Downloadable::class,
         Restricted::class,
+        Component::class,
     ],
 
     // The displays (since 0.3.3): the ways of showing an object, a list or a system source,

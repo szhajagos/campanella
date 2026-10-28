@@ -65,6 +65,7 @@ The `subpath` route parameter selects the page. Everything goes through the
 | `POST /admin/system/media-variants` | Makes the missing smaller copies of images, for at most `VARIANT_SECONDS` (20) seconds; the System page shows the button while some are missing (since 0.1.2) |
 | `/admin/system/mail`, `POST /admin/system/mail-test` | The e-mail log, and a test e-mail to one's own address (since 0.1.3; [chapter 21](21-events-and-mail.md#in-the-admin)) |
 | `/admin/system/settings` | The site's settings: name, slogan, description, address, share image, indexing (since 0.1.1; [chapter 20](20-site.md#the-site-settings-page-settingspage)) |
+| `/admin/component` … | The components, for the system roles (since 0.3.3; `ComponentPages`, [chapter 28](28-displays.md#in-the-admin-componentpages)) |
 
 | Constant | Value |
 |---|---|
@@ -85,6 +86,50 @@ form: they are created by uploading, also right on the Images list
 texts showing the image will miss it. A tree node with children
 ([chapter 18](18-trees.md)) cannot be deleted: the delete page says so (409). `system`, `media` and `upgrade` are
 admin paths, so no Blueprint can have these names (`BlueprintRegistry::RESERVED_NAMES`).
+
+`AdminController::ownPages($blueprint)` tells whether a Blueprint's objects have
+admin pages of their own, not the content pages (users, the forms' messages,
+components); `AdminController::isMedia($blueprint)` whether they are uploaded
+images or files, in the media library (both since 0.3.3).
+
+## The menu: AdminMenu
+
+`Campanella\Admin\AdminMenu` · **Public** (since 0.3.3) · container: `AdminMenu::class`
+
+The sidebar's menu, in groups, built in PHP for the actor of every page: a
+group with no link for them is left out. The core's groups, in their order:
+
+| Group | Constant | Links | For |
+|---|---|---|---|
+| *Content* | `CONTENT` | The lists of the Blueprints (not the users, the messages, the components, the media) | everyone in the admin |
+| *Media library* | `MEDIA` | All, Images, Files | everyone in the admin |
+| *Audience* | `AUDIENCE` | Submissions (with the unread ones' number), Users | who may see them |
+| *Appearance* | `APPEARANCE` | Components (0.3.4: layouts; 0.3.6: colour schemes) | the system roles |
+| *Structure* | `STRUCTURE` | Blueprints, Capabilities, Lists, the content model | the system roles |
+| *System* | `SYSTEM` | Status (the System page), Settings, Mail log, Importers, Redirects | the system roles |
+
+The profile is in the top bar (the user's name). The admin's addresses did not
+change with the menu in 0.3.3, only the links' places.
+
+| Method | |
+|---|---|
+| `add(string $group, Closure $items)` | Links to a group, from a provider called with the actor of every admin page: `Closure(Actor): list<AdminMenuItem>` |
+| `group(string $name, string $label)` | A new group, after the others (an existing one keeps its place) |
+| `groups(): list<string>` | The groups' names, in their order |
+| `build(Actor $actor)` | The menu for the actor: `list<array{name, label, items: list<AdminMenuItem>}>`, the template's `admin_menu` |
+
+```php
+$container->get(AdminMenu::class)->add(AdminMenu::SYSTEM, static fn (Actor $actor): array => [
+    new AdminMenuItem('backup', 'backup.title', 'system/backup'),
+]);
+```
+
+`AdminMenuItem` (**Public**, readonly): `name` (what the page passes as
+`active`, to mark the link), `label` (a message key or text), `path` (under the
+admin), `badge` (a number beside it; 0: none) and `badgeLabel` (what it counts,
+for screen readers), `sub` (indented), `plural` (the label's `.plural` key if
+there is one). The core's links are registered by `CoreAdminMenu::register()`
+(Internal).
 
 ### The list
 
@@ -221,6 +266,11 @@ and `inputId()`.
 - **Order:** the Blueprint's `form_order` key, e.g.
   `'form_order' => ['title', 'lead', 'body', 'categories', 'author', 'path']`.
 
+`settings(array $fields, array $values, array $errors = [])` (since 0.3.3)
+builds the form of settings given as fields, e.g. a display's
+([chapter 28](28-displays.md)): `FormField`s of the kind `setting`, posted as
+`s[name]` (their id `setting-<name>`).
+
 ### Formatted text: the HTML editor
 
 Since 0.0.5 a `Textual` body in `html` format is edited with
@@ -324,7 +374,7 @@ theme cannot lock anyone out. The look is Bootstrap 5.3 with a small
 
 | Template | Purpose |
 |---|---|
-| `admin/base.html.twig` | Layout: top bar, sidebar menu (block `menu`), messages, block `content` |
+| `admin/base.html.twig` | Layout: top bar, sidebar menu (block `menu`, from `admin_menu` since 0.3.3), messages, block `content` |
 | `admin/dashboard.html.twig` | The dashboard |
 | `admin/list.html.twig` | The list of a Blueprint's objects, with the filter form and pagination |
 | `admin/form.html.twig` | The create/edit page |

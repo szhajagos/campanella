@@ -41,6 +41,9 @@ use Campanella\Admin\AdminAccess;
 use Campanella\Admin\BlueprintEditor;
 use Campanella\Admin\ListEditor;
 use Campanella\Admin\ImporterPages;
+use Campanella\Admin\AdminMenu;
+use Campanella\Admin\ComponentPages;
+use Campanella\Admin\CoreAdminMenu;
 use Campanella\Admin\FilePages;
 use Campanella\Admin\ModelPage;
 use Campanella\Admin\RedirectPages;
@@ -107,6 +110,7 @@ use Campanella\Display\Builtin\AdminButtonDisplay;
 use Campanella\Display\Builtin\LoginFormDisplay;
 use Campanella\Display\Builtin\NavigationDisplay;
 use Campanella\Display\Builtin\TableDisplay;
+use Campanella\Display\ComponentService;
 use Campanella\Display\CurrentPage;
 use Campanella\Display\DisplayContext;
 use Campanella\Display\DisplayRegistry;
@@ -877,6 +881,7 @@ final class Kernel
                         $basePath(),
                     );
                 },
+                static fn (): ComponentService => $c->get(ComponentService::class),
             ));
 
             return $twig;
@@ -911,6 +916,14 @@ final class Kernel
             $c->get(PasswordReset::class),
         ));
         $c->set(BreadcrumbsSource::class, static fn (Container $c): BreadcrumbsSource => new BreadcrumbsSource($c->get(QueryEngine::class)));
+        $c->set(ComponentService::class, static fn (Container $c): ComponentService => new ComponentService(
+            $c->get(DisplayRenderer::class),
+            $c->get(ObjectService::class),
+            $c->get(ObjectRepository::class),
+            $c->get(QueryEngine::class),
+            $c->get(ListRegistry::class),
+            $c->get(BlueprintRegistry::class),
+        ));
         $c->set(DisplayRenderer::class, static fn (Container $c): DisplayRenderer => new DisplayRenderer(
             $c->get(DisplayRegistry::class),
             static fn (): Presentation => $c->get(Presentation::class),
@@ -968,13 +981,7 @@ final class Kernel
             $c->get(ObjectRepository::class),
             $c->get(ObjectService::class),
             $c->get(AccessPolicy::class),
-            new ObjectForm(
-                $c->get(QueryEngine::class),
-                $c->get(Translator::class),
-                (string) $c->get(Config::class)->get('timezone', 'UTC'),
-                $c->get(HtmlSanitizer::class),
-                self::siteRoles($c->get(Config::class)),
-            ),
+            $c->get(ObjectForm::class),
             $c->get(Csrf::class),
             $c->get(Flash::class),
             $c->get(Translator::class),
@@ -990,7 +997,7 @@ final class Kernel
             new MediaUsage($c->get(Connection::class), $c->get(QueryEngine::class), $c->get(SiteSettings::class)),
             new MailPages($c->get(Mailer::class), $c->get(ObjectRepository::class), $c->get(Throttle::class), $c->get(Csrf::class), $c->get(Flash::class), $c->get(AdminAccess::class)),
             $c->get(SitePaths::class),
-            new SubmissionPages($c->get(SubmissionService::class), $c->get(Csrf::class), $c->get(Flash::class), $c->get(AdminAccess::class)),
+            $c->get(SubmissionPages::class),
             new BlueprintEditor(
                 $c->get(BlueprintRegistry::class),
                 $c->get(CapabilityRegistry::class),
@@ -1058,6 +1065,52 @@ final class Kernel
                 $c->get(AdminAccess::class),
                 self::siteRoles($c->get(Config::class)),
             ),
+            $c->get(AdminMenu::class),
+            $c->has(ComponentPages::class) ? $c->get(ComponentPages::class) : null,
+        ));
+
+        $c->set(ObjectForm::class, static fn (Container $c): ObjectForm => new ObjectForm(
+            $c->get(QueryEngine::class),
+            $c->get(Translator::class),
+            (string) $c->get(Config::class)->get('timezone', 'UTC'),
+            $c->get(HtmlSanitizer::class),
+            self::siteRoles($c->get(Config::class)),
+        ));
+        // The components in the admin (since 0.3.3).
+        $c->set(ComponentPages::class, static fn (Container $c): ComponentPages => new ComponentPages(
+            $c->get(ComponentService::class),
+            $c->get(DisplayRegistry::class),
+            $c->get(ObjectForm::class),
+            $c->get(ObjectRepository::class),
+            $c->get(ObjectService::class),
+            $c->get(QueryEngine::class),
+            $c->get(BlueprintRegistry::class),
+            $c->get(ListRegistry::class),
+            $c->get(Csrf::class),
+            $c->get(Flash::class),
+            $c->get(AdminAccess::class),
+        ));
+
+        // The admin's menu (since 0.3.3): the core's links; a module adds its own.
+        $c->set(AdminMenu::class, static function (Container $c): AdminMenu {
+            $menu = new AdminMenu();
+            CoreAdminMenu::register(
+                $menu,
+                $c->get(BlueprintRegistry::class),
+                $c->get(AdminAccess::class),
+                $c->get(UserService::class),
+                static fn (): SubmissionPages => $c->get(SubmissionPages::class),
+                null,
+                static fn (): bool => $c->get(ComponentService::class)->isAvailable(),
+            );
+
+            return $menu;
+        });
+        $c->set(SubmissionPages::class, static fn (Container $c): SubmissionPages => new SubmissionPages(
+            $c->get(SubmissionService::class),
+            $c->get(Csrf::class),
+            $c->get(Flash::class),
+            $c->get(AdminAccess::class),
         ));
 
         // The contact form (since 0.1.5).

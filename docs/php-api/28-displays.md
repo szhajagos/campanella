@@ -2,10 +2,11 @@
 
 *Since 0.3.3.* A **display** is a way of showing something: a menu as
 navigation, a text in full, a file as a download link, a list as cards, the
-visitor as a login button. It is the first step towards the components of
-0.4.0 ([the design](../components.md)): a **component** will be a source, a
-display and its settings, placed on the site in the admin. Until then (and
-after), a theme uses displays in its templates with `display()`.
+visitor as a login button. A **component** is a source, a display and its
+settings, made in the admin ([below](#components)): a template shows it by its
+machine name, and from 0.3.4 on it is placed in the regions of a layout
+([the design](../components.md)). A theme can also use displays in its
+templates directly, with `display()`.
 
 A display is offered because of what the thing **has**, not what it is: an
 object can be shown as a download because it has the `Downloadable`
@@ -32,6 +33,7 @@ capability, whatever its Blueprint. There is no "Blockable" capability.
 | `DisplayRenderer` | **Public** | Reads a source and shows it with a display |
 | `DisplayException` | **Public** | An unknown or invalid display or source, or one that cannot show the other |
 | `CurrentPage` | Internal | The object the page being rendered shows, set by its controller |
+| `ComponentService` | **Public** | Components: checked on save, shown by machine name, marked when they stop working ([below](#components)) |
 
 All are in `Campanella\Display`; the core's displays in `Campanella\Display\Builtin`,
 its system sources in `Campanella\Display\Source`.
@@ -332,3 +334,75 @@ with the editor's basic toolbar), and no page of its own (it is not
 If a site made a Blueprint named `snippet` in the admin before 0.3.3, theirs
 keeps the name ([chapter 2](02-objects.md#on-the-registry)), and the core's is
 left out.
+
+## Components
+
+A component is an object of the **`component` Blueprint**: a title, a machine
+name (`Keyed`), who sees it (`Restricted`: everyone, logged-in users, some
+roles), and the `Component` capability with its source, its display and the
+display's settings ([chapter 3](03-capabilities.md#component)). The settings are
+JSON in the data column, never queried.
+
+```twig
+{{ component('lablec_menu') }}
+```
+
+`component()` shows the component of that machine name, read with the
+visitor's rights: one for logged-in users is not shown to others, and its
+source is read as every display's is. It prints `''` if there is no such
+component, the visitor may not see it, or it no longer works; a component never
+takes the page down. (Its machine name is unique among every `Keyed` object,
+menus included.)
+
+**Only administrators** make, change and delete components
+(`DefaultPolicy::ADMINISTRATORS_EDIT`, [chapter 5](05-access.md#defaultpolicy)):
+where something appears on the site is a right above an editor's. Editors
+change what a component shows (the menu, the snippet), not the component.
+
+### ComponentService
+
+`Campanella\Display\ComponentService` · **Public**
+
+```php
+$components = $container->get(ComponentService::class);
+$footer = $components->create(Actor::system(), ['title' => 'Footer menu', 'machine_name' => 'lablec_menu'],
+    'object:12', 'navigation', ['style' => 'vertical']);
+echo $components->show('lablec_menu', $context);
+```
+
+| Method | |
+|---|---|
+| `create(Actor $actor, array $values, string $source, string $display, array $settings = []): CampanellaObject` | A new component; `$values` are its other fields (`title`, `machine_name`, `visible_to`, `visible_roles`). A `ValidationException` for a problem of the source (`source`), the display (`display`), a setting (its name) or a field |
+| `update(Actor $actor, CampanellaObject $component, array $values, string $source, string $display, array $settings = [])` | Changes one, with the same checks |
+| `check(string $source, string $display, array $settings): array{settings, errors}` | The checks themselves: the source exists, the display is one of `displaysFor()`, the settings are valid (`DisplayRenderer::check()`) |
+| `sourceExists(string $source): bool` | Whether a source names something that exists, whoever may see it; `current` always does |
+| `displaysFor(string $source): list<DisplayDefinition>` | The displays it can be shown with; for `current`, every display for objects (the page's object decides when it is shown) |
+| `problem(CampanellaObject $component): ?Message` | Why it does not work now: its source is gone (`components.source_missing`), its display is gone (`components.display_missing`) or cannot show the source any more (`components.display_unfit`); null if it works |
+| `show(string $key, DisplayContext $context): string` | The component of this machine name shown here, if the visitor may see it |
+| `find(string $key, Actor $actor): ?CampanellaObject` | The component of this machine name, if the actor may see it |
+| `render(CampanellaObject $component, DisplayContext $context): string` | A component shown here |
+| `isAvailable(): bool` | Whether there are components on this site: the `component` Blueprint has the `Component` capability. Not if the site made a Blueprint of that name in the admin before 0.3.3: theirs keeps the name, the admin's *Components* is not shown, `create()` is a `DisplayException`, and `component()` shows nothing |
+
+The `Component` capability checks only the stored form (a source written as
+one, a display's name, settings that are a JSON object of at most
+`MAX_SETTINGS_BYTES`, 16 KB), so an object saved some other way (an importer)
+cannot hold anything else; whatever it holds, a setting that is not valid is
+shown with its default.
+
+### In the admin: ComponentPages
+
+`Campanella\Admin\ComponentPages` · **Internal** · *Appearance → Components*
+
+| Path | Page |
+|---|---|
+| `/admin/component` | The list: title, source, display, who sees it, the `component()` call; the ones that no longer work marked with the reason |
+| `/admin/component/new/source` | 1. **The source:** the system sources, the page's object, a list made in the admin, or an object (a Blueprint, then a search in the titles; at most `MAX_OBJECTS`, 50) |
+| `/admin/component/new/display?source=…` | 2. **The display:** those that can show the source |
+| `/admin/component/new?source=…&display=…` | 3. **The form:** the title, the machine name, who sees it, and the display's settings, a form built from its fields (`ObjectForm::settings()`); POST saves |
+| `/admin/component/<id>` | Editing one; *Another source or display* goes through the steps again (`/admin/component/<id>/source`, `/display`) |
+| `/admin/component/<id>/delete` | Deleting one (what it showed stays) |
+
+Every page is for the system roles only (403 for an editor), every POST checks
+the CSRF token. `isAvailable()`: whether there are components
+(`ComponentService::isAvailable()`).
+

@@ -1,0 +1,19 @@
+{% extends '@core/admin/base.html.twig' %}
+
+{# Deleting a component (since 0.3.3). #}
+{% block content %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb small mb-2">
+            <li class="breadcrumb-item"><a href="{{ admin_url('component') }}">{{ t('components.title') }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ admin_url('component/' ~ component.id) }}">{{ component.title }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ t('admin.delete.link') }}</li>
+        </ol>
+    </nav>
+    <h1 class="h3 mb-4">{{ t('components.delete') }}</h1>
+    <div class="alert alert-warning" role="alert">{{ t('components.delete_warning', {key: key}) }}</div>
+    <form method="post" action="{{ admin_url('component/' ~ component.id ~ '/delete') }}" class="d-flex gap-2">
+        {{ csrf_field() }}
+        <button type="submit" class="btn btn-danger">{{ t('admin.delete.confirm') }}</button>
+        <a class="btn btn-outline-secondary" href="{{ admin_url('component/' ~ component.id) }}">{{ t('admin.form.cancel') }}</a>
+    </form>
+{% endblock %}

@@ -13,7 +13,10 @@ use Campanella\Admin\BlueprintEditor;
 use Campanella\Admin\ListColumns;
 use Campanella\Admin\ListEditor;
 use Campanella\Admin\ImporterPages;
+use Campanella\Admin\AdminMenu;
+use Campanella\Admin\ComponentPages;
 use Campanella\Admin\FilePages;
+use Campanella\Display\ComponentService;
 use Campanella\Admin\ListExport;
 use Campanella\Admin\ModelPage;
 use Campanella\Admin\RedirectPages;
@@ -144,6 +147,8 @@ final class AdminController implements Controller
         private readonly ?RedirectPages $redirectPages = null,
         private readonly ?ImporterPages $importerPages = null,
         private readonly ?FilePages $filePages = null,
+        private readonly ?AdminMenu $menu = null,
+        private readonly ?ComponentPages $components = null,
     ) {
     }
 
@@ -204,6 +209,10 @@ final class AdminController implements Controller
         }
         if (($segments[0] ?? null) === 'profile') {
             return $this->userPages->profile($request, $actor, array_slice($segments, 1), $render);
+        }
+        // The components (since 0.3.3): pages of their own, for the system roles.
+        if (($segments[0] ?? null) === ComponentService::BLUEPRINT && $this->components !== null && $this->components->isAvailable()) {
+            return $this->components->handle($request, $actor, array_slice($segments, 1), $render);
         }
         // The forms' messages (since 0.1.5): read-only pages of their own.
         if (($segments[0] ?? null) === SubmissionService::BLUEPRINT && $this->submissions !== null) {
@@ -1431,9 +1440,20 @@ final class AdminController implements Controller
     }
 
     /** Users and the forms' messages have pages of their own, not the generic lists and forms. */
-    private static function ownPages(Blueprint $blueprint): bool
+    /**
+     * Whether the Blueprint's objects have admin pages of their own, not the content pages:
+     * users, the forms' messages, components (since 0.3.3).
+     */
+    public static function ownPages(Blueprint $blueprint): bool
     {
-        return isset($blueprint->capabilities['authenticatable']) || isset($blueprint->capabilities['submitted']);
+        return isset($blueprint->capabilities['authenticatable']) || isset($blueprint->capabilities['submitted'])
+            || isset($blueprint->capabilities['component']);
+    }
+
+    /** Whether the Blueprint's objects are uploaded images or files, in the media library (since 0.3.3). */
+    public static function isMedia(Blueprint $blueprint): bool
+    {
+        return self::isFile($blueprint) || self::isDownload($blueprint);
     }
 
     /** A Blueprint managed in the admin as content, or 404. */
@@ -1452,35 +1472,14 @@ final class AdminController implements Controller
      */
     private function render(string $template, string $active, array $context): Response
     {
-        $menu = [];
-        $mediaMenu = [];
-        foreach ($this->blueprints->all() as $name => $blueprint) {
-            if (self::ownPages($blueprint)) {
-                continue;
-            }
-            // Images and files under the media library (since 0.3.2).
-            if ($this->filePages !== null && (self::isFile($blueprint) || self::isDownload($blueprint))) {
-                $mediaMenu[] = ['name' => $name, 'label' => $blueprint->label];
-            } else {
-                $menu[] = ['name' => $name, 'label' => $blueprint->label];
-            }
-        }
-        $unreadSubmissions = null;   // null: the actor may not see the forms' messages
-        if ($this->actor !== null && $this->submissions !== null && $this->submissions->canView($this->actor)) {
-            $unreadSubmissions = $this->submissions->unreadCount($this->actor);
-        }
-
         return Response::html($this->presentation->render("@core/admin/{$template}.html.twig", $context + [
             'active' => $active,
-            'menu' => $menu,
+            // The menu in groups (since 0.3.3), for the actor.
+            'admin_menu' => $this->actor !== null && $this->menu !== null ? $this->menu->build($this->actor) : [],
             'can_system' => $this->actor !== null && $this->access->allowsSystem($this->actor),
             'can_users' => $this->actor !== null && $this->users->canManage($this->actor),
-            'can_submissions' => $unreadSubmissions !== null,
-            'unread_submissions' => $unreadSubmissions ?? 0,
             'min_password' => \Campanella\Capability\Authenticatable::MIN_PASSWORD_LENGTH,
             'blueprints' => $this->blueprints->all(),
-            // The media library (since 0.3.2), if there are images or files.
-            'media_menu' => $mediaMenu,
         ]));
     }
 }

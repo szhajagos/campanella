@@ -14,6 +14,7 @@ use Campanella\Capability\Textual;
 use Campanella\Media\ResponsiveImages;
 use Campanella\Capability\TextFormat;
 use Campanella\Core\Version;
+use Campanella\Display\ComponentService;
 use Campanella\Display\DisplayContext;
 use Campanella\Display\DisplayException;
 use Campanella\Display\DisplayRenderer;
@@ -45,7 +46,8 @@ use Twig\TwigFunction;
  *   {{ render_object(item, 'teaser') }} an object in a presentation mode (a display, since 0.3.3)
  *   {{ display(file, 'download') }}     something shown with a display (since 0.3.3): an object, a list of objects,
  *                                       or a source: 'object:12', 'list:esemenyek', 'current', 'system:visitor';
- *                                       with settings: display('list:hirek', 'cards', {count: 3, columns: '3'})
+ *                                       with settings: display('list:hirek', 'cards', {count: 3, columns: 3})
+ *   {{ component('lablec_menu') }}      a component made in the admin, by its machine name (since 0.3.3)
  *   {{ related(object, 'categories') }} the loaded target objects of a relation
  *   {{ current_user() }}                the logged-in user or null
  *   {{ csrf_field() }}                  hidden CSRF field for POST forms
@@ -83,6 +85,7 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
      * @param SitePaths|null $paths The system pages' paths, for path() (since 0.1.4).
      * @param (Closure(): DisplayRenderer)|null $displays The displays (lazy; since 0.3.3).
      * @param (Closure(): DisplayContext)|null $displayContext Where they are shown: the visitor, the page (since 0.3.3).
+     * @param (Closure(): ComponentService)|null $components The components (lazy; since 0.3.3).
      */
     public function __construct(
         private readonly Closure $presentation,
@@ -102,6 +105,7 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
         private readonly ?Closure $lists = null,
         private readonly ?Closure $displays = null,
         private readonly ?Closure $displayContext = null,
+        private readonly ?Closure $components = null,
     ) {
     }
 
@@ -114,6 +118,7 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
             new TwigFunction('asset', $this->asset(...)),
             new TwigFunction('render_object', $this->renderObject(...), ['is_safe' => ['html']]),
             new TwigFunction('display', $this->display(...), ['needs_environment' => true, 'is_safe' => ['html']]),
+            new TwigFunction('component', $this->component(...), ['is_safe' => ['html']]),
             new TwigFunction('related', $this->related(...)),
             new TwigFunction('current_user', $this->currentUser(...)),
             new TwigFunction('csrf_field', $this->csrfField(...), ['is_safe' => ['html']]),
@@ -204,6 +209,25 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
         }
 
         return ($this->presentation)()->renderObject($object, $mode);
+    }
+
+    /**
+     * A component made in the admin, by its machine name (since 0.3.3): '' if there is no
+     * such component, the visitor may not see it, it no longer works, or its source shows
+     * nothing here. A component never takes the page down.
+     */
+    public function component(string $key): string
+    {
+        if ($this->components === null || $this->displayContext === null) {
+            return '';
+        }
+        try {
+            return ($this->components)()->show($key, ($this->displayContext)());
+        } catch (\Exception $e) {
+            error_log('Campanella: the component "' . $key . '" could not be shown: ' . $e->getMessage());
+
+            return '';
+        }
     }
 
     /**

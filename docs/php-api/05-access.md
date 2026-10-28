@@ -76,6 +76,13 @@ personal data) are for administrators alone; editors and everyone else neither
 see them nor may do anything with them. The list is the constructor's
 argument: `new DefaultPolicy(['submitted', 'my_private_capability'])`.
 
+**Changed by administrators only** (since 0.3.3): objects with a capability of
+`ADMINISTRATORS_EDIT` (by default `component`: where something appears on the
+site is a right above an editor's) are seen as any object (a component shows
+on every page, for everyone it is meant for), but only administrators may
+create, change or delete them. It is the constructor's second argument:
+`new DefaultPolicy(DefaultPolicy::ADMINISTRATORS_ONLY, ['component', 'my_layout'])`.
+
 **Restricted objects** (since 0.3.2): an object with the `Restricted`
 capability (a private file, [chapter 27](27-files.md)) is seen, besides the
 administrators and editors, only by those it is meant for: `visible_to` is

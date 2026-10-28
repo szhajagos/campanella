@@ -1,0 +1,40 @@
+{% extends '@core/admin/base.html.twig' %}
+
+{# The components (since 0.3.3): what each shows, how, for whom; the ones that no longer work marked. #}
+{% block content %}
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+        <h1 class="h3 mb-0 me-auto">{{ t('components.title') }}</h1>
+        <a class="btn btn-primary" href="{{ admin_url('component/new/source') }}">{{ t('components.new') }}</a>
+    </div>
+    <p class="text-body-secondary mb-4">{{ t('components.intro') }}</p>
+
+    {% if items %}
+        <div class="table-responsive">
+            <table class="table align-middle admin-components">
+                <thead><tr>
+                    <th scope="col">{{ t('field.title') }}</th>
+                    <th scope="col">{{ t('components.source') }}</th>
+                    <th scope="col">{{ t('components.display') }}</th>
+                    <th scope="col">{{ t('field.visible_to') }}</th>
+                    <th scope="col">{{ t('components.in_templates') }}</th>
+                </tr></thead>
+                <tbody>
+                    {% for item in items %}
+                        <tr>
+                            <td>
+                                <a href="{{ admin_url('component/' ~ item.object.id) }}">{{ item.object.title }}</a>
+                                {% if item.problem %}<div><span class="badge text-bg-danger fw-normal">{{ t('components.broken') }}</span> <span class="small text-danger">{{ t(item.problem.key, item.problem.params) }}</span></div>{% endif %}
+                            </td>
+                            <td>{{ t(item.source) }}</td>
+                            <td>{{ t(item.display) }}</td>
+                            <td class="small">{% include '@core/admin/_visibility.html.twig' with {object: item.object} only %}</td>
+                            <td><code class="small">{{ "{{ component('" ~ item.key ~ "') }}" }}</code></td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="text-body-secondary">{{ t('components.none') }}</p>
+    {% endif %}
+{% endblock %}

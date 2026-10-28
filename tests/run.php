@@ -1747,6 +1747,158 @@ test('Displays: the visitor\'s (login, admin, form, card), the search box, the s
     check($renderer->show('object:' . $empty->id(), 'navigation', [], $anonymous) === '', 'an empty menu shows a nav');
 });
 
+test('AdminMenu: the groups and their links, by who looks; a module\'s links', function () use ($displayKernel, $newUser): void {
+    $kernel = $displayKernel();
+    if ($kernel === null) {
+        return;
+    }
+    $c = $kernel->container();
+    $menu = $c->get(\Campanella\Admin\AdminMenu::class);
+    $names = static fn (array $built): array => array_map(static fn (array $g): string => $g['name'], $built);
+    $items = static fn (array $built, string $group): array => array_map(static fn ($i): string => $i->name, array_values(array_filter($built, static fn (array $g): bool => $g['name'] === $group))[0]['items'] ?? []);
+
+    $administrator = \Campanella\Auth\AuthService::actorFor($newUser('adminmenu-admin@example.hu', 'menu-jelszo-1', ['administrator']));
+    $editor = \Campanella\Auth\AuthService::actorFor($newUser('adminmenu-szerk@example.hu', 'menu-jelszo-1', ['editor']));
+    $full = $menu->build($administrator);
+    check($names($full) === ['content', 'media', 'audience', 'appearance', 'structure', 'system'], implode(',', $names($full)));
+    $content = $items($full, 'content');
+    check(in_array('article', $content, true) && in_array('snippet', $content, true) && !array_intersect(['user', 'submission', 'component', 'image', 'file'], $content), implode(',', $content));
+    check($items($full, 'media') === ['media', 'image', 'file'] && $items($full, 'audience') === ['submission', 'user']);
+    check($items($full, 'appearance') === ['component'] && $items($full, 'structure') === ['blueprints', 'capabilities', 'lists', 'model']);
+    check($items($full, 'system') === ['system', 'settings', 'mail', 'importers', 'redirects']);
+    check($names($menu->build($editor)) === ['content', 'media'], 'an editor sees the system groups: ' . implode(',', $names($menu->build($editor))));
+
+    $menu->add(\Campanella\Admin\AdminMenu::SYSTEM, static fn (Actor $actor): array => [new \Campanella\Admin\AdminMenuItem('backup', 'Mentések', 'system/backup')]);
+    $menu->group('shop', 'Bolt');
+    check(array_slice($items($menu->build($administrator), 'system'), -1) === ['backup'] && $menu->groups()[6] === 'shop', 'a module\'s link or group');
+    check($names($menu->build($administrator)) === $names($full), 'an empty group is shown');
+    throws(\InvalidArgumentException::class, static fn () => $menu->add('nincs', static fn (): array => []));
+});
+
+test('Components: checked on save, administrators only, shown by machine name with the visitor\'s rights, marked when they stop working', function () use ($displayKernel, $newUser): void {
+    $kernel = $displayKernel();
+    if ($kernel === null) {
+        return;
+    }
+    $c = $kernel->container();
+    $components = $c->get(\Campanella\Display\ComponentService::class);
+    $objects = $c->get(ObjectService::class);
+    $system = Actor::system();
+    $editor = \Campanella\Auth\AuthService::actorFor($newUser('komp-szerk@example.hu', 'komp-jelszo-1', ['editor']));
+    $anonymous = new \Campanella\Display\DisplayContext(Actor::anonymous());
+
+    $menu = $objects->create($system, 'menu', ['title' => 'Komponens menü', 'machine_name' => 'komp_menu']);
+    $item = $objects->create($system, 'menu_item', ['title' => 'Komp pont', 'url' => '/komp-pont'], relations: ['menu' => [$menu]]);
+    $snippet = $objects->create($system, 'snippet', ['title' => 'Nyitva', 'body' => '<p>Mindig</p>']);
+
+    check(array_map(static fn ($d): string => $d->name, $components->displaysFor('object:' . $menu->id())) === ['full', 'teaser', 'info_box', 'navigation']);
+    check(array_map(static fn ($d): string => $d->name, $components->displaysFor('system:visitor')) === ['login_button', 'admin_button', 'login_form', 'user_card']);
+    check(in_array('download', array_map(static fn ($d): string => $d->name, $components->displaysFor('current')), true), 'current: every display for objects');
+    check($components->displaysFor('object:999999999') === [] && $components->displaysFor('list:nincs') === [] && $components->displaysFor('rossz') === []);
+
+    $checked = $components->check('object:' . $snippet->id(), 'navigation', []);
+    check(array_keys($checked['errors']) === ['display'], 'a display that cannot show the source');
+    check(array_keys($components->check('object:999999999', 'teaser', [])['errors']) === ['source']);
+    check(array_keys($components->check('system:visitor', 'login_form', ['show_reset' => 'igen'])['errors']) === [], 'a yes/no is cast');
+    throws(ValidationException::class, static fn () => $components->create($system, ['title' => 'Rossz', 'machine_name' => 'komp_rossz'], 'object:' . $menu->id(), 'navigation', ['depth' => '9']));
+
+    $nav = $components->create($system, ['title' => 'Lábléc menü', 'machine_name' => 'komp_lablec'], 'object:' . $menu->id(), 'navigation', ['style' => 'vertical', 'depth' => '1']);
+    check($nav->as(\Campanella\Capability\Component::class)->settings() === ['style' => 'vertical', 'depth' => 1], json_encode($nav->as(\Campanella\Capability\Component::class)->settings()));
+    check($components->problem($nav) === null);
+    check(str_contains($components->show('komp_lablec', $anonymous), 'Komp pont') && str_contains($components->show('komp_lablec', $anonymous), 'nav flex-column'));
+    check($components->show('nincs_ilyen', $anonymous) === '' && $components->show('Rossz Név', $anonymous) === '');
+
+    // Who sees it: its own Restricted setting.
+    $box = $components->create($system, ['title' => 'Tagoknak', 'machine_name' => 'komp_tagoknak', 'visible_to' => \Campanella\Capability\Restricted::USERS], 'object:' . $snippet->id(), 'info_box', []);
+    check($components->show('komp_tagoknak', $anonymous) === '', 'a component for users is shown to an anonymous visitor');
+    check(str_contains($components->show('komp_tagoknak', new \Campanella\Display\DisplayContext($editor)), '<p>Mindig</p>'));
+
+    // Administrators only: an editor may see one, not make or change it.
+    $policy = $c->get(\Campanella\Access\AccessPolicy::class);
+    check($policy->allows($editor, \Campanella\Access\Operation::View, $nav) && !$policy->allows($editor, \Campanella\Access\Operation::Update, $nav) && !$policy->allows($editor, \Campanella\Access\Operation::Delete, $nav));
+    throws(\Campanella\Access\AccessDeniedException::class, static fn () => $components->create($editor, ['title' => 'Szerk', 'machine_name' => 'komp_szerk'], 'system:visitor', 'login_button'));
+
+    // The capability checks the stored form, whoever saves it.
+    throws(ValidationException::class, static fn () => $objects->create($system, 'component', ['title' => 'Kézi', 'machine_name' => 'komp_kezi', 'component_source' => 'object:abc', 'component_display' => 'Teaser!', 'component_settings' => '[1']));
+
+    // A component whose source is gone shows nothing and says why.
+    $objects->delete($system, $item);
+    $objects->delete($system, $menu);
+    check($components->problem($nav)?->key === 'components.source_missing' && $components->show('komp_lablec', $anonymous) === '');
+    $components->update($system, $nav, ['title' => 'Lábléc gomb'], 'system:visitor', 'login_button', []);
+    check($components->problem($nav) === null && str_contains($components->show('komp_lablec', $anonymous), '/login'), 'changed to another source');
+    // A site whose `component` Blueprint was made in the admin before 0.3.3: no components.
+    $theirs = new \Campanella\Display\ComponentService(
+        $c->get(\Campanella\Display\DisplayRenderer::class), $objects, $c->get(ObjectRepository::class), $c->get(QueryEngine::class), null,
+        new BlueprintRegistry($c->get(CapabilityRegistry::class), ['component' => ['capabilities' => [Titled::class]]]),
+    );
+    check($components->isAvailable() && !$theirs->isAvailable() && $theirs->find('komp_lablec', $system) === null);
+    throws(\Campanella\Display\DisplayException::class, static fn () => $theirs->create($system, ['title' => 'X', 'machine_name' => 'komp_x'], 'system:visitor', 'login_button'));
+    $twig = $c->get(\Twig\Environment::class);
+    check(str_contains($twig->createTemplate("{{ component('komp_lablec') }}|{{ component('nincs') }}|")->render(), '/login') && str_ends_with($twig->createTemplate("{{ component('nincs') }}|")->render(), '|'));
+});
+
+test('Kernel: the components in the admin: the three steps, saving, the list, deleting; only for administrators', function () use ($displayKernel, $newUser): void {
+    $kernel = $displayKernel();
+    if ($kernel === null) {
+        return;
+    }
+    $c = $kernel->container();
+    $storage = new ArraySessionStorage();
+    $c->set(Session::class, static fn () => new Session($storage));
+    $auth = $c->get(AuthService::class);
+    $send = function (string $method, string $path, array $post = []) use ($kernel, $storage) {
+        $storage->endRequest();
+        [$path, $query] = explode('?', $path, 2) + [1 => ''];
+        parse_str($query, $params);
+
+        return $kernel->handle(new Request($method, $path, query: $params, post: $post));
+    };
+    $csrfOf = static fn ($response): string => preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $response->body, $m) === 1 ? $m[1] : '';
+
+    $auth->login(new Request('GET', '/'), $newUser('komp-admin-szerk@example.hu', 'komp-jelszo-1', ['editor']));
+    $page = $send('GET', '/admin');
+    check($page->status === 200 && str_contains($page->body, 'admin-menu-group--content') && !str_contains($page->body, 'admin-menu-group--appearance'), 'the editor\'s menu');
+    check($send('GET', '/admin/component')->status === 403 && $send('GET', '/admin/component/new/source')->status === 403, 'the components for an editor');
+    check($send('GET', '/admin/component/new')->status === 403);
+
+    $auth->login(new Request('GET', '/'), $newUser('komp-admin@example.hu', 'komp-jelszo-1', ['administrator']));
+    $page = $send('GET', '/admin/component');
+    check($page->status === 200 && str_contains($page->body, 'admin-menu-group--appearance') && str_contains($page->body, 'href="/admin/component" aria-current="page">Komponensek'), 'the list, marked in the menu');
+    check(preg_match('#Megjelenés</li>.*Komponensek.*Szerkezet</li>.*Blueprintek.*Rendszer</li>.*Állapot#s', $page->body) === 1, 'the groups in their order');
+    check($send('GET', '/admin/component/new')->status === 303, 'the form without a source: to the first step');
+
+    $step1 = $send('GET', '/admin/component/new/source?blueprint=snippet&q=Nyit');
+    check($step1->status === 200 && str_contains($step1->body, 'source=system%3Avisitor') && str_contains($step1->body, 'source=current') && str_contains($step1->body, 'Nyitva'), 'the sources');
+    $step2 = $send('GET', '/admin/component/new/display?source=system:visitor');
+    check($step2->status === 200 && str_contains($step2->body, 'display=login_form') && !str_contains($step2->body, 'display=teaser'), 'the displays of the source');
+    check($send('GET', '/admin/component/new/display?source=rossz')->status === 404);
+    $form = $send('GET', '/admin/component/new?source=system:visitor&display=login_form');
+    check($form->status === 200 && str_contains($form->body, 'name="s[show_reset]"') && str_contains($form->body, 'name="f[machine_name]"') && str_contains($form->body, 'name="f[visible_to]"') && !str_contains($form->body, 'f[component_source]'), 'the form');
+
+    $post = ['_csrf' => $csrfOf($form), 'source' => 'system:visitor', 'display' => 'login_form', 'f' => ['title' => 'Belépés oldalt', 'machine_name' => 'oldalso_belepes', 'visible_to' => 'public'], 's' => ['show_reset' => '0']];
+    check($send('POST', '/admin/component/new', ['_csrf' => 'x'] + $post)->status === 400, 'without the CSRF token');
+    $bad = $send('POST', '/admin/component/new', ['display' => 'navigation'] + $post);
+    check($bad->status === 422 && str_contains($bad->body, 'ez a megjelenítés nem tudja megmutatni ezt a forrást'), 'a display that does not fit');
+    $saved = $send('POST', '/admin/component/new', $post);
+    check($saved->status === 303 && ($saved->headers['Location'] ?? '') === '/admin/component', (string) $saved->status);
+    $component = $c->get(\Campanella\Display\ComponentService::class)->find('oldalso_belepes', Actor::system());
+    check($component !== null && $component->as(\Campanella\Capability\Component::class)->settings() === ['show_reset' => false]);
+    check(str_contains($send('GET', '/admin/component')->body, '{{ component(&#039;oldalso_belepes&#039;) }}'));
+
+    $edit = $send('GET', '/admin/component/' . $component->id());
+    check($edit->status === 200 && str_contains($edit->body, 'value="Belépés oldalt"') && str_contains($edit->body, 'id="setting-show_reset"'));
+    $changed = $send('POST', '/admin/component/' . $component->id(), ['_csrf' => $csrfOf($edit), 'source' => 'system:visitor', 'display' => 'login_button', 'f' => ['title' => 'Belépés gomb', 'machine_name' => 'oldalso_belepes', 'visible_to' => 'public']]);
+    check($changed->status === 303 && $c->get(\Campanella\Display\ComponentService::class)->find('oldalso_belepes', Actor::system())?->as(\Campanella\Capability\Component::class)->display() === 'login_button', 'changed display');
+
+    $delete = $send('GET', '/admin/component/' . $component->id() . '/delete');
+    check($delete->status === 200 && str_contains($delete->body, 'component(&#039;oldalso_belepes&#039;)'));
+    check($send('POST', '/admin/component/' . $component->id() . '/delete', ['_csrf' => $csrfOf($delete)])->status === 303);
+    check($c->get(\Campanella\Display\ComponentService::class)->find('oldalso_belepes', Actor::system()) === null, 'not deleted');
+    check($send('GET', '/admin/component/' . $component->id())->status === 404 && $send('GET', '/admin/component/x')->status === 404);
+    check($send('GET', '/admin/component/new/bogus')->status === 404);
+});
+
 // --- Documentation examples -------------------------------------------------
 
 echo "\nSystem\n";
@@ -4963,7 +5115,7 @@ test('Kernel: the site settings page, for administrators', function () use ($new
     $auth->login(new Request('GET', '/'), $newUser('beallito@example.hu', 'beallito-jelszo-1', ['administrator']));
 
     $page = $send('GET', '/admin/system/settings');
-    check($page->status === 200 && str_contains($page->body, 'value="Campanella"') && str_contains($page->body, 'placeholder="https://example.hu"') && str_contains($page->body, 'Még nincs megadva.') && str_contains($page->body, 'a(z) http://pelda.hu címen') && str_contains($page->body, 'href="/admin/system/settings">Webhely-beállítások</a>'), 'the form, with the address it was opened at');
+    check($page->status === 200 && str_contains($page->body, 'value="Campanella"') && str_contains($page->body, 'placeholder="https://example.hu"') && str_contains($page->body, 'Még nincs megadva.') && str_contains($page->body, 'a(z) http://pelda.hu címen') && str_contains($page->body, 'href="/admin/system/settings" aria-current="page">Webhely-beállítások</a>'), 'the form, with the address it was opened at');
     $form = ['_csrf' => $csrfOf($page), 'name' => '', 'slogan' => 'Új szlogen', 'description' => 'Leírás', 'url' => 'pelda.hu', 'share_image' => '', 'indexing' => '1'];
     check($send('POST', '/admin/system/settings', ['_csrf' => 'x'] + $form)->status === 400);
     $bad = $send('POST', '/admin/system/settings', $form);

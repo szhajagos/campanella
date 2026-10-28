@@ -17,7 +17,7 @@ namespace, in the `src/` folder (PSR-4).
 10. [Relations](10-relations.md): `Relation`, `Cardinality`, `whereRelated`, `RelationLoader`, Blueprint lists
 11. [Users and login](11-users.md): `Identifiable`, `Authenticatable`, `Authorable`, `AuthService`, session, CSRF, `LoginGuard`
 12. [Translation](12-translation.md): `Translator`, `Message`, language files, `t()` in templates
-13. [Admin UI](13-admin.md): access, `AdminAccess`, `Flash`, admin templates
+13. [Admin UI](13-admin.md): access, `AdminAccess`, the menu (`AdminMenu`, since 0.3.3), `Flash`, admin templates
 14. [System check](14-system-check.md): `SystemCheck`, `CheckResult`, `TemplateCache`, the System page
 15. [HTML texts](15-html.md): the allowlist, `HtmlSanitizer`, `html:sanitize`
 16. [Images](16-media.md): the `image` Blueprint, `MediaFile`, `MediaService`, `ImageProcessor`, `MediaStorage`, smaller copies (`ResponsiveImages`), where an image is used (`MediaUsage`)
@@ -32,7 +32,7 @@ namespace, in the `src/` folder (PSR-4).
 25. [Search](25-search.md): the index (`SearchIndex`), `Search` and its results, the page, building the index (`SearchIndexer`, `search:index`) (since 0.2.7)
 26. [Importers](26-importers.md): the definition (`ImporterDefinition`), the file (`ImportSource`), the values (`ImportValues`), running, the log and undoing (`Importer`, `ImportRun`, `ImportTrial`), `import:run`, `import:undo` (since 0.3.1)
 27. [Files](27-files.md): the `file` Blueprint, `Downloadable`, `Restricted`, the checks (`FileInspector`), `FileService`, `FileStorage`, the downloads (`FileController`, `file_url()`), the media library and the file picker (`FilePages`) (since 0.3.2)
-28. [Displays](28-displays.md): `Display` and `AsDisplay`, the registry (`DisplayRegistry`), what is shown (`Subject`) and where (`DisplayContext`), the sources and the system sources (`SystemSource`), `DisplayRenderer`, the built-in displays, `display()` in templates, the `snippet` Blueprint (since 0.3.3)
+28. [Displays](28-displays.md): `Display` and `AsDisplay`, the registry (`DisplayRegistry`), what is shown (`Subject`) and where (`DisplayContext`), the sources and the system sources (`SystemSource`), `DisplayRenderer`, the built-in displays, `display()` in templates, the `snippet` Blueprint; components (`ComponentService`, `component()`, the admin's pages) (since 0.3.3)
 
 ## Namespaces
 

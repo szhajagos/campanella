@@ -79,7 +79,10 @@ version: upgrade it to 0.3.x ([Upgrading](upgrading.md)).
   the defaults for anything else; the templates run in the sandbox. The admin
   button is shown only to those who may enter the admin; the login form is
   sent to the login page, with its CSRF token and the login guards' fields,
-  and so starts a session (a cookie) like the login page.
+  and so starts a session (a cookie) like the login page. **Components** are
+  made, changed and deleted only by administrators (the policy, and the
+  pages for the system roles); each is shown only to those its `Restricted`
+  setting names, and checked on every save.
 - **Installing and upgrading:** from the browser only with a long key (wrong
   keys limited) or as an administrator; backups before migrations.
 - **E-mail:** the mail server's address (with its password) is set only in

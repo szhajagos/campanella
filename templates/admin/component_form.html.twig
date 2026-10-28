@@ -1,0 +1,43 @@
+{% extends '@core/admin/base.html.twig' %}
+
+{# 3. A component's form (since 0.3.3): its own fields and the display's settings. #}
+{% block content %}
+    {% include '@core/admin/_component_steps.html.twig' with {step: 3} %}
+    <h1 class="h3 mb-2">{{ t(title) }}</h1>
+    <p class="mb-4">
+        {{ t('components.source') }}: <strong>{{ t(source_label) }}</strong> · {{ t('components.display') }}: <strong>{{ t(display_label) }}</strong>
+        · <a href="{{ admin_url(base ~ '/source') }}">{{ t('components.change') }}</a>
+    </p>
+    {% if problem %}<div class="alert alert-danger" role="alert">{{ t('components.broken') }}: {{ t(problem.key, problem.params) }}</div>{% endif %}
+    {% for name, error in errors %}
+        <div class="alert alert-danger" role="alert">{{ t(error.key, error.params) }}</div>
+    {% endfor %}
+
+    <form method="post" action="{{ admin_url(base) }}" class="admin-form" novalidate>
+        {{ csrf_field() }}
+        <input type="hidden" name="source" value="{{ source }}">
+        <input type="hidden" name="display" value="{{ display }}">
+        {% for field in fields %}
+            {% include '@core/admin/form/_row.html.twig' with {field: field} only %}
+        {% endfor %}
+
+        {% if settings %}
+            <fieldset class="border rounded p-3 mb-4 admin-component-settings">
+                <legend class="h6 float-none w-auto px-2 mb-0">{{ t('components.settings') }}</legend>
+                {% for field in settings %}
+                    {% include '@core/admin/form/_row.html.twig' with {field: field} only %}
+                {% endfor %}
+            </fieldset>
+        {% endif %}
+
+        <div class="d-flex gap-2 mt-4 pt-3 border-top">
+            <button type="submit" class="btn btn-primary">{{ t(component ? 'admin.form.save' : 'admin.form.create') }}</button>
+            <a class="btn btn-outline-secondary" href="{{ admin_url('component') }}">{{ t('admin.form.cancel') }}</a>
+            {% if component %}<a class="btn btn-outline-danger ms-auto" href="{{ admin_url('component/' ~ component.id ~ '/delete') }}">{{ t('admin.delete.link') }}</a>{% endif %}
+        </div>
+    </form>
+{% endblock %}
+
+{% block scripts %}
+    <script src="{{ asset('admin.js') }}" defer></script>
+{% endblock %}

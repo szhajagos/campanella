@@ -1,0 +1,18 @@
+{% extends '@core/admin/base.html.twig' %}
+
+{# 2. Choosing a component's display (since 0.3.3): those that can show the source. #}
+{% block content %}
+    {% include '@core/admin/_component_steps.html.twig' with {step: 2} %}
+    <h1 class="h3 mb-2">{{ t('components.choose_display') }}</h1>
+    <p class="mb-4">{{ t('components.source') }}: <strong>{{ t(source_label) }}</strong> · <a href="{{ admin_url(base ~ '/source') }}">{{ t('components.change_source') }}</a></p>
+
+    {% if displays %}
+        <div class="list-group admin-displays">
+            {% for item in displays %}
+                <a class="list-group-item list-group-item-action" href="{{ admin_url(base) }}?{{ {source: source, display: item.name}|url_encode }}">{{ t(item.label) }} <code class="small text-body-secondary">{{ item.name }}</code></a>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-warning" role="alert">{{ t('components.no_displays') }}</div>
+    {% endif %}
+{% endblock %}

@@ -56,9 +56,10 @@ working. What 0.3.x promises is in [Compatibility](compatibility.md).
    `templates/`, `vendor/`). Do not copy them over the old ones: files removed
    since your version would stay behind. If you changed `config/blueprints.php`,
    compare your copy with the new one (0.2.8 added `'admin_columns'` to the
-   articles, 0.3.2 the `file` Blueprint) and keep yours, with what is new
-   added: without the `file` Blueprint there are no files to download (the
-   System page says so).
+   articles, 0.3.2 the `file` Blueprint, 0.3.3 the `snippet` and `component`
+   Blueprints) and keep yours, with what is new added: without the `file`
+   Blueprint there are no files to download (the System page says so), without
+   `component` no components.
 
 3. **Run the upgrade.** Until then the site answers 503 to visitors, but
    logging in works. Either:
@@ -101,6 +102,7 @@ has schema version 12, 0.3.0 has 16, 0.3.1 has 17, 0.3.2 has 18 (from 0.1.x: see
 | 16 | 0.2.7 | `search_index` table (with FULLTEXT indexes), `redirects` table |
 | 17 | 0.3.1 | `importers`, `import_runs`, `import_items` tables: the importers, their runs' log, which item became which object |
 | 18 | 0.3.2 | `cap_downloadable` and `cap_restricted` tables: the files to download, and who may see an object |
+| 19 | 0.3.3 | `cap_component` table: the components |
 
 With a table prefix, every name starts with it (`cc_lists`, …).
 
@@ -156,6 +158,14 @@ types, the Blueprint); `users.roles` (0.3.2: the site's own roles, e.g.
 - **The admin's menu has *Media*** (0.3.2), with *Images* and *Files* under it;
   the images are no longer under *Content*. The System page's *Images* group is
   *Images and files*.
+- **The admin's menu is in groups** (0.3.3): *Content*, *Media library*,
+  *Audience* (submissions, users), and for administrators *Appearance*
+  (components), *Structure* (Blueprints, capabilities, lists, the content
+  model) and *System* (its first page is now *Status*). The profile is the
+  user's name in the top bar. The addresses stay, so bookmarks keep working.
+- **Components can only be changed by administrators** (0.3.3): editors see
+  them, but cannot make, change or delete them. A Blueprint called `snippet` or
+  `component` made in the admin keeps its name, and the core's is left out.
 
 ## Themes and custom code
 

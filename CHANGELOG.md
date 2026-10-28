@@ -10,10 +10,14 @@ backward-incompatible.
 
 ## [Unreleased]
 
-**Displays and components, part 1: displays.** The second step towards
-0.4.0: the ways of showing something (a menu as navigation, a file as a
-download, a list as cards, the visitor as a login button), which the
-components of the admin will place on the site.
+**Displays and components.** The second step towards 0.4.0: the ways of
+showing something (a menu as navigation, a file as a download, a list as cards,
+the visitor as a login button), and components, made in the admin, that show a
+source with a display; the admin's menu in groups.
+
+**Upgrading:** the upgrade adds a table (schema version 19). If you keep a
+`config/blueprints.php` of your own, add the `snippet` and `component`
+Blueprints from the new one.
 
 ### Added
 
@@ -36,9 +40,26 @@ components of the admin will place on the site.
 - The **`snippet`** Blueprint: a title and a formatted text, without a page of
   its own, for the texts a display shows in a box (opening hours, a contact).
 - `MenuBuilder::buildFor()`: the items of a menu already read.
+- **Components** ([PHP API, chapter 28](docs/php-api/28-displays.md#components)):
+  objects of the `component` Blueprint (a title, a machine name, who sees it,
+  and the `Component` capability with the source, the display and its
+  settings), made in the admin under *Appearance → Components* in three steps
+  (the source, the displays that can show it, the form with the display's
+  settings), for administrators only. `ComponentService` checks them on every
+  save and tells why one no longer works (its object was deleted …); the list
+  marks those. `{{ component('lablec_menu') }}` shows one in a template, with
+  the visitor's rights.
+- **The admin's menu in groups** (`AdminMenu`, [chapter 13](docs/php-api/13-admin.md#the-menu-adminmenu)):
+  *Content*, *Media library*, *Audience*, and for the system roles
+  *Appearance*, *Structure*, *System*. Built in PHP, so a module can add its
+  links. The admin's addresses did not change.
+- `DefaultPolicy::ADMINISTRATORS_EDIT` (by default `component`): objects only
+  administrators may change, seen as any object.
 
 ### Changed
 
+- The admin's sidebar: the links in groups (above); the profile only in the top
+  bar (the user's name), *System* became *Status* in the *System* group.
 - `render_object(item, 'teaser')` and `'full'` render the `teaser` and `full`
   displays. Their templates are the same (`object/<blueprint>--<mode>.html.twig`,
   `object/<mode>.html.twig`), with the same HTML; they also get `settings`

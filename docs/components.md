@@ -199,7 +199,7 @@ is why every display says which context it uses (`DisplayContext`).
 
 | Step | What |
 |---|---|
-| **0.3.3** | Displays and sources: `Display`, `AsDisplay`, the registry, the built-in displays and system sources, `display()` in templates; `full` and `teaser` as displays; the `snippet` Blueprint (part 1). The admin's menu in groups; the `component` Blueprint, made in the admin (source, display, its settings' form), and `component()` in templates to show one anywhere (part 2) |
+| **0.3.3** | Displays and sources: `Display`, `AsDisplay`, the registry, the built-in displays and system sources, `display()` in templates; `full` and `teaser` as displays; the `snippet` Blueprint (part 1). The admin's menu in groups; the `component` Blueprint, made in the admin (source, display, its settings' form), and `component()` in templates to show one anywhere (part 2; [chapter 28](php-api/28-displays.md#components)). Its region, order and conditions come with 0.3.4 |
 | **0.3.4** | Regions and layouts: the core's two layouts, `region()`, the theme's own layouts; placing components (region, order, who sees them, where); the layout of the site and of a Blueprint; the upgrade's components that keep the header and footer as they are |
 | **0.3.5** | Pages assembled from components: a component's `page`, a page's layout, editing a page's components (editors too), the front page made of components |
 | **0.3.6** | Appearance: colour schemes; the visitor's colour-mode switch as a display of a system source |

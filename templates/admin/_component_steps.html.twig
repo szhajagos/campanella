@@ -1,0 +1,13 @@
+{# The steps of making a component (since 0.3.3): step 1, 2 or 3. #}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb small mb-2">
+        <li class="breadcrumb-item"><a href="{{ admin_url('component') }}">{{ t('components.title') }}</a></li>
+        {% if component %}<li class="breadcrumb-item"><a href="{{ admin_url('component/' ~ component.id) }}">{{ component.title }}</a></li>{% endif %}
+        <li class="breadcrumb-item active" aria-current="page">{{ t(title) }}</li>
+    </ol>
+</nav>
+<ol class="list-inline small text-body-secondary mb-4 admin-steps">
+    {% for n, label in {1: 'components.step.source', 2: 'components.step.display', 3: 'components.step.settings'} %}
+        <li class="list-inline-item{{ n == step ? ' fw-semibold text-body' }}"{% if n == step %} aria-current="step"{% endif %}>{{ n }}. {{ t(label) }}</li>
+    {% endfor %}
+</ol>
