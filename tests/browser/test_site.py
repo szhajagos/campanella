@@ -195,6 +195,10 @@ def test_login_and_logout(browser):
     page.fill("#password", ADMIN[1])
     page.eval_on_selector("input[name=website]", "e => e.value = 'http://spam.example'")
     page.click("form[action$='/login'] button[type=submit]")
+    try:
+        page.locator(".alert-danger").wait_for(timeout=10000)   # the answer is a new page
+    except Exception:
+        pass
     check(page.locator(".alert-danger").count() == 1, "the honeypot: no error shown")
     check(not logged_in(page), "the honeypot filled in, yet logged in")
 
@@ -343,6 +347,11 @@ def test_password_reset(browser):
     page.fill("#password", "rovid")
     page.fill("#password_again", "rovid")
     page.click("form[action$='/password-reset'] button[type=submit]")
+    # The answer is a new page: wait for it, not only for the click.
+    try:
+        page.locator("#password.is-invalid").wait_for(timeout=10000)
+    except Exception:
+        pass
     check(page.locator("#password.is-invalid").count() == 1, "a too short new password: no error")
     new_password = "browser-uj-jelszo-2"
     page.fill("#password", new_password)
