@@ -43,7 +43,8 @@ Completed changes are listed in the [CHANGELOG](CHANGELOG.md).
 | 0.3.1 | Importers, step 1 (released 2026-10-26): CSV and JSON files into the objects of a Blueprint, by a mapping and a unique key; a trial, a run in batches with a log, undoing a run; System → Importers and `import:run`, `import:undo`; the admin's lists as CSV; the guide's chapter on importing. |
 | 0.3.2 | Files to download (released 2026-10-28): documents checked by their content, stored outside the web root and always downloaded through the site, for everyone, logged-in users or some roles (`Restricted`, applied by the access policy everywhere); the site's own roles; the media library; the editor's file picker; the guide's chapter on images and files. The first step of 0.4.0. |
 | 0.3.3 | Displays and components (released 2026-10-28): 16 displays offered by the capabilities of what they show, for objects, lists and system sources (the visitor, the search, the site, the breadcrumbs), always read with the visitor's rights; `display()` in templates; the `snippet` Blueprint; components made in the admin in three steps, for administrators only, `component()` in templates; the admin's menu in groups; the guide's chapter on components. The second step of 0.4.0. |
-| – | Continuous integration (GitHub Actions): PHPStan, documentation, tests on MariaDB 10.6/11.4 and MySQL 8.0/8.4, upgrades from 0.1.0, 0.1.5, 0.2.0, 0.2.9, 0.3.0, 0.3.1 and 0.3.2, a performance check, browser tests, the installation package checked before every release (with `vendor/`, for every version tag) |
+| 0.3.4 | Regions and layouts (released 2026-10-29): layouts (a template and a JSON file, from the core and the theme) with regions, each collapsed or hidden on small screens; the site's layout and a Blueprint's own; components placed in regions, in an order, with conditions (paths, Blueprints, the front page, except); Appearance → Layouts and → Regions; the header and footer as components, made by the upgrade; tokens in snippets; the guide's chapter on layouts. The third step of 0.4.0. |
+| – | Continuous integration (GitHub Actions): PHPStan, documentation, tests on MariaDB 10.6/11.4 and MySQL 8.0/8.4, upgrades from 0.1.0, 0.1.5, 0.2.0, 0.2.9, 0.3.0, 0.3.1, 0.3.2 and 0.3.3, a performance check, browser tests, the installation package checked before every release (with `vendor/`, for every version tag) |
 
 ## Next: the road to 1.0
 
@@ -244,7 +245,7 @@ components use later.
 |---|---|
 | **0.3.2** ✔ | Released 2026-10-28. **Files** (see below): documents besides images, as objects; public and private files; one media library in the admin; a file chosen by the relation picker, or linked from the editor. |
 | **0.3.3** ✔ | Released 2026-10-28. **Displays and components** ([the design](docs/components.md), detailed below): `Display` (Public API: a class with its template, its settings and what it needs: capabilities, a list or a system source) and the built-in ones; the sources (an object, a list, the page's object, the system sources such as the visitor); the `snippet` Blueprint; the `component` Blueprint made in the admin, and `component()` in templates; the admin's menu in groups; `full` and `teaser` become displays. |
-| **0.3.4** | **Regions and layouts** (detailed below): the core's two layouts and the theme's own (JSON), `region()`; how a region shows on small screens; components placed in regions (order, who sees them, where); a layout for the site and per Blueprint; tokens in snippets; the upgrade keeps the header and footer as they are. |
+| **0.3.4** ✔ | Released 2026-10-29. **Regions and layouts** (detailed below): the core's two layouts and the theme's own (JSON), `region()`; how a region shows on small screens; components placed in regions (order, who sees them, where); a layout for the site and per Blueprint; tokens in snippets; the upgrade keeps the header and footer as they are. |
 | **0.3.5** | **Pages:** pages assembled from components (a front page, an "about us" page), their own layout; editors edit their components. |
 | **0.3.6** | **Appearance** (2026-10-11): colour schemes with light and dark variants, the colour mode (the visitor's system setting, or fixed); a visitor's switch as a component, not a button built into the header. |
 | **0.3.7** | **Sample content in the site's language** (2026-10-12): an English site gets English samples and paths (now `seed` is Hungarian only, `/hirek` too). |
@@ -297,7 +298,7 @@ Decided on 2026-10-26:
 3. **The guide, the docs and the release** (part 3): a guide chapter on
    components, the PHP API, the security review, the upgrade test.
 
-**Regions and layouts (0.3.4, agreed 2026-10-29),** in four parts:
+**Regions and layouts (0.3.4, agreed 2026-10-29; released 2026-10-29),** in four parts:
 
 1. **The layouts and regions** (part 1): a layout is a template and a JSON
    file of its regions (`layout/<name>.html.twig`, `.json`; not PHP: a theme
@@ -321,7 +322,7 @@ Decided on 2026-10-26:
    components of the header and footer as they look now (the site's name, the
    main menu, the search box, the visitor's buttons, a footer snippet), on an
    upgrade and a new installation, the header's row fixed (done); **4b** the
-   guide, the docs, the release.
+   guide, the docs, the release (done).
 
 Later (decided 2026-10-29): a layout chosen by rules (path, Blueprint, role …),
 with the components' conditions; the regions' arrangement edited in the admin;

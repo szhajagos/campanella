@@ -131,8 +131,8 @@ show:
 
 ![The site's front page with the sample content](../images/en/site-front.png)
 
-While you are logged in, the header shows the **Admin** button, your name and
-**Log out**. Visitors see none of these, nor the drafts.
+While you are logged in, the header shows the **Admin** and **Log out**
+buttons. Visitors see none of these, nor the drafts.
 
 With the **Search…** field of the header, visitors can search the site's
 published content (chapter 3).

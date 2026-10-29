@@ -10,8 +10,20 @@ backward-incompatible.
 
 ## [Unreleased]
 
-**Regions and layouts, parts 1–4a.** The third step towards 0.4.0: layouts with
-regions, and components placed in them.
+## [0.3.4] – 2026-10-29
+
+**Regions and layouts.** The third step towards 0.4.0: layouts with regions,
+components placed in them (in an order, on the pages they are meant for), the
+site's header and footer made of components, tokens in the snippets.
+
+**Upgrading from 0.3.0–0.3.3:** upload the new files and run the upgrade
+(`php bin/campanella install`, or `/admin/upgrade`): it adds a column (schema
+version 20), makes the header's and footer's components as the header looked,
+and turns the layouts on. If you keep a `config/blueprints.php` of your own, add
+`Weighted` to the `component` Blueprint, as in the new one. A theme that
+overrides `base.html.twig` keeps its own header and footer. Turn PHP's JIT off
+(`opcache.jit=disable`) if it is on. From older versions: see
+[docs/upgrading.md](docs/upgrading.md).
 
 ### Added
 
@@ -54,6 +66,14 @@ regions, and components placed in them.
   layouts on. A site without a main menu gets one with the header's built-in
   links, which `seed` fills with the sample menu. `install` says which
   components it made.
+- The guide's chapter **14. Layouts and regions** ([hu](docs/guide/hu/14-elrendezesek.md),
+  [en](docs/guide/en/14-layouts.md)): the header's and footer's components, the
+  tokens, a sidebar beside the articles, the regions' order, where a component
+  shows, on small screens; chapters 2, 4 and 13 follow, the screenshots are new.
+- Tests: layouts, conditions, the layouts' and regions' pages, placing
+  components, the tokens, the header and footer made once (and `seed` filling
+  the menu); browser tests for the regions and the layouts; every upgrade test
+  checks the header and footer; the upgrade test from 0.3.3 too.
 - The System page warns while **PHP's JIT** is on (`SystemCheck::jitIsOn()`):
   PHP 8.3's JIT (8.3.35, 8.3.36) made PHP itself crash now and then in
   Campanella's tests; `opcache.jit=disable` turns it off, the OPcache stays
@@ -62,7 +82,7 @@ regions, and components placed in them.
 ### Changed
 
 - **The header:** the menu, the search and the buttons fit in one row on a
-  laptop (the header and footer are 64rem wide, the text stays 48rem); where they
+  laptop (the header and footer are 72rem wide, the text stays 48rem); where they
   do not, the menu stays whole and the rest goes below it, to the right (before,
   the menu broke into two lines or the login button went below). The current
   page's menu link stands out.

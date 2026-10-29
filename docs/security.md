@@ -126,6 +126,38 @@ version: upgrade it to 0.3.x ([Upgrading](upgrading.md)).
   may see, and puts an apostrophe before a text a spreadsheet would run as a
   formula (`=`, `+`, `-`, `@`).
 
+## Review of the regions and layouts, 0.3.4 (2026-10-29)
+
+What 0.3.4 added was checked as it was built, with tests for each point:
+
+- **What a region shows:** a page's components are found by one query with the
+  visitor's rights (their `Restricted` setting counts), and each is shown as in
+  0.3.3, its source read with the visitor's rights. A component's conditions
+  only narrow where it shows; they never let anyone see more. The admin's
+  regions page lists every component the administrator may see, whatever its
+  conditions, so nothing placed is hidden from the administrators.
+- **The stored form:** a layout's JSON is data only (no code: a theme holds only
+  sandboxed templates): its version, a label of at most 100 characters, at
+  most 20 regions with names of lowercase letters, digits and `_`, each look
+  and breakpoint from a fixed list; a layout that is not valid is left out and
+  shown as such. A component's region must be one a layout has; its conditions
+  are at most 20 paths of each kind, each starting with `/`, at most 255
+  characters, without spaces, `?`, `#` or `\`, and Blueprints that exist.
+  The layouts' settings take only layouts, regions and looks that exist, all or
+  nothing.
+- **Tokens:** a token's value is escaped as HTML; the tokens are replaced only
+  in the texts of the Blueprints named in `tokens.blueprints` (by default the
+  snippets, which only administrators place), after the text's own filtering;
+  an unknown token stays as it is written. A token provider is a class named in
+  the configuration, checked to implement `TokenProvider`.
+- **Who changes them:** the layouts' and regions' pages are for the system
+  roles only; every POST checks the CSRF token, and a move, an add or a removal
+  is a POST (a GET answers 405). The components the upgrade makes are made by
+  the system, once, with the same checks as the admin's.
+- **The PHP JIT:** the System page warns while it is on: PHP 8.3's JIT crashed
+  PHP itself in the tests ([why](php-api/14-system-check.md#the-php-jit)); a
+  crashed process loses the request, not data.
+
 ## Review of the displays and components, 0.3.3 (2026-10-28)
 
 What 0.3.3 added was checked as it was built, with tests for each point:

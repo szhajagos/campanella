@@ -36,5 +36,8 @@ interface, with Campanella's own sample content (which is in Hungarian).
     setting up an importer, the trial, the log, undoing, the CSV export.
 13. [Components](13-components.md): snippets, a component in three steps (the
     source, the display, the settings), who sees it, in a template.
+14. [Layouts and regions](14-layouts.md): the header's and footer's
+    components, a sidebar beside the articles, the regions' order, where a
+    component shows, on small screens.
 
 [Magyar változat](../hu/README.md)

@@ -16,9 +16,10 @@ Komponenst csak az adminisztrátorok készíthetnek és módosíthatnak: hogy mi
 jelenjen meg a webhelyen, az a szerkesztőknél magasabb jog. A szerkesztők azt
 módosíthatják, amit a komponens mutat (a szövegrészletet, a menüt).
 
-> **Hol jelenik meg egy komponens?** A 0.3.3-ban ott, ahol a téma sablonja a
-> **gépi nevével** meghívja (lent). A 0.3.4-től a webhely elrendezésének
-> részeibe (fejléc, oldalsáv, lábléc) az adminban is elhelyezheted.
+> **Hol jelenik meg egy komponens?** Az elrendezés valamelyik **régiójában**
+> (fejléc, navigáció, oldalsáv, lábléc …): ezt az űrlapján választod ki, a
+> sorrendjét a **Megjelenés → Régiók** oldalon állítod (14. fejezet). Vagy ott,
+> ahol a téma sablonja a **gépi nevével** meghívja (lent).
 
 ## Szövegrészlet: a rövid szövegek
 
@@ -78,6 +79,9 @@ listához a kártyák és a táblázat.
 - **A megjelenítés beállításai:** a választott megjelenítéstől függnek. Egy
   információs doboznál a cím és a szín, egy listánál az elemek és az oszlopok
   száma.
+- **Hol jelenik meg** (0.3.4-től): a **régió**, és hogy mely oldalakon: a
+  címlapon, adott útvonalakon, egyes tartalomtípusok oldalain, kivéve néhány
+  útvonalat. Lásd a [14. fejezetet](14-elrendezesek.md#hol-jelenjen-meg).
 
 A **Létrehozás** gombbal mented. Később a listában a címére kattintva
 módosítod; a **Másik forrás vagy megjelenítés** linkkel újra végigmész a
@@ -98,9 +102,8 @@ megmarad).
 
 ## Egy komponens a sablonban
 
-Amíg az elrendezések nem jönnek (0.3.4), egy komponens ott jelenik meg, ahol a
-téma sablonja meghívja a gépi nevével. Ezt az, aki a témát készíti, egy sorral
-teszi meg:
+Egy régióba nem tett komponens ott jelenik meg, ahol a téma sablonja meghívja
+a gépi nevével. Ezt az, aki a témát készíti, egy sorral teszi meg:
 
 ```twig
 {{ component('elerhetoseg_doboz') }}
@@ -113,4 +116,5 @@ oldal nem romlik el. A témák készítőinek szóló leírás:
 ---
 
 Előző: [12. Importálás táblázatból](12-importalas.md) ·
+Következő: [14. Elrendezések és régiók](14-elrendezesek.md) ·
 [Tartalomjegyzék](README.md)

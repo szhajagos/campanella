@@ -8,7 +8,7 @@ run locally too.
 |---|---|---|
 | Tests | `composer test` | The PHP code, on a real database (table prefix `test_`) |
 | Static analysis and docs | `composer analyse`, `composer docs:check`, `composer docs:links`, `composer lang:check` | Types (PHPStan level 8); every public class and method documented; links; translations |
-| Upgrade test | `tests/upgrade/run.sh <old source>` | A real upgrade from 0.1.0, 0.1.5, 0.2.0, 0.2.9, 0.3.0, 0.3.1 or 0.3.2 (from 0.2.9 on with a content model): nothing is lost (since 0.2.0; see [The upgrade test](php-api/17-migrations.md#the-upgrade-test)) |
+| Upgrade test | `tests/upgrade/run.sh <old source>` | A real upgrade from 0.1.0, 0.1.5, 0.2.0, 0.2.9, 0.3.0, 0.3.1, 0.3.2 or 0.3.3 (from 0.2.9 on with a content model): nothing is lost (since 0.2.0; see [The upgrade test](php-api/17-migrations.md#the-upgrade-test)) |
 | Performance check | `tests/performance/run.sh` | 10 000 objects; the busiest pages answer within their limits of time and SQL queries (since 0.3.0; [below](#the-performance-check)) |
 | Browser tests | `tests/browser/run.sh` | The site in a real browser, its protections first (since 0.2.0; below) |
 | Release package | `tests/package/check.sh` | The installation package as a site owner gets it: its contents, installing it from the browser on a minimal PHP, the browser tests on it (since 0.2.0; below) |
@@ -64,6 +64,7 @@ What they check:
 | Admin | Every list and form opens for the administrator; a new article is saved, one without a CSRF token is not; the profile is saved; the System page shows the version; an editor gets 403 on the administrators' pages (users, Submissions, System, Components) |
 | Search and importers | The header's search finds and marks the words, never a draft; an importer made in the admin, its trial, its run going on by itself to its end |
 | Components (since 0.3.3) | A component made in the three steps (a menu as navigation, for logged-in users): the Appearance group in the menu, a setting out of range refused, the saved one listed; an editor gets 403 on the components' pages |
+| Regions and layouts (since 0.3.4) | From the Appearance menu: a component added to the footer region on the Regions page, then taken out; the site's layout and a region's look saved on the Layouts page, and set back. The header is made of components on every page |
 | Files (since 0.3.2) | Two files uploaded on the Files list, one for the logged-in users; the media library lists them; the editor's file picker links the selected text to one; a visitor downloads the public one (an attachment, with the download's CSP) and gets 404 for the other, which a logged-in editor can download |
 
 A new feature with a protection of its own adds its check to `test_site.py`, in

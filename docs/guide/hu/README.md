@@ -35,5 +35,8 @@ felületet mutatják, a Campanella saját példatartalmával.
     importáló beállítása, próbafuttatás, a napló, visszavonás, a CSV-export.
 13. [Komponensek](13-komponensek.md): szövegrészletek, egy komponens három
     lépésben (forrás, megjelenítés, beállítások), ki láthatja, a sablonban.
+14. [Elrendezések és régiók](14-elrendezesek.md): a fejléc és a lábléc
+    komponensei, egy oldalsáv a cikkek mellé, a régiók sorrendje, hol jelenjen
+    meg egy komponens, kis képernyőn.
 
 [English version](../en/README.md)

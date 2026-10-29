@@ -472,6 +472,36 @@ def components(page):
     shot(page, "component-list")
 
 
+def layouts(page, article_url):
+    """Chapter 14 (since 0.3.4): the layouts, a region's components, the contact box beside an article."""
+    page.goto(BASE + "/admin/system/layouts")
+    page.select_option("#layouts-bp-article", "sidebar")
+    shot(page, "layouts", full_page=True)
+    page.locator("form.admin-form button[type=submit]").first.click()
+    page.wait_for_load_state("load")
+
+    page.goto(BASE + "/admin/component/regions?layout=sidebar")
+    region = page.locator("#region-sidebar")
+    region.locator("select[name=component]").select_option(label=COMPONENTS["box_title"])
+    region.locator("button[type=submit]").click()
+    page.wait_for_load_state("load")
+    shot(page, "regions", full_page=True)
+
+    page.goto(BASE + "/admin/component")
+    page.locator("table.admin-components a", has_text=COMPONENTS["box_title"]).first.click()
+    page.wait_for_load_state("load")
+    page.locator("#place-bp-article").check()
+    shot(page, "component-place", element=".admin-component-place")
+    page.locator("form.admin-form button[type=submit]").first.click()
+    page.wait_for_load_state("load")
+
+    page.goto(article_url)
+    view = page.locator("a:has-text('" + ("Megtekintés" if LANG == "hu" else "View") + "')").first
+    href = view.get_attribute("href")
+    page.goto(BASE + href if href.startswith("/") else href)
+    shot(page, "site-sidebar", full_page=True)
+
+
 def own_types(page, browser, article_url):
     """Chapter 11: an own content type (an events calendar) made in the admin, step by step."""
     import datetime
@@ -822,6 +852,7 @@ def main():
         files(page, article_url)
         menus(page)
         components(page)
+        layouts(page, article_url)
         own_types(page, browser, article_url)
         importing(page)
         users(page, browser)

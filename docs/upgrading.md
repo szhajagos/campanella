@@ -1,14 +1,14 @@
 # Upgrading to 0.3.x
 
 This guide takes a site from **any 0.3.x, 0.2.x or 0.1.x version** to the newest
-0.3.x (now **0.3.3**) in one go. You do not need to install
+0.3.x (now **0.3.4**) in one go. You do not need to install
 the versions in between: one upgrade runs every change since your version. The
 CHANGELOG has the same steps version by version; this page puts them
 together, and adds what to check and how to go back.
 
 | Your version | What to do |
 |---|---|
-| 0.3.0 – 0.3.2 | Upload the new files and run the upgrade (steps 1–3): 0.3.1 adds the importers' tables (schema 17), 0.3.2 the files' (schema 18), 0.3.3 the components' (schema 19). Back up `var/files/` from 0.3.2 on (step 1). CI upgrades 0.3.0, 0.3.1 and 0.3.2 to the current code on every push. |
+| 0.3.0 – 0.3.3 | Upload the new files and run the upgrade (steps 1–3): 0.3.1 adds the importers' tables (schema 17), 0.3.2 the files' (schema 18), 0.3.3 the components' (schema 19), 0.3.4 a component's region (schema 20) and makes the header and footer components. Back up `var/files/` from 0.3.2 on (step 1). CI upgrades 0.3.0, 0.3.1, 0.3.2 and 0.3.3 to the current code on every push. |
 | 0.2.0 – 0.2.9 | This guide. Supported and tested: CI upgrades 0.2.0 and 0.2.9 to the current code on every push, the latter with a content model made in the admin (`tests/upgrade/run.sh`). |
 | 0.1.0 – 0.1.5 | This guide, and also [From 0.1.x](#from-01x) below. Tested too: CI upgrades 0.1.0 and 0.1.5. |
 | 0.0.6, 0.0.7 | The upgrade runs (their schema version, 6, is accepted), but it is not tested. Also read the [0.1.0 section of the CHANGELOG](../CHANGELOG.md#010--2026-10-08). |
@@ -46,7 +46,7 @@ working. What 0.3.x promises is in [Compatibility](compatibility.md).
 
    Copy them off the server.
 
-2. **Upload the new version.** Use the release package (`campanella-0.3.3.zip`
+2. **Upload the new version.** Use the release package (`campanella-0.3.4.zip`
    from the GitHub release); it includes the `vendor/` folder. With git:
    `git pull`, then `composer install --no-dev`.
 
@@ -57,9 +57,9 @@ working. What 0.3.x promises is in [Compatibility](compatibility.md).
    since your version would stay behind. If you changed `config/blueprints.php`,
    compare your copy with the new one (0.2.8 added `'admin_columns'` to the
    articles, 0.3.2 the `file` Blueprint, 0.3.3 the `snippet` and `component`
-   Blueprints) and keep yours, with what is new added: without the `file`
-   Blueprint there are no files to download (the System page says so), without
-   `component` no components.
+   Blueprints, 0.3.4 `Weighted` to `component`) and keep yours, with what is
+   new added: without the `file` Blueprint there are no files to download (the
+   System page says so), without `component` no components.
 
 3. **Run the upgrade.** Until then the site answers 503 to visitors, but
    logging in works. Either:
@@ -91,7 +91,7 @@ working. What 0.3.x promises is in [Compatibility](compatibility.md).
 ## What the upgrade changes in the database
 
 Nothing is removed or rewritten; only tables and one column are added. 0.2.0
-has schema version 12, 0.3.0 has 16, 0.3.1 has 17, 0.3.2 has 18, 0.3.3 has 19 (from 0.1.x: see [below](#from-01x) for
+has schema version 12, 0.3.0 has 16, 0.3.1 has 17, 0.3.2 has 18, 0.3.3 has 19, 0.3.4 has 20 (from 0.1.x: see [below](#from-01x) for
 6 to 12).
 
 | Schema | Version | Change |
@@ -126,6 +126,7 @@ used only when an administrator starts using it.
 | 0.3.1 | Importers from CSV and JSON files, the admin's lists as CSV | System → Importers; `import:run`, `import:undo`; the lists' *CSV export* |
 | 0.3.2 | Files to download (for everyone, for logged-in users, or for some roles), the media library, the editor's file picker, the site's own roles | Media → Files; `files`, `users.roles` |
 | 0.3.3 | Components (a source shown with a display), snippets, the displays in templates, the admin's menu in groups | Appearance → Components; Content → Snippet; `displays`, `display_sources` |
+| 0.3.4 | Layouts and regions: components placed in the regions, where they show; the header and footer as components; tokens in snippets | Appearance → Layouts, Appearance → Regions; `tokens` |
 
 New settings: `paths.search` (0.2.7, default `/search`), the search page's
 address, like the other `paths`; `paths.files` (0.3.2, default `/files`), the
@@ -134,6 +135,8 @@ types, the Blueprint); `users.roles` (0.3.2: the site's own roles, e.g.
 `['member']`). See [chapter 27 of the PHP API](php-api/27-files.md#settings-configappphp-files).
 `displays` and `display_sources` (0.3.3: the displays and the system sources; without
 them, the core's own; [chapter 28](php-api/28-displays.md#the-registry)).
+`tokens` (0.3.4: the token providers and the Blueprints whose texts have tokens;
+without it, the core's own and `snippet`; [chapter 30](php-api/30-tokens.md)).
 
 ## What behaves differently
 
@@ -170,6 +173,17 @@ them, the core's own; [chapter 28](php-api/28-displays.md#the-registry)).
 - **Components can only be changed by administrators** (0.3.3): editors see
   them, but cannot make, change or delete them. A Blueprint called `snippet` or
   `component` made in the admin keeps its name, and the core's is left out.
+- **The header and footer are components** (0.3.4): the upgrade makes them as
+  the header looked (the site's name, the main menu, the search, the admin and
+  login buttons) and the footer (a snippet: © the year, the site's name,
+  Campanella's version), then turns the layouts on. Change them under
+  *Appearance → Components* and *→ Regions* ([guide, chapter 14](guide/en/14-layouts.md)).
+  A site without a main menu gets one with the header's former links. The
+  logged-in user's name is no longer in the header; the header and footer are
+  wider than the text (72rem), so the menu fits in one row. A site whose own
+  `component` Blueprint was made in the admin keeps the old header.
+- **The site's pages send about 15 SQL statements more** (0.3.4), for the
+  header's and footer's components ([testing](testing.md#the-layouts-since-034)).
 
 ## Themes and custom code
 
@@ -192,6 +206,11 @@ PHP code that uses Campanella's classes.
 - **`Response`** has a fourth constructor parameter, `$file` (0.3.2), and
   `Response::file()`: code that builds a Response with three arguments keeps
   working.
+- **`base.html.twig` shows the page's layout** (0.3.4) once the layouts are on:
+  a theme that **extends** it and fills its `content` block keeps working (the
+  block is the layout's `main`); one that **overrides** it keeps its own header
+  and footer until it adds `region()` ([chapter 29](php-api/29-layouts.md#existing-themes)).
+  A theme can bring its own layouts in `templates/layout/`.
 - For anything else, the **Changed** sections of 0.2.1–0.2.9 in the
   [CHANGELOG](../CHANGELOG.md) list every change of the
   [PHP API](php-api/README.md).
@@ -336,9 +355,12 @@ in the [CHANGELOG](../CHANGELOG.md) list every change of the
 
 ## Checklist after the upgrade
 
-- [ ] The System page (*System → Status*) shows 0.3.3, no error, the tables match the
-      definitions, and no page is missing from the search; under *Images and
-      files* the files' folder is writable.
+- [ ] The System page (*System → Status*) shows 0.3.4, no error and no warning
+      about PHP's JIT, the tables match the definitions, and no page is missing
+      from the search; under *Images and files* the files' folder is writable.
+- [ ] The site's header shows its name, the main menu, the search and the
+      buttons, the footer the year and the site's name; under *Appearance →
+      Regions* they are in the Header, Navigation and Footer regions.
 - [ ] Under *Appearance → Components* a new component (e.g. *The visitor* as
       *Log in/out button*) is saved, and listed without a *Not working* mark.
 - [ ] A file uploaded under *Media → Files* downloads from its address; one

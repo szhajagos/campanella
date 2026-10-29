@@ -132,8 +132,7 @@ Ha a példatartalmat is telepítetted, a nyilvános oldalon már van mit nézni:
 
 ![A webhely címlapja a példatartalommal](../images/hu/site-front.png)
 
-Amíg be vagy lépve, a fejlécben az **Admin** gomb, a neved és a **Kilépés**
-gomb is látszik. A látogatók ezeket nem látják, és a piszkozatokat sem.
+Amíg be vagy lépve, a fejlécben az **Admin** és a **Kilépés** gomb is látszik. A látogatók ezeket nem látják, és a piszkozatokat sem.
 
 A fejléc **Keresés…** mezőjével a látogatók a webhely közzétett tartalmai között
 kereshetnek (3. fejezet).

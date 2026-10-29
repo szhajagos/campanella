@@ -62,8 +62,8 @@
                         {% for region in layout.regions %}
                             {% set key = 'look.' ~ layout.name ~ '.' ~ region.name %}
                             <div class="row g-2 align-items-center mb-2">
-                                <label class="col-sm-4 col-form-label" for="layouts-look-{{ layout.name }}-{{ region.name }}">{{ t(region.label) }}</label>
-                                <div class="col-sm-8">
+                                <label class="col-sm-3 col-form-label" for="layouts-look-{{ layout.name }}-{{ region.name }}">{{ t(region.label) }}</label>
+                                <div class="col-sm-9">
                                     <select class="form-select{{ (errors[key] ?? null) ? ' is-invalid' }}" id="layouts-look-{{ layout.name }}-{{ region.name }}" name="look[{{ layout.name }}][{{ region.name }}]">
                                         {% for value, look in looks %}
                                             <option value="{{ value }}"{{ form.looks[layout.name][region.name] == value ? ' selected' }}>{{ _self.look_label(value, look) }}{{ region.default == value ? ' · ' ~ t('layouts.look.default') }}</option>

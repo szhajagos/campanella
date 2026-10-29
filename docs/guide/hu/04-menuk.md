@@ -6,7 +6,7 @@ szerepeljen benne, milyen sorrendben, és mi legyen lenyíló almenüben.
 ## Menük és menüpontok
 
 - A **Menü** lista a menüket sorolja fel. Telepítés után egy van, a
-  **Főmenü**, ezt mutatja a webhely fejléce. Ezt ne töröld és ne nevezd át a
+  **Főmenü**, ezt mutatja a webhely fejléce (a *Főmenü* komponens, 14. fejezet). Ezt ne töröld és ne nevezd át a
   gépi nevét (`main`).
 - A **Menüpont** lista a menük pontjait mutatja, fa formában:
 
@@ -58,7 +58,7 @@ A **Létrehozás** után a menüpont azonnal megjelenik a webhelyen:
 | Jelenség | Ok, teendő |
 |---|---|
 | Egy pont nem jelenik meg | Egy piszkozat cikkre vagy oldalra mutat: a látogatók azt nem látják, ezért a menüpontot sem (és az alatta lévő alpontokat sem). Tedd közzé a célt. |
-| A menü túl hosszú | A fejléc keskeny: a sok pontot rendezd lenyíló almenükbe (Szülő). |
+| A menü túl hosszú | Ha nem fér el egy sorban, a kereső és a gombok alá kerülnek; a sok pontot rendezd lenyíló almenükbe (Szülő). |
 | A webhely menüje nem változik | A **Főmenü** gépi neve nem `main`, vagy egy másik menüt szerkesztesz. |
 
 ---

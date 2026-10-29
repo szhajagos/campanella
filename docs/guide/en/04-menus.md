@@ -6,7 +6,8 @@ what is in it, in what order, and what goes into a drop-down.
 ## Menus and menu items
 
 - The **Menu** list shows the menus. After installing there is one, named
-  **Főmenü** (main menu): the site's header shows it. Do not delete it, and do
+  **Főmenü** (main menu): the site's header shows it (the *Main menu*
+  component, chapter 14). Do not delete it, and do
   not change its machine name (`main`).
 - The **Menu item** list shows the menus' items, as a tree:
 
@@ -55,7 +56,7 @@ After **Create** the item appears on the site at once:
 | What you see | Cause, what to do |
 |---|---|
 | An item does not appear | It leads to a draft article or page: visitors cannot see it, so not the item either (nor the items under it). Publish the target. |
-| The menu is too long | The header is narrow: put items into drop-downs (Parent). |
+| The menu is too long | When it does not fit in one row, the search and the buttons go below it; put items into drop-downs (Parent). |
 | The site's menu does not change | The main menu's machine name is not `main`, or you are editing another menu. |
 
 ---

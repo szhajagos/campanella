@@ -147,6 +147,8 @@ jobs:
     # on every upgraded site, and from 0.2.9 on the old site has a Blueprint called `file`.
     # Since 0.3.3 also from 0.3.2; components are made and shown on every upgraded site,
     # and up to 0.3.2 the old site has a Blueprint called `snippet`.
+    # Since 0.3.4 also from 0.3.3; on every upgraded site the header and footer become
+    # components and the layouts are on.
     name: Upgrade from ${{ matrix.from }} – ${{ matrix.db }}
     if: inputs.tag == ''
     runs-on: ubuntu-latest
@@ -163,6 +165,7 @@ jobs:
           - { from: 'v0.3.0', db: 'mariadb:11.4' }
           - { from: 'v0.3.1', db: 'mysql:8.4' }
           - { from: 'v0.3.2', db: 'mariadb:10.6' }
+          - { from: 'v0.3.3', db: 'mysql:8.0' }
 
     services:
       db:

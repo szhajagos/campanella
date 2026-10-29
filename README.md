@@ -1,4 +1,4 @@
-# Campanella 0.3.3
+# Campanella 0.3.4
 
 [![CI](https://github.com/szhajagos/campanella/actions/workflows/ci.yml/badge.svg)](https://github.com/szhajagos/campanella/actions/workflows/ci.yml)
 
@@ -14,15 +14,28 @@ between sites by export and import; and what 0.3.x keeps is promised (see the
 [compatibility promise](docs/compatibility.md)). Plans are in the
 [ROADMAP](ROADMAP.md), changes in the [CHANGELOG](CHANGELOG.md).
 
-## What is new in 0.3.3
+## What is new in 0.3.4
+
+**Layouts and regions** (Appearance → Layouts, Appearance → Regions): a page's
+layout has regions (header, navigation, content, sidebar, footer), and
+components are placed in them, in an order, on the pages they are meant for
+(the front page, some paths, the pages of some content types, except a few).
+The site has a layout, and each content type can have its own (e.g. the
+articles with a sidebar); each region can be collapsed or hidden on small
+screens. The site's **header and footer are components** now, made by the
+upgrade as they looked; the footer is a snippet with **tokens** such as
+`[site:name]` and `[date:year]`. A theme can bring layouts of its own (a
+template and a JSON file) ([guide](docs/guide/en/14-layouts.md),
+[PHP API](docs/php-api/29-layouts.md)).
+
+## What was new in 0.3.3
 
 **Components** (Appearance → Components): a component shows a source with a
 display: a menu as navigation, a **snippet** (a short text such as the opening
 hours) in an info box, a list's newest items as cards, the visitor's login
 button or card. It is made in three steps (what to show, how, the settings),
 for administrators only, and shown to whom it is meant for; a template shows it
-by its machine name, `{{ component('contact_box') }}`, and from 0.3.4 on the
-site's layout will place it. A theme can use the 16 built-in **displays**
+by its machine name, `{{ component('contact_box') }}`. A theme can use the 16 built-in **displays**
 directly too (`display()`). The admin's menu is in groups now
 ([guide](docs/guide/en/13-components.md), [PHP API](docs/php-api/28-displays.md)).
 

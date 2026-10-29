@@ -13,9 +13,10 @@ Only administrators make and change components: what appears on the site is a
 right above an editor's. Editors change what a component shows (the snippet,
 the menu).
 
-> **Where does a component appear?** In 0.3.3, where the theme's template
-> calls it by its **machine name** (below). From 0.3.4 on, you can also place
-> it in the parts of the site's layout (header, sidebar, footer) in the admin.
+> **Where does a component appear?** In a **region** of the layout (the
+> header, the navigation, the sidebar, the footer …): you choose it in its
+> form, and set its order on the **Appearance → Regions** page (chapter 14). Or
+> where the theme's template calls it by its **machine name** (below).
 
 ## Snippets: the short texts
 
@@ -74,6 +75,9 @@ list.
   To whom it is not meant for, the component does not show.
 - **The display's settings:** they depend on the display. For an info box the
   title and the colour, for a list the number of items and of columns.
+- **Where it shows** (since 0.3.4): the **region**, and on which pages: the
+  front page, some paths, the pages of some content types, except a few paths.
+  See [chapter 14](14-layouts.md#where-it-shows).
 
 **Create** saves it. Later, click its title in the list to change it; **Another
 source or display** goes through the steps again.
@@ -92,8 +96,8 @@ stays).
 
 ## A component in a template
 
-Until layouts come (0.3.4), a component shows where the theme's template calls
-it by its machine name. Whoever makes the theme does it in one line:
+A component in no region shows where the theme's template calls it by its
+machine name. Whoever makes the theme does it in one line:
 
 ```twig
 {{ component('contact_box') }}
@@ -106,4 +110,5 @@ empty: the page does not break. For those who make themes:
 ---
 
 Previous: [12. Importing from a spreadsheet](12-importing.md) ·
+Next: [14. Layouts and regions](14-layouts.md) ·
 [Contents](README.md)
