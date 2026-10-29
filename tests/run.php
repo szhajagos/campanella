@@ -1899,6 +1899,140 @@ test('Kernel: the components in the admin: the three steps, saving, the list, de
     check($send('GET', '/admin/component/new/bogus')->status === 404);
 });
 
+// --- Layouts and regions (0.3.4) -----------------------------------------------
+
+echo "\nLayouts and regions (0.3.4)\n";
+
+test('Conditions: paths with a wildcard, Blueprints, the front page, except; their problems', function () use ($repository): void {
+    $C = \Campanella\Layout\Conditions::class;
+    $article = $repository->create('article', ['title' => 'Feltétel']);
+    check($C::everywhere()->matches('/akarmi') && $C::everywhere()->isEverywhere());
+    $news = $C::fromArray(['paths' => ['/Hirek/*', ' /rolunk ', '/rolunk', ''], 'except' => ['/hirek/archivum*']]);
+    check($news->paths === ['/Hirek/*', '/rolunk'], json_encode($news->paths));
+    check($news->matches('/hirek/egy-cikk') && $news->matches('/HIREK/Masik/') && $news->matches('/rolunk'));
+    check(!$news->matches('/hirek') && !$news->matches('/hirek/archivum/2025') && !$news->matches('/kapcsolat'), 'a wildcard or except is wrong');
+    $front = new $C(front: true, blueprints: ['article']);
+    check($front->matches('/') && $front->matches('/index.php') && $front->matches('/barhol', $article) && !$front->matches('/barhol'));
+    check($C::pathMatches('/a.b/*', '/a.b/c') && !$C::pathMatches('/a.b/*', '/axb/c'), 'a dot is not a wildcard');
+    check($C::fromArray($news->toArray()) == $news && $C::fromArray(['front' => 'igen'])->front === false);
+    check($C::fromText("/a\n\n /b \r\n/a", ['article'], true, "/c")->toArray() === ['paths' => ['/a', '/b'], 'blueprints' => ['article'], 'front' => true, 'except' => ['/c']]);
+    check(array_keys((new $C(paths: ['hirek'], except: ['/a b']))->problems()) === ['paths', 'except']);
+    check(array_keys((new $C(blueprints: ['nincs_ilyen']))->problems(['article'])) === ['blueprints'] && (new $C(blueprints: ['article']))->problems(['article']) === []);
+    check(isset((new $C(paths: array_map(static fn (int $i): string => '/p' . $i, range(1, 21))))->problems()['paths']), 'too many');
+});
+
+test('Layouts: from JSON beside their templates, the core\'s two, a theme\'s own and its override; the invalid ones left out', function (): void {
+    $L = \Campanella\Layout\LayoutDefinition::class;
+    $core = new \Campanella\Layout\LayoutRegistry([dirname(__DIR__) . '/templates']);
+    check(array_keys($core->all()) === ['one_column', 'sidebar'] && $core->errors() === [], implode(',', array_keys($core->all())) . json_encode($core->errors()));
+    check(array_keys($core->get('sidebar')->regions) === ['header', 'navigation', 'content', 'sidebar', 'footer'] && $core->get('sidebar')->template() === 'layout/sidebar.html.twig');
+    check($core->get('one_column')->regions['navigation']->small === 'collapse' && $core->get('one_column')->regions['navigation']->breakpoint === 'md');
+    check($core->get('nincs_ilyen')->name === 'one_column', 'an unknown layout: the default');
+    check($core->regionNames() === ['header', 'navigation', 'content', 'footer', 'sidebar']);
+
+    foreach ([
+        '{"version": 2, "regions": {"content": {}}}', '{"version": 1, "regions": {"header": {}}}', '{"version": 1, "regions": []}',
+        '{"version": 1, "regions": {"content": {"small": "sometimes"}}}', '{"version": 1, "regions": {"content": {"breakpoint": "xxl"}}}',
+        '{"version": 1, "regions": {"Content": {}}}', 'nem json', '{"version": 1, "label": "", "regions": {"content": {}}}',
+    ] as $json) {
+        throws(\InvalidArgumentException::class, static fn () => $L::fromJson('proba', $json));
+    }
+    throws(\InvalidArgumentException::class, static fn () => $L::fromJson('Rossz-Nev', '{"version": 1, "regions": {"content": {}}}'));
+
+    $theme = sys_get_temp_dir() . '/campanella-layouts-' . bin2hex(random_bytes(4));
+    mkdir($theme . '/layout', 0777, true);
+    file_put_contents($theme . '/layout/sidebar.json', '{"version": 1, "label": "Saját oldalsáv", "regions": {"content": {}, "aside": {"label": "Mellék", "small": "hide", "breakpoint": "lg"}}}');
+    file_put_contents($theme . '/layout/sidebar.html.twig', '{{ main }}');
+    file_put_contents($theme . '/layout/landing.json', '{"version": 1, "label": "Nyitóoldal", "regions": {"hero": {}, "content": {}}}');
+    file_put_contents($theme . '/layout/landing.html.twig', '{{ region("hero") }}{{ main }}');
+    file_put_contents($theme . '/layout/broken.json', '{"version": 1, "regions": {"content": {}}}');
+    $registry = new \Campanella\Layout\LayoutRegistry([dirname(__DIR__) . '/templates', $theme]);
+    check(array_keys($registry->all()) === ['one_column', 'sidebar', 'landing'] && $registry->get('sidebar')->label === 'Saját oldalsáv' && $registry->get('sidebar')->origin === 'theme');
+    check(isset($registry->errors()['broken']) && str_contains($registry->errors()['broken'], 'template'), json_encode($registry->errors()));
+    check($registry->get('sidebar')->regions['aside']->small === 'hide');
+    array_map('unlink', glob($theme . '/layout/*') ?: []);
+    rmdir($theme . '/layout');
+    rmdir($theme);
+});
+
+test('LayoutService: the site\'s layout, a Blueprint\'s own, the regions\' looks as saved; on only when enabled', function () use ($db, $repository): void {
+    $settings = new \Campanella\Settings\Settings($db);
+    $service = new \Campanella\Layout\LayoutService(new \Campanella\Layout\LayoutRegistry([dirname(__DIR__) . '/templates']), $settings);
+    $settings->set(['layout.enabled' => null, 'layout.site' => null, 'layout.blueprint.article' => null, 'layout.region.sidebar.navigation' => null]);
+    check(!$service->isEnabled() && $service->site()->name === 'one_column' && $service->forBlueprint('article')->name === 'one_column');
+    $settings->set(['layout.enabled' => '1', 'layout.blueprint.article' => 'sidebar', 'layout.region.sidebar.navigation' => 'hide:lg']);
+    $settings->reset();
+    check($service->isEnabled() && $service->forPage($repository->create('article', ['title' => 'x']))->name === 'sidebar' && $service->forPage(null)->name === 'one_column');
+    check($service->blueprintChoice('article') === 'sidebar' && $service->blueprintChoice('page') === null);
+    $navigation = $service->forBlueprint('article')->regions['navigation'];
+    check($navigation->small === 'hide' && $navigation->breakpoint === 'lg', 'the saved look');
+    $settings->set(['layout.region.sidebar.navigation' => 'sometimes:md', 'layout.site' => 'nincs_ilyen']);
+    $settings->reset();
+    check($service->forBlueprint('article')->regions['navigation']->small === 'collapse' && $service->site()->name === 'one_column', 'an invalid setting is ignored');
+    $settings->set(['layout.enabled' => null, 'layout.site' => null, 'layout.blueprint.article' => null, 'layout.region.sidebar.navigation' => null]);
+});
+
+test('Kernel: a page in its layout: the regions\' components in their order, where they show, for whom; the old header until enabled', function () use ($displayKernel, $newUser): void {
+    $kernel = $displayKernel();
+    if ($kernel === null) {
+        return;
+    }
+    $c = $kernel->container();
+    $system = Actor::system();
+    $objects = $c->get(ObjectService::class);
+    $components = $c->get(\Campanella\Display\ComponentService::class);
+    $settings = $c->get(\Campanella\Settings\Settings::class);
+    $C = \Campanella\Layout\Conditions::class;
+
+    $article = $objects->create($system, 'article', ['title' => 'Elrendezett cikk', 'path' => '/elrendezett-cikk', 'body' => 'A cikk szövege'], publish: true);
+    $snippet = $objects->create($system, 'snippet', ['title' => 'Oldalsáv doboz', 'body' => '<p>Oldalsáv szöveg</p>']);
+    $place = static function (string $key, string $source, string $display, string $region, ?\Campanella\Layout\Conditions $where = null, int $weight = 0, array $values = []) use ($components, $system) {
+        $component = $components->create($system, ['title' => $key, 'machine_name' => $key] + $values, $source, $display);
+        $components->place($system, $component, $region, $where, $weight);
+
+        return $component;
+    };
+    $place('elr_nev', 'system:site', 'branding', 'header');
+    $place('elr_kereso', 'system:search', 'search_box', 'navigation', weight: 2);
+    $place('elr_gomb', 'system:visitor', 'login_button', 'navigation', weight: 1);
+    $place('elr_doboz', 'object:' . $snippet->id(), 'info_box', 'sidebar', new $C(blueprints: ['article']));
+    $members = $objects->create($system, 'snippet', ['title' => 'Tagoknak doboz', 'body' => '<p>Csak tagoknak</p>']);
+    $place('elr_csak_tagoknak', 'object:' . $members->id(), 'info_box', 'sidebar', values: ['visible_to' => \Campanella\Capability\Restricted::USERS]);
+    $place('elr_hireknel', 'system:site', 'branding', 'footer', new $C(paths: ['/hirek*']));
+    throws(ValidationException::class, static fn () => $components->place($system, $components->find('elr_nev', $system), 'nincs_ilyen_regio'));
+    throws(ValidationException::class, static fn () => $components->place($system, $components->find('elr_nev', $system), 'header', new $C(paths: ['hirek'])));
+
+    $before = $kernel->handle(new Request('GET', '/elrendezett-cikk'))->body;
+    check(str_contains($before, 'navbar-expand-md') && !str_contains($before, 'region--header'), 'the old header is gone before layouts are on');
+
+    $settings->set(['layout.enabled' => '1', 'layout.blueprint.article' => 'sidebar']);
+    try {
+        $page = $kernel->handle(new Request('GET', '/elrendezett-cikk'));
+        check($page->status === 200 && str_contains($page->body, 'region--header') && str_contains($page->body, 'display-branding'), 'the header region');
+        check(preg_match('#region--navigation region--collapse-md.*display-login-button.*display-search-box#s', $page->body) === 1, 'the navigation, collapsed below md, in its order');
+        check(str_contains($page->body, 'data-bs-target="#region-navigation"') && str_contains($page->body, 'd-md-none'), 'the toggle button');
+        check(preg_match('#<main class="col-lg-8">.*A cikk szövege.*</main>\s*<aside class="col-lg-4"[^>]*>.*Oldalsáv szöveg#s', $page->body) === 1, 'the content and the sidebar');
+        check(!str_contains($page->body, 'Csak tagoknak') && !str_contains($page->body, 'site-footer'), 'a component for users, or one for other paths');
+
+        $front = $kernel->handle(new Request('GET', '/'))->body;
+        check(str_contains($front, 'region--header') && !str_contains($front, 'Oldalsáv szöveg') && !str_contains($front, '<aside'), 'the front page in the site\'s one-column layout');
+        $news = $kernel->handle(new Request('GET', '/hirek'))->body;
+        check(str_contains($news, 'site-footer') && substr_count($news, 'display-branding"') === 2, 'the footer component on its paths: ' . substr($news, (int) strpos($news, '<body'), 1500));
+
+        // The look of a region from the settings; a theme can override the region's template.
+        $settings->set(['layout.region.sidebar.navigation' => 'hide:lg']);
+        $hidden = $kernel->handle(new Request('GET', '/elrendezett-cikk'))->body;
+        check(str_contains($hidden, 'd-none d-lg-block region region--navigation') && !str_contains($hidden, 'data-bs-target="#region-navigation"'), 'hidden below lg');
+
+    } finally {
+        $settings->set(['layout.enabled' => null, 'layout.blueprint.article' => null, 'layout.region.sidebar.navigation' => null]);
+    }
+    foreach (['elr_nev', 'elr_kereso', 'elr_gomb', 'elr_doboz', 'elr_csak_tagoknak', 'elr_hireknel'] as $key) {
+        $objects->delete($system, $components->find($key, $system));
+    }
+    check(str_contains($kernel->handle(new Request('GET', '/elrendezett-cikk'))->body, 'navbar-expand-md'), 'the old header again');
+});
+
 // --- Documentation examples -------------------------------------------------
 
 echo "\nSystem\n";

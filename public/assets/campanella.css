@@ -119,3 +119,21 @@ h1, h2, h3, .h1, .h2, .h3, .h4, .h5 { line-height: 1.25; }
 
 /* A list's filters for visitors (since 0.2.9): a range's legend like the other labels. */
 .list-filters legend { font-size: inherit; }
+
+/* The regions of a layout (since 0.3.4). A collapsed one takes the whole row below its breakpoint, and
+   from it up shares the row (the header's navigation beside the site's name); a menu in it is a column
+   below the breakpoint. */
+.region--collapse-sm, .region--collapse-md, .region--collapse-lg, .region--collapse-xl { flex-basis: 100%; }
+@media (min-width: 576px) { .region--collapse-sm { flex: 1 1 0%; min-width: 0; } }
+@media (min-width: 768px) { .region--collapse-md { flex: 1 1 0%; min-width: 0; } }
+@media (min-width: 992px) { .region--collapse-lg { flex: 1 1 0%; min-width: 0; } }
+@media (min-width: 1200px) { .region--collapse-xl { flex: 1 1 0%; min-width: 0; } }
+@media (max-width: 575.98px) { .region--collapse-sm .display-navigation > .nav { flex-direction: column; } }
+@media (max-width: 767.98px) { .region--collapse-md .display-navigation > .nav { flex-direction: column; } }
+@media (max-width: 991.98px) { .region--collapse-lg .display-navigation > .nav { flex-direction: column; } }
+@media (max-width: 1199.98px) { .region--collapse-xl .display-navigation > .nav { flex-direction: column; } }
+.region__item:empty { display: none; }
+/* The header's navigation as the header was before 0.3.4: the menu first, the rest at the end. */
+.region--navigation .nav-link { padding-left: .5rem; padding-right: .5rem; }
+.region--navigation .region__item:has(> .display-navigation) { margin-right: auto; }
+.region--navigation .display-search-box { max-width: 14rem; }

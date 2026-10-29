@@ -165,7 +165,8 @@ return [
     // its machine name: component('lablec_menu'); from 0.3.4 on, in a region of the layout.
     'component' => [
         'label' => 'blueprint.component',
-        'capabilities' => [Titled::class, Keyed::class, Restricted::class, Component::class],
+        // Since 0.3.4 also its order within its region (Weighted).
+        'capabilities' => [Titled::class, Keyed::class, Restricted::class, Weighted::class, Component::class],
         'form_order' => ['title', 'machine_name', 'visible_to', 'visible_roles'],
     ],
 

@@ -1,0 +1,10 @@
+{
+    "version": 1,
+    "label": "layout.one_column",
+    "regions": {
+        "header": {"label": "layout.region.header"},
+        "navigation": {"label": "layout.region.navigation", "small": "collapse", "breakpoint": "md"},
+        "content": {"label": "layout.region.content"},
+        "footer": {"label": "layout.region.footer"}
+    }
+}

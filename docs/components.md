@@ -156,27 +156,64 @@ their `page`.
 ## Regions and layouts
 
 A **layout** is a template of the theme with its regions, declared beside it
-(e.g. `layout/sidebar.html.twig` and `layout/sidebar.php`: name, label,
-regions). The core brings two: *one column* (header, content, footer) and
-*with a sidebar* (header, content, sidebar, footer). A theme can add its own
-or override these.
+in a small JSON file (decided 2026-10-29: data, not PHP, as a theme holds only
+templates, which run in the sandbox): `layout/sidebar.html.twig` and
+`layout/sidebar.json`:
+
+```json
+{"version": 1, "label": "layout.sidebar", "regions": {
+    "header": {"label": "layout.region.header"},
+    "navigation": {"label": "layout.region.navigation", "small": "collapse", "breakpoint": "md"},
+    "content": {"label": "layout.region.content"},
+    "sidebar": {"label": "layout.region.sidebar"},
+    "footer": {"label": "layout.region.footer"}}}
+```
+
+The core brings two: *one column* (header, navigation, content, footer) and
+*with a sidebar* (the same, and a sidebar beside the content, under it on a
+phone). A theme can add its own or override these. The **header** (always
+seen, usually the site's name) and the **navigation** (the menu, the search,
+the buttons) are separate regions (decided 2026-10-29), so the navigation can
+collapse on a phone.
+
+**How a region shows on small screens** (decided 2026-10-29): every region of
+a layout has a setting, its default in the JSON, changed in the admin:
+*always*, *collapsed below* a breakpoint (a button opens it), or *hidden
+below* a breakpoint; the breakpoint is Bootstrap's `sm`, `md`, `lg` or `xl`.
+The navigation is *collapsed below `md`*, as the header is now. More (regions
+beside or under each other, column widths) comes with the layouts edited in
+the admin.
 
 The layout of a page is chosen in the admin: one for the site, and one per
-Blueprint (e.g. events with a sidebar); per object for the pages assembled
-from components (0.3.5). Layouts edited in the admin come later (decided
-2026-10-27).
+Blueprint (e.g. events with a sidebar). Per object for the pages assembled
+from components (0.3.5). Later (decided 2026-10-29): a layout chosen by rules
+(a path, a Blueprint, the visitor's role …), with the same conditions the
+components have, so these are written apart from the components. Layouts
+edited in the admin come later (decided 2026-10-27).
 
 A region renders its components in their order: `{{ region('sidebar') }}` in
-a layout's template. The main content of an object's page (the object with
-`full`, a list's page, the search's results) is the `content` region's first
-part, so a layout never loses it.
+a layout's template. A region's name is shared by the layouts: a component in
+`sidebar` shows in every layout that has a sidebar. The main content of an
+object's page (the object with `full`, a list's page, the search's results) is
+the `content` region's first part, so a layout never loses it.
+
+**Where a component shows** (its conditions): every page, or only these paths
+(`/hirek/*` with a wildcard), the pages of these Blueprints' objects, the
+front page; and never on these paths. Who sees it is its `Restricted` setting.
 
 **Existing themes keep working** (decided 2026-10-26). The blocks of
-`base.html.twig` stay. The core's `base.html.twig` gets regions around its
-blocks, and on the upgrade to 0.4.0 the site gets the components that make
-its header and footer look as now: the main menu as navigation, the search
-box, the visitor's buttons. A theme that overrides `base.html.twig` keeps its
-own header until it adds `region()`.
+`base.html.twig` stay. The core's `base.html.twig` shows the layout, and on the
+upgrade (0.3.4) the site gets the components that make its header and footer
+look as now: the site's name, the main menu as navigation, the search box, the
+visitor's buttons, and a footer snippet. A theme that overrides
+`base.html.twig` keeps its own header until it adds `region()`.
+
+**Tokens** (decided 2026-10-29): a snippet's text can hold `[site:name]`,
+`[site:slogan]`, `[site:url]`, `[date:year]`, `[campanella:version]`, replaced
+when it is shown (escaped; an unknown one stays as it is). Only in snippets
+in 0.3.4, so no existing text changes; a registry of tokens (Public API) lets a
+module add its own. The footer the upgrade makes: "© [date:year] [site:name] ·
+Campanella [campanella:version]".
 
 ## Rendering a page
 
@@ -200,7 +237,7 @@ is why every display says which context it uses (`DisplayContext`).
 | Step | What |
 |---|---|
 | **0.3.3** | Displays and sources: `Display`, `AsDisplay`, the registry, the built-in displays and system sources, `display()` in templates; `full` and `teaser` as displays; the `snippet` Blueprint (part 1). The admin's menu in groups; the `component` Blueprint, made in the admin (source, display, its settings' form), and `component()` in templates to show one anywhere (part 2; [chapter 28](php-api/28-displays.md#components)). Its region, order and conditions come with 0.3.4 |
-| **0.3.4** | Regions and layouts: the core's two layouts, `region()`, the theme's own layouts; placing components (region, order, who sees them, where); the layout of the site and of a Blueprint; the upgrade's components that keep the header and footer as they are |
+| **0.3.4** | Regions and layouts: the core's two layouts, `region()`, the theme's own layouts (JSON); the regions on small screens; placing components (region, order, who sees them, where); the layout of the site and of a Blueprint; tokens in snippets; the upgrade's components that keep the header and footer as they are |
 | **0.3.5** | Pages assembled from components: a component's `page`, a page's layout, editing a page's components (editors too), the front page made of components |
 | **0.3.6** | Appearance: colour schemes; the visitor's colour-mode switch as a display of a system source |
 

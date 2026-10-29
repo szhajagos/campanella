@@ -19,6 +19,9 @@ use Campanella\Display\DisplayContext;
 use Campanella\Display\DisplayException;
 use Campanella\Display\DisplayRenderer;
 use Campanella\Display\Subject;
+use Campanella\Layout\LayoutDefinition;
+use Campanella\Layout\LayoutService;
+use Campanella\Layout\Regions;
 use Campanella\I18n\Translator;
 use Campanella\Menu\MenuEntry;
 use Campanella\Model\CampanellaObject;
@@ -48,6 +51,8 @@ use Twig\TwigFunction;
  *                                       or a source: 'object:12', 'list:esemenyek', 'current', 'system:visitor';
  *                                       with settings: display('list:hirek', 'cards', {count: 3, columns: 3})
  *   {{ component('lablec_menu') }}      a component made in the admin, by its machine name (since 0.3.3)
+ *   {{ region('sidebar') }}             a region of the page's layout, with its components (since 0.3.4)
+ *   {% set l = page_layout() %}         the page's layout (LayoutDefinition), null until layouts are on (since 0.3.4)
  *   {{ related(object, 'categories') }} the loaded target objects of a relation
  *   {{ current_user() }}                the logged-in user or null
  *   {{ csrf_field() }}                  hidden CSRF field for POST forms
@@ -86,6 +91,8 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
      * @param (Closure(): DisplayRenderer)|null $displays The displays (lazy; since 0.3.3).
      * @param (Closure(): DisplayContext)|null $displayContext Where they are shown: the visitor, the page (since 0.3.3).
      * @param (Closure(): ComponentService)|null $components The components (lazy; since 0.3.3).
+     * @param (Closure(): LayoutService)|null $layouts The layouts (lazy; since 0.3.4).
+     * @param (Closure(): Regions)|null $regions The regions' rendering (lazy; since 0.3.4).
      */
     public function __construct(
         private readonly Closure $presentation,
@@ -106,6 +113,8 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
         private readonly ?Closure $displays = null,
         private readonly ?Closure $displayContext = null,
         private readonly ?Closure $components = null,
+        private readonly ?Closure $layouts = null,
+        private readonly ?Closure $regions = null,
     ) {
     }
 
@@ -119,6 +128,8 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
             new TwigFunction('render_object', $this->renderObject(...), ['is_safe' => ['html']]),
             new TwigFunction('display', $this->display(...), ['needs_environment' => true, 'is_safe' => ['html']]),
             new TwigFunction('component', $this->component(...), ['is_safe' => ['html']]),
+            new TwigFunction('region', $this->region(...), ['is_safe' => ['html']]),
+            new TwigFunction('page_layout', $this->pageLayout(...)),
             new TwigFunction('related', $this->related(...)),
             new TwigFunction('current_user', $this->currentUser(...)),
             new TwigFunction('csrf_field', $this->csrfField(...), ['is_safe' => ['html']]),
@@ -209,6 +220,49 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
         }
 
         return ($this->presentation)()->renderObject($object, $mode);
+    }
+
+    /**
+     * The page's layout (since 0.3.4): that of its object's Blueprint, or the site's; null
+     * until layouts are on (`layout.enabled`, set by the upgrade to 0.3.4), so the core's
+     * base.html.twig shows its old header and footer.
+     */
+    public function pageLayout(): ?LayoutDefinition
+    {
+        if ($this->layouts === null || $this->displayContext === null) {
+            return null;
+        }
+        try {
+            $layouts = ($this->layouts)();
+
+            return $layouts->isEnabled() ? $layouts->forPage(($this->displayContext)()->current) : null;
+        } catch (\Exception $e) {
+            error_log('Campanella: the layout could not be chosen: ' . $e->getMessage());
+
+            return null;
+        }
+    }
+
+    /**
+     * A region of the page's layout, with the components placed in it that show here (since
+     * 0.3.4); '' for a region the layout does not have, or one with nothing to show.
+     *
+     * @param array{row?: bool, class?: string} $options
+     */
+    public function region(string $name, array $options = []): string
+    {
+        if ($this->regions === null || $this->layouts === null || $this->displayContext === null) {
+            return '';
+        }
+        try {
+            $context = ($this->displayContext)();
+
+            return ($this->regions)()->render(($this->layouts)()->forPage($context->current), $name, $context, $options);
+        } catch (\Exception $e) {
+            error_log('Campanella: the region "' . $name . '" could not be shown: ' . $e->getMessage());
+
+            return '';
+        }
     }
 
     /**

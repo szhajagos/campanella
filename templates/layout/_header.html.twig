@@ -1,0 +1,9 @@
+{# The core layouts' top (since 0.3.4): the header region (always seen), the navigation beside it. #}
+<header class="site-header border-bottom">
+    <nav class="navbar" aria-label="{{ t('site.nav.label') }}">
+        <div class="container site-container d-flex flex-wrap align-items-center gap-2">
+            {{ region('header', {class: 'me-auto'}) }}
+            {{ region('navigation', {row: true, class: 'flex-grow-1'}) }}
+        </div>
+    </nav>
+</header>

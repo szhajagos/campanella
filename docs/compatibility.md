@@ -24,8 +24,8 @@ what to do.
 | **Files and who sees them** (since 0.3.2) | A file's stored form (`Downloadable`'s fields, the `files` settings), `Restricted`'s values (`public`, `users`, `roles`) and how the policy applies them, the download's address `/files/<id>/<name>` (`paths.files`) and its headers (an attachment, never a page) | New types (by `files.types`), new scopes |
 | **The importers** | The stored form of an importer (`version` 1, [chapter 26](php-api/26-importers.md)) keeps loading and running; the CSV export's columns and form (`id`, the machine names, `;`, UTF-8), so an export imports again | New optional keys, formats and columns |
 | **The content model's file** | Format 1 ([chapter 24](php-api/24-content-model.md)): a file exported by 0.2.6 or later imports into any 0.3.x, with the same plan and the same rules (it never deletes) | New optional keys, which an older version ignores |
-| **Templates** | Every template's name (`page/login.html.twig`, `page/search.html.twig`, `list/table.html.twig`, `list/_filters.html.twig`, `mail/submission.txt.twig`, the displays' `display/<name>.html.twig` (0.3.3) …) and the variables it gets; the blocks of `base.html.twig` | New templates; new variables; new blocks |
-| **Twig** | Every function and filter (`path()`, `url()`, `t()`, `list()`, `object_fields()`, `field_value()`, `contact_form()`, `csrf_field()`, `image_srcset()`, `file_url()` (0.3.2), `display()`, `component()` (0.3.3), `body` …) with its arguments | New functions, filters and optional arguments |
+| **Templates** | Every template's name (`page/login.html.twig`, `page/search.html.twig`, `list/table.html.twig`, `list/_filters.html.twig`, `mail/submission.txt.twig`, the displays' `display/<name>.html.twig` (0.3.3), the layouts' `layout/<name>.html.twig` and their JSON (`version` 1), with `main` (0.3.4) …) and the variables it gets; the blocks of `base.html.twig` | New templates; new variables; new blocks |
+| **Twig** | Every function and filter (`path()`, `url()`, `t()`, `list()`, `object_fields()`, `field_value()`, `contact_form()`, `csrf_field()`, `image_srcset()`, `file_url()` (0.3.2), `display()`, `component()` (0.3.3), `region()`, `page_layout()` (0.3.4), `body` …) with its arguments | New functions, filters and optional arguments |
 | **Command line** | Every command of `bin/campanella` (`model:export`, `model:import`, `search:index`, `import:run`, `import:undo` among them) and its options, and the exit codes | New commands and options |
 | **The site's addresses** | The paths of the `paths` setting and their defaults (`/login`, `/logout`, `/password-reset`, `/contact`, `/search`, `/files` since 0.3.2), `/install`, `/sitemap.xml`, `/robots.txt`, the admin's pages under its path; a list's own path; the query parameters of the search (`?q=`, `&page=`) and of a list (`?page=`, its filters as `?f[name]=value`, `?f[name][from]=…&f[name][to]=…`, `?f[name][min]=…&f[name][max]=…`), so a link or bookmark keeps working; an old path's redirect | New pages and parameters |
 | **Data** | Every table and column (upgrades only add); no upgrade within 0.3.x deletes or rewrites data | New tables and columns |
@@ -41,7 +41,9 @@ what to do.
 `FileInspector`, `FileStorage` (0.3.2), `Display`, `AsDisplay`, `DisplayRegistry`,
 `DisplayDefinition`, `Subject`, `DisplayContext`, `SystemSource`,
 `DisplayRenderer`, `DisplayException`, the built-in displays and system
-sources, `Component`, `ComponentService`, `AdminMenu`, `AdminMenuItem` (0.3.3), with the methods their chapters mark Public. A display's name,
+sources, `Component`, `ComponentService`, `AdminMenu`, `AdminMenuItem` (0.3.3),
+`LayoutDefinition`, `RegionDefinition`, `LayoutRegistry`, `LayoutService`,
+`Conditions` (0.3.4), with the methods their chapters mark Public. A display's name,
 its settings (their names, types and defaults) and a source's written form
 (`object:12`, `list:name`, `current`, `system:name`) stay too: components will
 store them.

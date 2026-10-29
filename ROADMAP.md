@@ -244,7 +244,7 @@ components use later.
 |---|---|
 | **0.3.2** ✔ | Released 2026-10-28. **Files** (see below): documents besides images, as objects; public and private files; one media library in the admin; a file chosen by the relation picker, or linked from the editor. |
 | **0.3.3** ✔ | Released 2026-10-28. **Displays and components** ([the design](docs/components.md), detailed below): `Display` (Public API: a class with its template, its settings and what it needs: capabilities, a list or a system source) and the built-in ones; the sources (an object, a list, the page's object, the system sources such as the visitor); the `snippet` Blueprint; the `component` Blueprint made in the admin, and `component()` in templates; the admin's menu in groups; `full` and `teaser` become displays. |
-| **0.3.4** | **Regions and layouts:** the core's two layouts and the theme's own, `region()`; components placed in regions (order, who sees them, where); a layout for the site and per Blueprint; the upgrade keeps the header and footer as they are. |
+| **0.3.4** | **Regions and layouts** (detailed below): the core's two layouts and the theme's own (JSON), `region()`; how a region shows on small screens; components placed in regions (order, who sees them, where); a layout for the site and per Blueprint; tokens in snippets; the upgrade keeps the header and footer as they are. |
 | **0.3.5** | **Pages:** pages assembled from components (a front page, an "about us" page), their own layout; editors edit their components. |
 | **0.3.6** | **Appearance** (2026-10-11): colour schemes with light and dark variants, the colour mode (the visitor's system setting, or fixed); a visitor's switch as a component, not a button built into the header. |
 | **0.3.7** | **Sample content in the site's language** (2026-10-12): an English site gets English samples and paths (now `seed` is Hungarian only, `/hirek` too). |
@@ -296,6 +296,33 @@ Decided on 2026-10-26:
    marked. `component('fo-menu')` in templates. Administrators only.
 3. **The guide, the docs and the release** (part 3): a guide chapter on
    components, the PHP API, the security review, the upgrade test.
+
+**Regions and layouts (0.3.4, agreed 2026-10-29),** in four parts:
+
+1. **The layouts and regions** (part 1): a layout is a template and a JSON
+   file of its regions (`layout/<name>.html.twig`, `.json`; not PHP: a theme
+   holds only sandboxed templates), from the core and the theme; the core's
+   *one column* and *with a sidebar*, with separate *header* and *navigation*
+   regions; each region's look on small screens (always, collapsed or hidden
+   below a Bootstrap breakpoint); `region()`; a component's region and order,
+   and its conditions (paths with a wildcard, except paths, Blueprints, the
+   front page), written apart from components so layouts can use them later;
+   the layout of the site and of a Blueprint. All of a page's components in
+   one query.
+2. **Tokens** (part 2): `[site:name]`, `[site:slogan]`, `[site:url]`,
+   `[date:year]`, `[campanella:version]` in snippets, escaped, from a registry a
+   module can add to; the list shown under the editor.
+3. **The admin** (part 3): *Appearance → Layouts* (the site's, per Blueprint;
+   the regions' look on small screens) and *Appearance → Regions* (a layout's
+   regions with their components, in order: up, down, add, take out); the
+   component's form gets its region and where it shows.
+4. **The upgrade, the guide, the release** (part 4): the components of the
+   header and footer as they look now (the site's name, the main menu, the
+   search box, the visitor's buttons, a footer snippet), on an upgrade and a new
+   installation; the guide, the docs, the release.
+
+Later (decided 2026-10-29): a layout chosen by rules (path, Blueprint, role …),
+with the components' conditions; the regions' arrangement edited in the admin.
 
 **Files (0.3.2, agreed 2026-10-26).** Documents (PDF, the Office and
 OpenDocument formats, plain text, CSV …, by an allowlist) are objects of a

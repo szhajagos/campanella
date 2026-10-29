@@ -1,0 +1,19 @@
+{# A region of a layout (since 0.3.4): its components (items: their HTML), as it shows on small screens.
+   region.small: always, collapse (a button opens it below the breakpoint) or hide (hidden below it). #}
+{%- set bp = region.breakpoint %}
+{%- set inner %}
+    {%- if row %}<div class="d-flex flex-column flex-{{ bp }}-row align-items-{{ bp }}-center gap-2 gap-{{ bp }}-3">{% endif %}
+    {%- for item in items %}<div class="region__item">{{ item|raw }}</div>{% endfor %}
+    {%- if row %}</div>{% endif %}
+{%- endset %}
+{%- if region.small == 'collapse' %}
+<button class="navbar-toggler region-toggle d-{{ bp }}-none" type="button" data-bs-toggle="collapse" data-bs-target="#{{ id }}"
+        aria-controls="{{ id }}" aria-expanded="false" aria-label="{{ t('layout.region.toggle', {region: t(region.label)}) }}">
+    <span class="navbar-toggler-icon"></span>
+</button>
+<div class="collapse d-{{ bp }}-block region region--{{ region.name }} region--collapse-{{ bp }} {{ extra_class }}" id="{{ id }}">{{ inner }}</div>
+{%- elseif region.small == 'hide' %}
+<div class="d-none d-{{ bp }}-block region region--{{ region.name }} {{ extra_class }}" id="{{ id }}">{{ inner }}</div>
+{%- else %}
+<div class="region region--{{ region.name }} {{ extra_class }}" id="{{ id }}">{{ inner }}</div>
+{%- endif %}

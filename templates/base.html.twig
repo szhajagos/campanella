@@ -12,6 +12,14 @@
     {% block stylesheets %}{% endblock %}
 </head>
 <body class="d-flex flex-column min-vh-100">
+    {#- The page's own content (the block a page or a theme fills), placed by the layout. #}
+    {%- set main %}{% block content %}{% endblock %}{% endset %}
+    {%- set campanella_layout = page_layout() %}
+    {%- if campanella_layout %}
+    {#- The layout (since 0.3.4): its regions, with the components placed in them. #}
+    {{ include(campanella_layout.template, {main: main, layout: campanella_layout}) }}
+    {%- else %}
+    {#- Until the site's header and footer are components (the upgrade to 0.3.4 makes them): as before. #}
     <header class="site-header border-bottom">
         <nav class="navbar navbar-expand-md" aria-label="{{ t('site.nav.label') }}">
             <div class="container site-container">
@@ -76,12 +84,13 @@
     </header>
 
     <main class="container site-container flex-grow-1 py-4 py-md-5">
-        {% block content %}{% endblock %}
+        {{ main }}
     </main>
 
     <footer class="site-footer border-top py-3 small text-body-secondary">
         <div class="container site-container">Campanella {{ campanella_version }}</div>
     </footer>
+    {%- endif %}
 
     <script src="{{ asset('vendor/bootstrap/js/bootstrap.bundle.min.js') }}" defer></script>
     {% block scripts %}{% endblock %}

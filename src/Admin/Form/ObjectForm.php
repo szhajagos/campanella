@@ -45,7 +45,7 @@ final class ObjectForm
         'status', 'published_at', 'format',
         'file_path', 'mime_type', 'file_size', 'width', 'height', 'file_hash', 'variants',
         'download_path', 'download_name', 'download_type', 'download_size', 'download_hash',
-        'component_source', 'component_display', 'component_settings',
+        'component_source', 'component_display', 'component_settings', 'component_region', 'component_conditions',
     ];
 
     /** The most targets offered for a relation. */

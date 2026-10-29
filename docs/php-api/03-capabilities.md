@@ -210,8 +210,10 @@ materialized path kept by the repository. Since 0.0.7; described in chapter
 `Component` (`component`, since 0.3.3): the object is a component, a source
 shown with a display: `component_source` and `component_display` (queryable),
 `component_settings` (JSON in the data column). `source()`, `display()`,
-`settings()`, `configure($source, $display, $settings)`; it checks only their
-form, `ComponentService` the rest. Described in chapter
+`settings()`, `configure($source, $display, $settings)`; since 0.3.4 its region
+(`component_region`) and where it shows (`component_conditions`): `region()`,
+`conditions()`, `place($region, $conditions)` ([chapter 29](29-layouts.md#placing-components)).
+It checks only their form, `ComponentService` the rest. Described in chapter
 [28. Displays](28-displays.md#components).
 
 ### Keyed and Link

@@ -1,0 +1,7 @@
+{# The core layouts' bottom (since 0.3.4): the footer region, if it has anything. #}
+{%- set footer %}{{ region('footer') }}{% endset %}
+{%- if footer|trim is not empty %}
+<footer class="site-footer border-top py-3 small text-body-secondary">
+    <div class="container site-container">{{ footer }}</div>
+</footer>
+{%- endif %}

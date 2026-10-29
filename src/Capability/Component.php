@@ -7,6 +7,7 @@ namespace Campanella\Capability;
 use Campanella\Display\DisplayException;
 use Campanella\Display\DisplayRenderer;
 use Campanella\I18n\Message;
+use Campanella\Layout\Conditions;
 use Campanella\Model\Field;
 use Campanella\Model\FieldStorage;
 use Campanella\Model\FieldType;
@@ -34,6 +35,9 @@ final class Component extends Capability
             new Field('component_source', FieldType::String, required: true, indexed: true, length: 100, label: 'field.component_source'),
             new Field('component_display', FieldType::String, required: true, indexed: true, length: 64, label: 'field.component_display'),
             new Field('component_settings', FieldType::Text, storage: FieldStorage::Data, label: 'field.component_settings'),
+            // Since 0.3.4: the region it is placed in (none: only component() shows it), and where it shows.
+            new Field('component_region', FieldType::String, indexed: true, length: 64, label: 'field.component_region'),
+            new Field('component_conditions', FieldType::Text, storage: FieldStorage::Data, label: 'field.component_conditions'),
         ];
     }
 
@@ -67,6 +71,30 @@ final class Component extends Capability
         $this->object->set('component_settings', json_encode((object) $settings, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
     }
 
+    /** The region it is placed in, or null (since 0.3.4). */
+    public function region(): ?string
+    {
+        $region = (string) $this->object->get('component_region');
+
+        return $region === '' ? null : $region;
+    }
+
+    /** Where it shows (since 0.3.4). */
+    public function conditions(): Conditions
+    {
+        $stored = json_decode((string) $this->object->get('component_conditions'), true);
+
+        return is_array($stored) ? Conditions::fromArray($stored) : Conditions::everywhere();
+    }
+
+    /** Places it in a region (null: none), where it shows (since 0.3.4). */
+    public function place(?string $region, ?Conditions $conditions = null): void
+    {
+        $this->object->set('component_region', $region);
+        $conditions ??= Conditions::everywhere();
+        $this->object->set('component_conditions', $conditions->isEverywhere() ? null : json_encode($conditions->toArray(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
+    }
+
     #[\Override]
     public function validate(): array
     {
@@ -82,6 +110,20 @@ final class Component extends Capability
         $settings = (string) $this->object->get('component_settings');
         if ($settings !== '' && (strlen($settings) > self::MAX_SETTINGS_BYTES || !is_array(json_decode($settings, true)))) {
             $errors['component_settings'] = new Message('validation.component_settings');
+        }
+
+        $region = $this->region();
+        if ($region !== null && preg_match('/^[a-z][a-z0-9_]{0,62}$/D', $region) !== 1) {
+            $errors['component_region'] = new Message('validation.component_region');
+        }
+        $conditions = (string) $this->object->get('component_conditions');
+        if ($conditions !== '') {
+            $stored = json_decode($conditions, true);
+            if (strlen($conditions) > self::MAX_SETTINGS_BYTES || !is_array($stored)) {
+                $errors['component_conditions'] = new Message('validation.component_conditions');
+            } elseif (($problems = Conditions::fromArray($stored)->problems()) !== []) {
+                $errors['component_conditions'] = reset($problems);
+            }
         }
 
         return $errors;

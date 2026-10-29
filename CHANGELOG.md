@@ -10,6 +10,26 @@ backward-incompatible.
 
 ## [Unreleased]
 
+**Regions and layouts, part 1.** The third step towards 0.4.0: layouts with
+regions, and components placed in them.
+
+### Added
+
+- **Layouts** ([PHP API, chapter 29](docs/php-api/29-layouts.md)): a template
+  and a JSON file of its regions (`layout/<name>.html.twig`, `.json`), from the
+  core and the theme (`LayoutDefinition`, `RegionDefinition`,
+  `LayoutRegistry`); the core's *one column* and *with a sidebar*, with a
+  *header* and a *navigation* region (collapsed below `md`), content and
+  footer. Each region's look on small screens: always, collapsed or hidden
+  below a Bootstrap breakpoint.
+- `region()` and `page_layout()` in templates; the core's `base.html.twig`
+  shows the page's layout once layouts are on (`layout.enabled`): the site's,
+  or its Blueprint's (`LayoutService`).
+- **Placing components:** a component's region, order (`Weighted`) and
+  conditions (`Conditions`: paths with a wildcard, Blueprints, the front page,
+  except paths); `ComponentService::place()`, `forRegions()` (one query for a
+  page's components).
+
 ## [0.3.3] – 2026-10-28
 
 **Displays and components.** The second step towards 0.4.0: the ways of

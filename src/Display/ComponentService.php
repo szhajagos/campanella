@@ -7,6 +7,8 @@ namespace Campanella\Display;
 use Campanella\Access\Actor;
 use Campanella\Capability\Component;
 use Campanella\I18n\Message;
+use Campanella\Layout\Conditions;
+use Campanella\Layout\LayoutRegistry;
 use Campanella\Lists\ListRegistry;
 use Campanella\Model\BlueprintRegistry;
 use Campanella\Model\CampanellaObject;
@@ -33,6 +35,9 @@ final class ComponentService
 {
     public const string BLUEPRINT = 'component';
 
+    /** The most components read for a page's regions. */
+    public const int MAX_PLACED = 200;
+
     public function __construct(
         private readonly DisplayRenderer $renderer,
         private readonly ObjectService $objects,
@@ -40,6 +45,7 @@ final class ComponentService
         private readonly QueryEngine $queries,
         private readonly ?ListRegistry $lists = null,
         private readonly ?BlueprintRegistry $blueprints = null,
+        private readonly ?LayoutRegistry $layouts = null,
     ) {
     }
 
@@ -151,6 +157,71 @@ final class ComponentService
         $copy = $this->repository->create(self::BLUEPRINT);
         $copy->as(Component::class)->configure($source, $display, $checked);
         $this->objects->update($actor, $component, $this->values($copy, $values));
+    }
+
+    /**
+     * The problems of a placement (since 0.3.4): a region no layout has (`region`), conditions
+     * that are not valid (`paths`, `except`, `blueprints`).
+     *
+     * @return array<string, Message>
+     */
+    public function placementProblems(?string $region, Conditions $where): array
+    {
+        $problems = [];
+        if ($region !== null && $this->layouts !== null && !in_array($region, $this->layouts->regionNames(), true)) {
+            $problems['region'] = new Message('components.region_unknown', ['region' => mb_substr($region, 0, 64, 'UTF-8')]);
+        }
+
+        return $problems + $where->problems($this->blueprints === null ? null : array_keys($this->blueprints->all()));
+    }
+
+    /**
+     * Places a component (since 0.3.4): in a region (null: none, only component() shows it),
+     * where it shows, and its order within the region (null: kept).
+     *
+     * @throws ValidationException for a region no layout has, or conditions that are not valid
+     */
+    public function place(Actor $actor, CampanellaObject $component, ?string $region, ?Conditions $where = null, ?int $weight = null): void
+    {
+        $where ??= Conditions::everywhere();
+        $problems = $this->placementProblems($region, $where);
+        if ($problems !== []) {
+            throw new ValidationException($problems);
+        }
+        $copy = $this->repository->create(self::BLUEPRINT);
+        $copy->as(Component::class)->place($region, $where);
+        $values = ['component_region' => $copy->get('component_region'), 'component_conditions' => $copy->get('component_conditions')];
+        if ($weight !== null) {
+            $values['weight'] = $weight;
+        }
+        $this->objects->update($actor, $component, $values);
+    }
+
+    /**
+     * The components of these regions that show here, for this visitor, in their order (since
+     * 0.3.4): one query for them all (their `Restricted` setting counts there), their
+     * conditions checked here.
+     *
+     * @param list<string> $regions
+     * @return array<string, list<CampanellaObject>> region => components
+     */
+    public function forRegions(array $regions, DisplayContext $context): array
+    {
+        $found = array_fill_keys($regions, []);
+        if ($regions === [] || !$this->isAvailable()) {
+            return $found;
+        }
+        $query = Query::objects()->blueprint(self::BLUEPRINT)->where('component_region', 'IN', $regions)
+            ->scope('by_weight')->limit(self::MAX_PLACED);
+        foreach ($this->queries->execute($query, $context->actor) as $component) {
+            $definition = $component->as(Component::class);
+            $region = (string) $definition->region();
+            if (isset($found[$region]) && $definition->conditions()->matches($context->path, $context->current)) {
+                $found[$region][] = $component;
+            }
+        }
+
+        return $found;
     }
 
     /**

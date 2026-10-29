@@ -1,0 +1,14 @@
+{# The layout with a sidebar (since 0.3.4): the sidebar beside the content from lg up, under it on smaller screens. #}
+{{ include('layout/_header.html.twig') }}
+<div class="container site-container flex-grow-1 py-4 py-md-5">
+    <div class="row g-5">
+        <main class="col-lg-8">
+            {{ main }}
+            {{ region('content', {class: 'mt-4'}) }}
+        </main>
+        <aside class="col-lg-4" aria-label="{{ t('layout.region.sidebar') }}">
+            {{ region('sidebar') }}
+        </aside>
+    </div>
+</div>
+{{ include('layout/_footer.html.twig') }}

@@ -111,6 +111,9 @@ use Campanella\Display\Builtin\LoginFormDisplay;
 use Campanella\Display\Builtin\NavigationDisplay;
 use Campanella\Display\Builtin\TableDisplay;
 use Campanella\Display\ComponentService;
+use Campanella\Layout\LayoutRegistry;
+use Campanella\Layout\LayoutService;
+use Campanella\Layout\Regions;
 use Campanella\Display\CurrentPage;
 use Campanella\Display\DisplayContext;
 use Campanella\Display\DisplayRegistry;
@@ -155,6 +158,7 @@ final class Kernel
     private string $basePath = '';
     private ?Request $request = null;
     private ?CurrentPage $currentPage = null;
+    private ?Regions $regions = null;
 
     public function __construct(private readonly string $rootDir)
     {
@@ -301,6 +305,7 @@ final class Kernel
         $this->basePath = $request->basePath;
         $this->request = $request;
         $this->currentPage?->set(null);
+        $this->regions?->reset();
         // The settings are read again for every request (one may have saved them since).
         try {
             $this->container()->get(SiteSettings::class)->reset();
@@ -882,6 +887,9 @@ final class Kernel
                     );
                 },
                 static fn (): ComponentService => $c->get(ComponentService::class),
+                // The layouts and their regions (since 0.3.4).
+                static fn (): LayoutService => $c->get(LayoutService::class),
+                static fn (): Regions => $c->get(Regions::class),
             ));
 
             return $twig;
@@ -923,7 +931,23 @@ final class Kernel
             $c->get(QueryEngine::class),
             $c->get(ListRegistry::class),
             $c->get(BlueprintRegistry::class),
+            $c->get(LayoutRegistry::class),
         ));
+        // The layouts (since 0.3.4): the core's templates/layout/, and the theme's, which win.
+        $c->set(LayoutRegistry::class, static function (Container $c) use ($root): LayoutRegistry {
+            $theme = $c->get(Theme::class);
+
+            return new LayoutRegistry($theme->templateDir === null ? [$root . '/templates'] : [$root . '/templates', $theme->templateDir]);
+        });
+        $c->set(LayoutService::class, static fn (Container $c): LayoutService => new LayoutService(
+            $c->get(LayoutRegistry::class),
+            $c->get(Settings::class),
+        ));
+        $regions = $this->regions = new Regions(
+            static fn (): ComponentService => $c->get(ComponentService::class),
+            static fn (): Presentation => $c->get(Presentation::class),
+        );
+        $c->instance(Regions::class, $regions);
         $c->set(DisplayRenderer::class, static fn (Container $c): DisplayRenderer => new DisplayRenderer(
             $c->get(DisplayRegistry::class),
             static fn (): Presentation => $c->get(Presentation::class),

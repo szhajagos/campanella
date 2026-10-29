@@ -103,6 +103,7 @@ has schema version 12, 0.3.0 has 16, 0.3.1 has 17, 0.3.2 has 18, 0.3.3 has 19 (f
 | 17 | 0.3.1 | `importers`, `import_runs`, `import_items` tables: the importers, their runs' log, which item became which object |
 | 18 | 0.3.2 | `cap_downloadable` and `cap_restricted` tables: the files to download, and who may see an object |
 | 19 | 0.3.3 | `cap_component` table: the components |
+| 20 | 0.3.4 | The `component_region` column of `cap_component`: a component's region |
 
 With a table prefix, every name starts with it (`cc_lists`, …).
 

@@ -201,6 +201,8 @@ final class ComponentPages
 
         if ($request->isPost()) {
             $read = $this->form->read($object, $request->post, $actor);
+            // The order within a region is set on the regions' page (0.3.4), not here.
+            unset($read['values']['weight'], $read['errors']['weight']);
             $settings = is_array($request->post['s'] ?? null) ? array_map(static fn ($v): string => is_scalar($v) ? (string) $v : '', $request->post['s']) : [];
             $input = ['f' => is_array($request->post['f'] ?? null) ? $request->post['f'] : []];
             $errors = $read['errors'];
@@ -240,7 +242,10 @@ final class ComponentPages
             'display' => $display,
             'source_label' => $this->describe($source, $actor),
             'display_label' => $definition->label ?? $display,
-            'fields' => $this->form->build($object, $actor, $input, $errors, $this->blueprints->get(ComponentService::BLUEPRINT)->formOrder),
+            'fields' => array_values(array_filter(
+                $this->form->build($object, $actor, $input, $errors, $this->blueprints->get(ComponentService::BLUEPRINT)->formOrder),
+                static fn ($field): bool => $field->name !== 'weight',
+            )),
             'settings' => $definition === null ? [] : $this->form->settings($definition->settings, $values, $settingErrors),
             'errors' => array_diff_key($errors, $settingErrors, $object->fields()),
             'problem' => $component === null || $changed ? null : $this->components->problem($component),
