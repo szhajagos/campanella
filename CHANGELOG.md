@@ -10,7 +10,7 @@ backward-incompatible.
 
 ## [Unreleased]
 
-**Regions and layouts, parts 1–3a.** The third step towards 0.4.0: layouts with
+**Regions and layouts, parts 1–3.** The third step towards 0.4.0: layouts with
 regions, and components placed in them.
 
 ### Added
@@ -40,6 +40,13 @@ regions, and components placed in them.
   collapsed or hidden below 576, 768, 992 or 1200 px). `LayoutService::save()`
   checks and saves them, all or nothing. Until the layouts are on, the page
   says so; what is saved counts from then on.
+- **Appearance → Regions** (`/admin/component/regions`): a layout's regions
+  with their components in their order, and their conditions in words; a
+  component added to a region's end, moved up or down, taken out
+  (`ComponentService::inRegion()`, `nextWeight()`, `move()`).
+- The component's form says **where it shows**: its region, and on which pages
+  (the front page, paths with a wildcard, the Blueprints with pages, except
+  paths). The components' list shows their region.
 - The System page warns while **PHP's JIT** is on (`SystemCheck::jitIsOn()`):
   PHP 8.3's JIT (8.3.35, 8.3.36) made PHP itself crash now and then in
   Campanella's tests; `opcache.jit=disable` turns it off, the OPcache stays

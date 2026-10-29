@@ -712,6 +712,29 @@ def test_layouts(browser):
     context.close()
 
 
+
+def test_regions(browser):
+    """A component put into a region from the Regions page, then taken out (since 0.3.4)."""
+    context = new_context(browser)
+    page = context.new_page()
+    login(page, ADMIN)
+    page.goto(BASE + "/admin")
+    with page.expect_navigation():
+        page.click(".admin-sidebar a[href$='/admin/component/regions']")
+    region = page.locator("#region-footer")
+    check(region.count() == 1, "the footer region is missing")
+    region.locator("select[name=component]").select_option(label="Böngésző menü")
+    with page.expect_navigation():
+        region.locator("button[type=submit]", has_text="Hozzáad").click()
+    check(page.locator(".alert-success").count() == 1, "adding: no message")
+    item = page.locator("#region-footer .admin-region-item", has_text="Böngésző menü")
+    check(item.count() == 1, "not in the footer region")
+    with page.expect_navigation():
+        item.locator("button", has_text="Kivesz").click()
+    check(page.locator("#region-footer .admin-region-item", has_text="Böngésző menü").count() == 0, "not taken out")
+    context.close()
+
+
 TESTS = [
     test_security_headers,
     test_login_and_logout,
@@ -724,6 +747,7 @@ TESTS = [
     test_importer,
     test_files,
     test_components,
+    test_regions,
     test_layouts,
 ]
 

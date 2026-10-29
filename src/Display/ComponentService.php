@@ -225,6 +225,59 @@ final class ComponentService
     }
 
     /**
+     * The components placed in a region, in their order, whatever their conditions (since
+     * 0.3.4; for the admin's regions page): those the actor may see, at most MAX_PLACED.
+     *
+     * @return list<CampanellaObject>
+     */
+    public function inRegion(string $region, Actor $actor): array
+    {
+        if (!$this->isAvailable()) {
+            return [];
+        }
+        $query = Query::objects()->blueprint(self::BLUEPRINT)->where('component_region', '=', $region)
+            ->scope('by_weight')->limit(self::MAX_PLACED);
+
+        return $this->queries->execute($query, $actor)->items;
+    }
+
+    /** The order after the last component of a region (since 0.3.4): where a component added to it goes. */
+    public function nextWeight(string $region, Actor $actor): int
+    {
+        $last = 0;
+        foreach ($this->inRegion($region, $actor) as $component) {
+            $last = max($last, (int) $component->get('weight') + 1);
+        }
+
+        return $last;
+    }
+
+    /**
+     * Moves a component up (-1) or down (+1) within its region (since 0.3.4): the region's
+     * components are numbered 0, 1, 2 … in their order, the component swapped with its
+     * neighbour. Nothing happens at the top, the bottom, or outside a region.
+     */
+    public function move(Actor $actor, CampanellaObject $component, int $by): void
+    {
+        $region = $component->has(Component::class) ? $component->as(Component::class)->region() : null;
+        if ($region === null || ($by !== -1 && $by !== 1)) {
+            return;
+        }
+        $order = $this->inRegion($region, $actor);
+        $ids = array_map(static fn (CampanellaObject $c): int => (int) $c->id(), $order);
+        $at = array_search((int) $component->id(), $ids, true);
+        if ($at === false || !isset($ids[$at + $by])) {
+            return;
+        }
+        [$order[$at], $order[$at + $by]] = [$order[$at + $by], $order[$at]];
+        foreach ($order as $weight => $placed) {
+            if ((int) $placed->get('weight') !== $weight) {
+                $this->objects->update($actor, $placed, ['weight' => $weight]);
+            }
+        }
+    }
+
+    /**
      * Why a component does not work now, or null if it does: its source is gone (a deleted
      * object or list), its display is gone or cannot show the source any more.
      */

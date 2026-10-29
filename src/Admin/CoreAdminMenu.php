@@ -80,7 +80,9 @@ final class CoreAdminMenu
             if (!$access->allowsSystem($actor)) {
                 return [];
             }
-            $items = $components === null || $components() ? [new AdminMenuItem('component', 'components.title', 'component')] : [];
+            $items = $components === null || $components()
+                ? [new AdminMenuItem('component', 'components.title', 'component'), new AdminMenuItem('regions', 'regions.title', 'component/regions')]
+                : [];
             $items[] = new AdminMenuItem('layouts', 'layouts.title', 'system/layouts');
 
             return $items;

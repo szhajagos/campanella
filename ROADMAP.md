@@ -316,7 +316,7 @@ Decided on 2026-10-26:
    Layouts* (the site's, per Blueprint; the regions' look on small screens;
    done); **3b** *Appearance → Regions* (a layout's regions with their
    components, in order: up, down, add, take out), and the component's form
-   gets its region and where it shows.
+   gets its region and where it shows (done).
 4. **The upgrade, the guide, the release** (part 4): the components of the
    header and footer as they look now (the site's name, the main menu, the
    search box, the visitor's buttons, a footer snippet), on an upgrade and a new

@@ -225,6 +225,9 @@ the `component` Blueprint has `Weighted` (the order within the region):
 | `place(Actor $actor, CampanellaObject $component, ?string $region, ?Conditions $where = null, ?int $weight = null)` | Places it in a region (null: none, only `component()` shows it), where it shows, its order (null: kept). `ValidationException` for a region no layout has (`region`), or conditions that are not valid |
 | `placementProblems(?string $region, Conditions $where): array<string, Message>` | The same checks |
 | `forRegions(array $regions, DisplayContext $context): array<string, list<CampanellaObject>>` | The components of these regions that show here, for this visitor, in their order: one query (at most `MAX_PLACED`, 200), the conditions checked in PHP |
+| `inRegion(string $region, Actor $actor): list<CampanellaObject>` | The components placed in a region, in their order, whatever their conditions (for the admin): those the actor may see, at most `MAX_PLACED` |
+| `nextWeight(string $region, Actor $actor): int` | The order after the region's last component: where one added goes |
+| `move(Actor $actor, CampanellaObject $component, int $by): void` | Up (`-1`) or down (`1`) within its region: the region's components are numbered 0, 1, 2 … in their order, it is swapped with its neighbour; nothing at the top, the bottom, or outside a region |
 
 ## Existing themes
 

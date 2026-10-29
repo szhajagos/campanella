@@ -1764,7 +1764,7 @@ test('AdminMenu: the groups and their links, by who looks; a module\'s links', f
     $content = $items($full, 'content');
     check(in_array('article', $content, true) && in_array('snippet', $content, true) && !array_intersect(['user', 'submission', 'component', 'image', 'file'], $content), implode(',', $content));
     check($items($full, 'media') === ['media', 'image', 'file'] && $items($full, 'audience') === ['submission', 'user']);
-    check($items($full, 'appearance') === ['component', 'layouts'] && $items($full, 'structure') === ['blueprints', 'capabilities', 'lists', 'model']);
+    check($items($full, 'appearance') === ['component', 'regions', 'layouts'] && $items($full, 'structure') === ['blueprints', 'capabilities', 'lists', 'model']);
     check($items($full, 'system') === ['system', 'settings', 'mail', 'importers', 'redirects']);
     check($names($menu->build($editor)) === ['content', 'media'], 'an editor sees the system groups: ' . implode(',', $names($menu->build($editor))));
 
@@ -5355,6 +5355,86 @@ test('Kernel: the site settings page, for administrators', function () use ($new
 
     $settings->set(array_fill_keys(array_map(static fn (string $k): string => 'site.' . $k, \Campanella\Site\SiteSettings::KEYS), null));
     putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('Kernel: the regions page (Appearance → Regions): adding, ordering, taking out; the component\'s form places it, with conditions', function () use ($displayKernel, $newUser): void {
+    $kernel = $displayKernel();
+    if ($kernel === null) {
+        return;
+    }
+    $c = $kernel->container();
+    $system = Actor::system();
+    $components = $c->get(\Campanella\Display\ComponentService::class);
+    $storage = new ArraySessionStorage();
+    $c->set(Session::class, static fn () => new Session($storage));
+    $auth = $c->get(AuthService::class);
+    $send = function (string $method, string $path, array $post = []) use ($kernel, $storage) {
+        $storage->endRequest();
+        [$path, $query] = explode('?', $path, 2) + [1 => ''];
+        parse_str($query, $params);
+
+        return $kernel->handle(new Request($method, $path, query: $params, post: $post));
+    };
+    $csrfOf = static fn ($response): string => preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $response->body, $m) === 1 ? $m[1] : '';
+    $make = static fn (string $key) => $components->create($system, ['title' => 'Régió ' . $key, 'machine_name' => 'regio_' . $key], 'system:site', 'branding');
+    [$a, $b, $d] = [$make('a'), $make('b'), $make('d')];
+    $fresh = static fn ($component) => $components->find((string) $component->get('machine_name'), $system);
+    $order = static fn (string $region): array => array_map(static fn ($x): string => (string) $x->get('machine_name'), $components->inRegion($region, $system));
+
+    $auth->login(new Request('GET', '/'), $newUser('regio-szerk@example.hu', 'regio-jelszo-1', ['editor']));
+    check($send('GET', '/admin/component/regions')->status === 403, 'not for editors');
+    $auth->login(new Request('GET', '/'), $newUser('regio-admin@example.hu', 'regio-jelszo-1', ['administrator']));
+
+    $page = $send('GET', '/admin/component/regions?layout=sidebar');
+    check($page->status === 200 && str_contains($page->body, 'href="/admin/component/regions" aria-current="page">Régiók</a>'), 'in the Appearance group');
+    check(str_contains($page->body, 'id="region-sidebar"') && str_contains($page->body, 'id="region-header"') && str_contains($page->body, '?layout=one_column'), 'the sidebar layout\'s regions, the other layout as a tab');
+    check(!str_contains($send('GET', '/admin/component/regions')->body, 'id="region-sidebar"'), 'the site\'s layout by default: no sidebar');
+    $csrf = $csrfOf($page);
+
+    foreach ([$a, $b, $d] as $component) {
+        $added = $send('POST', '/admin/component/regions/add', ['_csrf' => $csrf, 'layout' => 'sidebar', 'region' => 'sidebar', 'component' => (string) $component->id()]);
+        check($added->status === 303 && ($added->headers['Location'] ?? '') === '/admin/component/regions?layout=sidebar');
+    }
+    check(str_contains($send('GET', '/admin/component/regions?layout=sidebar')->body, 'Régió d a(z) Oldalsáv régió végére került.'), 'the message names the region');
+    check($order('sidebar') === ['regio_a', 'regio_b', 'regio_d'], 'added at the end: ' . implode(',', $order('sidebar')));
+    check($send('POST', '/admin/component/' . $a->id() . '/move-down', ['_csrf' => $csrf, 'layout' => 'sidebar'])->status === 303);
+    check($order('sidebar') === ['regio_b', 'regio_a', 'regio_d'], 'moved down: ' . implode(',', $order('sidebar')));
+    $send('POST', '/admin/component/' . $d->id() . '/move-up', ['_csrf' => $csrf]);
+    $send('POST', '/admin/component/' . $b->id() . '/move-up', ['_csrf' => $csrf]);
+    check($order('sidebar') === ['regio_b', 'regio_d', 'regio_a'], 'moved up; the top one stays: ' . implode(',', $order('sidebar')));
+    $send('POST', '/admin/component/' . $d->id() . '/move-down', ['_csrf' => 'x']);
+    check($order('sidebar') === ['regio_b', 'regio_d', 'regio_a'], 'not without the CSRF token');
+    check($send('GET', '/admin/component/' . $d->id() . '/move-down')->status === 405);
+
+    $listed = $send('GET', '/admin/component/regions?layout=sidebar');
+    check(preg_match('#id="region-sidebar".*Régió b.*Régió d.*Régió a#s', $listed->body) === 1 && str_contains($listed->body, 'Hozzáadva') === false, 'listed in their order');
+    check(preg_match('#id="add-header".*Régió a \(most: Oldalsáv\)#s', $listed->body) === 1, 'offered to another region, saying where it is now');
+
+    $send('POST', '/admin/component/' . $b->id() . '/unplace', ['_csrf' => $csrf, 'layout' => 'sidebar']);
+    check($order('sidebar') === ['regio_d', 'regio_a'] && $fresh($b)->as(\Campanella\Capability\Component::class)->region() === null, 'taken out, kept');
+    $send('POST', '/admin/component/regions/add', ['_csrf' => $csrf, 'region' => 'nincs_ilyen', 'component' => (string) $b->id()]);
+    check($fresh($b)->as(\Campanella\Capability\Component::class)->region() === null && str_contains($send('GET', '/admin/component/regions')->body, 'nincs_ilyen'), 'an unknown region: refused, said');
+    check($send('POST', '/admin/component/regions/add', ['_csrf' => $csrf, 'region' => 'sidebar', 'component' => '999999'])->status === 404);
+
+    // The form: region and conditions.
+    $edit = $send('GET', '/admin/component/' . $b->id());
+    check(str_contains($edit->body, 'name="place[region]"') && str_contains($edit->body, 'name="place[paths]"') && str_contains($edit->body, 'value="article"'), 'the form says where it shows');
+    $post = ['_csrf' => $csrfOf($edit), 'source' => 'system:site', 'display' => 'branding', 'f' => ['title' => 'Régió b', 'machine_name' => 'regio_b', 'visible_to' => 'public']];
+    $bad = $send('POST', '/admin/component/' . $b->id(), $post + ['place' => ['region' => 'footer', 'paths' => "hirek\n/rolunk"]]);
+    check($bad->status === 422 && str_contains($bad->body, 'id="place-paths"') && str_contains($bad->body, 'hirek') && $fresh($b)->as(\Campanella\Capability\Component::class)->region() === null, 'an invalid path: nothing saved');
+    $ok = $send('POST', '/admin/component/' . $b->id(), $post + ['place' => ['region' => 'sidebar', 'paths' => "/hirek/*\n/rolunk", 'blueprints' => ['article'], 'except' => '/hirek/archivum', 'front' => '1']]);
+    check($ok->status === 303, (string) $ok->status);
+    $where = $fresh($b)->as(\Campanella\Capability\Component::class)->conditions();
+    check($where->paths === ['/hirek/*', '/rolunk'] && $where->blueprints === ['article'] && $where->front && $where->except === ['/hirek/archivum'], json_encode($where->toArray()));
+    check($order('sidebar') === ['regio_d', 'regio_a', 'regio_b'], 'put into a region from the form: at its end');
+    $send('POST', '/admin/component/' . $a->id(), ['_csrf' => $csrfOf($edit), 'source' => 'system:site', 'display' => 'branding', 'f' => ['title' => 'Régió a', 'machine_name' => 'regio_a', 'visible_to' => 'public'], 'place' => ['region' => 'sidebar']]);
+    check($order('sidebar') === ['regio_d', 'regio_a', 'regio_b'], 'saved in the same region: its place kept');
+    check(str_contains($send('GET', '/admin/component/regions?layout=sidebar')->body, 'a címlapon · itt: /hirek/*, /rolunk · ezek oldalain: Cikk · soha itt: /hirek/archivum'), 'the conditions in words');
+    check(preg_match('#Régió b</a>.*?<td class="small">Oldalsáv</td>#s', $send('GET', '/admin/component')->body) === 1, 'the list shows the region');
+
+    foreach ([$a, $b, $d] as $component) {
+        $c->get(ObjectService::class)->delete($system, $fresh($component));
+    }
 });
 
 test('Kernel: the layouts page (Appearance → Layouts), for administrators', function () use ($newUser): void {

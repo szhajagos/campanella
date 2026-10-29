@@ -1134,6 +1134,8 @@ final class Kernel
             $c->get(Csrf::class),
             $c->get(Flash::class),
             $c->get(AdminAccess::class),
+            $c->get(LayoutService::class),
+            $c->get(Translator::class),
         ));
 
         // The admin's menu (since 0.3.3): the core's links; a module adds its own.

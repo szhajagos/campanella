@@ -401,6 +401,14 @@ shown with its default.
 | `/admin/component/new?source=…&display=…` | 3. **The form:** the title, the machine name, who sees it, and the display's settings, a form built from its fields (`ObjectForm::settings()`); POST saves |
 | `/admin/component/<id>` | Editing one; *Another source or display* goes through the steps again (`/admin/component/<id>/source`, `/display`) |
 | `/admin/component/<id>/delete` | Deleting one (what it showed stays) |
+| `/admin/component/regions?layout=…` | *Appearance → Regions* (since 0.3.4): the regions of a layout (the site's by default; the others as tabs), each with its components in their order, their conditions in words; **Up**, **Down**, **Take out** (`POST /admin/component/<id>/move-up`, `/move-down`, `/unplace`) and **Add** a component to the region's end (`POST /admin/component/regions/add`: `component`, `region`; one in another region leaves that one) |
+
+Since 0.3.4 the form (3.) also says **where the component shows**: its region
+(or none: only `component()` shows it) and its conditions (the front page, paths,
+the Blueprints with pages, except paths; [chapter 29](29-layouts.md#conditions)),
+checked with the rest (`ComponentService::placementProblems()`) and saved with
+`place()`. Put into another region, it goes to that region's end; its order is
+set on the regions page. The list shows each component's region.
 
 Every page is for the system roles only (403 for an editor), every POST checks
 the CSRF token. `isAvailable()`: whether there are components

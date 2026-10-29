@@ -4,6 +4,7 @@
 {% block content %}
     <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
         <h1 class="h3 mb-0 me-auto">{{ t('components.title') }}</h1>
+        {% if regions_url ?? false %}<a class="btn btn-outline-secondary" href="{{ admin_url('component/regions') }}">{{ t('regions.title') }}</a>{% endif %}
         <a class="btn btn-primary" href="{{ admin_url('component/new/source') }}">{{ t('components.new') }}</a>
     </div>
     <p class="text-body-secondary mb-4">{{ t('components.intro') }}</p>
@@ -15,6 +16,7 @@
                     <th scope="col">{{ t('field.title') }}</th>
                     <th scope="col">{{ t('components.source') }}</th>
                     <th scope="col">{{ t('components.display') }}</th>
+                    <th scope="col">{{ t('components.place_region') }}</th>
                     <th scope="col">{{ t('field.visible_to') }}</th>
                     <th scope="col">{{ t('components.in_templates') }}</th>
                 </tr></thead>
@@ -27,6 +29,7 @@
                             </td>
                             <td>{{ t(item.source) }}</td>
                             <td>{{ t(item.display) }}</td>
+                            <td class="small">{{ item.region ? t(item.region) : '–' }}</td>
                             <td class="small">{% include '@core/admin/_visibility.html.twig' with {object: item.object} only %}</td>
                             <td><code class="small">{{ "{{ component('" ~ item.key ~ "') }}" }}</code></td>
                         </tr>

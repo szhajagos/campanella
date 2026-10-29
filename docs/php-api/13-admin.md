@@ -66,6 +66,7 @@ The `subpath` route parameter selects the page. Everything goes through the
 | `/admin/system/mail`, `POST /admin/system/mail-test` | The e-mail log, and a test e-mail to one's own address (since 0.1.3; [chapter 21](21-events-and-mail.md#in-the-admin)) |
 | `/admin/system/settings` | The site's settings: name, slogan, description, address, share image, indexing (since 0.1.1; [chapter 20](20-site.md#the-site-settings-page-settingspage)) |
 | `/admin/component` … | The components, for the system roles (since 0.3.3; `ComponentPages`, [chapter 28](28-displays.md#in-the-admin-componentpages)) |
+| `/admin/component/regions` | The regions of a layout with their components: adding, ordering, taking out (since 0.3.4; [chapter 28](28-displays.md#in-the-admin-componentpages)) |
 | `/admin/system/layouts` | The layouts: the site's, the Blueprints' own, the regions' looks on small screens (since 0.3.4; `LayoutPages`, [chapter 29](29-layouts.md#in-the-admin-layoutpages)) |
 
 | Constant | Value |
@@ -105,7 +106,7 @@ group with no link for them is left out. The core's groups, in their order:
 | *Content* | `CONTENT` | The lists of the Blueprints (not the users, the messages, the components, the media) | everyone in the admin |
 | *Media library* | `MEDIA` | All, Images, Files | everyone in the admin |
 | *Audience* | `AUDIENCE` | Submissions (with the unread ones' number), Users | who may see them |
-| *Appearance* | `APPEARANCE` | Components (if there are), Layouts (since 0.3.4; 0.3.6: colour schemes) | the system roles |
+| *Appearance* | `APPEARANCE` | Components and Regions (if there are components), Layouts (since 0.3.4; 0.3.6: colour schemes) | the system roles |
 | *Structure* | `STRUCTURE` | Blueprints, Capabilities, Lists, the content model | the system roles |
 | *System* | `SYSTEM` | Status (the System page), Settings, Mail log, Importers, Redirects | the system roles |
 

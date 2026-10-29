@@ -30,6 +30,54 @@
             </fieldset>
         {% endif %}
 
+        {% if place %}
+            {% set pe = place.errors %}
+            <fieldset class="border rounded p-3 mb-4 admin-component-place">
+                <legend class="h6 float-none w-auto px-2 mb-0">{{ t('components.place') }}</legend>
+                <div class="mb-3">
+                    <label for="place-region" class="form-label fw-semibold">{{ t('components.place_region') }}</label>
+                    <select class="form-select{{ (pe.region ?? null) ? ' is-invalid' }}" id="place-region" name="place[region]" aria-describedby="place-region-help">
+                        <option value="">{{ t('components.place_none') }}</option>
+                        {% for name, label in place.regions %}
+                            <option value="{{ name }}"{{ place.region == name ? ' selected' }}>{{ t(label) }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="form-text" id="place-region-help">{{ t('components.place_region_help') }}</div>
+                    {% if pe.region ?? null %}<div class="invalid-feedback d-block">{{ t(pe.region.key, pe.region.params) }}</div>{% endif %}
+                </div>
+                <p class="fw-semibold mb-1">{{ t('components.place_where') }}</p>
+                <p class="form-text mt-0">{{ t('components.place_where_help') }}</p>
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="place-front" name="place[front]" value="1"{{ place.front ? ' checked' }}>
+                    <label class="form-check-label" for="place-front">{{ t('components.place_front') }}</label>
+                </div>
+                <div class="mb-3">
+                    <label for="place-paths" class="form-label">{{ t('components.place_paths') }}</label>
+                    <textarea class="form-control font-monospace{{ (pe.paths ?? null) ? ' is-invalid' }}" id="place-paths" name="place[paths]" rows="2" placeholder="/hirek/*" aria-describedby="place-paths-help">{{ place.paths }}</textarea>
+                    <div class="form-text" id="place-paths-help">{{ t('components.place_paths_help') }}</div>
+                    {% if pe.paths ?? null %}<div class="invalid-feedback d-block">{{ t(pe.paths.key, pe.paths.params) }}</div>{% endif %}
+                </div>
+                {% if place.pages %}
+                    <fieldset class="mb-3">
+                        <legend class="form-label fs-6 mb-1">{{ t('components.place_blueprints') }}</legend>
+                        {% for name, label in place.pages %}
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" id="place-bp-{{ name }}" name="place[blueprints][]" value="{{ name }}"{{ name in place.blueprints ? ' checked' }}>
+                                <label class="form-check-label" for="place-bp-{{ name }}">{{ t(label) }}</label>
+                            </div>
+                        {% endfor %}
+                        {% if pe.blueprints ?? null %}<div class="invalid-feedback d-block">{{ t(pe.blueprints.key, pe.blueprints.params) }}</div>{% endif %}
+                    </fieldset>
+                {% endif %}
+                <div class="mb-0">
+                    <label for="place-except" class="form-label">{{ t('components.place_except') }}</label>
+                    <textarea class="form-control font-monospace{{ (pe.except ?? null) ? ' is-invalid' }}" id="place-except" name="place[except]" rows="2" placeholder="/belepes" aria-describedby="place-except-help">{{ place.except }}</textarea>
+                    <div class="form-text" id="place-except-help">{{ t('components.place_except_help') }}</div>
+                    {% if pe.except ?? null %}<div class="invalid-feedback d-block">{{ t(pe.except.key, pe.except.params) }}</div>{% endif %}
+                </div>
+            </fieldset>
+        {% endif %}
+
         <div class="d-flex gap-2 mt-4 pt-3 border-top">
             <button type="submit" class="btn btn-primary">{{ t(component ? 'admin.form.save' : 'admin.form.create') }}</button>
             <a class="btn btn-outline-secondary" href="{{ admin_url('component') }}">{{ t('admin.form.cancel') }}</a>

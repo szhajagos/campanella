@@ -1,0 +1,74 @@
+{% extends '@core/admin/base.html.twig' %}
+
+{# The regions of a layout with their components, in their order (since 0.3.4). #}
+{% block content %}
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+        <h1 class="h3 mb-0 me-auto">{{ t('regions.title') }}</h1>
+        <a class="btn btn-outline-secondary" href="{{ admin_url('component') }}">{{ t('components.title') }}</a>
+    </div>
+    <p class="text-body-secondary mb-3">{{ t('regions.intro') }}</p>
+
+    {% if layouts|length > 1 %}
+        <ul class="nav nav-tabs mb-4" aria-label="{{ t('regions.layouts') }}">
+            {% for l in layouts %}
+                <li class="nav-item">
+                    <a class="nav-link{{ l.name == layout.name ? ' active' }}" href="{{ admin_url('component/regions') }}?layout={{ l.name|url_encode }}"{{ l.name == layout.name ? ' aria-current="page"' }}>
+                        {{ t(l.label) }}{% if l.name == site_layout %} <span class="badge text-bg-light fw-normal">{{ t('regions.site_layout') }}</span>{% endif %}
+                    </a>
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+    {% for region in regions %}
+        <section class="card mb-4 admin-region" id="region-{{ region.name }}">
+            <div class="card-header d-flex align-items-center gap-2">
+                <h2 class="h6 mb-0 me-auto">{{ t(region.label) }} <code class="small text-body-secondary fw-normal">{{ region.name }}</code></h2>
+                <span class="small text-body-secondary">{{ t('regions.count', {count: region.components|length}) }}</span>
+            </div>
+            {% if region.components %}
+                <ol class="list-group list-group-flush list-group-numbered">
+                    {% for item in region.components %}
+                        <li class="list-group-item d-flex flex-wrap align-items-center gap-2 admin-region-item">
+                            <div class="me-auto">
+                                <a href="{{ admin_url('component/' ~ item.object.id) }}" class="fw-semibold">{{ item.object.title }}</a>
+                                <span class="small text-body-secondary">· {{ t(item.display) }}</span>
+                                {% if item.where %}
+                                    <div class="small text-body-secondary">{% for part in item.where %}{{ t(part.key, part.params) }}{{ not loop.last ? ' · ' }}{% endfor %}</div>
+                                {% endif %}
+                                {% if item.problem %}<div><span class="badge text-bg-danger fw-normal">{{ t('components.broken') }}</span> <span class="small text-danger">{{ t(item.problem.key, item.problem.params) }}</span></div>{% endif %}
+                            </div>
+                            <div class="d-flex gap-1">
+                                {% set first = loop.first %}{% set last = loop.last %}
+                                {% for action in ['move-up', 'move-down', 'unplace'] %}
+                                    {% set disabled = (action == 'move-up' and first) or (action == 'move-down' and last) %}
+                                    <form method="post" action="{{ admin_url('component/' ~ item.object.id ~ '/' ~ action) }}">
+                                        {{ csrf_field() }}
+                                        <input type="hidden" name="layout" value="{{ layout.name }}">
+                                        <button type="submit" class="btn btn-sm {{ action == 'unplace' ? 'btn-outline-danger' : 'btn-outline-secondary' }}"{{ disabled ? ' disabled' }} aria-label="{{ t('regions.' ~ action ~ '_label', {title: item.object.title}) }}">{{ t('regions.' ~ action) }}</button>
+                                    </form>
+                                {% endfor %}
+                            </div>
+                        </li>
+                    {% endfor %}
+                </ol>
+            {% else %}
+                <div class="card-body py-2 small text-body-secondary">{{ t('regions.empty') }}</div>
+            {% endif %}
+            {% if region.addable %}
+                <form method="post" action="{{ admin_url('component/regions/add') }}" class="card-footer d-flex flex-wrap gap-2 align-items-center">
+                    {{ csrf_field() }}
+                    <input type="hidden" name="layout" value="{{ layout.name }}">
+                    <input type="hidden" name="region" value="{{ region.name }}">
+                    <label class="visually-hidden" for="add-{{ region.name }}">{{ t('regions.add_label', {region: t(region.label)}) }}</label>
+                    <select class="form-select form-select-sm w-auto" id="add-{{ region.name }}" name="component">
+                        {% for c in region.addable %}
+                            <option value="{{ c.id }}">{{ c.title }}{% if c.region %} ({{ t('regions.now_in', {region: t(region_labels[c.region] ?? c.region)}) }}){% endif %}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-sm btn-primary">{{ t('regions.add') }}</button>
+                </form>
+            {% endif %}
+        </section>
+    {% endfor %}
+{% endblock %}
