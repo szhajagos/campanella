@@ -1469,4 +1469,11 @@ return [
     'conditions.too_many' => 'at most {max}',
     'conditions.invalid_path' => 'not a path pattern (it starts with /, without spaces, ?, # or \\): {path}',
     'conditions.unknown_blueprint' => 'no such Blueprint: {blueprint}',
+    'token.site.name' => 'The site\'s name',
+    'token.site.slogan' => 'The site\'s slogan',
+    'token.site.url' => 'The site\'s address',
+    'token.date.year' => 'The current year',
+    'token.campanella.version' => 'Campanella\'s version',
+    'tokens.title' => 'Tokens in the text',
+    'tokens.help' => 'When the text is shown, a token written in it is replaced by its value: e.g. "© [date:year] [site:name]" becomes "© 2026 The site\'s name".',
 ];

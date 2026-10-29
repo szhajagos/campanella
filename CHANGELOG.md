@@ -10,7 +10,7 @@ backward-incompatible.
 
 ## [Unreleased]
 
-**Regions and layouts, part 1.** The third step towards 0.4.0: layouts with
+**Regions and layouts, parts 1–2.** The third step towards 0.4.0: layouts with
 regions, and components placed in them.
 
 ### Added
@@ -29,6 +29,11 @@ regions, and components placed in them.
   conditions (`Conditions`: paths with a wildcard, Blueprints, the front page,
   except paths); `ComponentService::place()`, `forRegions()` (one query for a
   page's components).
+- **Tokens** ([PHP API, chapter 30](docs/php-api/30-tokens.md)): `[site:name]`,
+  `[site:slogan]`, `[site:url]`, `[date:year]`, `[campanella:version]` in the
+  snippets' texts, replaced when shown, escaped; an unknown one stays as it is.
+  `TokenRegistry` and `TokenProvider` (`config/app.php`: `tokens`), the list
+  under a snippet's editor, the `tokens` filter.
 
 ## [0.3.3] – 2026-10-28
 

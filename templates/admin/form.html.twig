@@ -46,6 +46,19 @@
                     {% include '@core/admin/form/_row.html.twig' with {field: field} only %}
                 {% endfor %}
 
+                {% if tokens ?? [] %}
+                    {# The tokens the text may hold (since 0.3.4). #}
+                    <details class="admin-tokens mb-4">
+                        <summary class="small">{{ t('tokens.title') }}</summary>
+                        <p class="form-text">{{ t('tokens.help') }}</p>
+                        <table class="table table-sm small mb-0">
+                            <tbody>
+                                {% for item in tokens %}<tr><td><code>{{ item.token }}</code></td><td>{{ t(item.label) }}</td></tr>{% endfor %}
+                            </tbody>
+                        </table>
+                    </details>
+                {% endif %}
+
                 <div class="d-flex gap-2 mt-4 pt-3 border-top">
                     <button type="submit" class="btn btn-primary">{{ t(object.isNew ? 'admin.form.create' : 'admin.form.save') }}</button>
                     {% if can_publish_new %}

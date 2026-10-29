@@ -112,6 +112,9 @@ use Campanella\Display\Builtin\NavigationDisplay;
 use Campanella\Display\Builtin\TableDisplay;
 use Campanella\Display\ComponentService;
 use Campanella\Layout\LayoutRegistry;
+use Campanella\Token\DateTokens;
+use Campanella\Token\SiteTokens;
+use Campanella\Token\TokenRegistry;
 use Campanella\Layout\LayoutService;
 use Campanella\Layout\Regions;
 use Campanella\Display\CurrentPage;
@@ -890,6 +893,7 @@ final class Kernel
                 // The layouts and their regions (since 0.3.4).
                 static fn (): LayoutService => $c->get(LayoutService::class),
                 static fn (): Regions => $c->get(Regions::class),
+                static fn (): TokenRegistry => $c->get(TokenRegistry::class),
             ));
 
             return $twig;
@@ -933,6 +937,20 @@ final class Kernel
             $c->get(BlueprintRegistry::class),
             $c->get(LayoutRegistry::class),
         ));
+        // The tokens (since 0.3.4).
+        $c->set(TokenRegistry::class, static function (Container $c): TokenRegistry {
+            $config = $c->get(Config::class);
+
+            return new TokenRegistry(
+                array_values((array) $config->get('tokens.providers', TokenRegistry::BUILTIN)),
+                array_values(array_map(strval(...), (array) $config->get('tokens.blueprints', ['snippet']))),
+                static fn (string $class): object => match ($class) {
+                    SiteTokens::class => new SiteTokens($c->get(SiteValues::class)),
+                    DateTokens::class => new DateTokens(new \DateTimeZone((string) $config->get('timezone', 'UTC'))),
+                    default => $c->has($class) ? $c->get($class) : new $class(),
+                },
+            );
+        });
         // The layouts (since 0.3.4): the core's templates/layout/, and the theme's, which win.
         $c->set(LayoutRegistry::class, static function (Container $c) use ($root): LayoutRegistry {
             $theme = $c->get(Theme::class);
@@ -1091,6 +1109,7 @@ final class Kernel
             ),
             $c->get(AdminMenu::class),
             $c->has(ComponentPages::class) ? $c->get(ComponentPages::class) : null,
+            $c->get(TokenRegistry::class),
         ));
 
         $c->set(ObjectForm::class, static fn (Container $c): ObjectForm => new ObjectForm(

@@ -2033,6 +2033,59 @@ test('Kernel: a page in its layout: the regions\' components in their order, whe
     check(str_contains($kernel->handle(new Request('GET', '/elrendezett-cikk'))->body, 'navbar-expand-md'), 'the old header again');
 });
 
+/** For testing: a provider whose prefix the core's already has. */
+final class SecondSiteTokens implements \Campanella\Token\TokenProvider
+{
+    public function prefix(): string { return 'site'; }
+    public function tokens(): array { return []; }
+    public function value(string $name): ?string { return null; }
+}
+
+test('Tokens: replaced by their escaped values, unknown ones left; the providers', function (): void {
+    $registry = new \Campanella\Token\TokenRegistry(
+        \Campanella\Token\TokenRegistry::BUILTIN,
+        ['snippet'],
+        static fn (string $class): object => $class === \Campanella\Token\SiteTokens::class
+            ? new \Campanella\Token\SiteTokens(\Campanella\Site\SiteValues::of(['name' => 'Bor & <b>Kert</b>', 'slogan' => null, 'url' => 'https://pelda.hu']))
+            : new $class(),
+    );
+    $year = (new DateTimeImmutable('now', new DateTimeZone('UTC')))->format('Y');
+    check($registry->replace('<p>© [date:year] [site:name] · Campanella [campanella:version]</p>') === '<p>© ' . $year . ' Bor &amp; &lt;b&gt;Kert&lt;/b&gt; · Campanella ' . Version::CAMPANELLA . '</p>');
+    check($registry->replace('<a href="[site:url]">[site:slogan]</a>') === '<a href="https://pelda.hu"></a>', 'in an attribute, and an empty value');
+    check($registry->replace('[site:nincs] [nincs:name] [Site:Name] [site: name] [date:year') === '[site:nincs] [nincs:name] [Site:Name] [site: name] [date:year', 'an unknown or miswritten token is changed');
+    check($registry->replace('nincs benne') === 'nincs benne');
+    check(array_column($registry->tokens(), 'token') === ['[site:name]', '[site:slogan]', '[site:url]', '[date:year]', '[campanella:version]']);
+    check($registry->appliesTo('snippet') && !$registry->appliesTo('article'));
+    throws(\InvalidArgumentException::class, static fn () => (new \Campanella\Token\TokenRegistry([\Campanella\Token\SiteTokens::class, SecondSiteTokens::class]))->providers());
+    throws(\InvalidArgumentException::class, static fn () => (new \Campanella\Token\TokenRegistry([Titled::class]))->providers());
+});
+
+test('Kernel: tokens in a snippet\'s text, not in an article\'s; the tokens filter; the list under the snippet\'s editor', function () use ($displayKernel, $newUser): void {
+    $kernel = $displayKernel();
+    if ($kernel === null) {
+        return;
+    }
+    $c = $kernel->container();
+    $storage = new ArraySessionStorage();
+    $c->set(Session::class, static fn () => new Session($storage));
+    $system = Actor::system();
+    $objects = $c->get(ObjectService::class);
+    $twig = $c->get(\Twig\Environment::class);
+    $snippet = $objects->create($system, 'snippet', ['title' => 'Lábléc', 'body' => '<p>© [date:year] [site:name] [ismeretlen:token]</p>']);
+    $article = $objects->create($system, 'article', ['title' => 'Tokenes cikk', 'path' => '/tokenes-cikk', 'body' => '<p>Itt [site:name] marad.</p>'], publish: true);
+    $name = (string) $c->get(\Campanella\Site\SiteValues::class)['name'];
+    $html = $twig->createTemplate("{{ display(s, 'info_box') }}|{{ display(a, 'full') }}")->render(['s' => $snippet, 'a' => $article]);
+    check(str_contains($html, '© ' . date('Y') . ' ' . htmlspecialchars($name) . ' [ismeretlen:token]') && str_contains($html, 'Itt [site:name] marad.'), $html);
+    check($twig->createTemplate("{{ '<i>[site:name]</i>'|tokens }}")->render() === '&lt;i&gt;' . htmlspecialchars($name) . '&lt;/i&gt;');
+
+    $c->get(AuthService::class)->login(new Request('GET', '/'), $newUser('token-admin@example.hu', 'token-jelszo-1', ['administrator']));
+    $storage->endRequest();
+    $form = $kernel->handle(new Request('GET', '/admin/snippet/' . $snippet->id()));
+    check($form->status === 200 && str_contains($form->body, 'admin-tokens') && str_contains($form->body, '<code>[date:year]</code>'), 'the token list');
+    $storage->endRequest();
+    check(!str_contains($kernel->handle(new Request('GET', '/admin/article/' . $article->id()))->body, 'admin-tokens'), 'the token list under an article');
+});
+
 // --- Documentation examples -------------------------------------------------
 
 echo "\nSystem\n";

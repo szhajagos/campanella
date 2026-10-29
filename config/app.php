@@ -20,6 +20,7 @@ use Campanella\Capability\Link;
 use Campanella\Capability\Titled;
 use Campanella\Capability\Weighted;
 use Campanella\Display\DisplayRegistry;
+use Campanella\Token\TokenRegistry;
 
 /*
  * Base settings. Machine-specific values (database, debug) are overridden
@@ -107,6 +108,13 @@ return [
     // own here. Without these keys, the core's own (DisplayRegistry::BUILTIN, BUILTIN_SOURCES).
     'displays' => DisplayRegistry::BUILTIN,
     'display_sources' => DisplayRegistry::BUILTIN_SOURCES,
+
+    // Tokens (since 0.3.4): [site:name], [date:year] … replaced when a text is shown, in the
+    // texts of these Blueprints only (the snippets), by these providers (a module adds its own).
+    'tokens' => [
+        'providers' => TokenRegistry::BUILTIN,
+        'blueprints' => ['snippet'],
+    ],
 
     // Uploaded files (images). The folder is under public/, so the files are served
     // directly by the web server; a .htaccess there forbids running scripts.

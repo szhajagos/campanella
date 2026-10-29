@@ -83,6 +83,9 @@ version: upgrade it to 0.3.x ([Upgrading](upgrading.md)).
   made, changed and deleted only by administrators (the policy, and the
   pages for the system roles); each is shown only to those its `Restricted`
   setting names, and checked on every save.
+- **Tokens** (since 0.3.4): a token's value is escaped as HTML wherever it is
+  put; only the providers' own tokens are replaced (a strict pattern), an
+  unknown one stays as written; only in the snippets' texts.
 - **Installing and upgrading:** from the browser only with a long key (wrong
   keys limited) or as an administrator; backups before migrations.
 - **E-mail:** the mail server's address (with its password) is set only in

@@ -1467,4 +1467,11 @@ return [
     'conditions.too_many' => 'legfeljebb {max} lehet',
     'conditions.invalid_path' => 'nem egy cím mintája (/-rel kezdődik, szóköz, ?, # és \\ nélkül): {path}',
     'conditions.unknown_blueprint' => 'nincs ilyen Blueprint: {blueprint}',
+    'token.site.name' => 'A webhely neve',
+    'token.site.slogan' => 'A webhely szlogenje',
+    'token.site.url' => 'A webhely címe',
+    'token.date.year' => 'Az aktuális év',
+    'token.campanella.version' => 'A Campanella verziója',
+    'tokens.title' => 'Tokenek a szövegben',
+    'tokens.help' => 'A szövegbe írt tokenek helyén megjelenítéskor az értékük áll, például „© [date:year] [site:name]” helyén „© 2026 A webhely neve”.',
 ];

@@ -22,6 +22,7 @@ use Campanella\Display\Subject;
 use Campanella\Layout\LayoutDefinition;
 use Campanella\Layout\LayoutService;
 use Campanella\Layout\Regions;
+use Campanella\Token\TokenRegistry;
 use Campanella\I18n\Translator;
 use Campanella\Menu\MenuEntry;
 use Campanella\Model\CampanellaObject;
@@ -53,6 +54,7 @@ use Twig\TwigFunction;
  *   {{ component('lablec_menu') }}      a component made in the admin, by its machine name (since 0.3.3)
  *   {{ region('sidebar') }}             a region of the page's layout, with its components (since 0.3.4)
  *   {% set l = page_layout() %}         the page's layout (LayoutDefinition), null until layouts are on (since 0.3.4)
+ *   {{ '© [date:year] [site:name]'|tokens }}  a text, escaped, with its tokens replaced (since 0.3.4)
  *   {{ related(object, 'categories') }} the loaded target objects of a relation
  *   {{ current_user() }}                the logged-in user or null
  *   {{ csrf_field() }}                  hidden CSRF field for POST forms
@@ -93,6 +95,7 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
      * @param (Closure(): ComponentService)|null $components The components (lazy; since 0.3.3).
      * @param (Closure(): LayoutService)|null $layouts The layouts (lazy; since 0.3.4).
      * @param (Closure(): Regions)|null $regions The regions' rendering (lazy; since 0.3.4).
+     * @param (Closure(): TokenRegistry)|null $tokens The tokens (lazy; since 0.3.4).
      */
     public function __construct(
         private readonly Closure $presentation,
@@ -115,6 +118,7 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
         private readonly ?Closure $components = null,
         private readonly ?Closure $layouts = null,
         private readonly ?Closure $regions = null,
+        private readonly ?Closure $tokens = null,
     ) {
     }
 
@@ -157,6 +161,7 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
         return [
             new TwigFilter('body', $this->body(...), ['is_safe' => ['html']]),
             new TwigFilter('file_size', $this->fileSize(...)),
+            new TwigFilter('tokens', $this->tokens(...), ['is_safe' => ['html']]),
         ];
     }
 
@@ -609,7 +614,35 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
         );
     }
 
+    /**
+     * A text escaped, with its tokens replaced by their (escaped) values: `[site:name]`,
+     * `[date:year]` … (since 0.3.4). Unknown tokens stay as they are.
+     */
+    public function tokens(?string $text): string
+    {
+        $html = htmlspecialchars((string) $text, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8');
+
+        return $this->tokens === null ? $html : ($this->tokens)()->replace($html);
+    }
+
+    /**
+     * The Textual body as safe HTML; for the Blueprints with tokens (`tokens.blueprints`, the
+     * snippets; since 0.3.4) with its tokens replaced.
+     */
     public function body(CampanellaObject $object): string
+    {
+        $html = $this->bodyHtml($object);
+        if ($this->tokens !== null && $html !== '') {
+            $tokens = ($this->tokens)();
+            if ($tokens->appliesTo($object->blueprint())) {
+                return $tokens->replace($html);
+            }
+        }
+
+        return $html;
+    }
+
+    private function bodyHtml(CampanellaObject $object): string
     {
         if (!$object->has(Textual::class)) {
             return '';

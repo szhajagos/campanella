@@ -17,6 +17,7 @@ use Campanella\Admin\AdminMenu;
 use Campanella\Admin\ComponentPages;
 use Campanella\Admin\FilePages;
 use Campanella\Display\ComponentService;
+use Campanella\Token\TokenRegistry;
 use Campanella\Admin\ListExport;
 use Campanella\Admin\ModelPage;
 use Campanella\Admin\RedirectPages;
@@ -149,6 +150,7 @@ final class AdminController implements Controller
         private readonly ?FilePages $filePages = null,
         private readonly ?AdminMenu $menu = null,
         private readonly ?ComponentPages $components = null,
+        private readonly ?TokenRegistry $tokens = null,
     ) {
     }
 
@@ -990,6 +992,8 @@ final class AdminController implements Controller
             'media_url' => self::isFile($blueprint) && !$object->isNew() ? $this->media->url($object) : null,
             // A file to download (since 0.3.2): its data, and the editor's file picker.
             'download' => self::isDownload($blueprint) && !$object->isNew() ? $this->filePages?->panel($object) : null,
+            // The tokens its text may hold (since 0.3.4: the snippets').
+            'tokens' => $this->tokens !== null && $this->tokens->appliesTo($blueprint->name) ? $this->tokens->tokens() : [],
             'files_url' => $this->filePages !== null && $this->filePages->canBrowse() ? $this->access->path('media/files') : null,
             'type_names' => ImageProcessor::NAMES,
             'scoped' => $object->isNew() ? [] : $this->scopedTrees($object, $actor),
