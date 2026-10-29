@@ -42,27 +42,29 @@ const RUNS = 7;
 /*
  * The pages: [what, path, as the administrator, the most milliseconds (median), the most
  * SQL statements, a text the page must have]. The limits leave room for a slow shared
- * host or CI machine; a page over them has become slower than it should be.
+ * host or CI machine; a page over them has become slower than it should be. The site's pages
+ * have 75 statements since 0.3.4 (60 before): their header and footer are components, about
+ * 15 statements (the regions' components, the footer's snippet, the menu); the admin, 60.
  */
 $pages = [
     // A list made in the admin, with visitors' filters (0.2.9).
-    ['A list, first page', '/perf-events', false, 500, 60, 'Mért események'],
-    ['A list, page 100', '/perf-events?page=100', false, 500, 60, 'Mért események'],
-    ['A list, one filter', '/perf-events?f[fajta]=koncert', false, 500, 60, 'Mért események'],
-    ['A list, all 4 filters', '/perf-events?f[fajta]=koncert&f[nap][from]=2026-03-01&f[nap][to]=2026-09-30&f[ar][min]=1000&f[ar][max]=6000&f[ingyenes]=0', false, 500, 60, 'Mért események'],
-    ['A list as a table, 50 a page', '/perf-table?f[fajta]=eloadas', false, 500, 60, 'Mért események táblázata'],
+    ['A list, first page', '/perf-events', false, 500, 75, 'Mért események'],
+    ['A list, page 100', '/perf-events?page=100', false, 500, 75, 'Mért események'],
+    ['A list, one filter', '/perf-events?f[fajta]=koncert', false, 500, 75, 'Mért események'],
+    ['A list, all 4 filters', '/perf-events?f[fajta]=koncert&f[nap][from]=2026-03-01&f[nap][to]=2026-09-30&f[ar][min]=1000&f[ar][max]=6000&f[ingyenes]=0', false, 500, 75, 'Mért események'],
+    ['A list as a table, 50 a page', '/perf-table?f[fajta]=eloadas', false, 500, 75, 'Mért események táblázata'],
     // The admin's list of a Blueprint with its own columns and filters (0.2.8).
     ['Admin list', '/admin/perf_event', true, 500, 60, 'Mért esemény'],
     ['Admin list, sorted by a column', '/admin/perf_event?sort=ar&dir=asc', true, 500, 60, 'Mért esemény'],
     ['Admin list, filters', '/admin/perf_event?f[fajta]=mozi&f[nap][from]=2026-06-01&f[ar][max]=5000&f[helyszin]=@place', true, 500, 60, 'Mért esemény'],
     ['Admin list, title search, page 5', '/admin/perf_event?q=hold&page=5', true, 500, 60, 'Mért esemény'],
     // The search (0.2.7).
-    ['Search, a common word', '/search?q=kert', false, 500, 60, 'kert'],
-    ['Search, two words', '/search?q=kert+zene', false, 500, 60, 'kert'],
-    ['Search, a rare word', '/search?q=csillagvizsg%C3%A1l%C3%B3', false, 500, 60, 'csillagvizsgáló'],
-    ['Search, a word prefix, page 20', '/search?q=keny&page=20', false, 500, 60, 'keny'],
+    ['Search, a common word', '/search?q=kert', false, 500, 75, 'kert'],
+    ['Search, two words', '/search?q=kert+zene', false, 500, 75, 'kert'],
+    ['Search, a rare word', '/search?q=csillagvizsg%C3%A1l%C3%B3', false, 500, 75, 'csillagvizsgáló'],
+    ['Search, a word prefix, page 20', '/search?q=keny&page=20', false, 500, 75, 'keny'],
     // An event's own page, for comparison.
-    ['An event\'s page', '@event', false, 300, 60, 'Helyszín'],
+    ['An event\'s page', '@event', false, 300, 75, 'Helyszín'],
 ];
 
 /** One request, as a new one: its response, time (ms) and number of SQL statements. */

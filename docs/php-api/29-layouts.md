@@ -15,6 +15,7 @@ and the theme; the admin chooses one for the site and one per Blueprint
 | `LayoutService` | **Public** | Which layout a page has, from the settings |
 | `Conditions` | **Public** | Where something shows: paths, Blueprints, the front page, except paths |
 | `Regions` | Internal | Renders a region's components (`region()`) |
+| `LayoutSetup` | Internal | The header and footer as components, made once (the upgrade to 0.3.4, a new installation) |
 | `LayoutPages` | Internal | The admin's *Appearance → Layouts* page (`Campanella\Admin`) |
 
 All are in `Campanella\Layout`.
@@ -182,6 +183,41 @@ layouts yet; what is saved counts from then on. A layout left out of the registr
 
 `LayoutPages::looks()` lists the looks offered: `always`, `collapse:<breakpoint>`,
 `hide:<breakpoint>`; an `always` look is saved with the layout's own breakpoint.
+
+## The header and footer: LayoutSetup
+
+`Campanella\Layout\LayoutSetup` · Internal
+
+What the core's `base.html.twig` showed before 0.3.4, made as components once,
+then the layouts turned on (`layout.enabled`). Run at the end of an installation
+and an upgrade: `php bin/campanella install` (and `migrate`), the upgrade page,
+the installation page (before the sample content). The components:
+
+| Region | Component (machine name) | Source, display |
+|---|---|---|
+| `header` | *The site's name* (`site_branding`) | `system:site`, `branding` without the slogan |
+| `navigation` | *Main menu* (`main_menu`) | the main menu (`main`), `navigation`, horizontal, 2 levels |
+| | *Search box* (`site_search`) | `system:search`, `search_box` |
+| | *Admin button* (`admin_button`) | `system:visitor`, `admin_button` (only for those who may enter the admin) |
+| | *Login button* (`login_button`) | `system:visitor`, `login_button` (logging out once logged in) |
+| `footer` | *Footer* (`site_footer`) | a new snippet, `full` without its title: `© [date:year] [site:name] · Campanella [campanella:version]` |
+
+A machine name already taken gets `_2`, `_3` …. A site without a main menu
+gets one with the links the header had built in (`STARTER_LINKS`: the front
+page, `/hirek`, `/kategoriak`, `/rolunk`); its id is kept in
+`layout.starter_menu`, and `seed` fills that menu with the sample one (instead
+of leaving it). A site whose `snippet` Blueprint is its own (made before 0.3.3)
+gets no footer; one whose `component` Blueprint is its own keeps the old header
+and footer (the layouts stay off).
+
+Once `layout.enabled` is set, nothing is done again: the components can be
+changed, moved or deleted in the admin (*Appearance → Regions*).
+
+| Method | |
+|---|---|
+| `isPending(): bool` | Whether it is still to be done (`layout.enabled` never set) |
+| `ensure(): ?array` | Makes them and turns the layouts on: the titles of the components made, or null if nothing was to be done |
+| `ensureQuietly(): ?array` | The same; a problem goes to the error log (the layouts stay off, and it is tried again next time) |
 
 ## Conditions
 

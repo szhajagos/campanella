@@ -72,7 +72,8 @@ foreach ($snapshot['tables'] as $table => $rows) {
         continue;
     }
     $now = $db->fetchAll('SELECT * FROM ' . Connection::quoteIdentifier($prefix . $table));
-    $check(count($now) === count($rows), "{$table}: " . count($now) . ' rows, ' . count($rows) . ' before');
+    // Rows may be added (since 0.3.4 the upgrade makes the header's and footer's components), never lost.
+    $check(count($now) >= count($rows), "{$table}: " . count($now) . ' rows, ' . count($rows) . ' before');
     $key = static fn (array $row): string => json_encode($row, JSON_THROW_ON_ERROR);
     $index = [];
     foreach ($now as $row) {
@@ -283,6 +284,20 @@ $check($get('/admin/component', $asAdmin)->status === 200 && str_contains($get('
 $check(str_contains($get('/', $asAdmin)->body, '<html'), 'the front page after the components');
 $c->get(\Campanella\Service\ObjectService::class)->delete(Actor::system(), $button);
 $c->get(\Campanella\Service\ObjectService::class)->delete(Actor::system(), $members);
+
+// 11. The layouts (since 0.3.4): the upgrade made the header and footer components, as the
+// header looked (the site's name, its main menu or the built-in links, the search, the
+// buttons) and the footer (unless the site has its own `snippet` Blueprint), and turned them on.
+$settings = $c->get(\Campanella\Settings\Settings::class);
+$settings->reset();
+$check($settings->get('layout.enabled') === '1', 'the layouts are not on after the upgrade');
+$front = $get('/', null)->body;
+$check(str_contains($front, 'region--header') && str_contains($front, 'class="display-branding"') && str_contains($front, 'menu--main') && str_contains($front, 'role="search"') && str_contains($front, 'href="/login'), 'the header is not made of components');
+$check(!str_contains($front, 'id="site-nav"'), 'the old header is still shown');
+$ownSnippet = is_array($model) && isset($model['own_snippet']);
+$check($ownSnippet ? !str_contains($front, 'region--footer') : str_contains($front, '© ' . gmdate('Y') . ' '), 'the footer');
+$menuBuilt = $c->get(\Campanella\Menu\MenuBuilder::class)->build('main', Actor::anonymous()) ?? [];
+$check(count($menuBuilt) >= 4, 'the main menu has fewer than four links');
 
 echo "{$checks} checks, upgraded from {$snapshot['version']} (schema {$snapshot['schema']}) to " . Version::CAMPANELLA . ' (schema ' . Version::SCHEMA . ").\n";
 if ($problems !== []) {

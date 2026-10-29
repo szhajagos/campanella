@@ -117,6 +117,7 @@ use Campanella\Token\DateTokens;
 use Campanella\Token\SiteTokens;
 use Campanella\Token\TokenRegistry;
 use Campanella\Layout\LayoutService;
+use Campanella\Layout\LayoutSetup;
 use Campanella\Layout\Regions;
 use Campanella\Display\CurrentPage;
 use Campanella\Display\DisplayContext;
@@ -962,6 +963,15 @@ final class Kernel
             $c->get(LayoutRegistry::class),
             $c->get(Settings::class),
         ));
+        // The header and footer as components, made once (since 0.3.4).
+        $c->set(LayoutSetup::class, static fn (Container $c): LayoutSetup => new LayoutSetup(
+            $c->get(Settings::class),
+            $c->get(ComponentService::class),
+            $c->get(ObjectService::class),
+            $c->get(QueryEngine::class),
+            $c->get(BlueprintRegistry::class),
+            $c->get(Translator::class),
+        ));
         $regions = $this->regions = new Regions(
             static fn (): ComponentService => $c->get(ComponentService::class),
             static fn (): Presentation => $c->get(Presentation::class),
@@ -1235,6 +1245,7 @@ final class Kernel
             $c->get(Presentation::class),
             UpgradeController::usableKey($c->get(Config::class)->get('upgrade.key')),
             $c->get(SitePaths::class),
+            static fn (): ?array => $c->get(LayoutSetup::class)->ensureQuietly(),
         ));
 
         $c->set('controller.install', static fn (Container $c): Controller => new InstallController(
@@ -1258,6 +1269,7 @@ final class Kernel
                 (new SeedCommand())->run($c, [], new Output($stream ?: STDOUT, $stream ?: STDERR));
             },
             $c->get(SiteSettings::class),
+            static fn (): ?array => $c->get(LayoutSetup::class)->ensureQuietly(),
         ));
 
         $c->set('controller.site', static function (Container $c): Controller {

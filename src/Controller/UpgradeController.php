@@ -63,6 +63,7 @@ final class UpgradeController implements Controller
         private readonly Presentation $presentation,
         private readonly ?string $key = null,
         private readonly SitePaths $paths = new SitePaths(),
+        private readonly ?\Closure $setup = null,
     ) {
     }
 
@@ -154,6 +155,10 @@ final class UpgradeController implements Controller
             );
             $after = $this->sync->apply();
             $this->logSync($after, $log);
+            // The header and footer as components (since 0.3.4), once.
+            foreach ($this->setup === null ? [] : (($this->setup)() ?? []) as $made) {
+                $log[] = ['text' => '+ ' . $made];
+            }
         } catch (MigrationException $e) {
             error_log((string) ($e->getPrevious() ?? $e));
 

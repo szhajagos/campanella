@@ -5357,6 +5357,69 @@ test('Kernel: the site settings page, for administrators', function () use ($new
     putenv('CAMPANELLA_DB_PREFIX');
 });
 
+test('LayoutSetup: the header and footer as components, once; the layouts on; a main menu with the built-in links if there is none', function () use ($displayKernel): void {
+    $kernel = $displayKernel();
+    if ($kernel === null) {
+        return;
+    }
+    $c = $kernel->container();
+    $system = Actor::system();
+    $settings = $c->get(\Campanella\Settings\Settings::class);
+    $components = $c->get(\Campanella\Display\ComponentService::class);
+    $objects = $c->get(ObjectService::class);
+    $queries = $c->get(\Campanella\Query\QueryEngine::class);
+    $setup = $c->get(\Campanella\Layout\LayoutSetup::class);
+    $S = \Campanella\Layout\LayoutSetup::class;
+    $findMenu = static fn () => $queries->first(\Campanella\Query\Query::objects()->blueprint('menu')->where('machine_name', '=', 'main'), $system);
+    // A main menu of an earlier test is put aside, so a new one is made.
+    $kept = $findMenu();
+    if ($kept !== null) {
+        $objects->update($system, $kept, ['machine_name' => 'main_kept']);
+    }
+    $settings->set(['layout.enabled' => null, $S::STARTER_MENU => null]);
+    $keys = static fn (string $region): array => array_map(static fn ($x): string => preg_replace('/_\d+$/', '', (string) $x->get('machine_name')), $components->inRegion($region, $system));
+    $before = ['header' => count($components->inRegion('header', $system)), 'navigation' => count($components->inRegion('navigation', $system))];
+
+    check($setup->isPending());
+    $made = $setup->ensure();
+    check($made === ['A webhely neve', 'Főmenü', 'Keresőmező', 'Admin gomb', 'Belépés gomb', 'Lábléc'], json_encode($made, JSON_UNESCAPED_UNICODE));
+    $settings->reset();
+    check($settings->get('layout.enabled') === '1' && !$setup->isPending(), 'the layouts are on');
+    check(array_slice($keys('header'), $before['header']) === ['site_branding'] && array_slice($keys('navigation'), $before['navigation']) === ['main_menu', 'site_search', 'admin_button', 'login_button'], implode(',', $keys('navigation')));
+    $menu = $findMenu();
+    check($menu !== null && $settings->get($S::STARTER_MENU) === (string) $menu->id(), 'the main menu made, remembered');
+    $items = $c->get(\Campanella\Menu\MenuBuilder::class)->build('main', Actor::anonymous());
+    check(array_map(static fn ($e): string => $e->href, $items ?? []) === ['/', '/hirek', '/kategoriak', '/rolunk'], 'the built-in links');
+
+    $page = $kernel->handle(new Request('GET', '/hirek'));
+    check(str_contains($page->body, 'class="display-branding"') && !str_contains($page->body, 'display-branding__slogan') && str_contains($page->body, 'menu--main') && str_contains($page->body, 'href="/login'), 'the header from components');
+    check(str_contains($page->body, '© ' . gmdate('Y') . ' ') && str_contains($page->body, '· Campanella ' . \Campanella\Core\Version::CAMPANELLA) && !str_contains($page->body, 'id="site-nav"'), 'the footer with its tokens; not the old header');
+    check($setup->ensure() === null, 'only once');
+
+    // Done again (the setting removed by hand): the names are kept free.
+    $settings->set(['layout.enabled' => null]);
+    $setup->ensure();
+    check($components->find('site_branding_2', $system) !== null && $components->find('site_footer_2', $system) !== null, 'a machine name taken: _2');
+
+    foreach ($queries->execute(\Campanella\Query\Query::objects()->blueprint('component')->limit(500), $system) as $component) {
+        if (preg_match('/^(site_branding|main_menu|site_search|admin_button|login_button|site_footer)(_\d+)?$/', (string) $component->get('machine_name')) === 1) {
+            $source = $component->as(\Campanella\Capability\Component::class)->source();
+            $objects->delete($system, $component);
+            if (str_starts_with($source, 'object:') && ($snippet = $c->get(\Campanella\Model\ObjectRepository::class)->find((int) substr($source, 7))) !== null && $snippet->blueprint() === 'snippet') {
+                $objects->delete($system, $snippet);
+            }
+        }
+    }
+    foreach ($queries->execute(\Campanella\Query\Query::objects()->blueprint('menu_item')->whereRelated('menu', $menu)->limit(100), $system) as $item) {
+        $objects->delete($system, $item);
+    }
+    $objects->delete($system, $menu);
+    if ($kept !== null) {
+        $objects->update($system, $kept, ['machine_name' => 'main']);
+    }
+    $settings->set(['layout.enabled' => null, $S::STARTER_MENU => null]);
+});
+
 test('Kernel: the regions page (Appearance → Regions): adding, ordering, taking out; the component\'s form places it, with conditions', function () use ($displayKernel, $newUser): void {
     $kernel = $displayKernel();
     if ($kernel === null) {
@@ -8526,6 +8589,7 @@ test('Seed (0.3.0): the events Blueprint, its list and events, made once; the ma
     $drop();
     exec($env . ' php ' . escapeshellarg($root . '/bin/campanella') . ' install --yes 2>&1', $out, $code);
     check($code === 0, implode("\n", $out));
+    check(str_contains(implode("\n", $out), 'A fejléc és a lábléc mostantól komponensek: A webhely neve, Főmenü'), 'a new installation makes the header and footer (0.3.4): ' . implode("\n", $out));
     $out = [];
     exec($env . ' php ' . escapeshellarg($root . '/bin/campanella') . ' seed 2>&1', $out, $code);
     check($code === 0 && str_contains(implode("\n", $out), 'esemeny'), implode("\n", $out));
@@ -8544,7 +8608,10 @@ test('Seed (0.3.0): the events Blueprint, its list and events, made once; the ma
     check($page->status === 200 && str_contains($page->body, 'Barokk est') && !str_contains($page->body, 'Őszi könyvbörze') && str_contains($page->body, 'name="f[fajta]"'), 'the upcoming ones, with filters; not the past one');
     $filtered = (new \Campanella\Core\Kernel($root))->handle(new Request('GET', '/esemenyek', ['f' => ['fajta' => 'koncert']], ip: '198.51.100.41'));
     check(str_contains($filtered->body, 'Jazz a pincében') && !str_contains($filtered->body, 'Történelmi séta'), 'filtered');
-    check(str_contains((new \Campanella\Core\Kernel($root))->handle(new Request('GET', '/', ip: '198.51.100.42'))->body, 'href="/esemenyek"'), 'in the main menu');
+    $front = (new \Campanella\Core\Kernel($root))->handle(new Request('GET', '/', ip: '198.51.100.42'))->body;
+    check(str_contains($front, 'href="/esemenyek"'), 'in the main menu');
+    // Since 0.3.4 the menu is the header's component, the one the installation made with the built-in links, filled by seed.
+    check(preg_match('#region--navigation.*menu--main.*Kezdőlap.*Hírek.*Események.*Kategóriák.*Rólunk#s', $front) === 1 && !str_contains($front, '>Főoldal</a>'), 'the sample menu in place of the built-in links');
 
     // Again: nothing made twice.
     putenv('CAMPANELLA_DB_PREFIX');

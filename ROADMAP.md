@@ -317,13 +317,16 @@ Decided on 2026-10-26:
    done); **3b** *Appearance → Regions* (a layout's regions with their
    components, in order: up, down, add, take out), and the component's form
    gets its region and where it shows (done).
-4. **The upgrade, the guide, the release** (part 4): the components of the
-   header and footer as they look now (the site's name, the main menu, the
-   search box, the visitor's buttons, a footer snippet), on an upgrade and a new
-   installation; the guide, the docs, the release.
+4. **The upgrade, the guide, the release** (part 4, in two): **4a** the
+   components of the header and footer as they look now (the site's name, the
+   main menu, the search box, the visitor's buttons, a footer snippet), on an
+   upgrade and a new installation, the header's row fixed (done); **4b** the
+   guide, the docs, the release.
 
 Later (decided 2026-10-29): a layout chosen by rules (path, Blueprint, role …),
-with the components' conditions; the regions' arrangement edited in the admin.
+with the components' conditions; the regions' arrangement edited in the admin;
+a page's components kept between requests (about 15 SQL statements a page since
+0.3.4).
 
 **Files (0.3.2, agreed 2026-10-26).** Documents (PDF, the Office and
 OpenDocument formats, plain text, CSV …, by an allowlist) are objects of a

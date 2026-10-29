@@ -137,7 +137,9 @@ php tests/performance/measure.php <site>       # again, on a site kept with --ke
    beginning on page 20; an event's own page. Checked: the **median time**
    against the page's limit (500 ms, the event's page 300 ms), and the
    **number of SQL statements** the request sent (the server's count) against
-   60. The time depends on the machine, so its limit leaves room for a slow
+   75 for the site's pages and 60 for the admin's (since 0.3.4 the site's header
+   and footer are components: about 15 statements, [below](#the-layouts-since-034)).
+   The time depends on the machine, so its limit leaves room for a slow
    one; the count does not, and a page that loads something once per object
    shown goes over it at once.
 
@@ -171,6 +173,16 @@ What they show:
   on `nap`); narrower conditions or filters make it faster.
 - The rest of a request's time (about 15 ms) is starting the program and
   rendering the page, the same for every page.
+
+### The layouts (since 0.3.4)
+
+The site's pages show their header and footer from components (the upgrade to
+0.3.4 makes them): about 15 statements more on every page of the site, the same
+whatever the page shows: the regions' components in one query and their
+capabilities (about 10), the footer's snippet with its rights (5), the main
+menu. Measured on 2026-10-29 (MariaDB 10.11, PHP 8.3): a list's page 62
+statements (47 before), the search 61 (46), an event's page 61 (46); the times
+did not change noticeably. Later: a page's components kept between requests.
 
 The full measurement (100 000 objects, many visitors at once, the cache) is
 planned for 1.0.

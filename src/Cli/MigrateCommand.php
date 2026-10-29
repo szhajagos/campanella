@@ -58,7 +58,7 @@ final class MigrateCommand implements Command
 
         // New tables (e.g. of a new capability) and the schema version: after the
         // backup of an upgrade (MigrationRunner), so it holds the old database.
-        return (new MigrationRunner(
+        $code = (new MigrationRunner(
             $container->get(Migrator::class),
             $container->get(DatabaseBackup::class),
             $t,
@@ -70,5 +70,10 @@ final class MigrateCommand implements Command
                 $installer->install();
             },
         ))->run(Args::parse($args));
+        if ($code === 0 && !in_array('--dry-run', $args, true)) {
+            InstallCommand::layoutSetup($container, $output);
+        }
+
+        return $code;
     }
 }

@@ -78,6 +78,7 @@ final class InstallController implements Controller
         private readonly array $writable,
         private readonly Closure $seed,
         private readonly ?SiteSettings $site = null,
+        private readonly ?\Closure $setup = null,
     ) {
     }
 
@@ -149,6 +150,10 @@ final class InstallController implements Controller
             $this->repository->save($user);
             // The site's address: where it was installed from (changeable in the settings; since 0.1.1).
             $this->site?->rememberUrl(SiteSettings::originOf($request) ?? '');
+            // The header and footer as components (since 0.3.4); the sample site fills the menu.
+            if ($this->setup !== null) {
+                ($this->setup)();
+            }
             if ($input['seed']) {
                 ($this->seed)();
             }

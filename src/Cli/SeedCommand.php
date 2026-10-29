@@ -16,7 +16,9 @@ use Campanella\Model\BlueprintRegistry;
 use Campanella\Model\BlueprintStore;
 use Campanella\Model\CampanellaObject;
 use Campanella\Model\ObjectRepository;
+use Campanella\Layout\LayoutSetup;
 use Campanella\Query\Query;
+use Campanella\Settings\Settings;
 use Campanella\Query\QueryEngine;
 use Campanella\Service\ObjectService;
 use Campanella\Support\Slugger;
@@ -157,7 +159,7 @@ final class SeedCommand implements Command
 
         $events = $this->events($container);
 
-        $this->mainMenu($categories, $about, $events);
+        $this->mainMenu($categories, $about, $events, $container->get(Settings::class));
 
         $output->line();
         $output->line($this->t->translate('cli.seed.done', [
@@ -176,13 +178,24 @@ final class SeedCommand implements Command
      * @param array<string, CampanellaObject> $categories
      * @param string|null $events The events list's path, if the site has it
      */
-    private function mainMenu(array $categories, CampanellaObject $about, ?string $events): void
+    private function mainMenu(array $categories, CampanellaObject $about, ?string $events, Settings $settings): void
     {
         $exists = $this->queries->first(Query::objects()->blueprint('menu')->where('machine_name', '=', 'main'), $this->actor);
-        if ($exists !== null) {
+        // The main menu the installation made with the built-in links (since 0.3.4,
+        // LayoutSetup) is filled as a new one: its links are replaced.
+        $starter = $exists !== null && $settings->get(LayoutSetup::STARTER_MENU) === (string) $exists->id();
+        if ($exists !== null && !$starter) {
             return;
         }
-        $menu = $this->service->create($this->actor, 'menu', ['title' => 'Főmenü', 'machine_name' => 'main']);
+        if ($starter) {
+            $menu = $exists;
+            foreach ($this->queries->execute(Query::objects()->blueprint('menu_item')->whereRelated('menu', $menu)->limit(100), $this->actor) as $old) {
+                $this->service->delete($this->actor, $old);
+            }
+            $settings->set([LayoutSetup::STARTER_MENU => null]);
+        } else {
+            $menu = $this->service->create($this->actor, 'menu', ['title' => 'Főmenü', 'machine_name' => 'main']);
+        }
         $count = 0;
         $item = function (string $title, int $weight, string $url = '', ?CampanellaObject $target = null, ?CampanellaObject $parent = null) use ($menu, &$count): CampanellaObject {
             $count++;

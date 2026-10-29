@@ -10,7 +10,7 @@ backward-incompatible.
 
 ## [Unreleased]
 
-**Regions and layouts, parts 1–3.** The third step towards 0.4.0: layouts with
+**Regions and layouts, parts 1–4a.** The third step towards 0.4.0: layouts with
 regions, and components placed in them.
 
 ### Added
@@ -47,6 +47,13 @@ regions, and components placed in them.
 - The component's form says **where it shows**: its region, and on which pages
   (the front page, paths with a wildcard, the Blueprints with pages, except
   paths). The components' list shows their region.
+- **The header and footer are components** (`LayoutSetup`): a new installation
+  and the upgrade to 0.3.4 make them as the header looked (the site's name, the
+  main menu, the search box, the admin and login buttons; the footer a snippet:
+  `© [date:year] [site:name] · Campanella [campanella:version]`) and turn the
+  layouts on. A site without a main menu gets one with the header's built-in
+  links, which `seed` fills with the sample menu. `install` says which
+  components it made.
 - The System page warns while **PHP's JIT** is on (`SystemCheck::jitIsOn()`):
   PHP 8.3's JIT (8.3.35, 8.3.36) made PHP itself crash now and then in
   Campanella's tests; `opcache.jit=disable` turns it off, the OPcache stays
@@ -54,6 +61,15 @@ regions, and components placed in them.
 
 ### Changed
 
+- **The header:** the menu, the search and the buttons fit in one row on a
+  laptop (the header and footer are 64rem wide, the text stays 48rem); where they
+  do not, the menu stays whole and the rest goes below it, to the right (before,
+  the menu broke into two lines or the login button went below). The current
+  page's menu link stands out.
+- The performance check allows 75 SQL statements on the site's pages (60 on the
+  admin's): the header and footer components are about 15
+  ([testing](docs/testing.md#the-layouts-since-034)). The upgrade check allows
+  rows added by the upgrade (never lost).
 - The CI runs PHP with the JIT off (`setup-php` turns it on): the browser
   tests' web server crashed with it, in code unchanged since 0.1 (the same
   happens with 0.3.3's code).

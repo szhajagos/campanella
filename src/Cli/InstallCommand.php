@@ -8,6 +8,7 @@ use Campanella\Core\Container;
 use Campanella\Database\Connection;
 use Campanella\Database\DatabaseBackup;
 use Campanella\Database\Installer;
+use Campanella\Layout\LayoutSetup;
 use Campanella\Database\UnsupportedUpgradeException;
 use Campanella\Database\Migration\Migrator;
 use Campanella\Database\Sync\SchemaSync;
@@ -68,6 +69,7 @@ final class InstallCommand implements Command
         };
         if (!$existing) {
             $tables();
+            self::layoutSetup($container, $output);
 
             return 0;
         }
@@ -75,7 +77,7 @@ final class InstallCommand implements Command
         // An existing installation: the changes and migrations of the new version. The
         // tables and the schema version are written after the upgrade's backup
         // (since 0.2.0), so the backup holds the old version's database.
-        return (new MigrationRunner(
+        $code = (new MigrationRunner(
             $container->get(Migrator::class),
             $container->get(DatabaseBackup::class),
             $t,
@@ -88,5 +90,26 @@ final class InstallCommand implements Command
                 $output->line();
             },
         ))->run(Args::parse($args));
+        if ($code === 0) {
+            self::layoutSetup($container, $output);
+        }
+
+        return $code;
+    }
+
+    /**
+     * The header and footer as components, once (since 0.3.4; LayoutSetup): after an
+     * installation or an upgrade. Also run by `migrate`.
+     */
+    public static function layoutSetup(Container $container, Output $output): void
+    {
+        if (!$container->has(LayoutSetup::class) || !$container->get(Installer::class)->isInstalled()) {
+            return;
+        }
+        $made = $container->get(LayoutSetup::class)->ensureQuietly();
+        if ($made !== null) {
+            $t = $container->get(Translator::class);
+            $output->success($t->translate('cli.install.layout', ['components' => implode(', ', $made)]));
+        }
     }
 }

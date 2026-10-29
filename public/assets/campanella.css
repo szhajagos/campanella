@@ -137,3 +137,15 @@ h1, h2, h3, .h1, .h2, .h3, .h4, .h5 { line-height: 1.25; }
 .region--navigation .nav-link { padding-left: .5rem; padding-right: .5rem; }
 .region--navigation .region__item:has(> .display-navigation) { margin-right: auto; }
 .region--navigation .display-search-box { max-width: 14rem; }
+/* The header and footer are wider than the text (since 0.3.4), so the menu, the search and the
+   buttons fit in one row on a laptop. Where they do not, the menu stays whole (it is not broken
+   into two lines) and the rest goes below it, to the right. The current page's link stands out. */
+.site-header .site-container, .site-footer .site-container { max-width: 64rem; }
+.region--navigation .region__row { flex-wrap: wrap; justify-content: flex-end; }
+@media (min-width: 576px) { .region--collapse-sm .display-navigation--horizontal > .nav { flex-wrap: nowrap; } }
+@media (min-width: 768px) { .region--collapse-md .display-navigation--horizontal > .nav { flex-wrap: nowrap; } }
+@media (min-width: 992px) { .region--collapse-lg .display-navigation--horizontal > .nav { flex-wrap: nowrap; } }
+@media (min-width: 1200px) { .region--collapse-xl .display-navigation--horizontal > .nav { flex-wrap: nowrap; } }
+.region--navigation .region__item:has(> .display-navigation) { white-space: nowrap; }
+.display-navigation .nav-link.active { color: var(--cc-accent); }
+.region--footer .body > :last-child { margin-bottom: 0; }

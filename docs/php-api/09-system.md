@@ -233,6 +233,7 @@ module system it will become registrable.
 | `Console` · **Internal** | `__construct(Kernel $kernel, Output $output = new Output())`, `run(array $argv): int` |
 | `Output` · **Public** | `__construct($stream = STDOUT, $errors = STDERR)`; `line(string $text = '')`, `success(string $text)` (with a ✔ mark), `error(string $text)` (with a ✘ mark, to the error stream), `raw(string $text)` (as it is, without a line break; since 0.2.6) |
 | `InstallCommand`, `SeedCommand`, `StatusCommand`, `HtmlSanitizeCommand`, `SchemaCheckCommand`, `MigrateCommand`, `DbBackupCommand`, `ModelExportCommand`, `ModelImportCommand`, `SearchIndexCommand`, `ImportRunCommand`, `ImportUndoCommand`, `SubmissionsPruneCommand`, `MigrationRunner` · **Internal** | The built-in commands |
+| `InstallCommand::layoutSetup(Container $container, Output $output): void` · **Internal** | Since 0.3.4: after `install` and `migrate`, the header and footer as components, once (`LayoutSetup`, [chapter 29](29-layouts.md#the-header-and-footer-layoutsetup)); says which were made |
 
 ## Helper classes
 

@@ -550,9 +550,9 @@ def test_search(browser):
     context = new_context(browser)
     page = context.new_page()
     page.goto(BASE + "/")
-    page.fill("#site-search-q", "capability")
+    page.fill("header form[role=search] input[name=q]", "capability")
     with page.expect_navigation():
-        page.press("#site-search-q", "Enter")
+        page.press("header form[role=search] input[name=q]", "Enter")
     check(path_of(page) == "/search", "the search field: ended on %s" % page.url)
     check(page.locator(".search-result").count() > 0, "the search found nothing for 'capability'")
     check(page.locator(".search-result mark").count() > 0, "the words found are not marked")
