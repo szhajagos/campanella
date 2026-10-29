@@ -256,6 +256,9 @@ needed for them, on nginx either.
   to upload (the System page shows the effective limit), and `memory_limit`
   for processing large images ([media settings](php-api/16-media.md#settings-configappphp-media)).
 - OPcache on (faster; the System page shows it).
+- The JIT off: `opcache.jit=disable` (since 0.3.4 the System page warns while it is
+  on). PHP 8.3's JIT made PHP itself crash in Campanella's tests
+  ([why](php-api/14-system-check.md#the-php-jit)); the OPcache alone gives the speed.
 - **PHP-FPM** (or LiteSpeed) rather than Apache's mod_php, where possible:
   they close the connection before the work left for after a response (e.g.
   the forgotten password's e-mail), so not even the connection's timing tells

@@ -346,13 +346,33 @@ final class SystemCheck
         if (!extension_loaded('Zend OPcache') || !filter_var(ini_get('opcache.enable'), FILTER_VALIDATE_BOOL)) {
             return [new CheckResult($g, 'admin.system.opcache', CheckStatus::Info, 'admin.system.off', new Message('admin.system.opcache_off'))];
         }
-        if (!filter_var(ini_get('opcache.validate_timestamps'), FILTER_VALIDATE_BOOL)) {
-            return [new CheckResult($g, 'admin.system.opcache', CheckStatus::Warning, 'admin.system.on', new Message('admin.system.opcache_no_timestamps'))];
+        $results = [filter_var(ini_get('opcache.validate_timestamps'), FILTER_VALIDATE_BOOL)
+            ? new CheckResult($g, 'admin.system.opcache', CheckStatus::Ok, 'admin.system.on', new Message('admin.system.opcache_timestamps', [
+                'seconds' => (string) ini_get('opcache.revalidate_freq'),
+            ]))
+            : new CheckResult($g, 'admin.system.opcache', CheckStatus::Warning, 'admin.system.on', new Message('admin.system.opcache_no_timestamps'))];
+        // Since 0.3.4: PHP's JIT (tracing) crashed PHP itself in Campanella's tests (8.3.35, 8.3.36).
+        $status = function_exists('opcache_get_status') && (string) ini_get('opcache.restrict_api') === '' ? opcache_get_status(false) : false;
+        if (self::jitIsOn(is_array($status) ? $status : null, (string) ini_get('opcache.jit'), (string) ini_get('opcache.jit_buffer_size'))) {
+            $results[] = new CheckResult($g, 'admin.system.jit', CheckStatus::Warning, 'admin.system.on', new Message('admin.system.jit_on'));
         }
 
-        return [new CheckResult($g, 'admin.system.opcache', CheckStatus::Ok, 'admin.system.on', new Message('admin.system.opcache_timestamps', [
-            'seconds' => (string) ini_get('opcache.revalidate_freq'),
-        ]))];
+        return $results;
+    }
+
+    /**
+     * Whether PHP's JIT compiler is on (since 0.3.4): from opcache_get_status() if known,
+     * otherwise from the settings (a JIT buffer, and `opcache.jit` not off).
+     *
+     * @param array<mixed>|null $status opcache_get_status(false), or null if not available
+     */
+    public static function jitIsOn(?array $status, string $jit, string $bufferSize): bool
+    {
+        if (is_array($status['jit'] ?? null) && isset($status['jit']['on'])) {
+            return (bool) $status['jit']['on'];
+        }
+
+        return self::bytes($bufferSize) > 0 && !in_array(strtolower(trim($jit)), ['', '0', 'off', 'disable'], true);
     }
 
     /** @return list<CheckResult> */

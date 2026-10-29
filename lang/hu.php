@@ -266,6 +266,8 @@ return [
     'admin.system.opcache_off' => 'Nélküle lassabbak az oldalak, de minden működik.',
     'admin.system.opcache_no_timestamps' => 'Nem ellenőrzi, hogy a fájlok változtak-e: új verzió feltöltése után indítsd újra a PHP-t (vagy a webes konténert).',
     'admin.system.opcache_timestamps' => 'A megváltozott fájlokat legfeljebb {seconds} másodpercen belül észreveszi.',
+    'admin.system.jit' => 'PHP JIT-fordító',
+    'admin.system.jit_on' => 'A PHP 8.3 JIT-fordítója a Campanella tesztjeiben magát a PHP-t is összeomlasztotta (üres oldal, elveszett kérés). Kapcsold ki a php.ini-ben: opcache.jit=disable. Az opcache bekapcsolva maradhat.',
     'admin.system.template_cache' => 'Sablon-gyorsítótár',
     'admin.system.template_cache_off' => 'A mappája nem írható: a sablonok minden kérésnél újrafordulnak.',
     'admin.system.template_cache_files' => 'Lefordított sablonok (fájlok · méret); verziónként külön mappában.',

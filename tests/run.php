@@ -2138,6 +2138,12 @@ test('SystemCheck: versions, extensions, web-only checks, own checks, no secrets
     check(\Campanella\System\SystemCheck::parseDatabaseVersion('8.0.36') === ['MySQL', '8.0.36']);
     check(\Campanella\System\SystemCheck::parseDatabaseVersion('valami') === null);
     check(\Campanella\System\SystemCheck::parseDatabaseVersion('5.5.5-10.6.18-MariaDB-log') === ['MariaDB', '10.6.18'], 'the old 5.5.5- prefix');
+    // The JIT (since 0.3.4): opcache_get_status() first, otherwise the settings.
+    $jit = \Campanella\System\SystemCheck::jitIsOn(...);
+    check($jit(['jit' => ['on' => true]], 'disable', '0') === true && $jit(['jit' => ['on' => false]], 'tracing', '256M') === false, 'the status decides');
+    check($jit(null, '1235', '256M') === true && $jit(null, 'tracing', '64M') === true, 'a buffer and a mode: on');
+    check($jit(null, 'disable', '256M') === false && $jit(null, 'off', '256M') === false && $jit(null, '0', '256M') === false, 'turned off');
+    check($jit(null, 'tracing', '0') === false && $jit(null, 'tracing', '') === false && $jit(['opcache_enabled' => true], 'tracing', '0') === false, 'no buffer (PHP\'s default): off');
 
     $byLabel = static function (array $results): array {
         $map = [];

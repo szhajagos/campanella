@@ -268,6 +268,8 @@ return [
     'admin.system.opcache_off' => 'Pages are slower without it, but everything works.',
     'admin.system.opcache_no_timestamps' => 'It does not check whether files changed: after uploading a new version, restart PHP (or the web container).',
     'admin.system.opcache_timestamps' => 'Changed files are picked up within {seconds} seconds.',
+    'admin.system.jit' => 'PHP JIT compiler',
+    'admin.system.jit_on' => 'PHP 8.3\'s JIT made PHP itself crash in Campanella\'s tests (a blank page, the request is lost). Turn it off in php.ini: opcache.jit=disable. The opcache stays on.',
     'admin.system.template_cache' => 'Template cache',
     'admin.system.template_cache_off' => 'Its folder is not writable: templates are compiled on every request.',
     'admin.system.template_cache_files' => 'Compiled templates (files · size); a separate folder per version.',

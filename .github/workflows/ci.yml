@@ -42,6 +42,9 @@ jobs:
         with:
           php-version: '8.3'
           extensions: pdo_mysql, mbstring, dom, gd, exif, fileinfo
+          # setup-php turns PHP's JIT on; PHP 8.3's JIT crashed PHP itself in the browser tests
+          # (docs/php-api/14-system-check.md#the-php-jit), so it is off, as recommended for sites.
+          ini-values: opcache.jit=disable
           coverage: none
           tools: composer
 
@@ -107,6 +110,7 @@ jobs:
         with:
           php-version: ${{ matrix.php }}
           extensions: pdo_mysql, mbstring, dom, gd, exif, fileinfo
+          ini-values: opcache.jit=disable
           coverage: none
           tools: composer
 
@@ -188,6 +192,7 @@ jobs:
         with:
           php-version: '8.3'
           extensions: pdo_mysql, mbstring, dom, gd, exif, fileinfo
+          ini-values: opcache.jit=disable
           coverage: none
           tools: composer
 
@@ -244,6 +249,7 @@ jobs:
         with:
           php-version: '8.3'
           extensions: pdo_mysql, mbstring, dom, gd, exif, fileinfo
+          ini-values: opcache.jit=disable
           coverage: none
           tools: composer
 
@@ -293,6 +299,7 @@ jobs:
         with:
           php-version: '8.3'
           extensions: pdo_mysql, mbstring, dom, gd, exif, fileinfo
+          ini-values: opcache.jit=disable
           coverage: none
           tools: composer
 
@@ -366,7 +373,7 @@ jobs:
           # Only what Campanella needs (README: gd for images), plus what Composer needs
           # (phar, openssl, iconv): a minimal host, no recommended extension.
           extensions: none, ctype, dom, json, mbstring, pdo, pdo_mysql, session, gd, iconv, phar, openssl, filter
-          ini-values: memory_limit=128M
+          ini-values: memory_limit=128M, opcache.jit=disable
           coverage: none
           tools: composer
 
@@ -418,6 +425,7 @@ jobs:
         with:
           php-version: '8.3'
           extensions: pdo_mysql, mbstring, dom, gd, exif, fileinfo
+          ini-values: opcache.jit=disable
           coverage: none
           tools: composer
 

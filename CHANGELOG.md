@@ -34,6 +34,16 @@ regions, and components placed in them.
   snippets' texts, replaced when shown, escaped; an unknown one stays as it is.
   `TokenRegistry` and `TokenProvider` (`config/app.php`: `tokens`), the list
   under a snippet's editor, the `tokens` filter.
+- The System page warns while **PHP's JIT** is on (`SystemCheck::jitIsOn()`):
+  PHP 8.3's JIT (8.3.35, 8.3.36) made PHP itself crash now and then in
+  Campanella's tests; `opcache.jit=disable` turns it off, the OPcache stays
+  ([why](docs/php-api/14-system-check.md#the-php-jit)).
+
+### Changed
+
+- The CI runs PHP with the JIT off (`setup-php` turns it on): the browser
+  tests' web server crashed with it, in code unchanged since 0.1 (the same
+  happens with 0.3.3's code).
 
 ## [0.3.3] – 2026-10-28
 

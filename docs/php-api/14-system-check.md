@@ -31,7 +31,7 @@ details (those are in the server's error log).
 | E-mail (since 0.1.3) | Whether sending is set up (not: warning; invalid settings: error; set up: the transport, with a button for a test e-mail to oneself), the sender, the latest e-mail (a failure: warning). `MailCheck::checks()` ([chapter 21](21-events-and-mail.md#in-the-admin)) |
 | Site (since 0.1.1) | The site's address (not set, or different from the address the page was opened at: warning), whether search engines may index the site (turned off: warning), a `robots.txt` file in `public/` (info). `SiteCheck::checks()` ([chapter 20](20-site.md#the-system-page-sitecheck)) |
 | Public server (since 0.1.0) | On the web: the web server's document root (`public/`: OK; the project folder: warning, only the `.htaccess` files protect the rest), a proxy in front of the site, with the connecting address and the names of the proxy headers that arrived (`SecurityCheck::PROXY_HEADERS`; their values are not shown): from a trusted proxy: OK; from an address not in `trusted_proxies`: warning, with the line to add; plain HTTP without proxy headers: info; the Content-Security-Policy (built-in: OK; replaced by a setting: warning, as a reminder); HSTS (off: info). `SecurityCheck::checks()`, added by the `Kernel` |
-| Caches | opcache (web only; if it does not check file times: warning, PHP must be restarted after an upgrade); the template cache (files and size; not writable: warning) |
+| Caches | opcache (web only; if it does not check file times: warning, PHP must be restarted after an upgrade); PHP's JIT compiler (web only, since 0.3.4; on: warning, [below](#the-php-jit)); the template cache (files and size; not writable: warning) |
 
 The web-only checks are left out on the command line, because the
 command-line PHP often has different settings than the web server's (e.g. no
@@ -48,8 +48,21 @@ opcache, other limits).
 | `add(Closure $check): void` | Adds a check: `fn (?Request $request): iterable<CheckResult>` (the request is null on the command line) |
 | `static worst(array $results): ?CheckStatus` | `Error` if any result is an error, else `Warning` if any is a warning, else `Ok`/`Info`; null for no results |
 | `static parseDatabaseVersion(string $version): ?array` | `SELECT VERSION()` text → `[product, version]`, e.g. `'10.11.6-MariaDB-0+deb12u1'` → `['MariaDB', '10.11.6']` |
+| `static jitIsOn(?array $status, string $jit, string $bufferSize): bool` | Since 0.3.4: whether PHP's JIT is on, from `opcache_get_status(false)` (null if it cannot be called), otherwise from `opcache.jit` and `opcache.jit_buffer_size` |
 | `MIN_PHP`, `MIN_DATABASE`, `REQUIRED_EXTENSIONS`, `RECOMMENDED_EXTENSIONS` | The requirements (see above) |
 | `MAX_SCHEMA_LINES` | 10: the most schema differences listed one by one |
+
+### The PHP JIT
+
+*Since 0.3.4.* PHP 8.3's JIT compiler (tracing, `opcache.jit=1235` or `tracing`
+with a `opcache.jit_buffer_size`) made PHP itself crash in Campanella's tests,
+on PHP 8.3.35 and 8.3.36: now and then, wherever the compiled code happened to
+be (a segmentation fault in `zend_objects_store_del`; the request gets an empty
+answer, `php -S` stops). The same code runs without faults with the JIT off.
+It is off by default in PHP (`opcache.jit_buffer_size=0`), but some hosts and
+images turn it on, as GitHub's `setup-php` does. The system page warns while it
+is on; turn it off with `opcache.jit=disable` (the opcache itself stays on, it
+gives the speed). The CI runs with it off.
 
 A feature can add its own check, e.g. for a folder it writes:
 
