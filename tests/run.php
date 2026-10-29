@@ -1764,7 +1764,7 @@ test('AdminMenu: the groups and their links, by who looks; a module\'s links', f
     $content = $items($full, 'content');
     check(in_array('article', $content, true) && in_array('snippet', $content, true) && !array_intersect(['user', 'submission', 'component', 'image', 'file'], $content), implode(',', $content));
     check($items($full, 'media') === ['media', 'image', 'file'] && $items($full, 'audience') === ['submission', 'user']);
-    check($items($full, 'appearance') === ['component'] && $items($full, 'structure') === ['blueprints', 'capabilities', 'lists', 'model']);
+    check($items($full, 'appearance') === ['component', 'layouts'] && $items($full, 'structure') === ['blueprints', 'capabilities', 'lists', 'model']);
     check($items($full, 'system') === ['system', 'settings', 'mail', 'importers', 'redirects']);
     check($names($menu->build($editor)) === ['content', 'media'], 'an editor sees the system groups: ' . implode(',', $names($menu->build($editor))));
 
@@ -1970,6 +1970,37 @@ test('LayoutService: the site\'s layout, a Blueprint\'s own, the regions\' looks
     $settings->reset();
     check($service->forBlueprint('article')->regions['navigation']->small === 'collapse' && $service->site()->name === 'one_column', 'an invalid setting is ignored');
     $settings->set(['layout.enabled' => null, 'layout.site' => null, 'layout.blueprint.article' => null, 'layout.region.sidebar.navigation' => null]);
+});
+
+test('LayoutService::save(): the site\'s and the Blueprints\' layouts, the regions\' looks; all or nothing; a default look not stored', function () use ($db): void {
+    $settings = new \Campanella\Settings\Settings($db);
+    $service = new \Campanella\Layout\LayoutService(new \Campanella\Layout\LayoutRegistry([dirname(__DIR__) . '/templates']), $settings);
+    $clear = static fn () => $settings->set(['layout.site' => null, 'layout.blueprint.article' => null, 'layout.blueprint.page' => null, 'layout.region.sidebar.navigation' => null, 'layout.region.sidebar.sidebar' => null, 'layout.region.one_column.header' => null]);
+    $clear();
+    $service->save('sidebar', ['article' => 'one_column', 'page' => ''], ['sidebar' => ['navigation' => 'hide:lg', 'sidebar' => 'collapse:md', 'header' => 'always:md']]);
+    $settings->reset();
+    check($service->site()->name === 'sidebar' && $service->blueprintChoice('article') === 'one_column' && $service->blueprintChoice('page') === null);
+    check($settings->get('layout.region.sidebar.navigation') === 'hide:lg' && $settings->get('layout.region.sidebar.sidebar') === 'collapse:md', 'the looks');
+    check($settings->get('layout.region.sidebar.header') === null, 'the default look is not stored');
+    $service->save(null, ['article' => ''], ['sidebar' => ['navigation' => 'collapse:md']]);
+    $settings->reset();
+    check($service->site()->name === 'sidebar' && $service->blueprintChoice('article') === null && $settings->get('layout.region.sidebar.navigation') === null, 'back to the defaults; the site kept');
+
+    $failed = static function (callable $save): array {
+        try {
+            $save();
+        } catch (\Campanella\Model\ValidationException $e) {
+            return array_keys($e->errors);
+        }
+
+        return [];
+    };
+    check($failed(fn () => $service->save('nincs_ilyen')) === ['site']);
+    check($failed(fn () => $service->save('one_column', ['article' => 'nincs'], ['sidebar' => ['navigation' => 'sometimes:md', 'footer' => 'hide:xxl', 'nincs' => 'hide:md'], 'nincs' => ['header' => 'hide:md']])) === ['blueprint.article', 'look.sidebar.navigation', 'look.sidebar.footer', 'look.sidebar.nincs', 'look.nincs.header'], 'every problem');
+    check($failed(fn () => $service->save('one_column', ['Rossz Név' => ''])) === ['blueprint']);
+    $settings->reset();
+    check($service->site()->name === 'sidebar', 'nothing saved with a problem');
+    $clear();
 });
 
 test('Kernel: a page in its layout: the regions\' components in their order, where they show, for whom; the old header until enabled', function () use ($displayKernel, $newUser): void {
@@ -5323,6 +5354,57 @@ test('Kernel: the site settings page, for administrators', function () use ($new
     check(str_contains($system->body, 'Webhely') && str_contains($system->body, 'https://pelda.hu'), 'the System page shows the address');
 
     $settings->set(array_fill_keys(array_map(static fn (string $k): string => 'site.' . $k, \Campanella\Site\SiteSettings::KEYS), null));
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('Kernel: the layouts page (Appearance → Layouts), for administrators', function () use ($newUser): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $container = $kernel->container();
+    if ($container->get(Connection::class)->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $settings = $container->get(\Campanella\Settings\Settings::class);
+    $clear = static fn () => $settings->set(['layout.site' => null, 'layout.blueprint.article' => null, 'layout.region.one_column.navigation' => null, 'layout.region.sidebar.sidebar' => null]);
+    $clear();
+    $storage = new ArraySessionStorage();
+    $container->set(Session::class, static fn () => new Session($storage));
+    $auth = $container->get(AuthService::class);
+    $send = function (string $method, string $path, array $post = []) use ($kernel, $storage) {
+        $storage->endRequest();
+
+        return $kernel->handle(new Request($method, $path, post: $post));
+    };
+    $csrfOf = static fn ($response): string => preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $response->body, $m) === 1 ? $m[1] : '';
+
+    $auth->login(new Request('GET', '/'), $newUser('elrendezo-szerk@example.hu', 'elrendezo-jelszo-1', ['editor']));
+    check($send('GET', '/admin/system/layouts')->status === 403, 'not for editors');
+    check(!str_contains($send('GET', '/admin')->body, 'href="/admin/system/layouts"'), 'not in an editor\'s menu');
+    $auth->login(new Request('GET', '/'), $newUser('elrendezo@example.hu', 'elrendezo-jelszo-1', ['administrator']));
+
+    $page = $send('GET', '/admin/system/layouts');
+    check($page->status === 200 && str_contains($page->body, 'href="/admin/system/layouts" aria-current="page">Elrendezések</a>'), 'in the Appearance group');
+    check(str_contains($page->body, 'id="layouts-site-one_column" value="one_column" checked') && str_contains($page->body, 'Egy hasáb') && str_contains($page->body, 'Oldalsávval'), 'the layouts, the site\'s chosen');
+    check(str_contains($page->body, 'id="layouts-not-enabled"'), 'says the layouts are not on yet');
+    check(str_contains($page->body, 'name="blueprint[article]"') && !str_contains($page->body, 'name="blueprint[component]"') && !str_contains($page->body, 'name="blueprint[snippet]"'), 'only the Blueprints with pages');
+    check(preg_match('#name="look\[one_column\]\[navigation\]">.*?<option value="collapse:md" selected>[^<]*alapérték#s', $page->body) === 1, 'the navigation collapses below md by default');
+    check($send('GET', '/admin/system/layouts/nincs')->status === 404);
+
+    $form = ['_csrf' => $csrfOf($page), 'site' => 'sidebar', 'blueprint' => ['article' => 'one_column'], 'look' => ['one_column' => ['navigation' => 'always'], 'sidebar' => ['sidebar' => 'hide:lg']]];
+    check($send('POST', '/admin/system/layouts', ['_csrf' => 'x'] + $form)->status === 400 && $settings->get('layout.site') === null, 'an expired form');
+    $bad = $send('POST', '/admin/system/layouts', ['look' => ['sidebar' => ['sidebar' => 'hide:xxl']]] + $form);
+    $settings->reset();
+    check($bad->status === 422 && str_contains($bad->body, 'Nem érvényes megjelenés.') && str_contains($bad->body, 'id="layouts-site-sidebar" value="sidebar" checked') && $settings->get('layout.site') === null, 'nothing saved with an error; the form kept');
+    $done = $send('POST', '/admin/system/layouts', $form);
+    check($done->status === 303 && ($done->headers['Location'] ?? '') === '/admin/system/layouts');
+    $settings->reset();
+    check($settings->get('layout.site') === 'sidebar' && $settings->get('layout.blueprint.article') === 'one_column' && $settings->get('layout.region.one_column.navigation') === 'always:md' && $settings->get('layout.region.sidebar.sidebar') === 'hide:lg', 'saved');
+    $again = $send('GET', '/admin/system/layouts');
+    check(str_contains($again->body, 'Az elrendezések mentve.') && str_contains($again->body, 'id="layouts-site-sidebar" value="sidebar" checked') && str_contains($again->body, '<option value="one_column" selected>'), 'shown as saved');
+
+    $clear();
     putenv('CAMPANELLA_DB_PREFIX');
 });
 

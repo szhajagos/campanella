@@ -687,6 +687,31 @@ def test_components(browser):
     context.close()
 
 
+
+def test_layouts(browser):
+    """The layouts page from the Appearance menu: the site's layout and a region's look saved (since 0.3.4)."""
+    context = new_context(browser)
+    page = context.new_page()
+    login(page, ADMIN)
+    page.goto(BASE + "/admin")
+    with page.expect_navigation():
+        page.click(".admin-sidebar a[href$='/admin/system/layouts']")
+    check(page.locator("#layouts-site-one_column").is_checked(), "the site's layout is not one column")
+    page.check("#layouts-site-sidebar")
+    page.select_option("#layouts-look-sidebar-sidebar", "hide:lg")
+    with page.expect_navigation():
+        page.click("form.admin-form button[type=submit]")
+    check(page.locator(".alert-success").count() == 1, "saving the layouts: no message")
+    check(page.locator("#layouts-site-sidebar").is_checked() and page.locator("#layouts-look-sidebar-sidebar").input_value() == "hide:lg", "not saved")
+    # Back to the default, for the other tests.
+    page.check("#layouts-site-one_column")
+    page.select_option("#layouts-look-sidebar-sidebar", "always")
+    with page.expect_navigation():
+        page.click("form.admin-form button[type=submit]")
+    check(page.locator("#layouts-site-one_column").is_checked(), "not set back")
+    context.close()
+
+
 TESTS = [
     test_security_headers,
     test_login_and_logout,
@@ -699,6 +724,7 @@ TESTS = [
     test_importer,
     test_files,
     test_components,
+    test_layouts,
 ]
 
 

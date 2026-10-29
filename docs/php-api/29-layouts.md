@@ -15,6 +15,7 @@ and the theme; the admin chooses one for the site and one per Blueprint
 | `LayoutService` | **Public** | Which layout a page has, from the settings |
 | `Conditions` | **Public** | Where something shows: paths, Blueprints, the front page, except paths |
 | `Regions` | Internal | Renders a region's components (`region()`) |
+| `LayoutPages` | Internal | The admin's *Appearance → Layouts* page (`Campanella\Admin`) |
 
 All are in `Campanella\Layout`.
 
@@ -144,7 +145,7 @@ first; the Kernel gives the core's `templates/` and the theme's.
 
 `Campanella\Layout\LayoutService` · **Public**
 
-Which layout a page has, from the settings the admin saves (0.3.4, part 3):
+Which layout a page has, from the settings the admin saves ([the admin's page](#in-the-admin-layoutpages)):
 
 | Setting | |
 |---|---|
@@ -161,10 +162,26 @@ Which layout a page has, from the settings the admin saves (0.3.4, part 3):
 | `forPage(?CampanellaObject $object): LayoutDefinition` | A page's: that of its object's Blueprint, or the site's (a list's page, the search, the login page) |
 | `blueprintChoice(string $blueprint): ?string` | The Blueprint's own layout's name, or null |
 | `withLooks(LayoutDefinition $layout): LayoutDefinition` | The layout with its regions' looks as saved |
+| `save(?string $site, array $blueprints = [], array $looks = []): void` | Saves the choices: the site's layout (null: kept), Blueprints' own (Blueprint ⇒ layout, `''` for the site's; one not given keeps its choice), the regions' looks (layout ⇒ region ⇒ `collapse:md`; one equal to the layout's default is not stored). All or nothing: `ValidationException` with `site`, `blueprint.<name>` or `look.<layout>.<region>` for a layout or region that does not exist, or a look that is not valid |
 | `registry(): LayoutRegistry` | |
 
 Later (decided 2026-10-29): a layout chosen by rules (a path, a Blueprint, the
 visitor's role), with `Conditions`.
+
+### In the admin: LayoutPages
+
+`Campanella\Admin\LayoutPages` · Internal: `/admin/system/layouts`, *Appearance →
+Layouts* in the menu, for the system roles. One form: the site's layout (with
+its regions listed, and those from the theme marked), a layout for each Blueprint
+whose objects have pages (`Routable`; *the site's layout* by default), and for
+each layout its regions' looks: *always shown*, *collapsed below* or *hidden
+below* 576, 768, 992 or 1200 px, the layout's own default marked. While
+`layout.enabled` is not set the page says that the site does not show the
+layouts yet; what is saved counts from then on. A layout left out of the registry
+(`LayoutRegistry::errors()`) is shown as a warning, with why.
+
+`LayoutPages::looks()` lists the looks offered: `always`, `collapse:<breakpoint>`,
+`hide:<breakpoint>`; an `always` look is saved with the layout's own breakpoint.
 
 ## Conditions
 

@@ -13,6 +13,7 @@ use Campanella\Admin\BlueprintEditor;
 use Campanella\Admin\ListColumns;
 use Campanella\Admin\ListEditor;
 use Campanella\Admin\ImporterPages;
+use Campanella\Admin\LayoutPages;
 use Campanella\Admin\AdminMenu;
 use Campanella\Admin\ComponentPages;
 use Campanella\Admin\FilePages;
@@ -151,6 +152,7 @@ final class AdminController implements Controller
         private readonly ?AdminMenu $menu = null,
         private readonly ?ComponentPages $components = null,
         private readonly ?TokenRegistry $tokens = null,
+        private readonly ?LayoutPages $layoutPages = null,
     ) {
     }
 
@@ -270,6 +272,10 @@ final class AdminController implements Controller
         // Lists made in the admin (since 0.2.5).
         if (($segments[0] ?? null) === 'lists' && $this->listEditor !== null) {
             return $this->listEditor->handle($request, $actor, array_slice($segments, 1), fn (string $template, string $active, array $context): Response => $this->render($template, $active, $context));
+        }
+        // The layouts (since 0.3.4).
+        if (($segments[0] ?? null) === 'layouts' && $this->layoutPages !== null) {
+            return $this->layoutPages->handle($request, array_slice($segments, 1), fn (string $template, string $active, array $context): Response => $this->render($template, $active, $context));
         }
         // The redirects (since 0.2.7).
         if (($segments[0] ?? null) === 'redirects' && $this->redirectPages !== null) {

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Campanella\Layout;
 
+use Campanella\I18n\Message;
 use Campanella\Model\CampanellaObject;
+use Campanella\Model\ValidationException;
 use Campanella\Settings\Settings;
 
 /**
@@ -63,6 +65,58 @@ final class LayoutService
         $own = $this->settings->get('layout.blueprint.' . $blueprint);
 
         return $own !== null && $this->layouts->has($own) ? $own : null;
+    }
+
+    /**
+     * Saves the admin's choices (since 0.3.4): the site's layout, the Blueprints' own (a
+     * Blueprint not given keeps its choice; '' gives it the site's), and the regions' looks
+     * on small screens (a look equal to the layout's own default is not stored). All or
+     * nothing: a layout or region that does not exist, or a look that is not valid, is a
+     * problem (`site`, `blueprint.<name>`, `look.<layout>.<region>`).
+     *
+     * @param array<string, string> $blueprints Blueprint => layout name, or '' for the site's
+     * @param array<string, array<string, string>> $looks layout => region => `collapse:md`
+     * @throws ValidationException
+     */
+    public function save(?string $site, array $blueprints = [], array $looks = []): void
+    {
+        $values = [];
+        $problems = [];
+        if ($site !== null) {
+            $this->layouts->has($site) ? $values['layout.site'] = $site : $problems['site'] = new Message('layouts.unknown');
+        }
+        foreach ($blueprints as $blueprint => $layout) {
+            if (preg_match('/^[a-z][a-z0-9_]{0,63}$/D', (string) $blueprint) !== 1) {
+                $problems['blueprint'] = new Message('layouts.unknown');
+            } elseif ($layout === '' || $this->layouts->has($layout)) {
+                $values['layout.blueprint.' . $blueprint] = $layout === '' ? null : $layout;
+            } else {
+                $problems['blueprint.' . $blueprint] = new Message('layouts.unknown');
+            }
+        }
+        foreach ($looks as $name => $regions) {
+            $layout = $this->layouts->has((string) $name) ? $this->layouts->get((string) $name) : null;
+            foreach ($regions as $region => $look) {
+                $key = 'look.' . $name . '.' . $region;
+                $default = $layout?->regions[$region] ?? null;
+                [$small, $breakpoint] = explode(':', $look, 2) + [1 => ''];
+                if ($default === null) {
+                    $problems[$key] = new Message('layouts.unknown');
+                } elseif (!in_array($small, RegionDefinition::LOOKS, true) || !in_array($breakpoint, RegionDefinition::BREAKPOINTS, true)) {
+                    $problems[$key] = new Message('layouts.look_invalid');
+                } else {
+                    // An "always" look has no breakpoint: compared without it.
+                    $same = $small === $default->small && ($small === RegionDefinition::ALWAYS || $breakpoint === $default->breakpoint);
+                    $values['layout.region.' . $name . '.' . $region] = $same ? null : $small . ':' . $breakpoint;
+                }
+            }
+        }
+        if ($problems !== []) {
+            throw new ValidationException($problems);
+        }
+        if ($values !== []) {
+            $this->settings->set($values);
+        }
     }
 
     /** The layout with the looks of its regions as saved. */

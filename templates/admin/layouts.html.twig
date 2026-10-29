@@ -1,0 +1,82 @@
+{% extends '@core/admin/base.html.twig' %}
+
+{% macro error(errors, name) %}{% if errors[name] ?? null %}<div class="invalid-feedback d-block" id="layouts-{{ name|replace({'.': '-'}) }}-error">{{ t(errors[name].key, errors[name].params) }}</div>{% endif %}{% endmacro %}
+
+{% macro look_label(value, look) %}{% if look.breakpoint is null %}{{ t('layouts.look.always') }}{% else %}{{ t('layouts.look.' ~ look.small, {breakpoint: t('layouts.breakpoint.' ~ look.breakpoint)}) }}{% endif %}{% endmacro %}
+
+{% block content %}
+    <h1 class="h3 mb-2">{{ t('layouts.title') }}</h1>
+    <p class="text-body-secondary mb-4">{{ t('layouts.intro') }}</p>
+
+    {% if not enabled %}<div class="alert alert-info" role="status" id="layouts-not-enabled">{{ t('layouts.not_enabled') }}</div>{% endif %}
+    {% if alert ?? null %}<div class="alert alert-danger" role="alert">{{ t(alert) }}</div>{% endif %}
+    {% for name, why in broken %}
+        <div class="alert alert-warning" role="alert">{{ t('layouts.broken', {name: name}) }} <code>{{ why }}</code></div>
+    {% endfor %}
+
+    <form method="post" action="{{ admin_url('system/layouts') }}" class="admin-form" novalidate>
+        {{ csrf_field() }}
+        <div class="row g-4">
+            <div class="col-xl-5">
+                <fieldset class="card card-body mb-4">
+                    <legend class="h6 mb-3">{{ t('layouts.site') }}</legend>
+                    {% for layout in layouts %}
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="site" id="layouts-site-{{ layout.name }}" value="{{ layout.name }}"{{ form.site == layout.name ? ' checked' }} aria-describedby="layouts-site-{{ layout.name }}-regions">
+                            <label class="form-check-label fw-semibold" for="layouts-site-{{ layout.name }}">{{ t(layout.label) }}</label>
+                            {% if layout.origin == 'theme' %}<span class="badge text-bg-secondary ms-1">{{ t('layouts.from_theme') }}</span>{% endif %}
+                            <div class="form-text" id="layouts-site-{{ layout.name }}-regions">{{ t('layouts.regions_list', {regions: layout.regions|map(r => t(r.label))|join(', ')}) }}</div>
+                        </div>
+                    {% endfor %}
+                    {{ _self.error(errors, 'site') }}
+                </fieldset>
+
+                {% if blueprints %}
+                    <section class="card card-body mb-4">
+                        <h2 class="h6 mb-1">{{ t('layouts.blueprints') }}</h2>
+                        <p class="form-text mt-0 mb-3">{{ t('layouts.blueprints_help') }}</p>
+                        {% for blueprint in blueprints %}
+                            {% set key = 'blueprint.' ~ blueprint.name %}
+                            <div class="row g-2 align-items-center mb-2">
+                                <label class="col-sm-5 col-form-label" for="layouts-bp-{{ blueprint.name }}">{{ t(blueprint.label) }}</label>
+                                <div class="col-sm-7">
+                                    <select class="form-select{{ (errors[key] ?? null) ? ' is-invalid' }}" id="layouts-bp-{{ blueprint.name }}" name="blueprint[{{ blueprint.name }}]">
+                                        <option value="">{{ t('layouts.site_own') }}</option>
+                                        {% for layout in layouts %}
+                                            <option value="{{ layout.name }}"{{ form.blueprints[blueprint.name] == layout.name ? ' selected' }}>{{ t(layout.label) }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    {{ _self.error(errors, key) }}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </section>
+                {% endif %}
+            </div>
+
+            <div class="col-xl-7">
+                {% for layout in layouts %}
+                    <section class="card card-body mb-4" id="layouts-looks-{{ layout.name }}">
+                        <h2 class="h6 mb-1">{{ t('layouts.looks', {layout: t(layout.label)}) }}</h2>
+                        <p class="form-text mt-0 mb-3">{{ t('layouts.looks_help') }}</p>
+                        {% for region in layout.regions %}
+                            {% set key = 'look.' ~ layout.name ~ '.' ~ region.name %}
+                            <div class="row g-2 align-items-center mb-2">
+                                <label class="col-sm-4 col-form-label" for="layouts-look-{{ layout.name }}-{{ region.name }}">{{ t(region.label) }}</label>
+                                <div class="col-sm-8">
+                                    <select class="form-select{{ (errors[key] ?? null) ? ' is-invalid' }}" id="layouts-look-{{ layout.name }}-{{ region.name }}" name="look[{{ layout.name }}][{{ region.name }}]">
+                                        {% for value, look in looks %}
+                                            <option value="{{ value }}"{{ form.looks[layout.name][region.name] == value ? ' selected' }}>{{ _self.look_label(value, look) }}{{ region.default == value ? ' · ' ~ t('layouts.look.default') }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    {{ _self.error(errors, key) }}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </section>
+                {% endfor %}
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">{{ t('layouts.save') }}</button>
+    </form>
+{% endblock %}

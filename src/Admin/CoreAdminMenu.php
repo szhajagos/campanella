@@ -74,9 +74,17 @@ final class CoreAdminMenu
             return $items;
         });
 
-        // For the system roles: the appearance, the structure, the system.
-        $appearance = self::forSystem($access, [new AdminMenuItem('component', 'components.title', 'component')]);
-        $menu->add(AdminMenu::APPEARANCE, static fn (Actor $actor): array => $components === null || $components() ? $appearance($actor) : []);
+        // For the system roles: the appearance (the components, if any; the layouts, since
+        // 0.3.4), the structure, the system.
+        $menu->add(AdminMenu::APPEARANCE, static function (Actor $actor) use ($access, $components): array {
+            if (!$access->allowsSystem($actor)) {
+                return [];
+            }
+            $items = $components === null || $components() ? [new AdminMenuItem('component', 'components.title', 'component')] : [];
+            $items[] = new AdminMenuItem('layouts', 'layouts.title', 'system/layouts');
+
+            return $items;
+        });
         $menu->add(AdminMenu::STRUCTURE, self::forSystem($access, [
             new AdminMenuItem('blueprints', 'structure.blueprints', 'system/blueprints'),
             new AdminMenuItem('capabilities', 'structure.capabilities', 'system/capabilities'),

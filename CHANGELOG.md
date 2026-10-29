@@ -10,7 +10,7 @@ backward-incompatible.
 
 ## [Unreleased]
 
-**Regions and layouts, parts 1–2.** The third step towards 0.4.0: layouts with
+**Regions and layouts, parts 1–3a.** The third step towards 0.4.0: layouts with
 regions, and components placed in them.
 
 ### Added
@@ -34,6 +34,12 @@ regions, and components placed in them.
   snippets' texts, replaced when shown, escaped; an unknown one stays as it is.
   `TokenRegistry` and `TokenProvider` (`config/app.php`: `tokens`), the list
   under a snippet's editor, the `tokens` filter.
+- **Appearance → Layouts** in the admin (`/admin/system/layouts`, for the system
+  roles; `LayoutPages`): the site's layout, a layout for each Blueprint whose
+  objects have pages, and each region's look on small screens (always shown,
+  collapsed or hidden below 576, 768, 992 or 1200 px). `LayoutService::save()`
+  checks and saves them, all or nothing. Until the layouts are on, the page
+  says so; what is saved counts from then on.
 - The System page warns while **PHP's JIT** is on (`SystemCheck::jitIsOn()`):
   PHP 8.3's JIT (8.3.35, 8.3.36) made PHP itself crash now and then in
   Campanella's tests; `opcache.jit=disable` turns it off, the OPcache stays
