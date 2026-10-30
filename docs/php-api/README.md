@@ -34,6 +34,7 @@ namespace, in the `src/` folder (PSR-4).
 27. [Files](27-files.md): the `file` Blueprint, `Downloadable`, `Restricted`, the checks (`FileInspector`), `FileService`, `FileStorage`, the downloads (`FileController`, `file_url()`), the media library and the file picker (`FilePages`) (since 0.3.2)
 28. [Displays](28-displays.md): `Display` and `AsDisplay`, the registry (`DisplayRegistry`), what is shown (`Subject`) and where (`DisplayContext`), the sources and the system sources (`SystemSource`), `DisplayRenderer`, the built-in displays, `display()` in templates, the `snippet` Blueprint; components (`ComponentService`, `component()`, the admin's pages) (since 0.3.3)
 29. [Layouts and regions](29-layouts.md): layouts from JSON and a template (`LayoutDefinition`, `RegionDefinition`, `LayoutRegistry`), the page's layout (`LayoutService`), `region()`, where components show (`Conditions`), placing them (since 0.3.4)
+30. [Appearance](30-appearance.md): colour schemes from JSON, readable by their contrast (`ColorScheme`, `ColorSchemeRegistry`), the colour mode and the visitor's own (`Appearance`), `color_mode()`, `color_scheme_url()` (since 0.3.6)
 30. [Tokens](30-tokens.md): `[site:name]`, `[date:year]` … in the snippets' texts (`TokenRegistry`, `TokenProvider`), the `tokens` filter (since 0.3.4)
 
 ## Namespaces

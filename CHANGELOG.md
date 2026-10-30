@@ -8,6 +8,36 @@ Sections: **Added**, **Changed**, **Deprecated**, **Removed**, **Fixed**,
 **Security**. In 0.x versions, items under **Changed** and **Removed** may be
 backward-incompatible.
 
+## [Unreleased]
+
+**Colour schemes and the colour mode, part 1.** The fifth step towards 0.4.0.
+
+### Added
+
+- **Colour schemes** ([PHP API, chapter 30](docs/php-api/30-appearance.md)):
+  the site's colours in a light and a dark variant, from a JSON file of the core
+  (`templates/scheme/`: `default`, `forest`, `sea`) or of the theme
+  (`ColorScheme`, `ColorSchemeRegistry`). Every colour is `#rrggbb`, and a
+  scheme must be readable: the text, the muted text, the links and the buttons'
+  labels have a contrast of at least 4.5:1 (WCAG 2.2 AA) in both variants, or
+  the scheme is left out, with the reason.
+- **The colour mode** (`Appearance`): the visitor's system setting (the
+  default), or always light or dark (`appearance.color_mode`); a visitor's own
+  choice (the `campanella_color_mode` cookie) comes first. The server sets
+  `data-bs-theme`, so a page never shows in the wrong mode first. The admin
+  follows the mode, never the scheme.
+- The scheme as CSS at `/color-scheme.css`, linked with its version and cached
+  for a year; `color_mode()` and `color_scheme_url()` in templates.
+
+### Changed
+
+- `campanella.css`: the text on the accent (buttons, the current dropdown item,
+  the current page of a pagination) is `--cc-on-accent`; `theme.js` only sets
+  the mode when the page has none. The `default` scheme is the look before, so
+  little changes on the upgrade: only the info box takes the scheme's colours
+  (the *light* style its surface, the *primary* style a shade of its accent),
+  instead of Bootstrap's grey and blue.
+
 ## [0.3.5] – 2026-10-30
 
 **Pages assembled from components.** The fourth step towards 0.4.0: a page's

@@ -1554,6 +1554,12 @@ return [
     'cli.seed.front_page' => 'The front page is a page assembled from components ({path}).',
     'display.setting.show_list_title' => 'Show the list\'s title',
     'layout.one_column' => 'One column',
+    // The colour schemes (since 0.3.6).
+    'scheme.default' => 'Terracotta (default)',
+    'scheme.forest' => 'Forest',
+    'scheme.sea' => 'Sea',
+    'appearance.scheme_unknown' => 'There is no such colour scheme.',
+    'appearance.mode_invalid' => 'Unknown colour mode.',
     'layout.sidebar' => 'With a sidebar',
     'layout.region.header' => 'Header',
     'layout.region.navigation' => 'Navigation',

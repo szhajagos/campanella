@@ -1552,6 +1552,12 @@ return [
     'cli.seed.front_page' => 'A címlap egy komponensekből összeállított oldal ({path}).',
     'display.setting.show_list_title' => 'A lista címe látszik',
     'layout.one_column' => 'Egy hasáb',
+    // The colour schemes (since 0.3.6).
+    'scheme.default' => 'Terrakotta (alap)',
+    'scheme.forest' => 'Erdő',
+    'scheme.sea' => 'Tenger',
+    'appearance.scheme_unknown' => 'Nincs ilyen színséma.',
+    'appearance.mode_invalid' => 'Ismeretlen színmód.',
     'layout.sidebar' => 'Oldalsávval',
     'layout.region.header' => 'Fejléc',
     'layout.region.navigation' => 'Navigáció',

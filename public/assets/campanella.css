@@ -2,28 +2,45 @@
  * Campanella's own layer on top of Bootstrap 5.3: the default look of the
  * core templates. Only Bootstrap CSS variables and a few rules; a theme can
  * replace this file entirely (see docs/php-api/07-http-and-view.md).
+ * The colours below are the default colour scheme's; since 0.3.6 the site's
+ * scheme (/color-scheme.css, linked after this file) sets them, and the
+ * surfaces (bg-body-tertiary) and the primary's subtle shades follow them too.
  */
 :root,
 [data-bs-theme="light"] {
     --cc-accent: #8a3b12;
     --cc-accent-rgb: 138, 59, 18;
     --cc-accent-hover: #6f2f0e;
+    --cc-on-accent: #fff;
     --bs-body-bg: #fbfaf7;
     --bs-body-color: #1d1d1f;
     --bs-border-color: #e4e2dd;
     --bs-secondary-color: #6b6b70;
     --bs-tertiary-bg: #f3f1ec;
+    --bs-body-bg-rgb: 251, 250, 247;
+    --bs-body-color-rgb: 29, 29, 31;
+    --bs-tertiary-bg-rgb: 243, 241, 236;
+    --bs-primary-bg-subtle: #ede3dc;
+    --bs-primary-border-subtle: #d3b7a7;
+    --bs-primary-text-emphasis: #6f2f0e;
 }
 
 [data-bs-theme="dark"] {
     --cc-accent: #e59a6b;
     --cc-accent-rgb: 229, 154, 107;
     --cc-accent-hover: #f0b48e;
+    --cc-on-accent: #191816;
     --bs-body-bg: #191816;
     --bs-body-color: #ecebe8;
     --bs-border-color: #34332f;
     --bs-secondary-color: #a09f9b;
     --bs-tertiary-bg: #22211e;
+    --bs-body-bg-rgb: 25, 24, 22;
+    --bs-body-color-rgb: 236, 235, 232;
+    --bs-tertiary-bg-rgb: 34, 33, 30;
+    --bs-primary-bg-subtle: #312820;
+    --bs-primary-border-subtle: #604634;
+    --bs-primary-text-emphasis: #f0b48e;
 }
 
 :root,
@@ -52,14 +69,13 @@
 .navbar .nav-link:hover, .navbar .nav-link:focus { color: var(--cc-accent); }
 /* The main menu: the current item (and the dropdown holding it) in the accent color. */
 .navbar .navbar-nav .nav-link.active { color: var(--cc-accent); }
-.navbar .dropdown-menu { --bs-dropdown-link-active-bg: var(--cc-accent); --bs-dropdown-link-active-color: #fff; }
+.navbar .dropdown-menu { --bs-dropdown-link-active-bg: var(--cc-accent); --bs-dropdown-link-active-color: var(--cc-on-accent); }
 /* A long main menu and a logged-in user's links do not fit one line of the narrow column:
    the user's links wrap below the menu instead of running out of it (since 0.2.1). */
 .navbar-collapse { flex-wrap: wrap; row-gap: .25rem; }
 .site-user { margin-left: auto; }
 .site-search + .site-user { margin-left: 0; }
 .site-user__name { white-space: nowrap; }
-[data-bs-theme="dark"] .navbar .dropdown-menu { --bs-dropdown-link-active-color: #191816; }
 
 h1, h2, h3, .h1, .h2, .h3, .h4, .h5 { line-height: 1.25; }
 
@@ -70,11 +86,10 @@ h1, h2, h3, .h1, .h2, .h3, .h4, .h5 { line-height: 1.25; }
     --bs-btn-hover-border-color: var(--cc-accent-hover);
     --bs-btn-active-bg: var(--cc-accent-hover);
     --bs-btn-active-border-color: var(--cc-accent-hover);
-    --bs-btn-color: #fff;
-    --bs-btn-hover-color: #fff;
+    --bs-btn-color: var(--cc-on-accent);
+    --bs-btn-hover-color: var(--cc-on-accent);
+    --bs-btn-active-color: var(--cc-on-accent);
 }
-[data-bs-theme="dark"] .btn-primary { --bs-btn-color: #191816; --bs-btn-hover-color: #191816; }
-[data-bs-theme="dark"] .pagination { --bs-pagination-active-color: #191816; }
 .btn-outline-primary {
     --bs-btn-color: var(--cc-accent);
     --bs-btn-border-color: var(--cc-accent);
@@ -89,6 +104,7 @@ h1, h2, h3, .h1, .h2, .h3, .h4, .h5 { line-height: 1.25; }
     --bs-pagination-hover-color: var(--cc-accent-hover);
     --bs-pagination-active-bg: var(--cc-accent);
     --bs-pagination-active-border-color: var(--cc-accent);
+    --bs-pagination-active-color: var(--cc-on-accent);
 }
 .form-control:focus {
     border-color: rgba(var(--cc-accent-rgb), .6);

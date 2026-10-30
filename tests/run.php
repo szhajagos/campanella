@@ -2306,6 +2306,121 @@ test('Kernel: a page assembled from components as the front page (0.3.5): at /, 
     check($site->frontPage() === null || str_contains($kernel->handle(new Request('GET', '/'))->body, 'result--frontpage'), 'a deleted front page: the latest content');
 });
 
+test('Colour schemes (0.3.6): the core\'s, readable; the default one is the look before; a scheme that is not valid or hard to read is refused', function (): void {
+    $S = \Campanella\Appearance\ColorScheme::class;
+    check(abs($S::contrast('#000000', '#ffffff') - 21.0) < 0.001 && abs($S::contrast('#777777', '#777777') - 1.0) < 0.001, 'contrast');
+
+    $registry = new \Campanella\Appearance\ColorSchemeRegistry([dirname(__DIR__) . '/templates']);
+    check(array_keys($registry->all()) === ['default', 'forest', 'sea'] && $registry->errors() === [], 'the core\'s three: ' . json_encode($registry->errors()));
+    check($registry->get('nincs')->name === 'default', 'an unknown one: the default');
+
+    // The default scheme sets exactly the colours campanella.css had (nothing changes on the upgrade).
+    $css = (string) file_get_contents(dirname(__DIR__) . '/public/assets/campanella.css');
+    $own = $registry->get('default')->css();
+    foreach (['light' => ':root,\s*\[data-bs-theme="light"\]', 'dark' => '\[data-bs-theme="dark"\]'] as $variant => $selector) {
+        preg_match('/' . $selector . '\s*\{([^}]*)\}/', $css, $old);
+        preg_match('/' . $selector . '\s*\{([^}]*)\}/', $own, $new);
+        preg_match_all('/(--[a-z-]+):\s*([^;]+);/', $old[1] ?? '', $a, PREG_SET_ORDER);
+        preg_match_all('/(--[a-z-]+):\s*([^;]+);/', $new[1] ?? '', $b, PREG_SET_ORDER);
+        $norm = static fn (string $v): string => $v === '#fff' ? '#ffffff' : strtolower(trim($v));
+        $oldVars = array_map($norm, array_column($a, 2, 1));
+        $newVars = array_map($norm, array_column($b, 2, 1));
+        check($oldVars !== [] && $oldVars == $newVars, "the {$variant} variant as campanella.css: " . json_encode(array_diff_assoc($newVars, $oldVars) + array_diff_assoc($oldVars, $newVars)));
+    }
+
+    $valid = json_decode((string) file_get_contents(dirname(__DIR__) . '/templates/scheme/forest.json'), true);
+    $with = static function (array $change) use ($valid): string {
+        return (string) json_encode(array_replace_recursive($valid, $change));
+    };
+    $refused = static function (string $json, string $part) use ($S): void {
+        try {
+            $S::fromJson('proba', $json);
+            check(false, 'taken: ' . $json);
+        } catch (\InvalidArgumentException $e) {
+            check(str_contains($e->getMessage(), $part), $part . ' → ' . $e->getMessage());
+        }
+    };
+    $refused('{', 'not valid JSON');
+    $refused($with(['version' => 2]), '"version"');
+    $refused($with(['label' => '']), '"label"');
+    $refused($with(['light' => ['accent' => 'red']]), 'light.accent must be a colour');
+    $refused($with(['dark' => ['text' => '#fff;} body{display:none']]), 'dark.text must be a colour');
+    $refused($with(['light' => ['url' => '#000000']]), 'light.url is not a colour');
+    $noDark = $valid;
+    unset($noDark['dark']);
+    $refused((string) json_encode($noDark), '"dark" is missing');
+    $noMuted = $valid;
+    unset($noMuted['light']['muted']);
+    $refused((string) json_encode($noMuted), 'light.muted must be a colour');
+    $refused($with(['light' => ['muted' => '#a0a0a0']]), 'light.muted on light.background is hard to read');
+    $refused($with(['dark' => ['on_accent' => '#ffffff']]), 'dark.on_accent on dark.accent is hard to read');
+    throws(\InvalidArgumentException::class, static fn () => $S::fromJson('Rossz-Nev', (string) json_encode($valid)));
+
+    $scheme = $S::fromJson('proba', $with(['light' => ['accent' => '#1D5F8A']]));
+    check($scheme->light['accent'] === '#1d5f8a' && str_contains($scheme->css(), '--cc-accent-rgb: 29, 95, 138;'), 'small letters; the accent as rgb');
+
+    // A theme's scheme of a core one's name takes its place; a broken one is left out, the core's stays.
+    $theme = sys_get_temp_dir() . '/campanella-scheme-' . bin2hex(random_bytes(4));
+    mkdir($theme . '/scheme', 0777, true);
+    file_put_contents($theme . '/scheme/sea.json', $with(['label' => 'A téma tengere']));
+    file_put_contents($theme . '/scheme/forest.json', $with(['light' => ['text' => '#eeeeee']]));
+    file_put_contents($theme . '/scheme/own.json', $with(['label' => 'Saját']));
+    $registry = new \Campanella\Appearance\ColorSchemeRegistry([dirname(__DIR__) . '/templates', $theme]);
+    check($registry->get('sea')->label === 'A téma tengere' && $registry->get('sea')->origin === 'theme', 'the theme\'s replaces the core\'s');
+    check($registry->get('forest')->origin === 'core' && isset($registry->errors()['forest']), 'a broken one: the core\'s stays, the error is told');
+    check($registry->has('own') && array_key_last($registry->all()) === 'own', 'the theme\'s own, after the core\'s');
+    array_map('unlink', glob($theme . '/scheme/*') ?: []);
+    rmdir($theme . '/scheme');
+    rmdir($theme);
+});
+
+test('Appearance (0.3.6): the scheme and the colour mode saved; the visitor\'s own mode first; /color-scheme.css; the pages\' data-bs-theme', function () use ($displayKernel): void {
+    $kernel = $displayKernel();
+    if ($kernel === null) {
+        return;
+    }
+    $c = $kernel->container();
+    $settings = $c->get(\Campanella\Settings\Settings::class);
+    $settings->set(['appearance.scheme' => null, 'appearance.color_mode' => null]);
+    $appearance = $c->get(\Campanella\Appearance\Appearance::class);
+    $A = \Campanella\Appearance\Appearance::class;
+
+    check($appearance->scheme()->name === 'default' && $appearance->siteMode() === 'auto' && $appearance->theme(new Request('GET', '/')) === '', 'the defaults');
+    $errors = [];
+    try {
+        $appearance->save('nincs', 'sotet');
+    } catch (ValidationException $e) {
+        $errors = huMessages($e);
+    }
+    check(($errors['scheme'] ?? '') === 'Nincs ilyen színséma.' && ($errors['color_mode'] ?? '') === 'Ismeretlen színmód.' && $settings->get('appearance.scheme') === null, 'refused, nothing saved');
+
+    $before = $appearance->version();
+    $appearance->save('sea', 'dark');
+    check($appearance->scheme()->name === 'sea' && $appearance->siteMode() === 'dark' && $appearance->version() !== $before, 'saved; a new version');
+    check($appearance->mode(new Request('GET', '/', cookies: [$A::COOKIE => 'light'])) === 'light', 'the visitor\'s own first');
+    check($appearance->mode(new Request('GET', '/', cookies: [$A::COOKIE => 'auto'])) === 'auto', 'the visitor may follow the system');
+    check($appearance->mode(new Request('GET', '/', cookies: [$A::COOKIE => '"><script>'])) === 'dark', 'an unknown cookie: the site\'s');
+
+    $css = $kernel->handle(new Request('GET', '/color-scheme.css', query: ['v' => $appearance->version()]));
+    check($css->status === 200 && str_starts_with($css->headers['Content-Type'] ?? '', 'text/css') && str_contains($css->headers['Cache-Control'] ?? '', 'immutable') && str_contains($css->body, '--cc-accent: #1d5f8a;'), 'the CSS, kept for a year');
+    $old = $kernel->handle(new Request('GET', '/color-scheme.css', query: ['v' => $before]));
+    check(($old->headers['Cache-Control'] ?? '') === 'public, max-age=300', 'an old version: for five minutes');
+
+    $home = $kernel->handle(new Request('GET', '/'));
+    check(str_contains($home->body, '<html lang="hu" data-bs-theme="dark">') && str_contains($home->body, '/color-scheme.css?v=' . $appearance->version() . '"'), 'the site\'s mode and scheme on a page');
+    $own = $kernel->handle(new Request('GET', '/', cookies: [$A::COOKIE => 'auto']));
+    check(str_contains($own->body, '<html lang="hu">'), 'the visitor\'s auto: theme.js decides');
+
+    // The admin: the mode, never the scheme.
+    $login = $kernel->handle(new Request('GET', '/admin'));
+    check(!str_contains($login->body, 'color-scheme.css'), 'the admin does not link the scheme');
+    $admin = (string) file_get_contents(dirname(__DIR__) . '/templates/admin/base.html.twig');
+    check(str_contains($admin, 'color_mode()') && !str_contains($admin, 'color_scheme_url'), 'the admin\'s layout: the mode only');
+
+    $appearance->save('default', 'auto');
+    check($settings->get('appearance.scheme') === null && $settings->get('appearance.color_mode') === null, 'the defaults are not stored');
+});
+
 test('Security review (0.3.5): editors and a page\'s components: what they may not see or reach; the front page\'s redirect', function () use ($displayKernel, $newUser): void {
     $kernel = $displayKernel();
     if ($kernel === null) {

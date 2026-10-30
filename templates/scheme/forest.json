@@ -1,0 +1,24 @@
+{
+    "version": 1,
+    "label": "scheme.forest",
+    "light": {
+        "accent": "#2f6b3a",
+        "accent_hover": "#24532d",
+        "on_accent": "#ffffff",
+        "background": "#f8faf6",
+        "text": "#1b1f1b",
+        "muted": "#5b665c",
+        "border": "#dfe5dc",
+        "surface": "#eef3eb"
+    },
+    "dark": {
+        "accent": "#8fd19e",
+        "accent_hover": "#b0e0ba",
+        "on_accent": "#121a14",
+        "background": "#121a14",
+        "text": "#e8eee8",
+        "muted": "#9aa79c",
+        "border": "#2c362e",
+        "surface": "#1a241c"
+    }
+}

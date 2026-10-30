@@ -1,14 +1,17 @@
 <!doctype html>
-<html lang="{{ locale() }}">
+{% set mode = color_mode() %}
+<html lang="{{ locale() }}"{% if mode %} data-bs-theme="{{ mode }}"{% endif %}>
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}{{ title is defined and title ? title ~ ' – ' : '' }}{{ site.name }}{% endblock %}</title>
 {% block meta %}{# Meta description, canonical URL, Open Graph (since 0.1.1): pages that have them pass `meta`. #}{% if meta is defined and meta %}{% include 'page/_meta.html.twig' %}{% endif %}{% endblock %}
-    {# Bootstrap color mode follows the system setting (light / dark). #}
+    {# The colour mode: the site's or the visitor's own (since 0.3.6), else theme.js follows the system setting. #}
     <script src="{{ asset('theme.js') }}"></script>
     <link rel="stylesheet" href="{{ asset('vendor/bootstrap/css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ asset('campanella.css') }}">
+    {# The site's colour scheme (since 0.3.6). #}
+    <link rel="stylesheet" href="{{ color_scheme_url() }}">
     {% block stylesheets %}{% endblock %}
 </head>
 <body class="d-flex flex-column min-vh-100">

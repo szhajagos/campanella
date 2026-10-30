@@ -70,7 +70,7 @@ The built-in displays, first (more come with need):
 | `full` | `Titled` | the title shown or not |
 | `teaser` (card) | `Titled` | the date, the lead |
 | `link` | `Routable` | the text |
-| `info_box` | `Titled` (+ `Textual`) | the title, a colour (the Bootstrap ones until the colour schemes of 0.3.6) |
+| `info_box` | `Titled` (+ `Textual`) | the title, a colour (light and primary from the colour scheme since 0.3.6; info and warning Bootstrap's) |
 | `navigation` | a menu | horizontal or vertical, depth |
 | `image` | `MediaFile` | width, caption |
 | `download` | `Downloadable` | type and size shown or not |

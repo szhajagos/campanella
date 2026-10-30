@@ -1,0 +1,24 @@
+{
+    "version": 1,
+    "label": "scheme.sea",
+    "light": {
+        "accent": "#1d5f8a",
+        "accent_hover": "#164a6c",
+        "on_accent": "#ffffff",
+        "background": "#f7f9fb",
+        "text": "#1a1d21",
+        "muted": "#59626c",
+        "border": "#dde3ea",
+        "surface": "#edf2f7"
+    },
+    "dark": {
+        "accent": "#7fbfe8",
+        "accent_hover": "#a5d3f0",
+        "on_accent": "#111821",
+        "background": "#111821",
+        "text": "#e6ecf2",
+        "muted": "#9aa6b3",
+        "border": "#2a3441",
+        "surface": "#18212c"
+    }
+}

@@ -248,7 +248,7 @@ components use later.
 | **0.3.3** ✔ | Released 2026-10-28. **Displays and components** ([the design](docs/components.md), detailed below): `Display` (Public API: a class with its template, its settings and what it needs: capabilities, a list or a system source) and the built-in ones; the sources (an object, a list, the page's object, the system sources such as the visitor); the `snippet` Blueprint; the `component` Blueprint made in the admin, and `component()` in templates; the admin's menu in groups; `full` and `teaser` become displays. |
 | **0.3.4** ✔ | Released 2026-10-29. **Regions and layouts** (detailed below): the core's two layouts and the theme's own (JSON), `region()`; how a region shows on small screens; components placed in regions (order, who sees them, where); a layout for the site and per Blueprint; tokens in snippets; the upgrade keeps the header and footer as they are. |
 | **0.3.5** ✔ | Released 2026-10-30. **Pages:** pages assembled from components (a front page, an "about us" page), their own layout; editors edit their components (detailed below; agreed 2026-10-30). |
-| **0.3.6** | **Appearance** (2026-10-11): colour schemes with light and dark variants, the colour mode (the visitor's system setting, or fixed); a visitor's switch as a component, not a button built into the header. |
+| **0.3.6** | **Appearance** (2026-10-11): colour schemes with light and dark variants, the colour mode (the visitor's system setting, or fixed); a visitor's switch as a component, not a button built into the header (detailed below; agreed 2026-10-30). |
 | **0.3.7** | **Sample content in the site's language** (2026-10-12): an English site gets English samples and paths (now `seed` is Hungarian only, `/hirek` too). |
 | **0.4.0** | **The milestone**, as 0.3.0: a security review, upgrade tests from 0.3.0 and the last 0.3.x, the guide's chapters, a performance check, the compatibility promise for 0.4.x. |
 
@@ -327,6 +327,31 @@ own path then leads to `/`); the sample content gets such a front page.
 4. **The upgrade, the guide, the release** (part 4, in two, decided 2026-10-30):
    **4a** the security review and the upgrade's docs (done); **4b** the guide's
    chapter, the screenshots, the release (done).
+
+**Colour schemes and the colour mode (0.3.6, agreed 2026-10-30),** in four
+parts. Decided: the admin chooses among the schemes of the core and the theme
+(a JSON file each, checked for readability); schemes edited in the admin may
+come later. The colour mode is the visitor's system setting (the default), or
+always light or dark; a visitor's own choice comes first. The admin follows the
+mode but keeps its neutral colours. The visitor's switch is a component
+(`color_mode_switch`), not a button built in: the sample content puts it in the
+navigation, and an administrator can move or delete it; the upgrade adds none,
+and the `default` scheme is the look before, so an upgraded site looks the
+same.
+
+1. **The engine** (part 1): `ColorScheme` (JSON, `#rrggbb` only, a contrast of
+   at least 4.5:1 for the text, the links and the buttons in both variants),
+   `ColorSchemeRegistry`, the core's three schemes; `Appearance` (the scheme, the
+   site's mode, the visitor's cookie); `/color-scheme.css` with its version;
+   `data-bs-theme` set by the server (done).
+2. **The admin** (part 2): *Appearance → Colour schemes*: the scheme, the mode,
+   a preview of both variants; the schemes left out and why.
+3. **The switch and the sample content** (part 3): the `color_mode_switch`
+   display (a form, so it works without JavaScript; a small script of our own
+   on top), its cookie; the sample content's switch in the navigation.
+4. **The upgrade, the guide, the release** (part 4, in two): **4a** the security
+   review and the upgrade's docs; **4b** the guide's chapter, the screenshots,
+   the release.
 
 **Regions and layouts (0.3.4, agreed 2026-10-29; released 2026-10-29),** in four parts:
 

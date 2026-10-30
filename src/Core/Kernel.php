@@ -70,6 +70,10 @@ use Campanella\Controller\Controller;
 use Campanella\Controller\ObjectController;
 use Campanella\Controller\QueryController;
 use Campanella\Controller\SiteController;
+use Campanella\Appearance\Appearance;
+use Campanella\Appearance\AppearanceController;
+use Campanella\Appearance\AppearanceTwigExtension;
+use Campanella\Appearance\ColorSchemeRegistry;
 use Campanella\Database\Connection;
 use Campanella\Database\DatabaseBackup;
 use Campanella\Database\Installer;
@@ -840,6 +844,12 @@ final class Kernel
             $format = $c->get(Translator::class)->translate('date.format');
             $core->setDateFormat($format !== 'date.format' ? $format : 'Y-m-d H:i');
 
+            // color_mode(), color_scheme_url() (since 0.3.6).
+            $twig->addExtension(new AppearanceTwigExtension(
+                static fn (): Appearance => $c->get(Appearance::class),
+                $currentRequest,
+                $basePath,
+            ));
             $twig->addExtension(new CampanellaTwigExtension(
                 static fn (): Presentation => $c->get(Presentation::class),
                 $basePath,
@@ -964,6 +974,14 @@ final class Kernel
             );
         });
         // The layouts (since 0.3.4): the core's templates/layout/, and the theme's, which win.
+        // The colour schemes and the colour mode (since 0.3.6).
+        $c->set(ColorSchemeRegistry::class, static function (Container $c) use ($root): ColorSchemeRegistry {
+            $theme = $c->get(Theme::class);
+
+            return new ColorSchemeRegistry($theme->templateDir === null ? [$root . '/templates'] : [$root . '/templates', $theme->templateDir]);
+        });
+        $c->set(Appearance::class, static fn (Container $c): Appearance => new Appearance($c->get(Settings::class), $c->get(ColorSchemeRegistry::class)));
+        $c->set('controller.appearance', static fn (Container $c): Controller => new AppearanceController($c->get(Appearance::class)));
         $c->set(LayoutRegistry::class, static function (Container $c) use ($root): LayoutRegistry {
             $theme = $c->get(Theme::class);
 
@@ -1015,6 +1033,8 @@ final class Kernel
             $router->prefix($paths->get('files'), 'file');
             // For search engines (since 0.1.1).
             $router->add('/robots.txt', 'site', ['action' => 'robots']);
+            // The site's colour scheme as CSS (since 0.3.6).
+            $router->add(AppearanceController::PATH, 'appearance');
             $router->add('/sitemap.xml', 'site', ['action' => 'sitemap']);
             // The lists made in the admin, at their paths, unless a route above has it (since 0.2.5).
             foreach ($c->get(ListRegistry::class)->all() as $list) {

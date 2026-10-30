@@ -1,6 +1,8 @@
 {# The admin layout. Always loaded as @core/admin/…, so the public theme does not affect it. #}
 <!doctype html>
-<html lang="{{ locale() }}">
+{#- The admin follows the colour mode (since 0.3.6), never the site's colour scheme. #}
+{% set mode = color_mode() %}
+<html lang="{{ locale() }}"{% if mode %} data-bs-theme="{{ mode }}"{% endif %}>
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
