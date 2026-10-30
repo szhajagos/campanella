@@ -38,5 +38,7 @@ felületet mutatják, a Campanella saját példatartalmával.
 14. [Elrendezések és régiók](14-elrendezesek.md): a fejléc és a lábléc
     komponensei, egy oldalsáv a cikkek mellé, a régiók sorrendje, hol jelenjen
     meg egy komponens, kis képernyőn.
+15. [Oldalak komponensekből](15-oldalak.md): egy oldal saját komponensei és
+    elrendezése (a szerkesztőknek is), új komponens egy oldalnak, a címlap.
 
 [English version](../en/README.md)

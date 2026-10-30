@@ -502,6 +502,46 @@ def layouts(page, article_url):
     shot(page, "site-sidebar", full_page=True)
 
 
+# Chapter 15, pages assembled from components (since 0.3.5): the sample front page.
+PAGES = {
+    "hu": {"new": "Új komponens", "title": "Belépés a címlapon", "key": "cimlap_belepes"},
+    "en": {"new": "New component", "title": "Log in on the front page", "key": "front_login"},
+}[LANG]
+
+
+def pages(page):
+    """Chapter 15 (since 0.3.5): a page's components, a new one for the page, the front page setting."""
+    page.goto(BASE + "/admin/page")
+    page.locator("main table a", has_text="Üdvözlünk").first.click()
+    page.wait_for_load_state("load")
+    shot(page, "page-form-components", element=".admin-page-components")
+    page.click(".admin-page-components a")
+    page.wait_for_load_state("load")
+    shot(page, "page-components", full_page=True)
+
+    page.locator("#region-sidebar a", has_text=PAGES["new"]).click()
+    page.wait_for_load_state("load")
+    page.click("main a[href*='source=system%3Avisitor']")
+    page.wait_for_load_state("load")
+    page.locator(".admin-displays a[href*='display=login_form']").first.click()
+    page.wait_for_load_state("load")
+    page.fill("#field-title", PAGES["title"])
+    page.fill("#field-machine_name", PAGES["key"])
+    page.select_option("#field-visible_to", "public")
+    shot(page, "page-component-form", full_page=True)
+    page.locator("form.admin-form button[type=submit]").first.click()
+    page.wait_for_load_state("load")
+
+    page.goto(BASE + "/admin/system/settings")
+    shot(page, "settings-front-page", element="#settings-front_page >> xpath=ancestor::section[1]")
+    # The front page, as a visitor sees it.
+    view = page.context.browser.new_context(viewport={"width": 1280, "height": 800}, locale=page.context.pages[0].evaluate("navigator.language"), color_scheme="light")
+    visitor = view.new_page()
+    visitor.goto(BASE + "/")
+    shot(visitor, "site-front-page", full_page=True)
+    view.close()
+
+
 def own_types(page, browser, article_url):
     """Chapter 11: an own content type (an events calendar) made in the admin, step by step."""
     import datetime
@@ -853,6 +893,7 @@ def main():
         menus(page)
         components(page)
         layouts(page, article_url)
+        pages(page)
         own_types(page, browser, article_url)
         importing(page)
         users(page, browser)

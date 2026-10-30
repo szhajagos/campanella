@@ -39,5 +39,7 @@ interface, with Campanella's own sample content (which is in Hungarian).
 14. [Layouts and regions](14-layouts.md): the header's and footer's
     components, a sidebar beside the articles, the regions' order, where a
     component shows, on small screens.
+15. [Pages assembled from components](15-pages.md): a page's own components and
+    layout (for editors too), a new component for a page, the front page.
 
 [Magyar változat](../hu/README.md)

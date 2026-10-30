@@ -1,14 +1,14 @@
 # Upgrading to 0.3.x
 
 This guide takes a site from **any 0.3.x, 0.2.x or 0.1.x version** to the newest
-0.3.x (now **0.3.4**) in one go. You do not need to install
+0.3.x (now **0.3.5**) in one go. You do not need to install
 the versions in between: one upgrade runs every change since your version. The
 CHANGELOG has the same steps version by version; this page puts them
 together, and adds what to check and how to go back.
 
 | Your version | What to do |
 |---|---|
-| 0.3.0 – 0.3.3 | Upload the new files and run the upgrade (steps 1–3): 0.3.1 adds the importers' tables (schema 17), 0.3.2 the files' (schema 18), 0.3.3 the components' (schema 19), 0.3.4 a component's region (schema 20) and makes the header and footer components. Back up `var/files/` from 0.3.2 on (step 1). CI upgrades 0.3.0, 0.3.1, 0.3.2 and 0.3.3 to the current code on every push. |
+| 0.3.0 – 0.3.4 | Upload the new files and run the upgrade (steps 1–3): 0.3.1 adds the importers' tables (schema 17), 0.3.2 the files' (schema 18), 0.3.3 the components' (schema 19), 0.3.4 a component's region (schema 20) and makes the header and footer components, 0.3.5 a component's page (schema 21). Back up `var/files/` from 0.3.2 on (step 1). CI upgrades 0.3.0, 0.3.1, 0.3.2, 0.3.3 and 0.3.4 to the current code on every push. |
 | 0.2.0 – 0.2.9 | This guide. Supported and tested: CI upgrades 0.2.0 and 0.2.9 to the current code on every push, the latter with a content model made in the admin (`tests/upgrade/run.sh`). |
 | 0.1.0 – 0.1.5 | This guide, and also [From 0.1.x](#from-01x) below. Tested too: CI upgrades 0.1.0 and 0.1.5. |
 | 0.0.6, 0.0.7 | The upgrade runs (their schema version, 6, is accepted), but it is not tested. Also read the [0.1.0 section of the CHANGELOG](../CHANGELOG.md#010--2026-10-08). |
@@ -46,7 +46,7 @@ working. What 0.3.x promises is in [Compatibility](compatibility.md).
 
    Copy them off the server.
 
-2. **Upload the new version.** Use the release package (`campanella-0.3.4.zip`
+2. **Upload the new version.** Use the release package (`campanella-0.3.5.zip`
    from the GitHub release); it includes the `vendor/` folder. With git:
    `git pull`, then `composer install --no-dev`.
 
@@ -91,7 +91,7 @@ working. What 0.3.x promises is in [Compatibility](compatibility.md).
 ## What the upgrade changes in the database
 
 Nothing is removed or rewritten; only tables and one column are added. 0.2.0
-has schema version 12, 0.3.0 has 16, 0.3.1 has 17, 0.3.2 has 18, 0.3.3 has 19, 0.3.4 has 20 (from 0.1.x: see [below](#from-01x) for
+has schema version 12, 0.3.0 has 16, 0.3.1 has 17, 0.3.2 has 18, 0.3.3 has 19, 0.3.4 has 20, 0.3.5 has 21 (from 0.1.x: see [below](#from-01x) for
 6 to 12).
 
 | Schema | Version | Change |
@@ -366,7 +366,7 @@ in the [CHANGELOG](../CHANGELOG.md) list every change of the
 
 ## Checklist after the upgrade
 
-- [ ] The System page (*System → Status*) shows 0.3.4, no error and no warning
+- [ ] The System page (*System → Status*) shows 0.3.5, no error and no warning
       about PHP's JIT, the tables match the definitions, and no page is missing
       from the search; under *Images and files* the files' folder is writable.
 - [ ] The site's header shows its name, the main menu, the search and the

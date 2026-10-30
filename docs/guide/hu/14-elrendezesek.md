@@ -122,4 +122,5 @@ A témák készítőinek szóló leírás:
 
 ---
 
-Előző: [13. Komponensek](13-komponensek.md) · [Tartalomjegyzék](README.md)
+Előző: [13. Komponensek](13-komponensek.md) ·
+Következő: [15. Oldalak komponensekből](15-oldalak.md) · [Tartalomjegyzék](README.md)

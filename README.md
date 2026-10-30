@@ -1,4 +1,4 @@
-# Campanella 0.3.4
+# Campanella 0.3.5
 
 [![CI](https://github.com/szhajagos/campanella/actions/workflows/ci.yml/badge.svg)](https://github.com/szhajagos/campanella/actions/workflows/ci.yml)
 
@@ -14,7 +14,18 @@ between sites by export and import; and what 0.3.x keeps is promised (see the
 [compatibility promise](docs/compatibility.md)). Plans are in the
 [ROADMAP](ROADMAP.md), changes in the [CHANGELOG](CHANGELOG.md).
 
-## What is new in 0.3.4
+## What is new in 0.3.5
+
+**Pages assembled from components:** a page (e.g. About us) can have
+components of its own below and beside its text, e.g. the latest news as cards,
+the upcoming events, a contact box, with a layout of its own; **editors** arrange
+them too, from the page's form (*The page's components*), never the site's.
+The **front page** can be such a page (System → Site settings); by default it
+still shows the latest content. The sample content has such a front page
+([guide](docs/guide/en/15-pages.md),
+[PHP API](docs/php-api/29-layouts.md#a-pages-own-components)).
+
+## What was new in 0.3.4
 
 **Layouts and regions** (Appearance → Layouts, Appearance → Regions): a page's
 layout has regions (header, navigation, content, sidebar, footer), and

@@ -117,4 +117,5 @@ For theme makers: [PHP API, chapter 29](../../php-api/29-layouts.md).
 
 ---
 
-Previous: [13. Components](13-components.md) · [Contents](README.md)
+Previous: [13. Components](13-components.md) ·
+Next: [15. Pages assembled from components](15-pages.md) · [Contents](README.md)

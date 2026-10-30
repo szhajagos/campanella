@@ -8,9 +8,19 @@ Sections: **Added**, **Changed**, **Deprecated**, **Removed**, **Fixed**,
 **Security**. In 0.x versions, items under **Changed** and **Removed** may be
 backward-incompatible.
 
-## [Unreleased]
+## [0.3.5] – 2026-10-30
 
-**Pages assembled from components, parts 1–4a.** The fourth step towards 0.4.0.
+**Pages assembled from components.** The fourth step towards 0.4.0: a page's
+own layout and components (shown only on it, arranged by editors too), the
+front page as a chosen page, the sample front page.
+
+**Upgrading from 0.3.0–0.3.4:** upload the new files and run the upgrade
+(`php bin/campanella install`, or `/admin/upgrade`): it adds a column (schema
+version 21), and the existing pages become pages assembled from components
+(with no components yet). If you keep a `config/blueprints.php` or
+`config/app.php` of your own, add `Composed` to the `page` Blueprint and to the
+capabilities, as in the new ones. The front page stays the latest content until
+you choose a page. From older versions: see [docs/upgrading.md](docs/upgrading.md).
 
 ### Added
 
@@ -48,6 +58,13 @@ backward-incompatible.
   editor could otherwise have learnt the title of an object they may not see);
   a page's own component shows only in the regions meant for a page, however it
   was saved ([the review](docs/security.md#review-of-the-pages-assembled-from-components-035-2026-10-30)).
+
+### Documentation and tests
+
+- The guide's chapter 15, *Pages assembled from components* (hu, en), with
+  screenshots of a page's components, a page's new component, the front page's
+  setting and the sample front page.
+- CI: the upgrade from 0.3.4 (MariaDB 11.4).
 
 ### Changed
 
