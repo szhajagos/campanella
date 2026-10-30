@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Campanella\Layout;
 
+use Campanella\Capability\Composed;
 use Campanella\I18n\Message;
 use Campanella\Model\CampanellaObject;
 use Campanella\Model\ValidationException;
@@ -18,6 +19,8 @@ use Campanella\Settings\Settings;
  *                                  core's base.html.twig shows its old header and footer
  *   layout.site                    the site's layout (default: one_column)
  *   layout.blueprint.<blueprint>   a Blueprint's own (the pages of its objects)
+ *
+ * A Composed object (since 0.3.5) may have a layout of its own, which comes first.
  *   layout.region.<layout>.<region> how a region shows on small screens: `collapse:md`
  */
 final class LayoutService
@@ -53,10 +56,18 @@ final class LayoutService
         return $own !== null && $this->layouts->has($own) ? $this->withLooks($this->layouts->get($own)) : $this->site();
     }
 
-    /** A page's layout: that of its object's Blueprint, or the site's. */
+    /**
+     * A page's layout: its object's own (a Composed object's, since 0.3.5), that of its
+     * Blueprint, or the site's.
+     */
     public function forPage(?CampanellaObject $object): LayoutDefinition
     {
-        return $object === null ? $this->site() : $this->forBlueprint($object->blueprint());
+        if ($object === null) {
+            return $this->site();
+        }
+        $own = $object->has(Composed::class) ? $object->as(Composed::class)->layout() : null;
+
+        return $own !== null && $this->layouts->has($own) ? $this->withLooks($this->layouts->get($own)) : $this->forBlueprint($object->blueprint());
     }
 
     /** The Blueprint's own layout's name, or null if it has the site's. */

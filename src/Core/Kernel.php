@@ -112,6 +112,7 @@ use Campanella\Display\Builtin\LoginFormDisplay;
 use Campanella\Display\Builtin\NavigationDisplay;
 use Campanella\Display\Builtin\TableDisplay;
 use Campanella\Display\ComponentService;
+use Campanella\Display\DeletePageComponents;
 use Campanella\Layout\LayoutRegistry;
 use Campanella\Token\DateTokens;
 use Campanella\Token\SiteTokens;
@@ -671,6 +672,8 @@ final class Kernel
             // A deleted image takes its file with it, a file to download too (since 0.3.2).
             $service->addListener(new DeleteMediaFile($c->get(MediaStorage::class)));
             $service->addListener(new DeleteStoredFile($c->get(FileStorage::class)));
+            // A deleted page takes its own components with it (since 0.3.5).
+            $service->addListener(new DeletePageComponents($c->get(Connection::class), $c->get(ObjectRepository::class)));
 
             return $service;
         });

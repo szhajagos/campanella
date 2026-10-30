@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace Campanella\Layout;
 
 /**
- * A region of a layout (since 0.3.4): its name, its label, and how it shows on small
- * screens (its default, from the layout's JSON; the admin can change it).
+ * A region of a layout (since 0.3.4): its name, its label, how it shows on small screens
+ * (its default, from the layout's JSON; the admin can change it), and whether a page's own
+ * components may be placed in it (`page`, since 0.3.5).
  */
 final readonly class RegionDefinition
 {
@@ -27,6 +28,8 @@ final readonly class RegionDefinition
         public string $label,
         public string $small = self::ALWAYS,
         public string $breakpoint = 'md',
+        // Since 0.3.5: a page's own components may be placed in it (the content, the sidebar).
+        public bool $page = false,
     ) {
     }
 
@@ -34,7 +37,7 @@ final readonly class RegionDefinition
     public function withLook(string $small, string $breakpoint): self
     {
         return in_array($small, self::LOOKS, true) && in_array($breakpoint, self::BREAKPOINTS, true)
-            ? new self($this->name, $this->label, $small, $breakpoint)
+            ? new self($this->name, $this->label, $small, $breakpoint, $this->page)
             : $this;
     }
 }

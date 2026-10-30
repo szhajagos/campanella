@@ -246,7 +246,7 @@ components use later.
 | **0.3.2** ✔ | Released 2026-10-28. **Files** (see below): documents besides images, as objects; public and private files; one media library in the admin; a file chosen by the relation picker, or linked from the editor. |
 | **0.3.3** ✔ | Released 2026-10-28. **Displays and components** ([the design](docs/components.md), detailed below): `Display` (Public API: a class with its template, its settings and what it needs: capabilities, a list or a system source) and the built-in ones; the sources (an object, a list, the page's object, the system sources such as the visitor); the `snippet` Blueprint; the `component` Blueprint made in the admin, and `component()` in templates; the admin's menu in groups; `full` and `teaser` become displays. |
 | **0.3.4** ✔ | Released 2026-10-29. **Regions and layouts** (detailed below): the core's two layouts and the theme's own (JSON), `region()`; how a region shows on small screens; components placed in regions (order, who sees them, where); a layout for the site and per Blueprint; tokens in snippets; the upgrade keeps the header and footer as they are. |
-| **0.3.5** | **Pages:** pages assembled from components (a front page, an "about us" page), their own layout; editors edit their components. |
+| **0.3.5** | **Pages:** pages assembled from components (a front page, an "about us" page), their own layout; editors edit their components (detailed below; agreed 2026-10-30). |
 | **0.3.6** | **Appearance** (2026-10-11): colour schemes with light and dark variants, the colour mode (the visitor's system setting, or fixed); a visitor's switch as a component, not a button built into the header. |
 | **0.3.7** | **Sample content in the site's language** (2026-10-12): an English site gets English samples and paths (now `seed` is Hungarian only, `/hirek` too). |
 | **0.4.0** | **The milestone**, as 0.3.0: a security review, upgrade tests from 0.3.0 and the last 0.3.x, the guide's chapters, a performance check, the compatibility promise for 0.4.x. |
@@ -297,6 +297,32 @@ Decided on 2026-10-26:
    marked. `component('fo-menu')` in templates. Administrators only.
 3. **The guide, the docs and the release** (part 3): a guide chapter on
    components, the PHP API, the security review, the upgrade test.
+
+**Pages assembled from components (0.3.5, agreed 2026-10-30),** in four parts.
+Decided: a capability, `Composed`, makes an object a page assembled from
+components (the core's `page` has it; a Blueprint made in the admin can get it):
+a layout of its own, and components of its own, shown only on its page after its
+own text. Its components are arranged in its editor, a list per region (up,
+down, take out, a new one in the three steps); dragging may come later on top of
+it. A page's own components go only into the regions meant for a page's content
+(`"page": true` in the layout: the content and the sidebar); the header, the
+navigation and the footer stay the site's, the administrators'. Editors may
+create, change, delete and order a page's own components (of pages they may
+change), never the site's. The front page can be the latest content (as now, the
+default; the upgrade keeps it) or a chosen page assembled from components (its
+own path then leads to `/`); the sample content gets such a front page.
+
+1. **The engine** (part 1): `Composed` (`page_layout`); a component's page
+   (`component_page`, a field, not a relation: a deleted page's components go
+   with it and never become the site's); the regions' `page` flag; the page's
+   own layout; a page's own components shown first in its regions; the policy
+   (editors) and `ObjectService::update()` checking the changed object too.
+2. **The admin** (part 2): *The page's components* in its editor, the three
+   steps for a page, editors' rights; the Regions page shows the pages' own
+   apart.
+3. **The front page and the sample content** (part 3): the choice under Site
+   settings, the redirect of its own path, the sample front page.
+4. **The upgrade, the guide, the release** (part 4).
 
 **Regions and layouts (0.3.4, agreed 2026-10-29; released 2026-10-29),** in four parts:
 

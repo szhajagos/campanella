@@ -10,6 +10,30 @@ backward-incompatible.
 
 ## [Unreleased]
 
+**Pages assembled from components, part 1.** The fourth step towards 0.4.0.
+
+### Added
+
+- **`Composed`** ([PHP API, chapter 29](docs/php-api/29-layouts.md#a-pages-own-components)):
+  a page assembled from components, with a layout of its own (`page_layout`)
+  and components of its own (`component_page`), shown only on its page, after
+  its text, first in its regions; the core's `page` Blueprint has it. A deleted
+  page's components are deleted with it (`DeletePageComponents`).
+- The layouts' regions say whether a page's own components may be placed in
+  them (`"page": true`: the core's content and sidebar);
+  `LayoutRegistry::pageRegionNames()`.
+- `ComponentService`: `create()` for a page, `pageProblem()`, `pageOf()`,
+  `ofPage()`; `inRegion()`, `nextWeight()` and `move()` among the site's or a
+  page's own. `ObjectService::allows()`.
+
+### Changed
+
+- The policy: editors may create, change and delete **a page's own components**
+  (the site's stay with the administrators). `ObjectService::update()` checks
+  the changed object too, so a change cannot make it something the actor may
+  not change.
+- Schema version 21: the `component_page` column of `cap_component`.
+
 ## [0.3.4] – 2026-10-29
 
 **Regions and layouts.** The third step towards 0.4.0: layouts with regions,

@@ -212,9 +212,22 @@ shown with a display: `component_source` and `component_display` (queryable),
 `component_settings` (JSON in the data column). `source()`, `display()`,
 `settings()`, `configure($source, $display, $settings)`; since 0.3.4 its region
 (`component_region`) and where it shows (`component_conditions`): `region()`,
-`conditions()`, `place($region, $conditions)` ([chapter 29](29-layouts.md#placing-components)).
+`conditions()`, `place($region, $conditions)` ([chapter 29](29-layouts.md#placing-components));
+since 0.3.5 the page it belongs to (`component_page`, queryable: an object with
+`Composed`, or none: the whole site's): `page(): ?int`, `attachTo(?int $page)`
+([chapter 29](29-layouts.md#a-pages-own-components)).
 It checks only their form, `ComponentService` the rest. Described in chapter
 [28. Displays](28-displays.md#components).
+
+### Composed
+
+`Composed` (`composed`, since 0.3.5; requires `Routable`): the object's page is
+assembled from components. Its own components (those whose `component_page` is
+the object) show on its page, in the regions meant for a page's content; it may
+have a layout of its own: `page_layout` (in the data column, never queried; not
+in the object's form, chosen on its own page in the admin), `layout(): ?string`,
+`setLayout(?string $layout)`; a name that is not one is refused. The core's
+`page` Blueprint has it. See [chapter 29](29-layouts.md#a-pages-own-components).
 
 ### Keyed and Link
 

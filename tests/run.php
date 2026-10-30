@@ -2064,6 +2064,119 @@ test('Kernel: a page in its layout: the regions\' components in their order, whe
     check(str_contains($kernel->handle(new Request('GET', '/elrendezett-cikk'))->body, 'navbar-expand-md'), 'the old header again');
 });
 
+test('Layouts (0.3.5): the regions meant for a page\'s own components; a Composed object\'s own layout', function () use ($db, $repository): void {
+    $D = \Campanella\Layout\LayoutDefinition::class;
+    $registry = new \Campanella\Layout\LayoutRegistry([dirname(__DIR__) . '/templates']);
+    check($registry->pageRegionNames() === ['content', 'sidebar'], implode(',', $registry->pageRegionNames()));
+    check($registry->get('sidebar')->regions['sidebar']->page && !$registry->get('sidebar')->regions['header']->page);
+    check($registry->get('sidebar')->regions['sidebar']->withLook('hide', 'lg')->page, 'kept with another look');
+    throws(\InvalidArgumentException::class, static fn () => $D::fromJson('rossz', '{"version": 1, "regions": {"content": {"page": "igen"}}}'));
+
+    $settings = new \Campanella\Settings\Settings($db);
+    $service = new \Campanella\Layout\LayoutService($registry, $settings);
+    $settings->set(['layout.site' => null, 'layout.blueprint.page' => null]);
+    $page = $repository->create('page', ['title' => 'Összeállított']);
+    check($page->has(\Campanella\Capability\Composed::class), 'the page Blueprint is Composed');
+    check($service->forPage($page)->name === 'one_column');
+    $page->as(\Campanella\Capability\Composed::class)->setLayout('sidebar');
+    check($service->forPage($page)->name === 'sidebar', 'its own layout');
+    $page->as(\Campanella\Capability\Composed::class)->setLayout('nincs_ilyen');
+    check($service->forPage($page)->name === 'one_column', 'an unknown one: the Blueprint\'s or the site\'s');
+    $page->as(\Campanella\Capability\Composed::class)->setLayout('Rossz név');
+    check(isset($page->as(\Campanella\Capability\Composed::class)->validate()['page_layout']));
+});
+
+test('Kernel: a page\'s own components (0.3.5): only on its page, in its regions, first; editors change them, not the site\'s; deleted with the page', function () use ($displayKernel, $newUser): void {
+    $kernel = $displayKernel();
+    if ($kernel === null) {
+        return;
+    }
+    $c = $kernel->container();
+    $system = Actor::system();
+    $objects = $c->get(ObjectService::class);
+    $components = $c->get(\Campanella\Display\ComponentService::class);
+    $settings = $c->get(\Campanella\Settings\Settings::class);
+    $repository = $c->get(\Campanella\Model\ObjectRepository::class);
+    $C = \Campanella\Capability\Component::class;
+
+    $page = $objects->create($system, 'page', ['title' => 'Összeállított oldal', 'path' => '/osszeallitott', 'body' => '<p>Az oldal saját szövege</p>', 'page_layout' => 'sidebar'], publish: true);
+    $other = $objects->create($system, 'page', ['title' => 'Másik oldal', 'path' => '/masik-oldal', 'body' => '<p>Másik</p>', 'page_layout' => 'sidebar'], publish: true);
+    $article = $objects->create($system, 'article', ['title' => 'Nem összeállított', 'path' => '/nem-osszeallitott', 'body' => 'x'], publish: true);
+    $snippet = $objects->create($system, 'snippet', ['title' => 'Oldal doboza', 'body' => '<p>Saját doboz szöveg</p>']);
+    $siteBox = $objects->create($system, 'snippet', ['title' => 'Webhely doboza', 'body' => '<p>Webhely doboz szöveg</p>']);
+    $site = $components->create($system, ['title' => 'Webhely oldalsáv', 'machine_name' => 'oldal_teszt_webhely'], 'object:' . $siteBox->id(), 'info_box');
+    $components->place($system, $site, 'sidebar');
+
+    $editor = \Campanella\Auth\AuthService::actorFor($newUser('oldal-szerk@example.hu', 'oldal-jelszo-1', ['editor']));
+    $own = $components->create($editor, ['title' => 'Saját oldalsáv', 'machine_name' => 'oldal_teszt_sajat'], 'object:' . $snippet->id(), 'info_box', [], $page);
+    check($own->as($C)->page() === (int) $page->id() && $components->pageOf($own)?->id() === $page->id(), 'an editor makes a page\'s own');
+    $components->place($editor, $own, 'sidebar');
+    $second = $components->create($editor, ['title' => 'Saját tartalom', 'machine_name' => 'oldal_teszt_tartalom'], 'system:search', 'search_box', [], $page);
+    $components->place($editor, $second, 'content');
+
+    // Where it may go.
+    $refused = static function (callable $do): array {
+        try {
+            $do();
+        } catch (\Campanella\Model\ValidationException $e) {
+            return array_keys($e->errors);
+        }
+
+        return [];
+    };
+    check($refused(fn () => $components->place($editor, $own, 'header')) === ['region'], 'not in the header');
+    check($refused(fn () => $components->place($editor, $own, 'sidebar', new \Campanella\Layout\Conditions(front: true))) === ['paths'], 'no conditions');
+    check($refused(fn () => $components->create($system, ['title' => 'x', 'machine_name' => 'oldal_teszt_rossz'], 'system:search', 'search_box', [], $article)) === ['page'], 'not an article\'s');
+    check($components->problem($own) === null);
+
+    // Editors: a page's own, not the site's.
+    throws(\Campanella\Access\AccessDeniedException::class, fn () => $components->create($editor, ['title' => 'Webhelyé', 'machine_name' => 'oldal_teszt_tiltott'], 'system:search', 'search_box'));
+    throws(\Campanella\Access\AccessDeniedException::class, fn () => $components->place($editor, $site, 'content'));
+    throws(\Campanella\Access\AccessDeniedException::class, fn () => $objects->update($editor, $repository->find((int) $own->id()), ['component_page' => null]));
+    check($components->find('oldal_teszt_sajat', $system)?->as($C)->page() === (int) $page->id(), 'still the page\'s own');
+    $components->update($editor, $own, ['title' => 'Saját oldalsáv, átírva'], 'object:' . $snippet->id(), 'info_box', ['style' => 'warning']);
+    check($components->find('oldal_teszt_sajat', $system)?->get('title') === 'Saját oldalsáv, átírva', 'an editor changes it');
+
+    // The order among the page's own, apart from the site's.
+    $third = $components->create($system, ['title' => 'Harmadik', 'machine_name' => 'oldal_teszt_harmadik'], 'system:visitor', 'login_button', [], $page);
+    $components->place($system, $third, 'sidebar', null, $components->nextWeight('sidebar', $system, (int) $page->id()));
+    $keys = static fn (array $list): array => array_map(static fn ($x): string => (string) $x->get('machine_name'), $list);
+    check($keys($components->inRegion('sidebar', $system, (int) $page->id())) === ['oldal_teszt_sajat', 'oldal_teszt_harmadik'] && $keys($components->inRegion('sidebar', $system)) === ['oldal_teszt_webhely'], 'apart');
+    $components->move($editor, $components->find('oldal_teszt_harmadik', $system), -1);
+    check($keys($components->inRegion('sidebar', $system, (int) $page->id())) === ['oldal_teszt_harmadik', 'oldal_teszt_sajat'], 'moved among its page\'s');
+    $byRegion = $components->ofPage($page, $system);
+    check(array_keys($byRegion) === ['sidebar', 'content'] || array_keys($byRegion) === ['content', 'sidebar'], implode(',', array_keys($byRegion)));
+
+    $settings->set(['layout.enabled' => '1']);
+    try {
+        $html = $kernel->handle(new Request('GET', '/osszeallitott'))->body;
+        check(str_contains($html, '<aside') && preg_match('#Az oldal saját szövege.*display-search-box#s', $html) === 1, 'its own layout (sidebar); the content region after its text');
+        check(preg_match('#<aside.*display-login-button.*Saját doboz szöveg.*Webhely doboz szöveg#s', $html) === 1, 'the page\'s own first, then the site\'s');
+        $elsewhere = $kernel->handle(new Request('GET', '/masik-oldal'))->body;
+        check(!str_contains($elsewhere, 'Saját doboz szöveg') && str_contains($elsewhere, 'Webhely doboz szöveg'), 'not on another page');
+        check(!str_contains($kernel->handle(new Request('GET', '/hirek'))->body, 'Saját doboz szöveg'), 'not on a list');
+    } finally {
+        $settings->set(['layout.enabled' => null]);
+    }
+
+    // An editor deletes a page's own; the page takes the rest with it.
+    $objects->delete($editor, $components->find('oldal_teszt_harmadik', $system));
+    throws(\Campanella\Access\AccessDeniedException::class, fn () => $objects->delete($editor, $site));
+    $objects->delete($system, $page);
+    check($components->find('oldal_teszt_sajat', $system) === null && $components->find('oldal_teszt_tartalom', $system) === null, 'deleted with its page');
+    check($components->find('oldal_teszt_webhely', $system) !== null, 'the site\'s stays');
+
+    // A component whose page is no longer there is marked (and shows nowhere).
+    $orphan = $components->create($system, ['title' => 'Árva', 'machine_name' => 'oldal_teszt_arva'], 'system:search', 'search_box', [], $other);
+    $orphan->as($C)->attachTo((int) $article->id());
+    $repository->save($orphan);
+    check($components->problem($components->find('oldal_teszt_arva', $system))?->key === 'components.page_missing');
+
+    foreach ([$components->find('oldal_teszt_arva', $system), $site, $other, $article, $snippet, $siteBox] as $o) {
+        $objects->delete($system, $o);
+    }
+});
+
 /** For testing: a provider whose prefix the core's already has. */
 final class SecondSiteTokens implements \Campanella\Token\TokenProvider
 {

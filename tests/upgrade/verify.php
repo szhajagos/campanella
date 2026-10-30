@@ -299,6 +299,12 @@ $check($ownSnippet ? !str_contains($front, 'region--footer') : str_contains($fro
 $menuBuilt = $c->get(\Campanella\Menu\MenuBuilder::class)->build('main', Actor::anonymous()) ?? [];
 $check(count($menuBuilt) >= 4, 'the main menu has fewer than four links');
 
+// 12. Pages assembled from components (since 0.3.5): the old pages are Composed, with no components of their own.
+$queriesPages = $c->get(\Campanella\Query\QueryEngine::class);
+$pages = $queriesPages->count(\Campanella\Query\Query::objects()->blueprint('page'), Actor::system());
+$composed = $queriesPages->count(\Campanella\Query\Query::objects()->blueprint('page')->having(\Campanella\Capability\Composed::class), Actor::system());
+$check($pages === $composed, "only {$composed} of the {$pages} old pages are assembled from components");
+
 echo "{$checks} checks, upgraded from {$snapshot['version']} (schema {$snapshot['schema']}) to " . Version::CAMPANELLA . ' (schema ' . Version::SCHEMA . ").\n";
 if ($problems !== []) {
     echo count($problems) . " problems:\n";

@@ -17,11 +17,12 @@ Since 0.1.3 it dispatches, after saving, `ObjectCreated`, `ObjectUpdated`,
 | Method | Checked operation | Description |
 |---|---|---|
 | `create(Actor $actor, string $blueprint, array $values, bool $publish = false, array $relations = []): CampanellaObject` | `Create` (and `Publish`, if requested) | Creates and saves the object. With `$publish: true` it also publishes it immediately, with the current time. `$relations`: relation name → target IDs (since 0.0.4) |
-| `update(Actor $actor, CampanellaObject $object, array $values, array $relations = []): void` | `Update` | Sets the values (and the given relations; the others stay as they are) and saves |
+| `update(Actor $actor, CampanellaObject $object, array $values, array $relations = []): void` | `Update`, before and (since 0.3.5) after the change | Sets the values (and the given relations; the others stay as they are) and saves. Since 0.3.5 the changed object is checked again, so a change cannot make it something the actor may not change (e.g. an editor making a page's own component the whole site's) |
 | `publish(Actor $actor, CampanellaObject $object, ?DateTimeImmutable $at = null): void` | `Publish` | See `Publishable::publish()`. A future `$at` = scheduled publishing |
 | `unpublish(Actor $actor, CampanellaObject $object): void` | `Unpublish` | Back to draft |
 | `delete(Actor $actor, CampanellaObject $object): void` | `Delete` | Deletes the object and all of its capability data, then notifies the listeners |
 | `addListener(ObjectListener $listener): void` | – | Adds a listener (since 0.0.5) |
+| `allows(Actor $actor, Operation $operation, CampanellaObject $object): bool` | – | Whether the policy allows it, without doing anything (since 0.3.5) |
 
 Errors: `AccessDeniedException` if the policy denies the operation;
 `ValidationException` if the save is invalid; `OutOfBoundsException` if you

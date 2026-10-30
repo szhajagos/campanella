@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Campanella\Capability\Authenticatable;
 use Campanella\Capability\Authorable;
 use Campanella\Capability\Component;
+use Campanella\Capability\Composed;
 use Campanella\Capability\Downloadable;
 use Campanella\Capability\Hierarchical;
 use Campanella\Capability\Keyed;
@@ -74,9 +75,10 @@ return [
         'admin_columns' => ['categories'],
     ],
 
+    // A page (since 0.3.5 also assembled from components: Composed, with a layout of its own).
     'page' => [
         'label' => 'blueprint.page',
-        'capabilities' => [Textual::class, Routable::class, Publishable::class],
+        'capabilities' => [Textual::class, Routable::class, Publishable::class, Composed::class],
         'form_order' => ['title', 'body', 'path'],
         'defaults' => ['format' => 'html'],
         'editor' => ['body' => 'full'],

@@ -372,7 +372,7 @@ echo $components->show('lablec_menu', $context);
 
 | Method | |
 |---|---|
-| `create(Actor $actor, array $values, string $source, string $display, array $settings = []): CampanellaObject` | A new component; `$values` are its other fields (`title`, `machine_name`, `visible_to`, `visible_roles`). A `ValidationException` for a problem of the source (`source`), the display (`display`), a setting (its name) or a field |
+| `create(Actor $actor, array $values, string $source, string $display, array $settings = [], ?CampanellaObject $page = null): CampanellaObject` | A new component; `$values` are its other fields (`title`, `machine_name`, `visible_to`, `visible_roles`). With `$page` (since 0.3.5), that page's own ([chapter 29](29-layouts.md#a-pages-own-components)). A `ValidationException` for a problem of the source (`source`), the display (`display`), a setting (its name), a field, or the page (`page`) |
 | `update(Actor $actor, CampanellaObject $component, array $values, string $source, string $display, array $settings = [])` | Changes one, with the same checks |
 | `check(string $source, string $display, array $settings): array{settings, errors}` | The checks themselves: the source exists, the display is one of `displaysFor()`, the settings are valid (`DisplayRenderer::check()`) |
 | `sourceExists(string $source): bool` | Whether a source names something that exists, whoever may see it; `current` always does |

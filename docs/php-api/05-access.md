@@ -82,6 +82,11 @@ site is a right above an editor's) are seen as any object (a component shows
 on every page, for everyone it is meant for), but only administrators may
 create, change or delete them. It is the constructor's second argument:
 `new DefaultPolicy(DefaultPolicy::ADMINISTRATORS_ONLY, ['component', 'my_layout'])`.
+Except (since 0.3.5) **a page's own component** (one with a `component_page`,
+[chapter 29](29-layouts.md#a-pages-own-components)): it is the page's content,
+so editors may create, change and delete it too (they may delete nothing else).
+`ObjectService::update()` checks the changed object again, so an editor cannot
+make it the whole site's.
 
 **Restricted objects** (since 0.3.2): an object with the `Restricted`
 capability (a private file, [chapter 27](27-files.md)) is seen, besides the

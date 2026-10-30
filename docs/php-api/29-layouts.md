@@ -51,7 +51,7 @@ and they run in the sandbox):
 |---|---|
 | `version` | `1` |
 | `label` | A message key or text, at most 100 characters |
-| `regions` | 1 to 20 regions, in their order: name (lowercase letters, digits, `_`) ⇒ `label`, and how it shows on small screens: `small` is `always` (the default), `collapse` (below the breakpoint a button opens it) or `hide` (hidden below it); `breakpoint` is Bootstrap's `sm`, `md` (the default), `lg` or `xl` |
+| `regions` | 1 to 20 regions, in their order: name (lowercase letters, digits, `_`) ⇒ `label`, and how it shows on small screens: `small` is `always` (the default), `collapse` (below the breakpoint a button opens it) or `hide` (hidden below it); `breakpoint` is Bootstrap's `sm`, `md` (the default), `lg` or `xl`; `page` (since 0.3.5; `true` or `false`, the default): a page's own components may be placed in it |
 
 Every layout has a `content` region. A layout whose JSON is not valid, or that
 has no template, is left out; `LayoutRegistry::errors()` says why.
@@ -76,8 +76,8 @@ variables and:
 
 | Layout | Regions |
 |---|---|
-| `one_column` (*One column*, the default) | `header`, `navigation`, `content`, `footer` |
-| `sidebar` (*With a sidebar*) | the same and `sidebar`: beside the content from `lg` up, under it on smaller screens |
+| `one_column` (*One column*, the default) | `header`, `navigation`, `content`, `footer`; `content` is `page` |
+| `sidebar` (*With a sidebar*) | the same and `sidebar`: beside the content from `lg` up, under it on smaller screens; `content` and `sidebar` are `page` |
 
 `header` is always seen (the site's name); `navigation` (the menu, the search,
 the buttons) is beside it, and collapses below `md` behind a button, as the
@@ -124,7 +124,7 @@ layouts are off (below).
 
 `Campanella\Layout\RegionDefinition` · **Public** · readonly: `name`, `label`,
 `small` (`ALWAYS`, `COLLAPSE`, `HIDE`; the list `LOOKS`), `breakpoint` (one of
-`BREAKPOINTS`); `withLook(string $small, string $breakpoint): self` gives the
+`BREAKPOINTS`), `page` (since 0.3.5: a page's own components may be in it); `withLook(string $small, string $breakpoint): self` gives the
 same region with another look (an invalid one is ignored).
 
 ## LayoutRegistry
@@ -141,6 +141,7 @@ first; the Kernel gives the core's `templates/` and the theme's.
 | `get(string $name): LayoutDefinition` | The layout, or the default (`DEFAULT`, `one_column`) for an unknown name |
 | `errors(): array<string, string>` | The layouts left out, and why |
 | `regionNames(): list<string>` | Every layout's regions, each once: where a component can be placed |
+| `pageRegionNames(): list<string>` | Since 0.3.5: the regions that are `page` in any layout, each once: where a page's own component can be placed |
 
 ## LayoutService
 
@@ -160,7 +161,7 @@ Which layout a page has, from the settings the admin saves ([the admin's page](#
 | `isEnabled(): bool` | Whether the core's `base.html.twig` shows the layouts |
 | `site(): LayoutDefinition` | The site's layout |
 | `forBlueprint(string $blueprint): LayoutDefinition` | The Blueprint's own, or the site's |
-| `forPage(?CampanellaObject $object): LayoutDefinition` | A page's: that of its object's Blueprint, or the site's (a list's page, the search, the login page) |
+| `forPage(?CampanellaObject $object): LayoutDefinition` | A page's: its object's own (a `Composed` object's `page_layout`, since 0.3.5; an unknown one is ignored), that of its object's Blueprint, or the site's (a list's page, the search, the login page) |
 | `blueprintChoice(string $blueprint): ?string` | The Blueprint's own layout's name, or null |
 | `withLooks(LayoutDefinition $layout): LayoutDefinition` | The layout with its regions' looks as saved |
 | `save(?string $site, array $blueprints = [], array $looks = []): void` | Saves the choices: the site's layout (null: kept), Blueprints' own (Blueprint ⇒ layout, `''` for the site's; one not given keeps its choice), the regions' looks (layout ⇒ region ⇒ `collapse:md`; one equal to the layout's default is not stored). All or nothing: `ValidationException` with `site`, `blueprint.<name>` or `look.<layout>.<region>` for a layout or region that does not exist, or a look that is not valid |
@@ -259,11 +260,43 @@ the `component` Blueprint has `Weighted` (the order within the region):
 | Method | |
 |---|---|
 | `place(Actor $actor, CampanellaObject $component, ?string $region, ?Conditions $where = null, ?int $weight = null)` | Places it in a region (null: none, only `component()` shows it), where it shows, its order (null: kept). `ValidationException` for a region no layout has (`region`), or conditions that are not valid |
-| `placementProblems(?string $region, Conditions $where): array<string, Message>` | The same checks |
-| `forRegions(array $regions, DisplayContext $context): array<string, list<CampanellaObject>>` | The components of these regions that show here, for this visitor, in their order: one query (at most `MAX_PLACED`, 200), the conditions checked in PHP |
-| `inRegion(string $region, Actor $actor): list<CampanellaObject>` | The components placed in a region, in their order, whatever their conditions (for the admin): those the actor may see, at most `MAX_PLACED` |
-| `nextWeight(string $region, Actor $actor): int` | The order after the region's last component: where one added goes |
-| `move(Actor $actor, CampanellaObject $component, int $by): void` | Up (`-1`) or down (`1`) within its region: the region's components are numbered 0, 1, 2 … in their order, it is swapped with its neighbour; nothing at the top, the bottom, or outside a region |
+| `placementProblems(?string $region, Conditions $where, bool $ofPage = false): array<string, Message>` | The same checks; for a page's own (`$ofPage`, since 0.3.5) also a region that is not `page` (`region`), and any condition (`paths`) |
+| `forRegions(array $regions, DisplayContext $context): array<string, list<CampanellaObject>>` | The components of these regions that show here, for this visitor, in their order: one query (at most `MAX_PLACED`, 200), the conditions checked in PHP. Since 0.3.5 with the page's own (a `Composed` page object's), first in each region, whatever their conditions |
+| `inRegion(string $region, Actor $actor, ?int $page = null): list<CampanellaObject>` | The components placed in a region, in their order, whatever their conditions (for the admin): those the actor may see, at most `MAX_PLACED`; the whole site's, or (since 0.3.5) a page's own |
+| `nextWeight(string $region, Actor $actor, ?int $page = null): int` | The order after the region's last component: where one added goes; among the site's, or a page's own |
+| `move(Actor $actor, CampanellaObject $component, int $by): void` | Up (`-1`) or down (`1`) within its region: the region's components (the site's, or its page's own) are numbered 0, 1, 2 … in their order, it is swapped with its neighbour; nothing at the top, the bottom, or outside a region |
+
+## A page's own components
+
+*Since 0.3.5* (decided 2026-10-30). An object with the `Composed` capability
+(the core's `page` Blueprint has it; a Blueprint made in the admin can have it)
+is a page assembled from components: it has **components of its own**, those
+whose `component_page` is the object. They show only on its page, after its own
+text (`main`) in the content region and in its other regions meant for a page
+(`"page": true` in the layout's JSON: the core's `content` and `sidebar`), the
+page's own first, then the site's. They have no conditions (they are on their
+page), but `Restricted` counts as for any component. The page may have a layout
+of its own (`page_layout`).
+
+Who changes them: those who may change the page; the core's policy lets
+editors create, change and delete them ([chapter 5](05-access.md#defaultpolicy)),
+while the whole site's components stay with the administrators.
+
+The page is stored as a queryable field, not a relation (decided 2026-10-30):
+when a page is deleted, its own components are deleted with it
+(`DeletePageComponents`, an `ObjectListener`), and a component whose page is
+gone never becomes the whole site's (it would show everywhere); `problem()`
+marks it.
+
+| `ComponentService` | |
+|---|---|
+| `create(…, ?CampanellaObject $page = null)` | A page's own ([chapter 28](28-displays.md#componentservice)) |
+| `pageProblem(Actor $actor, CampanellaObject $page): ?Message` | Why it cannot have components of its own: not saved or not `Composed` (`components.page_not_composed`), or the actor may not change it (`components.page_forbidden`); null if it can |
+| `pageOf(CampanellaObject $component): ?CampanellaObject` | Its page, if it still exists; null for the whole site's |
+| `ofPage(CampanellaObject $page, Actor $actor): array<string, list<CampanellaObject>>` | A page's own, by region (`''`: in none), each in its order (for the page's editor) |
+
+`Campanella\Display\DeletePageComponents` · Internal: the listener that deletes a
+deleted `Composed` object's own components, registered by the Kernel.
 
 ## Existing themes
 

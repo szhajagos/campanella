@@ -81,11 +81,15 @@ final readonly class LayoutDefinition
             $regionLabel = $region['label'] ?? $regionName;
             $small = $region['small'] ?? RegionDefinition::ALWAYS;
             $breakpoint = $region['breakpoint'] ?? 'md';
+            $page = $region['page'] ?? false;
+            if (!is_bool($page)) {
+                throw new \InvalidArgumentException("Layout {$name}, region {$regionName}: \"page\" must be true or false.");
+            }
             if (!is_string($regionLabel) || trim($regionLabel) === '' || mb_strlen($regionLabel, 'UTF-8') > 100
                 || !in_array($small, RegionDefinition::LOOKS, true) || !in_array($breakpoint, RegionDefinition::BREAKPOINTS, true)) {
                 throw new \InvalidArgumentException("Layout {$name}, region {$regionName}: its label, \"small\" (always, collapse, hide) or \"breakpoint\" (sm, md, lg, xl) is not valid.");
             }
-            $regions[$regionName] = new RegionDefinition($regionName, trim($regionLabel), $small, $breakpoint);
+            $regions[$regionName] = new RegionDefinition($regionName, trim($regionLabel), $small, $breakpoint, $page);
         }
         if (!isset($regions[self::CONTENT])) {
             throw new \InvalidArgumentException("Layout {$name}: it has no \"content\" region.");

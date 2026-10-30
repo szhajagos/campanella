@@ -4,7 +4,7 @@
     "regions": {
         "header": {"label": "layout.region.header"},
         "navigation": {"label": "layout.region.navigation", "small": "collapse", "breakpoint": "md"},
-        "content": {"label": "layout.region.content"},
+        "content": {"label": "layout.region.content", "page": true},
         "footer": {"label": "layout.region.footer"}
     }
 }

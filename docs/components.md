@@ -137,7 +137,7 @@ needs no capability of its own:
 | Order | `Weighted` | within the region |
 | Who sees it | `Restricted` (0.3.2) | everyone, logged-in users, some roles |
 | Where | conditions in `data` | every page, these paths, the objects of these Blueprints, the front page; checked when the page is rendered (a region holds a few components, so they are filtered in PHP, not by a query) |
-| Whose page | a relation `page` (0.3.5) | none: the whole site; an object: only its page, as its own content |
+| Whose page | a queryable field `component_page` (0.3.5; a field, not a relation, decided 2026-10-30: a deleted page's components are deleted with it, and never become the whole site's) | none: the whole site; an object with `Composed`: only its page, as its own content |
 
 Being objects, components get what objects have: the admin's list and form
 (the settings' form built from the display's fields), events, the content
@@ -243,9 +243,11 @@ is why every display says which context it uses (`DisplayContext`).
 
 ## Still open (decided at their step)
 
-- Whether a page assembled from components is any Routable object, or one
-  of a Blueprint marked for it (a capability that gives it a layout of its
-  own and makes its body the components), at 0.3.5.
-- The admin's way of arranging a page's components (a form per region, or
-  dragging), at 0.3.5.
+- ~~Whether a page assembled from components is any Routable object, or one
+  of a Blueprint marked for it~~ Decided 2026-10-30: a capability, `Composed`
+  (the core's `page` has it; any Blueprint can get it in the admin): a layout of
+  its own, its own components; its own text stays first in the content region.
+- ~~The admin's way of arranging a page's components~~ Decided 2026-10-30: a list
+  per region in the page's editor (up, down, take out, a new one in the three
+  steps); dragging later, on top of it.
 - Which further displays come in 0.4.0 itself, and which wait for modules.

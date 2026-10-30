@@ -38,6 +38,8 @@ final class Component extends Capability
             // Since 0.3.4: the region it is placed in (none: only component() shows it), and where it shows.
             new Field('component_region', FieldType::String, indexed: true, length: 64, label: 'field.component_region'),
             new Field('component_conditions', FieldType::Text, storage: FieldStorage::Data, label: 'field.component_conditions'),
+            // Since 0.3.5: the page it belongs to (an object with Composed), or none: the whole site's.
+            new Field('component_page', FieldType::Integer, indexed: true, label: 'field.component_page'),
         ];
     }
 
@@ -79,7 +81,24 @@ final class Component extends Capability
         return $region === '' ? null : $region;
     }
 
-    /** Where it shows (since 0.3.4). */
+    /**
+     * The page it belongs to (since 0.3.5): the id of an object with Composed, whose own
+     * content it is; null: the whole site's (shown where its conditions say).
+     */
+    public function page(): ?int
+    {
+        $page = $this->object->get('component_page');
+
+        return is_int($page) && $page > 0 ? $page : (is_string($page) && ctype_digit($page) && (int) $page > 0 ? (int) $page : null);
+    }
+
+    /** Makes it a page's own (since 0.3.5), or the whole site's (null). */
+    public function attachTo(?int $page): void
+    {
+        $this->object->set('component_page', $page !== null && $page > 0 ? $page : null);
+    }
+
+        /** Where it shows (since 0.3.4). */
     public function conditions(): Conditions
     {
         $stored = json_decode((string) $this->object->get('component_conditions'), true);

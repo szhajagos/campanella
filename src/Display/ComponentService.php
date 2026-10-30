@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Campanella\Display;
 
 use Campanella\Access\Actor;
+use Campanella\Access\Operation;
+use Campanella\Capability\Composed;
 use Campanella\Capability\Component;
 use Campanella\I18n\Message;
 use Campanella\Layout\Conditions;
@@ -14,6 +16,9 @@ use Campanella\Model\BlueprintRegistry;
 use Campanella\Model\CampanellaObject;
 use Campanella\Model\ObjectRepository;
 use Campanella\Model\ValidationException;
+use Campanella\Query\Condition\FieldCondition;
+use Campanella\Query\Condition\Group;
+use Campanella\Query\Operator;
 use Campanella\Query\Query;
 use Campanella\Query\QueryEngine;
 use Campanella\Service\ObjectService;
@@ -30,6 +35,10 @@ use Campanella\Service\ObjectService;
  *
  * A component is shown with the visitor's rights: it is found by a query (so its own
  * `Restricted` setting counts), and its source is read as every display's is.
+ *
+ * Since 0.3.5 a component is the whole site's, or a page's own (`component_page`: an
+ * object with Composed): then it shows only on that page, in a region meant for a page's
+ * content (`page` in the layout), and those who may change the page may change it.
  */
 final class ComponentService
 {
@@ -132,16 +141,41 @@ final class ComponentService
      * @param array<string, mixed> $settings
      * @throws ValidationException for a problem of the source, the display, a setting or a field
      */
-    public function create(Actor $actor, array $values, string $source, string $display, array $settings = []): CampanellaObject
+    public function create(Actor $actor, array $values, string $source, string $display, array $settings = [], ?CampanellaObject $page = null): CampanellaObject
     {
         if (!$this->isAvailable()) {
             throw new DisplayException('There are no components on this site: the Blueprint \'' . self::BLUEPRINT . '\' is not one of components.');
         }
+        if ($page !== null && ($problem = $this->pageProblem($actor, $page)) !== null) {
+            throw new ValidationException(['page' => $problem]);
+        }
         $checked = $this->checked($source, $display, $settings);
         $component = $this->repository->create(self::BLUEPRINT, $values);
         $component->as(Component::class)->configure($source, $display, $checked);
+        $component->as(Component::class)->attachTo($page === null ? null : (int) $page->id());
 
-        return $this->objects->create($actor, self::BLUEPRINT, $this->values($component, $values));
+        return $this->objects->create($actor, self::BLUEPRINT, $this->values($component, $values) + ['component_page' => $component->get('component_page')]);
+    }
+
+    /**
+     * Why a component cannot be this object's own (since 0.3.5), or null if it can: the
+     * object is saved, has Composed, and the actor may change it.
+     */
+    public function pageProblem(Actor $actor, CampanellaObject $page): ?Message
+    {
+        if ($page->isNew() || !$page->has(Composed::class)) {
+            return new Message('components.page_not_composed');
+        }
+
+        return $this->objects->allows($actor, Operation::Update, $page) ? null : new Message('components.page_forbidden');
+    }
+
+    /** The object a component belongs to (since 0.3.5), if it still exists; null for the whole site's. */
+    public function pageOf(CampanellaObject $component): ?CampanellaObject
+    {
+        $page = $component->has(Component::class) ? $component->as(Component::class)->page() : null;
+
+        return $page === null ? null : $this->repository->find($page);
     }
 
     /**
@@ -165,11 +199,17 @@ final class ComponentService
      *
      * @return array<string, Message>
      */
-    public function placementProblems(?string $region, Conditions $where): array
+    public function placementProblems(?string $region, Conditions $where, bool $ofPage = false): array
     {
         $problems = [];
         if ($region !== null && $this->layouts !== null && !in_array($region, $this->layouts->regionNames(), true)) {
             $problems['region'] = new Message('components.region_unknown', ['region' => mb_substr($region, 0, 64, 'UTF-8')]);
+        } elseif ($ofPage && $region !== null && $this->layouts !== null && !in_array($region, $this->layouts->pageRegionNames(), true)) {
+            // Since 0.3.5: a page's own component only in a region meant for a page's content.
+            $problems['region'] = new Message('components.region_not_page', ['region' => mb_substr($region, 0, 64, 'UTF-8')]);
+        }
+        if ($ofPage && !$where->isEverywhere()) {
+            $problems['paths'] = new Message('components.page_conditions');
         }
 
         return $problems + $where->problems($this->blueprints === null ? null : array_keys($this->blueprints->all()));
@@ -184,7 +224,7 @@ final class ComponentService
     public function place(Actor $actor, CampanellaObject $component, ?string $region, ?Conditions $where = null, ?int $weight = null): void
     {
         $where ??= Conditions::everywhere();
-        $problems = $this->placementProblems($region, $where);
+        $problems = $this->placementProblems($region, $where, $component->has(Component::class) && $component->as(Component::class)->page() !== null);
         if ($problems !== []) {
             throw new ValidationException($problems);
         }
@@ -211,14 +251,28 @@ final class ComponentService
         if ($regions === [] || !$this->isAvailable()) {
             return $found;
         }
+        // The whole site's, and (since 0.3.5) the page's own if it is a Composed object: one query.
+        $page = $context->current !== null && $context->current->has(Composed::class) && !$context->current->isNew() ? (int) $context->current->id() : null;
         $query = Query::objects()->blueprint(self::BLUEPRINT)->where('component_region', 'IN', $regions)
-            ->scope('by_weight')->limit(self::MAX_PLACED);
+            ->whereCondition($this->scope($page))->scope('by_weight')->limit(self::MAX_PLACED);
+        $own = array_fill_keys($regions, []);
         foreach ($this->queries->execute($query, $context->actor) as $component) {
             $definition = $component->as(Component::class);
             $region = (string) $definition->region();
-            if (isset($found[$region]) && $definition->conditions()->matches($context->path, $context->current)) {
+            if (!isset($found[$region])) {
+                continue;
+            }
+            if ($definition->page() !== null) {
+                // A page's own: only on its page, whatever its conditions.
+                $own[$region][] = $component;
+            } elseif ($definition->conditions()->matches($context->path, $context->current)) {
                 $found[$region][] = $component;
             }
+        }
+
+        // The page's own first: they are its content; the site's after them.
+        foreach ($found as $region => $site) {
+            $found[$region] = [...$own[$region], ...$site];
         }
 
         return $found;
@@ -230,22 +284,47 @@ final class ComponentService
      *
      * @return list<CampanellaObject>
      */
-    public function inRegion(string $region, Actor $actor): array
+    public function inRegion(string $region, Actor $actor, ?int $page = null): array
     {
         if (!$this->isAvailable()) {
             return [];
         }
         $query = Query::objects()->blueprint(self::BLUEPRINT)->where('component_region', '=', $region)
+            ->whereCondition($page === null ? new FieldCondition('component_page', Operator::IsNull) : new FieldCondition('component_page', Operator::Equals, $page))
             ->scope('by_weight')->limit(self::MAX_PLACED);
 
         return $this->queries->execute($query, $actor)->items;
     }
 
-    /** The order after the last component of a region (since 0.3.4): where a component added to it goes. */
-    public function nextWeight(string $region, Actor $actor): int
+    /**
+     * A page's own components (since 0.3.5), by region, each in its order; those in no region
+     * under ''. For the page's editor: whatever their region, those the actor may see.
+     *
+     * @return array<string, list<CampanellaObject>>
+     */
+    public function ofPage(CampanellaObject $page, Actor $actor): array
+    {
+        if (!$this->isAvailable() || $page->isNew()) {
+            return [];
+        }
+        $query = Query::objects()->blueprint(self::BLUEPRINT)->where('component_page', '=', (int) $page->id())
+            ->scope('by_weight')->limit(self::MAX_PLACED);
+        $found = [];
+        foreach ($this->queries->execute($query, $actor) as $component) {
+            $found[(string) $component->as(Component::class)->region()][] = $component;
+        }
+
+        return $found;
+    }
+
+    /**
+     * The order after the last component of a region (since 0.3.4): where a component added to
+     * it goes; among the whole site's, or (since 0.3.5) a page's own.
+     */
+    public function nextWeight(string $region, Actor $actor, ?int $page = null): int
     {
         $last = 0;
-        foreach ($this->inRegion($region, $actor) as $component) {
+        foreach ($this->inRegion($region, $actor, $page) as $component) {
             $last = max($last, (int) $component->get('weight') + 1);
         }
 
@@ -263,7 +342,8 @@ final class ComponentService
         if ($region === null || ($by !== -1 && $by !== 1)) {
             return;
         }
-        $order = $this->inRegion($region, $actor);
+        // Among the whole site's, or among its page's own (since 0.3.5).
+        $order = $this->inRegion($region, $actor, $component->as(Component::class)->page());
         $ids = array_map(static fn (CampanellaObject $c): int => (int) $c->id(), $order);
         $at = array_search((int) $component->id(), $ids, true);
         if ($at === false || !isset($ids[$at + $by])) {
@@ -287,6 +367,9 @@ final class ComponentService
             return new Message('components.not_component');
         }
         $definition = $component->as(Component::class);
+        if ($definition->page() !== null && !($this->pageOf($component)?->has(Composed::class) ?? false)) {
+            return new Message('components.page_missing');
+        }
         if (!$this->sourceExists($definition->source())) {
             return new Message('components.source_missing');
         }
@@ -333,6 +416,14 @@ final class ComponentService
         }
 
         return $this->queries->first(Query::objects()->blueprint(self::BLUEPRINT)->where('machine_name', '=', $key), $actor);
+    }
+
+    /** The whole site's components, and a page's own (since 0.3.5). */
+    private function scope(?int $page): Group
+    {
+        $site = new FieldCondition('component_page', Operator::IsNull);
+
+        return $page === null ? Group::all($site) : Group::any($site, new FieldCondition('component_page', Operator::Equals, $page));
     }
 
     /**

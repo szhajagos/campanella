@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Campanella\Access;
 
 use Campanella\Capability\Authenticatable;
+use Campanella\Capability\Component;
 use Campanella\Capability\Publishable;
 use Campanella\Capability\PublishStatus;
 use Campanella\Capability\Restricted;
@@ -31,7 +32,9 @@ use DateTimeZone;
  *    only: nobody else may see or touch them, editors neither;
  *  - objects with an administrator-edited capability (by default `component`: where
  *    something appears on the site; since 0.3.3) are seen as any object, but only
- *    administrators may create, change or delete them, editors not;
+ *    administrators may create, change or delete them, editors not; but a page's own
+ *    component (since 0.3.5) is the page's content: editors may create, change and
+ *    delete it;
  *  - a Restricted object (e.g. a private file; since 0.3.2) is seen, besides the
  *    administrators and editors, only by those it is meant for: every logged-in
  *    user, or the users with one of its roles.
@@ -83,7 +86,17 @@ final class DefaultPolicy implements AccessPolicy
         return $query->whereCondition(self::restriction($actor));
     }
 
-    /** The objects the actor may see as far as Restricted goes (since 0.3.2). */
+    /**
+     * A page's own component (since 0.3.5): a component with a `component_page`. It is the
+     * page's content, changed by those who change the page (editors too); the whole site's
+     * components stay with the administrators.
+     */
+    private static function isPagesOwn(CampanellaObject $object): bool
+    {
+        return $object->has(Component::class) && $object->as(Component::class)->page() !== null;
+    }
+
+        /** The objects the actor may see as far as Restricted goes (since 0.3.2). */
     private static function restriction(Actor $actor): Group
     {
         // Not Restricted: no row in its table (a LEFT JOIN gives NULL; `visible_to` is required
@@ -116,7 +129,7 @@ final class DefaultPolicy implements AccessPolicy
                 return false;
             }
         }
-        if ($operation !== Operation::View) {
+        if ($operation !== Operation::View && !self::isPagesOwn($object)) {
             foreach ($this->administratorsEdit as $capability) {
                 if ($object->has($capability)) {
                     return false;
@@ -124,6 +137,10 @@ final class DefaultPolicy implements AccessPolicy
             }
         }
         if ($actor->hasRole(self::EDITOR)) {
+            // A page's own component (since 0.3.5) is the page's content: editors may delete it too.
+            if ($operation === Operation::Delete && self::isPagesOwn($object)) {
+                return true;
+            }
             return match ($operation) {
                 Operation::View => true,
                 Operation::Delete => false,

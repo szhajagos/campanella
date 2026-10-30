@@ -341,7 +341,7 @@ final class ComponentPages
                     'id' => (int) $c->id(),
                     'title' => self::titleOf($c),
                     'region' => $c->as(Component::class)->region(),
-                ], array_filter($all, static fn (CampanellaObject $c): bool => !in_array((int) $c->id(), $ids, true)))),
+                ], array_filter($all, static fn (CampanellaObject $c): bool => !in_array((int) $c->id(), $ids, true) && $c->as(Component::class)->page() === null))),
             ];
         }
 

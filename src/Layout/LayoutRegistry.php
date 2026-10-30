@@ -79,6 +79,26 @@ final class LayoutRegistry
     }
 
     /**
+     * The regions a page's own components may be placed in (since 0.3.5): those that are
+     * `page` in any layout, each once.
+     *
+     * @return list<string>
+     */
+    public function pageRegionNames(): array
+    {
+        $names = [];
+        foreach ($this->all() as $layout) {
+            foreach ($layout->regions as $name => $region) {
+                if ($region->page) {
+                    $names[$name] = true;
+                }
+            }
+        }
+
+        return array_keys($names);
+    }
+
+    /**
      * The names of the regions of every layout, each once.
      *
      * @return list<string>

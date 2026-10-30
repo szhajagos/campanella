@@ -95,6 +95,9 @@ final class ObjectService
         foreach ($relations as $name => $targets) {
             $object->setRelated($name, $targets);
         }
+        // As changed, too (since 0.3.5): a change may not make it something the actor may not
+        // change (e.g. a page's own component made the whole site's by an editor).
+        $this->authorize($actor, Operation::Update, $object);
         $this->repository->save($object);
         $this->events?->dispatch(new ObjectUpdated($object, $actor));
     }
@@ -129,7 +132,13 @@ final class ObjectService
         $this->events?->dispatch(new ObjectDeleted($object, $actor));
     }
 
-    private function authorize(Actor $actor, Operation $operation, CampanellaObject $object): void
+    /** Whether the actor may do the operation on the object (the policy's answer; since 0.3.5). */
+    public function allows(Actor $actor, Operation $operation, CampanellaObject $object): bool
+    {
+        return $this->policy->allows($actor, $operation, $object);
+    }
+
+        private function authorize(Actor $actor, Operation $operation, CampanellaObject $object): void
     {
         if (!$this->policy->allows($actor, $operation, $object)) {
             throw AccessDeniedException::for($actor, $operation, $object->blueprint() . ' #' . ($object->id() ?? 'new'));
