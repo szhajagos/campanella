@@ -266,14 +266,14 @@ cannot show the subject are a `DisplayException`.
 
 | Display | Class | For | Settings (default) |
 |---|---|---|---|
-| `full` | `FullDisplay` | a `Titled` object | `show_title` (yes) |
+| `full` | `FullDisplay` | a `Titled` object | `show_title` (yes), `show_date` (yes; since 0.3.5) |
 | `teaser` | `TeaserDisplay` | a `Titled` object | `show_date` (yes), `show_lead` (yes) |
 | `link` | `LinkDisplay` | a `Routable` object | `text` (the title) |
 | `info_box` | `InfoBoxDisplay` | a `Titled` object (its text, if `Textual`) | `show_title` (yes), `style`: `light`, `primary`, `info`, `warning` (light) |
 | `navigation` | `NavigationDisplay` | a menu | `style`: `horizontal` (a bar with dropdowns) or `vertical` (a list); `depth` 1–3 (2) |
 | `image` | `ImageDisplay` | a `MediaFile` object | `width` in pixels, 16–4000 (none: the column's, with the copies as `srcset`); `caption` (no) |
 | `download` | `DownloadDisplay` | a `Downloadable` object | `show_details`: the type and size (yes) |
-| `cards` | `CardsDisplay` | a list | `count` 1–100 (5), `columns` 1–4 (1), `show_more`: a link to the list's page (yes) |
+| `cards` | `CardsDisplay` | a list | `count` 1–100 (5), `columns` 1–4 (1), `show_more`: a link to the list's page (yes), `show_title`: the list's title above the cards (no; since 0.3.5) |
 | `table` | `TableDisplay` | a list | `count` 1–100 (10), `show_more` (yes); the columns are the list's own |
 | `login_button` | `LoginButtonDisplay` | the visitor | logging in (and back to this page), or out |
 | `admin_button` | `AdminButtonDisplay` | the visitor | only for those who may enter the admin |

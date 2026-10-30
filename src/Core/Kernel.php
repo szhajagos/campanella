@@ -85,6 +85,7 @@ use Campanella\Http\SecurityHeaders;
 use Campanella\Http\TrustedProxies;
 use Campanella\Http\SitePaths;
 use Campanella\Http\Response;
+use Campanella\Http\RouteMatch;
 use Campanella\Http\Router;
 use Campanella\Http\Session;
 use Campanella\I18n\Translator;
@@ -333,6 +334,11 @@ final class Kernel
 
                 return $this->errorResponse(503, $isAdmin ? 'error.needs_upgrade_admin' : 'error.needs_upgrade', ['path' => $request->basePath . $admin->path('upgrade')])
                     ->withHeader('Retry-After', '300');
+            }
+
+            // The front page may be a page assembled from components (since 0.3.5).
+            if ($request->path === '/' && $route->handler === 'query' && $container->get(SiteSettings::class)->frontPage() !== null) {
+                $route = new RouteMatch('object', ['front' => true]);
             }
 
             /** @var Controller $controller */
@@ -1027,6 +1033,9 @@ final class Kernel
             $c->get(RelationLoader::class),
             $c->get(MetaBuilder::class),
             $c->get(CurrentPage::class),
+            // The front page (since 0.3.5): a page assembled from components, else the latest content.
+            $c->get(SiteSettings::class),
+            static fn (Request $request, Actor $actor): Response => $c->get('controller.query')->handle($request, $c->get(Router::class)->match($request), $actor),
         ));
 
         $c->set('controller.admin', static fn (Container $c): Controller => new AdminController(

@@ -44,8 +44,8 @@ final class MetaBuilder
     ) {
     }
 
-    /** For an object's own page. */
-    public function forObject(CampanellaObject $object): PageMeta
+    /** For an object's own page; at another path (since 0.3.5: the front page, `/`), that is its canonical one. */
+    public function forObject(CampanellaObject $object, ?string $at = null): PageMeta
     {
         $title = $object->has(Titled::class) ? $object->as(Titled::class)->title() : '';
         $description = self::leadOf($object);
@@ -67,7 +67,7 @@ final class MetaBuilder
             $published = $object->as(Publishable::class)->publishedAt();
             $modified = $object->updated();
         }
-        $path = $object->has(Routable::class) ? (string) $object->get('path') : null;
+        $path = $at ?? ($object->has(Routable::class) ? (string) $object->get('path') : null);
 
         return $this->make(
             $title !== '' ? $title : $this->site->name(),

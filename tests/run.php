@@ -1578,8 +1578,8 @@ test('DisplayRenderer: sources written as stored; settings cast, defaults for th
         return;
     }
     $renderer = $kernel->container()->get(\Campanella\Display\DisplayRenderer::class);
-    check($renderer->settings('cards', []) === ['count' => 5, 'columns' => 1, 'show_more' => true]);
-    check($renderer->settings('cards', ['count' => '3', 'columns' => 9, 'show_more' => '0', 'other' => 1]) === ['count' => 3, 'columns' => 1, 'show_more' => false], 'out of range: the default; unknown: left out');
+    check($renderer->settings('cards', []) === ['count' => 5, 'columns' => 1, 'show_more' => true, 'show_title' => false]);
+    check($renderer->settings('cards', ['count' => '3', 'columns' => 9, 'show_more' => '0', 'other' => 1]) === ['count' => 3, 'columns' => 1, 'show_more' => false, 'show_title' => false], 'out of range: the default; unknown: left out');
     check($renderer->settings('cards', ['count' => 'sok', 'columns' => 1000])['count'] === 5);
     check($renderer->settings('navigation', ['style' => 'diagonal'])['style'] === 'horizontal', 'a choice not offered: the default');
     check($renderer->settings('link', ['text' => str_repeat('a', 101)])['text'] === null, 'too long: none');
@@ -2256,6 +2256,54 @@ test('Kernel: a page\'s components in the admin (0.3.5): its layout, the three s
     $objects->delete($system, $page);
     $objects->delete($system, $article);
     $objects->delete($system, $site);
+});
+
+test('Kernel: a page assembled from components as the front page (0.3.5): at /, its own path leads there, the latest content while it is a draft; the sitemap', function () use ($displayKernel, $newUser): void {
+    $kernel = $displayKernel();
+    if ($kernel === null) {
+        return;
+    }
+    $c = $kernel->container();
+    $system = Actor::system();
+    $objects = $c->get(ObjectService::class);
+    $components = $c->get(\Campanella\Display\ComponentService::class);
+    $settings = $c->get(\Campanella\Settings\Settings::class);
+    $site = $c->get(\Campanella\Site\SiteSettings::class);
+    $clear = static fn () => $settings->set(array_fill_keys(array_map(static fn (string $k): string => 'site.' . $k, \Campanella\Site\SiteSettings::KEYS), null) + ['layout.enabled' => null]);
+    $clear();
+
+    $page = $objects->create($system, 'page', ['title' => 'Címlap teszt', 'path' => '/cimlap-teszt', 'body' => '<p>A címlap saját szövege</p>'], publish: true);
+    $article = $objects->create($system, 'article', ['title' => 'Címlap cikk', 'path' => '/cimlap-cikk', 'body' => 'x'], publish: true);
+    $box = $components->create($system, ['title' => 'Címlap kereső', 'machine_name' => 'cimlap_teszt_kereso'], 'system:search', 'search_box', [], $page);
+    $components->place($system, $box, 'content');
+
+    throws(\Campanella\Model\ValidationException::class, fn () => $site->save(['name' => 'Teszt', 'front_page' => (string) $article->id()]));
+    throws(\Campanella\Model\ValidationException::class, fn () => $site->save(['name' => 'Teszt', 'front_page' => 'x']));
+    $before = $kernel->handle(new Request('GET', '/'))->body;
+    check(str_contains($before, 'result--frontpage') && !str_contains($before, 'A címlap saját szövege'), 'the latest content by default');
+    $site->save(['name' => 'Teszt', 'front_page' => (string) $page->id(), 'url' => 'https://pelda.hu', 'indexing' => '1']);
+    check($site->frontPage() === (int) $page->id());
+
+    $settings->set(['layout.enabled' => '1']);
+    try {
+        $front = $kernel->handle(new Request('GET', '/'));
+        check($front->status === 200 && str_contains($front->body, 'A címlap saját szövege') && str_contains($front->body, 'display-search-box') && !str_contains($front->body, 'result--frontpage'), 'the page at /');
+        check(str_contains($front->body, '<link rel="canonical" href="https://pelda.hu/">') && !str_contains($front->body, '<time datetime'), 'its canonical address is /, no date');
+        $own = $kernel->handle(new Request('GET', '/cimlap-teszt', ['x' => '1']));
+        check($own->status === 301 && ($own->headers['Location'] ?? '') === '/?x=1', 'its own path leads to /: ' . ($own->headers['Location'] ?? ''));
+        $sitemap = $kernel->handle(new Request('GET', '/sitemap.xml'))->body;
+        check(str_contains($sitemap, '<loc>https://pelda.hu/</loc>') && !str_contains($sitemap, 'cimlap-teszt'), 'the sitemap lists it at / only');
+
+        // A draft as the front page: visitors get the latest content, an editor the page.
+        $objects->unpublish($system, $page);
+        check(str_contains($kernel->handle(new Request('GET', '/'))->body, 'result--frontpage'), 'a draft: the latest content');
+
+    } finally {
+        $clear();
+    }
+    $objects->delete($system, $page);
+    $objects->delete($system, $article);
+    check($site->frontPage() === null || str_contains($kernel->handle(new Request('GET', '/'))->body, 'result--frontpage'), 'a deleted front page: the latest content');
 });
 
 /** For testing: a provider whose prefix the core's already has. */
@@ -5547,6 +5595,15 @@ test('Kernel: the site settings page, for administrators', function () use ($new
     $system = $send('GET', '/admin/system');
     check(str_contains($system->body, 'Webhely') && str_contains($system->body, 'https://pelda.hu'), 'the System page shows the address');
 
+    // The front page (since 0.3.5): the pages assembled from components are offered.
+    $objectService = $container->get(\Campanella\Service\ObjectService::class);
+    $composed = $objectService->create(Actor::system(), 'page', ['title' => 'Beállítási címlap', 'path' => '/beallitasi-cimlap', 'body' => 'x']);
+    $page = $send('GET', '/admin/system/settings');
+    check(preg_match('#name="front_page".*<option value="' . $composed->id() . '">Beállítási címlap \(/beallitasi-cimlap\) · piszkozat</option>#s', $page->body) === 1, 'the front page choice');
+    $chosen = $send('POST', '/admin/system/settings', ['_csrf' => $csrfOf($page), 'name' => 'Beállított webhely', 'url' => 'https://pelda.hu/', 'front_page' => (string) $composed->id()] + $form);
+    check($chosen->status === 303 && $settings->get('site.front_page') === (string) $composed->id(), 'saved');
+    $objectService->delete(Actor::system(), $composed);
+
     $settings->set(array_fill_keys(array_map(static fn (string $k): string => 'site.' . $k, \Campanella\Site\SiteSettings::KEYS), null));
     putenv('CAMPANELLA_DB_PREFIX');
 });
@@ -8804,6 +8861,9 @@ test('Seed (0.3.0): the events Blueprint, its list and events, made once; the ma
     check(str_contains($filtered->body, 'Jazz a pincében') && !str_contains($filtered->body, 'Történelmi séta'), 'filtered');
     $front = (new \Campanella\Core\Kernel($root))->handle(new Request('GET', '/', ip: '198.51.100.42'))->body;
     check(str_contains($front, 'href="/esemenyek"'), 'in the main menu');
+    // Since 0.3.5 the front page is a page assembled from components.
+    check(str_contains($front, 'Ez a Campanella példawebhelyének címlapja') && str_contains($front, 'display-cards__title">Friss hírek') && str_contains($front, 'display-cards__title">Közelgő események') && str_contains($front, '<aside'), 'the sample front page');
+    check((new \Campanella\Core\Kernel($root))->handle(new Request('GET', '/udvozlunk', ip: '198.51.100.43'))->status === 301, 'its own path leads to /');
     // Since 0.3.4 the menu is the header's component, the one the installation made with the built-in links, filled by seed.
     check(preg_match('#region--navigation.*menu--main.*Kezdőlap.*Hírek.*Események.*Kategóriák.*Rólunk#s', $front) === 1 && !str_contains($front, '>Főoldal</a>'), 'the sample menu in place of the built-in links');
 

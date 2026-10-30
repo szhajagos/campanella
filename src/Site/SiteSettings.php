@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Campanella\Site;
 
+use Campanella\Capability\Composed;
 use Campanella\Capability\MediaFile;
 use Campanella\Http\Request;
 use Campanella\I18n\Message;
@@ -21,6 +22,8 @@ use Campanella\Settings\Settings;
  *                Open Graph, sitemap.xml); empty: not set, those are left out
  *   share_image  the image (an image object's ID) shown when a page is shared
  *   indexing     whether search engines may index the site
+ *   front_page   the page shown at `/` (since 0.3.5): an object assembled from components
+ *                (Composed); empty: the latest content, as before
  *
  * A setting saved in the admin wins; one never saved comes from the `site` section
  * of the configuration file (config/app.php, config/local.php). The other keys of
@@ -31,7 +34,7 @@ final class SiteSettings
     public const string PREFIX = 'site.';
 
     /** The settings edited in the admin. */
-    public const array KEYS = ['name', 'slogan', 'description', 'url', 'share_image', 'indexing', 'privacy_url'];
+    public const array KEYS = ['name', 'slogan', 'description', 'url', 'share_image', 'indexing', 'privacy_url', 'front_page'];
 
     /** The longest values (characters). */
     public const array MAX_LENGTH = ['name' => 100, 'slogan' => 200, 'description' => 300, 'url' => 255, 'privacy_url' => 255];
@@ -85,6 +88,17 @@ final class SiteSettings
     public function shareImage(): ?int
     {
         $id = $this->values()['share_image'];
+
+        return is_int($id) ? $id : null;
+    }
+
+    /**
+     * The front page's object ID (since 0.3.5): a page assembled from components shown at `/`;
+     * null: the latest content.
+     */
+    public function frontPage(): ?int
+    {
+        $id = $this->values()['front_page'];
 
         return is_int($id) ? $id : null;
     }
@@ -150,7 +164,7 @@ final class SiteSettings
     {
         $values = [];
         $errors = [];
-        foreach (['name', 'slogan', 'description', 'url', 'share_image', 'privacy_url'] as $key) {
+        foreach (['name', 'slogan', 'description', 'url', 'share_image', 'privacy_url', 'front_page'] as $key) {
             if (!mb_check_encoding($input[$key] ?? '', 'UTF-8')) {
                 $errors[$key] = new Message('validation.invalid_encoding');
                 $input[$key] = '';
@@ -184,6 +198,12 @@ final class SiteSettings
             $errors['privacy_url'] ??= new Message('settings.invalid_privacy_url');
         }
         $values['privacy_url'] = $privacy;
+        // The front page (since 0.3.5): a page assembled from components, or none.
+        $front = trim($input['front_page'] ?? '');
+        if ($front !== '' && (!ctype_digit($front) || !$this->isComposed((int) $front))) {
+            $errors['front_page'] ??= new Message('settings.invalid_front_page');
+        }
+        $values['front_page'] = $front;
 
         if ($errors !== []) {
             throw new ValidationException($errors);
@@ -306,10 +326,20 @@ final class SiteSettings
         return $object !== null && $object->has(MediaFile::class);
     }
 
+    private function isComposed(int $id): bool
+    {
+        if ($this->repository === null) {
+            return true;
+        }
+        $object = $this->repository->find($id);
+
+        return $object !== null && $object->has(Composed::class);
+    }
+
     private static function typed(string $key, mixed $value): mixed
     {
         return match ($key) {
-            'share_image' => is_int($value) || (is_string($value) && ctype_digit($value)) ? (int) $value : null,
+            'share_image', 'front_page' => is_int($value) || (is_string($value) && ctype_digit($value)) ? (int) $value : null,
             'indexing' => $value === null ? true : filter_var($value, FILTER_VALIDATE_BOOL),
             'url' => self::normalizeUrl(is_string($value) ? $value : '') ?? '',
             'privacy_url' => is_string($value) && self::isPrivacyUrl(trim($value)) ? trim($value) : '',

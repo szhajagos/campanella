@@ -55,6 +55,7 @@ error page can still show the site's name.
 | `share_image` | ?int | An image object's ID, shown when a page without an image is shared |
 | `indexing` | bool | Whether search engines may index the site (default: yes) |
 | `privacy_url` | string | The privacy notice's address (since 0.1.5): a path of the site (`/adatkezeles`) or an `http(s)` URL; `''`: none. The contact form links to it |
+| `front_page` | ?int | Since 0.3.5: the page shown at `/`, an object assembled from components (`Composed`); null: the latest content, as before ([below](#the-front-page)) |
 
 A value saved in the admin wins; one never saved comes from the `site` section
 of the configuration file:
@@ -77,7 +78,7 @@ unchanged.
 | Method | |
 |---|---|
 | `values(): array` | Every value, typed, plus the configuration file's other keys |
-| `name(): string`, `url(): string`, `shareImage(): ?int`, `indexing(): bool`, `privacyUrl(): string` | One value |
+| `name(): string`, `url(): string`, `shareImage(): ?int`, `indexing(): bool`, `privacyUrl(): string`, `frontPage(): ?int` (since 0.3.5) | One value |
 | `SiteSettings::isPrivacyUrl(string $value): bool` | Whether a privacy notice's address is usable: `''`, a safe site path (not `//…`), or an `http(s)` URL without spaces, quotes or backslashes (so never `javascript:`) |
 | `absolute(string $path): ?string` | A site path as an absolute URL on the site's address (`/hirek` → `https://example.hu/hirek`), or null while the address is not set. Characters outside URL syntax (accented letters, spaces, `%`) are percent-encoded |
 | `save(array $input): void` | Validates and saves all keys; throws `ValidationException` (`name`, `slogan`, `description`, `url`, `share_image`) |
@@ -142,7 +143,7 @@ list's page: the list's own).
 
 | Method | |
 |---|---|
-| `forObject(CampanellaObject $object): PageMeta` | An object's own page (`ObjectController`) |
+| `forObject(CampanellaObject $object, ?string $at = null): PageMeta` | An object's own page (`ObjectController`); at another path (`$at`, since 0.3.5: the front page, `/`), that is its canonical address |
 | `forPath(string $path, string $title = '', int $page = 1): PageMeta` | A list or another page at a path (`QueryController`); a page above 1 is in the canonical URL (`?page=2`) |
 | `imageInHtml(string $html): ?CampanellaObject` | The first uploaded image of an HTML text (an image object of this site) |
 | `MetaBuilder::excerpt(string $text, int $length = 160): string` | A text shortened at a word boundary, with an ellipsis |
@@ -243,6 +244,19 @@ request would end in 404, never in the admin; the query is kept
 
 The admin pages already send `X-Robots-Tag: noindex, nofollow`. Since 0.1.1
 the login page and every error page send `X-Robots-Tag: noindex` too.
+
+## The front page
+
+*Since 0.3.5.* The front page (`/`) shows the latest content (the `frontpage`
+query of `config/routes.php`), unless the settings name a page assembled from
+components (`front_page`, chosen under *System → Site settings*, *Front page*).
+Then the Kernel gives `/` to `ObjectController` with that object (the
+`front` parameter): its own layout, its own components, its text without its
+date, its canonical address `/`. Its own path answers 301 to `/` (with the
+query), and the sitemap lists it at `/` only. While the visitor may not see it
+(a draft, a restricted page) or it is gone, `/` shows the latest content, as
+before; `save()` refuses an object that is not `Composed`
+(`settings.invalid_front_page`). The sample content (`seed`) makes one.
 
 ## The Site settings page (`SettingsPage`)
 

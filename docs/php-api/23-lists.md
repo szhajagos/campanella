@@ -115,7 +115,9 @@ never queried.
 `__construct(array $stored, BlueprintRegistry $blueprints)`; `find(string $name):
 ?ListDefinition`, `all(): array<string, ListDefinition>`, `errors():
 array<string, string>`: a stored list that does not pass (e.g. its field is not
-queryable any more) is left out, with the reason.
+queryable any more) is left out, with the reason. `loadStored(array $stored): void`
+(since 0.3.5) adds or replaces stored definitions, e.g. a list saved in the same
+run (the sample content's).
 
 ## The page: ListController
 

@@ -27,6 +27,8 @@ final class CardsDisplay extends Display
             new Field('count', FieldType::Integer, required: true, default: 5, label: 'display.setting.count'),
             new Field('columns', FieldType::Integer, required: true, default: 1, label: 'display.setting.columns'),
             new Field('show_more', FieldType::Boolean, required: true, default: true, label: 'display.setting.show_more'),
+            // Since 0.3.5: the list's title above the cards.
+            new Field('show_title', FieldType::Boolean, required: true, default: false, label: 'display.setting.show_list_title'),
         ];
     }
 

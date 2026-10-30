@@ -20,7 +20,9 @@ use Campanella\Query\QueryEngine;
 use Campanella\Query\ResultSet;
 use Campanella\Relation\RelationLoader;
 use Campanella\Site\MetaBuilder;
+use Campanella\Site\SiteSettings;
 use Campanella\View\Presentation;
+use Closure;
 
 /**
  * The own page of a Routable object (Full rendering).
@@ -41,17 +43,37 @@ final class ObjectController implements Controller
         private readonly RelationLoader $relations,
         private readonly ?MetaBuilder $meta = null,
         private readonly ?CurrentPage $page = null,
+        private readonly ?SiteSettings $site = null,
+        /** @var (Closure(Request, Actor): Response)|null The front page when it shows no object (the latest content) */
+        private readonly ?Closure $latest = null,
     ) {
     }
 
     #[\Override]
     public function handle(Request $request, RouteMatch $route, Actor $actor): Response
     {
-        $path = Routable::normalize((string) ($route->params['path'] ?? $request->path));
+        $front = $this->site?->frontPage();
+        $atFront = ($route->params['front'] ?? false) === true;
+        if ($atFront) {
+            // The front page (since 0.3.5): a page assembled from components, at `/`. If it is
+            // gone, or the visitor may not see it (e.g. a draft), the latest content, as before.
+            $object = $front === null ? null : $this->queries->first(Query::objects()->where('id', '=', $front)->having(Routable::class), $actor);
+            if ($object === null) {
+                return $this->latest !== null ? ($this->latest)($request, $actor) : throw HttpException::notFound();
+            }
+        } else {
+            $path = Routable::normalize((string) ($route->params['path'] ?? $request->path));
 
-        // The query is access-aware: an object that is not visible is simply not found (404).
-        $object = $this->queries->first(Query::objects()->where('path', '=', $path), $actor)
-            ?? throw HttpException::notFound();
+            // The query is access-aware: an object that is not visible is simply not found (404).
+            $object = $this->queries->first(Query::objects()->where('path', '=', $path), $actor)
+                ?? throw HttpException::notFound();
+            // The front page's own path leads to `/`, so it has one address.
+            if ($front !== null && (int) $object->id() === $front) {
+                $query = http_build_query($request->query);
+
+                return Response::redirect($request->basePath . '/' . ($query !== '' ? '?' . $query : ''), 301);
+            }
+        }
         $this->relations->resolve([$object], $actor);
         // The page's object, for the `current` source and the breadcrumbs (since 0.3.3).
         $this->page?->set($object);
@@ -83,7 +105,8 @@ final class ObjectController implements Controller
             'breadcrumbs' => $breadcrumbs,
             'children' => $children,
             // The page's description, canonical URL and Open Graph data (since 0.1.1).
-            'meta' => $this->meta?->forObject($object),
+            'meta' => $this->meta?->forObject($object, $atFront ? '/' : null),
+            'front' => $atFront,
         ]));
     }
 }

@@ -10,7 +10,7 @@ backward-incompatible.
 
 ## [Unreleased]
 
-**Pages assembled from components, parts 1–2.** The fourth step towards 0.4.0.
+**Pages assembled from components, parts 1–3.** The fourth step towards 0.4.0.
 
 ### Added
 
@@ -32,6 +32,15 @@ backward-incompatible.
   page's own component's form and delete page lead back to the page. The
   Components list says whose page a component is; the Regions page lists the
   site's only.
+- **The front page** can be a page assembled from components (*System → Site
+  settings*, *Front page*; `SiteSettings::frontPage()`): shown at `/` with its
+  components, its canonical address `/`, its own path leading there (301), in the
+  sitemap at `/` only; while it is a draft, the latest content, as before (the
+  default, and what the upgrade keeps).
+- The sample content's front page (`seed`): a page with a sidebar, the latest
+  news and the upcoming events as cards, a contact box.
+- Settings of the displays: `full` gets `show_date`, `cards` `show_title`;
+  `render_object()` takes a display's settings; `ListRegistry::loadStored()`.
 
 ### Changed
 

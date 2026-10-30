@@ -22,7 +22,11 @@ final class FullDisplay extends Display
     #[\Override]
     public static function settings(): array
     {
-        return [new Field('show_title', FieldType::Boolean, required: true, default: true, label: 'display.setting.show_title')];
+        return [
+            new Field('show_title', FieldType::Boolean, required: true, default: true, label: 'display.setting.show_title'),
+            // Since 0.3.5 (the front page leaves it out).
+            new Field('show_date', FieldType::Boolean, required: true, default: true, label: 'display.setting.show_date'),
+        ];
     }
 
     #[\Override]

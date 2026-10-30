@@ -1,5 +1,6 @@
 {# The cards display (since 0.3.3): a list's objects with the teaser display; settings.columns, settings.show_more (the list's page). #}
 <div class="display-cards{{ list ? ' result--' ~ list.name }}">
+    {%- if (settings.show_title ?? false) and list %}<h2 class="h4 mb-3 display-cards__title">{{ list.title }}</h2>{% endif %}
     {%- if items is empty %}
         <p class="empty text-body-secondary">{{ t('content.empty') }}</p>
     {%- elseif settings.columns > 1 %}

@@ -212,15 +212,17 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
     /**
      * An object in a mode: the display of that name if there is one that can show it (full,
      * teaser; since 0.3.3), else the object's template for the mode (object/<blueprint>--<mode>,
-     * object/<mode>), as before.
+     * object/<mode>), as before. Since 0.3.5 with the display's settings (e.g. `{show_date: false}`).
+     *
+     * @param array<string, mixed> $settings
      */
-    public function renderObject(CampanellaObject $object, string $mode = Presentation::TEASER): string
+    public function renderObject(CampanellaObject $object, string $mode = Presentation::TEASER, array $settings = []): string
     {
         if ($this->displays !== null && $this->displayContext !== null) {
             $renderer = ($this->displays)();
             $subject = Subject::object($object);
             if ($renderer->registry()->accepts($mode, $subject)) {
-                return $renderer->render($mode, $subject, [], ($this->displayContext)());
+                return $renderer->render($mode, $subject, $settings, ($this->displayContext)());
             }
         }
 

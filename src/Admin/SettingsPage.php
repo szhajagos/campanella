@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace Campanella\Admin;
 
 use Campanella\Access\Actor;
+use Campanella\Capability\Composed;
 use Campanella\Capability\MediaFile;
+use Campanella\Capability\Publishable;
+use Campanella\Capability\Routable;
 use Campanella\Http\Flash;
 use Campanella\Http\Request;
 use Campanella\Http\Response;
@@ -26,6 +29,9 @@ final class SettingsPage
 {
     /** The most images offered as the share image (the newest ones; an image picker comes later). */
     public const int MAX_IMAGES = 100;
+
+    /** The most pages offered as the front page (since 0.3.5). */
+    public const int MAX_PAGES = 200;
 
     public function __construct(
         private readonly SiteSettings $site,
@@ -49,11 +55,13 @@ final class SettingsPage
             'share_image' => (string) ($values['share_image'] ?? ''),
             'indexing' => (bool) $values['indexing'],
             'privacy_url' => (string) $values['privacy_url'],
+            'front_page' => (string) ($values['front_page'] ?? ''),
         ];
         $context = [
             'title' => 'settings.title',
             'origin' => SiteSettings::originOf($request),
             'images' => $this->images($actor, $form['share_image']),
+            'pages' => $this->composedPages($actor),
             'max' => SiteSettings::MAX_LENGTH,
             'errors' => [],
         ];
@@ -62,7 +70,7 @@ final class SettingsPage
         }
 
         $input = [];
-        foreach (['name', 'slogan', 'description', 'url', 'share_image', 'privacy_url'] as $key) {
+        foreach (['name', 'slogan', 'description', 'url', 'share_image', 'privacy_url', 'front_page'] as $key) {
             $input[$key] = $request->postString($key);
         }
         $input['indexing'] = $request->postString('indexing') === '1' ? '1' : '0';
@@ -105,6 +113,26 @@ final class SettingsPage
             'width' => is_int($image->get('width')) ? $image->get('width') : null,
             'height' => is_int($image->get('height')) ? $image->get('height') : null,
         ], $images);
+    }
+
+    /**
+     * The pages that can be the front page (since 0.3.5): those assembled from components, by title.
+     *
+     * @return list<array{id: int, title: string, path: string, published: bool}>
+     */
+    private function composedPages(Actor $actor): array
+    {
+        $pages = $this->queries->execute(
+            Query::objects()->having(Composed::class, Routable::class)->orderBy('title')->limit(self::MAX_PAGES),
+            $actor,
+        )->items;
+
+        return array_map(static fn ($page): array => [
+            'id' => (int) $page->id(),
+            'title' => (string) $page->get('title'),
+            'path' => (string) $page->get('path'),
+            'published' => !$page->has(Publishable::class) || $page->as(Publishable::class)->isPublished(new \DateTimeImmutable()),
+        ], $pages);
     }
 
     private static function status(Response $response, int $status): Response

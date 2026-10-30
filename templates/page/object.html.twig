@@ -14,7 +14,8 @@
         </nav>
     {% endif %}
 
-    {{ render_object(object, 'full') }}
+    {#- The front page (since 0.3.5) without its date. #}
+    {{ render_object(object, 'full', (front ?? false) ? {show_date: false} : {}) }}
 
     {% if children %}
         <nav class="object-children mt-4" aria-label="{{ t('content.children') }}">

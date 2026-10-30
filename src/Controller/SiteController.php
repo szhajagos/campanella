@@ -103,6 +103,10 @@ final class SiteController implements Controller
         if ($take > 0) {
             $result = $this->queries->execute($objects->offset($skip)->limit($take), Actor::anonymous());
             foreach ($result as $object) {
+                // The front page (since 0.3.5) is at `/`, among the lists; its own path leads there.
+                if ((int) $object->id() === $this->site->frontPage()) {
+                    continue;
+                }
                 $entries[] = [
                     'loc' => (string) $this->site->absolute((string) $object->get('path')),
                     'lastmod' => $object->updated()->format(DATE_ATOM),

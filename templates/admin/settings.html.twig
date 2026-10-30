@@ -82,6 +82,19 @@
                 </section>
 
                 <section class="card card-body mb-4">
+                    <h2 class="h6 mb-3">{{ t('settings.group.front_page') }}</h2>
+                    <label for="settings-front_page" class="form-label fw-semibold">{{ t('settings.front_page') }}</label>
+                    <select class="form-select{{ _self.invalid(errors, 'front_page') }}" id="settings-front_page" name="front_page"{{ _self.described(errors, 'front_page') }}>
+                        <option value="">{{ t('settings.front_page_latest') }}</option>
+                        {% for p in pages %}
+                            <option value="{{ p.id }}"{{ form.front_page == p.id ~ '' ? ' selected' }}>{{ p.title }} ({{ p.path }}){{ not p.published ? ' · ' ~ t('settings.front_page_draft') }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="form-text" id="settings-front_page-help">{{ t(pages ? 'settings.front_page_help' : 'settings.front_page_none') }}</div>
+                    {{ _self.error(errors, 'front_page') }}
+                </section>
+
+                <section class="card card-body mb-4">
                     <h2 class="h6 mb-3">{{ t('settings.group.privacy') }}</h2>
                     <label for="settings-privacy_url" class="form-label fw-semibold">{{ t('settings.privacy_url') }}</label>
                     <input type="text" class="form-control{{ _self.invalid(errors, 'privacy_url') }}" id="settings-privacy_url" name="privacy_url" value="{{ form.privacy_url ?? '' }}" maxlength="{{ max.privacy_url }}" placeholder="/adatkezeles" autocomplete="off"{{ _self.described(errors, 'privacy_url') }}>

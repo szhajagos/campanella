@@ -11,12 +11,15 @@ use Campanella\Core\Config;
 use Campanella\Core\Container;
 use Campanella\Html\PlainText;
 use Campanella\I18n\Translator;
+use Campanella\Lists\ListRegistry;
 use Campanella\Lists\ListStore;
 use Campanella\Model\BlueprintRegistry;
 use Campanella\Model\BlueprintStore;
 use Campanella\Model\CampanellaObject;
 use Campanella\Model\ObjectRepository;
 use Campanella\Layout\LayoutSetup;
+use Campanella\Site\SiteSettings;
+use Campanella\Display\ComponentService;
 use Campanella\Query\Query;
 use Campanella\Settings\Settings;
 use Campanella\Query\QueryEngine;
@@ -77,6 +80,22 @@ final class SeedCommand implements Command
         'columns' => ['kezdes', 'fajta', 'helyszin', 'belepo'],
         'path' => '/esemenyek',
         'filters' => ['fajta', 'kezdes', 'belepo'],
+    ];
+
+    /** The latest news (since 0.3.5), for the sample front page: a list without a page of its own. */
+    private const string NEWS = 'friss_hirek';
+
+    private const array NEWS_LIST = [
+        'version' => 1,
+        'title' => 'Friss hírek',
+        'blueprint' => 'article',
+        'conditions' => [],
+        'sort' => [['field' => 'published_at', 'dir' => 'desc']],
+        'per_page' => 3,
+        'display' => 'teaser',
+        'columns' => [],
+        'path' => null,
+        'filters' => [],
     ];
 
     /** The sample events: title, days from today, time, kind, place, price, text. */
@@ -160,6 +179,7 @@ final class SeedCommand implements Command
         $events = $this->events($container);
 
         $this->mainMenu($categories, $about, $events, $container->get(Settings::class));
+        $this->frontPage($container, $events, new DateTimeImmutable('-10 days', $utc));
 
         $output->line();
         $output->line($this->t->translate('cli.seed.done', [
@@ -220,6 +240,55 @@ final class SeedCommand implements Command
         $item('Rólunk', 30, '', $about);
 
         $this->output->success($this->t->translate('cli.seed.menu', ['count' => $count]));
+    }
+
+    /**
+     * The sample front page (since 0.3.5): a page assembled from components, in the layout with
+     * a sidebar: its text, the latest news as cards, the upcoming events, and a contact box
+     * beside them; then made the front page. Only once, and only where the site has no front
+     * page of its own and components are there (a page made before stays as it is).
+     *
+     * @param string|null $events The events list's path, if the site has it
+     */
+    private function frontPage(Container $container, ?string $events, DateTimeImmutable $at): void
+    {
+        $site = $container->get(SiteSettings::class);
+        $components = $container->get(ComponentService::class);
+        $page = $container->get(BlueprintRegistry::class)->find('page');
+        if ($site->frontPage() !== null || !$components->isAvailable() || $page === null || !isset($page->capabilities['composed'])
+            || $this->queries->first(Query::objects()->where('path', '=', '/udvozlunk'), $this->actor) !== null) {
+            return;
+        }
+        $lists = $container->get(ListStore::class);
+        if (!isset($lists->load()[self::NEWS])) {
+            $lists->save(self::NEWS, self::NEWS_LIST);
+        }
+        // The lists saved in this run (this one, the events'), so the components can show them.
+        $container->get(ListRegistry::class)->loadStored($lists->load());
+        $front = $this->ensure('page', 'Üdvözlünk', [
+            'body' => PlainText::toHtml("Ez a Campanella példawebhelyének címlapja: egy komponensekből összeállított oldal.\n\nAlatta a friss hírek és a közelgő események, mellette az elérhetőség; mindegyik egy komponens, amelyet az oldal szerkesztőjében (Az oldal komponensei) rendezhetsz át."),
+            'page_layout' => 'sidebar',
+        ], $at);
+        $contact = $this->service->create($this->actor, 'snippet', [
+            'title' => 'Elérhetőség',
+            'body' => PlainText::toHtml("Telefon: +36 1 234 5678\nE-mail: info@pelda.hu\n\nHétköznap 9 és 17 óra között."),
+        ]);
+        $own = [
+            ['Friss hírek', 'cimlap_hirek', 'list:' . self::NEWS, 'cards', ['count' => '3', 'columns' => '3', 'show_more' => '0', 'show_title' => '1'], 'content'],
+        ];
+        if ($events !== null) {
+            $own[] = ['Közelgő események', 'cimlap_esemenyek', 'list:' . self::EVENTS, 'cards', ['count' => '3', 'columns' => '1', 'show_more' => '1', 'show_title' => '1'], 'content'];
+        }
+        $own[] = ['Elérhetőség', 'cimlap_elerhetoseg', 'object:' . $contact->id(), 'info_box', [], 'sidebar'];
+        foreach ($own as $weight => [$title, $key, $source, $display, $settings, $region]) {
+            if ($components->find($key, $this->actor) !== null) {
+                continue;
+            }
+            $component = $components->create($this->actor, ['title' => $title, 'machine_name' => $key], $source, $display, $settings, $front);
+            $components->place($this->actor, $component, $region, null, $weight);
+        }
+        $container->get(Settings::class)->set([SiteSettings::PREFIX . 'front_page' => (string) $front->id()]);
+        $this->output->success($this->t->translate('cli.seed.front_page', ['path' => (string) $front->get('path')]));
     }
 
     /**
