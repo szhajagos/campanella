@@ -126,6 +126,43 @@ version: upgrade it to 0.3.x ([Upgrading](upgrading.md)).
   may see, and puts an apostrophe before a text a spreadsheet would run as a
   formula (`=`, `+`, `-`, `@`).
 
+## Review of the pages assembled from components, 0.3.5 (2026-10-30)
+
+What 0.3.5 added was checked as it was built, then reviewed as a whole, with
+tests for each point (`Security review (0.3.5)` and the part tests):
+
+- **Editors and a page's own components:** the policy lets editors make,
+  change and delete a component only while it is a page's own
+  (`component_page`); `ObjectService::update()` checks the object as changed
+  too, so an editor cannot make one the whole site's (or change a site's one by
+  attaching it). The admin's pages check it again: an editor reaches a page's
+  components through a page they may change, and a component's form and delete
+  page only for a page's own; the Components list, the Regions page and a new
+  site component answer 403. The form never takes `component_page`,
+  `component_region` or the other managed fields from the request.
+- **What an editor may see:** the steps of a component read an object source
+  with the actor's rights: an editor gets 404 for the display step of an
+  object they may not see (e.g. a contact message), its title is never shown,
+  and such a component is refused (found and fixed in the review: before, the
+  steps looked the object up without rights, which only administrators reached
+  until 0.3.5).
+- **Where they show:** only on their page (the page's id in a queryable field,
+  matched in the one query of a page's components), only in the regions meant
+  for a page; this is checked when saving and again when showing, so a
+  component saved past the services (the PHP API) does not reach the header
+  (added in the review). A deleted page's components are deleted with it; one
+  whose page is gone shows nowhere and is marked, never the whole site's.
+- **The page's layout and order:** only by POST with the CSRF token (a GET
+  answers 405), only a layout that exists, only the page's own components (404
+  for another's); the region asked for in the steps is checked against the
+  page's layout.
+- **The front page:** only a page assembled from components can be chosen; it
+  is read with the visitor's rights, so a draft or a restricted page shows the
+  latest content to those who may not see it. Its own path answers 301 to `/`
+  with its query encoded (never another host, no header injection); its
+  canonical address is `/`, and the sitemap lists it once.
+- **The sample content's lists** are saved by the command line only.
+
 ## Review of the regions and layouts, 0.3.4 (2026-10-29)
 
 What 0.3.4 added was checked as it was built, with tests for each point:

@@ -104,6 +104,7 @@ has schema version 12, 0.3.0 has 16, 0.3.1 has 17, 0.3.2 has 18, 0.3.3 has 19, 0
 | 18 | 0.3.2 | `cap_downloadable` and `cap_restricted` tables: the files to download, and who may see an object |
 | 19 | 0.3.3 | `cap_component` table: the components |
 | 20 | 0.3.4 | The `component_region` column of `cap_component`: a component's region |
+| 21 | 0.3.5 | The `component_page` column of `cap_component`: the page a component belongs to |
 
 With a table prefix, every name starts with it (`cc_lists`, …).
 
@@ -127,6 +128,7 @@ used only when an administrator starts using it.
 | 0.3.2 | Files to download (for everyone, for logged-in users, or for some roles), the media library, the editor's file picker, the site's own roles | Media → Files; `files`, `users.roles` |
 | 0.3.3 | Components (a source shown with a display), snippets, the displays in templates, the admin's menu in groups | Appearance → Components; Content → Snippet; `displays`, `display_sources` |
 | 0.3.4 | Layouts and regions: components placed in the regions, where they show; the header and footer as components; tokens in snippets | Appearance → Layouts, Appearance → Regions; `tokens` |
+| 0.3.5 | Pages assembled from components (their own layout and components, edited by editors too), a page as the front page | A page's form: *The page's components*; System → Site settings: *Front page* |
 
 New settings: `paths.search` (0.2.7, default `/search`), the search page's
 address, like the other `paths`; `paths.files` (0.3.2, default `/files`), the
@@ -184,6 +186,15 @@ without it, the core's own and `snippet`; [chapter 30](php-api/30-tokens.md)).
   `component` Blueprint was made in the admin keeps the old header.
 - **The site's pages send about 15 SQL statements more** (0.3.4), for the
   header's and footer's components ([testing](testing.md#the-layouts-since-034)).
+- **Pages are assembled from components** (0.3.5): the `page` Blueprint has
+  `Composed`, so every page (the old ones too) can have its own layout and
+  components, under *The page's components* on its form. **Editors** may make,
+  change, delete and order a page's own components; the whole site's stay with
+  the administrators. If you keep a `config/blueprints.php` of your own, add
+  `Composed` to `page` (and `Composed::class` to `capabilities` of `config/app.php`
+  if you keep your own copy of it).
+- **The front page can be a page** (0.3.5, *System → Site settings → Front
+  page*); until you choose one, it shows the latest content as before.
 
 ## Themes and custom code
 
@@ -361,6 +372,9 @@ in the [CHANGELOG](../CHANGELOG.md) list every change of the
 - [ ] The site's header shows its name, the main menu, the search and the
       buttons, the footer the year and the site's name; under *Appearance →
       Regions* they are in the Header, Navigation and Footer regions.
+- [ ] A page's form has *The page's components* (since 0.3.5), and `/` shows
+      what *System → Site settings → Front page* says (the latest content,
+      unless you chose a page).
 - [ ] Under *Appearance → Components* a new component (e.g. *The visitor* as
       *Log in/out button*) is saved, and listed without a *Not working* mark.
 - [ ] A file uploaded under *Media → Files* downloads from its address; one

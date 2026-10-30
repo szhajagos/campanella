@@ -2306,6 +2306,88 @@ test('Kernel: a page assembled from components as the front page (0.3.5): at /, 
     check($site->frontPage() === null || str_contains($kernel->handle(new Request('GET', '/'))->body, 'result--frontpage'), 'a deleted front page: the latest content');
 });
 
+test('Security review (0.3.5): editors and a page\'s components: what they may not see or reach; the front page\'s redirect', function () use ($displayKernel, $newUser): void {
+    $kernel = $displayKernel();
+    if ($kernel === null) {
+        return;
+    }
+    $c = $kernel->container();
+    $system = Actor::system();
+    $objects = $c->get(ObjectService::class);
+    $components = $c->get(\Campanella\Display\ComponentService::class);
+    $repository = $c->get(\Campanella\Model\ObjectRepository::class);
+    $settings = $c->get(\Campanella\Settings\Settings::class);
+    $storage = new ArraySessionStorage();
+    $c->set(Session::class, static fn () => new Session($storage));
+    $auth = $c->get(AuthService::class);
+    $send = function (string $method, string $path, array $post = []) use ($kernel, $storage) {
+        $storage->endRequest();
+        [$path, $query] = explode('?', $path, 2) + [1 => ''];
+        parse_str($query, $params);
+
+        return $kernel->handle(new Request($method, $path, query: $params, post: $post));
+    };
+    $csrfOf = static fn ($response): string => preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $response->body, $m) === 1 ? $m[1] : '';
+    $C = \Campanella\Capability\Component::class;
+
+    $page = $objects->create($system, 'page', ['title' => 'Biztonsági oldal', 'path' => '/biztonsagi-oldal', 'body' => 'x'], publish: true);
+    $other = $objects->create($system, 'page', ['title' => 'Másik biztonsági', 'path' => '/masik-biztonsagi', 'body' => 'y'], publish: true);
+    $secret = $objects->create($system, 'submission', ['title' => 'Titkos üzenet tárgya', 'sender_email' => 'a@example.hu', 'message' => 'm', 'form' => 'contact']);
+    $base = '/admin/page/' . $page->id() . '/components';
+
+    $editor = \Campanella\Auth\AuthService::actorFor($newUser('bizt-szerk@example.hu', 'bizt-jelszo-1', ['editor']));
+    $auth->login(new Request('GET', '/'), $repository->find((int) $editor->id));
+
+    // An object the editor may not see: neither its title nor a component of it.
+    $display = $send('GET', $base . '/new/display?source=object:' . $secret->id());
+    check($display->status === 404 && !str_contains($display->body, 'Titkos üzenet tárgya'), 'the display step of a hidden object');
+    $form = $send('GET', $base . '/new?source=object:' . $secret->id() . '&display=link');
+    check(!str_contains($form->body, 'Titkos üzenet tárgya'), 'the form does not name it');
+    $post = ['_csrf' => $csrfOf($form), 'source' => 'object:' . $secret->id(), 'display' => 'link', 'f' => ['title' => 'Titok', 'machine_name' => 'bizt_titok', 'visible_to' => 'public'], 'place' => ['region' => 'content']];
+    check($send('POST', $base . '/new', $post)->status === 422 && $components->find('bizt_titok', $system) === null, 'refused');
+
+    // The form does not take a component's page (or other managed fields) from the request.
+    $mine = $components->create($editor, ['title' => 'Saját', 'machine_name' => 'bizt_sajat'], 'system:search', 'search_box', [], $page);
+    $components->place($editor, $mine, 'content');
+    $edit = $send('GET', '/admin/component/' . $mine->id());
+    $send('POST', '/admin/component/' . $mine->id(), ['_csrf' => $csrfOf($edit), 'source' => 'system:search', 'display' => 'search_box', 'f' => ['title' => 'Saját', 'machine_name' => 'bizt_sajat', 'visible_to' => 'public', 'component_page' => (string) $other->id(), 'component_region' => 'header'], 'place' => ['region' => 'content']]);
+    $mine = $components->find('bizt_sajat', $system);
+    check($mine->as($C)->page() === (int) $page->id() && $mine->as($C)->region() === 'content', 'its page and region kept');
+
+    // Saved past the services into the header: still not shown there.
+    $raw = $objects->create($editor, 'component', ['title' => 'Fejlécbe', 'machine_name' => 'bizt_fejlec', 'component_source' => 'system:visitor', 'component_display' => 'login_form', 'component_region' => 'header', 'component_page' => (int) $page->id()]);
+    $settings->set(['layout.enabled' => '1']);
+    try {
+        $html = $kernel->handle(new Request('GET', '/biztonsagi-oldal'))->body;
+        check(!str_contains($html, 'display-login-form'), 'a page\'s own never in the header');
+    } finally {
+        $settings->set(['layout.enabled' => null]);
+    }
+
+    // The page's own layout and order only with the CSRF token, only by POST.
+    $send('POST', $base . '/layout', ['layout' => 'sidebar']);
+    check($repository->find((int) $page->id())->get('page_layout') === null, 'no layout without the token');
+    check($send('GET', $base . '/layout')->status === 405);
+    check($send('GET', '/admin/page/' . $other->id() . '/components/' . $mine->id() . '/move-up')->status === 405 && $send('POST', '/admin/page/' . $other->id() . '/components/' . $mine->id() . '/move-up', ['_csrf' => $csrfOf($edit)])->status === 404, 'not through another page');
+
+    // The front page's own path: to / only, its query encoded.
+    $settings->set(['site.front_page' => (string) $page->id()]);
+    try {
+        $moved = $kernel->handle(new Request('GET', '/biztonsagi-oldal', ['a' => "x\r\nSet-Cookie: y", 'b' => '//evil.example']));
+        $location = $moved->headers['Location'] ?? '';
+        check($moved->status === 301 && str_starts_with($location, '/?') && !str_contains($location, "\n") && !str_contains($location, '//evil'), $location);
+    } finally {
+        $settings->set(['site.front_page' => null]);
+    }
+
+    foreach ([$raw, $mine, $page, $other, $secret] as $o) {
+        $o = $repository->find((int) $o->id());
+        if ($o !== null) {
+            $objects->delete($system, $o);
+        }
+    }
+});
+
 /** For testing: a provider whose prefix the core's already has. */
 final class SecondSiteTokens implements \Campanella\Token\TokenProvider
 {

@@ -10,7 +10,7 @@ backward-incompatible.
 
 ## [Unreleased]
 
-**Pages assembled from components, parts 1–3.** The fourth step towards 0.4.0.
+**Pages assembled from components, parts 1–4a.** The fourth step towards 0.4.0.
 
 ### Added
 
@@ -41,6 +41,13 @@ backward-incompatible.
   news and the upcoming events as cards, a contact box.
 - Settings of the displays: `full` gets `show_date`, `cards` `show_title`;
   `render_object()` takes a display's settings; `ListRegistry::loadStored()`.
+
+### Security
+
+- The steps of a component read an object source with the actor's rights (an
+  editor could otherwise have learnt the title of an object they may not see);
+  a page's own component shows only in the regions meant for a page, however it
+  was saved ([the review](docs/security.md#review-of-the-pages-assembled-from-components-035-2026-10-30)).
 
 ### Changed
 

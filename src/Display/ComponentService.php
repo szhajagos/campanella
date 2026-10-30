@@ -256,6 +256,8 @@ final class ComponentService
         $query = Query::objects()->blueprint(self::BLUEPRINT)->where('component_region', 'IN', $regions)
             ->whereCondition($this->scope($page))->scope('by_weight')->limit(self::MAX_PLACED);
         $own = array_fill_keys($regions, []);
+        // A page's own only in the regions meant for a page, however it was saved (since 0.3.5).
+        $pageRegions = $this->layouts?->pageRegionNames();
         foreach ($this->queries->execute($query, $context->actor) as $component) {
             $definition = $component->as(Component::class);
             $region = (string) $definition->region();
@@ -264,7 +266,9 @@ final class ComponentService
             }
             if ($definition->page() !== null) {
                 // A page's own: only on its page, whatever its conditions.
-                $own[$region][] = $component;
+                if ($pageRegions === null || in_array($region, $pageRegions, true)) {
+                    $own[$region][] = $component;
+                }
             } elseif ($definition->conditions()->matches($context->path, $context->current)) {
                 $found[$region][] = $component;
             }

@@ -323,7 +323,9 @@ own path then leads to `/`); the sample content gets such a front page.
    apart (done).
 3. **The front page and the sample content** (part 3): the choice under Site
    settings, the redirect of its own path, the sample front page (done).
-4. **The upgrade, the guide, the release** (part 4).
+4. **The upgrade, the guide, the release** (part 4, in two, decided 2026-10-30):
+   **4a** the security review and the upgrade's docs (done); **4b** the guide's
+   chapter, the screenshots, the release.
 
 **Regions and layouts (0.3.4, agreed 2026-10-29; released 2026-10-29),** in four parts:
 

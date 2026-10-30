@@ -132,7 +132,7 @@ final class ComponentPages
         return match ($segments[1] ?? null) {
             null => $this->formPage($request, $actor, $render, $component),
             'source' => $this->sourcePage($request, $actor, $render, $component),
-            'display' => $this->displayPage($request, $render, $component),
+            'display' => $this->displayPage($request, $actor, $render, $component),
             'delete' => $component !== null ? $this->delete($request, $actor, $render, $component) : throw HttpException::notFound(),
             'move-up', 'move-down', 'unplace' => $component !== null && $this->layouts !== null ? $this->reorder($request, $actor, $component, $segments[1]) : throw HttpException::notFound(),
             default => throw HttpException::notFound(),
@@ -219,9 +219,12 @@ final class ComponentPages
      *
      * @param Closure(string, string, array<string, mixed>): Response $render
      */
-    private function displayPage(Request $request, Closure $render, ?CampanellaObject $component): Response
+    private function displayPage(Request $request, Actor $actor, Closure $render, ?CampanellaObject $component): Response
     {
         $source = $this->source($request);
+        if (!$this->mayUse($source, $actor)) {
+            throw HttpException::notFound();
+        }
         $offered = $this->components->displaysFor($source);
 
         return $render('component_display', $this->active(), [
@@ -231,7 +234,7 @@ final class ComponentPages
             'component' => $component,
             'base' => $this->base($component),
             'source' => $source,
-            'source_label' => $this->describe($source, null),
+            'source_label' => $this->describe($source, $actor),
             'displays' => array_map(static fn (DisplayDefinition $d): array => ['name' => $d->name, 'label' => $d->label], $offered),
         ]);
     }
@@ -274,6 +277,9 @@ final class ComponentPages
                 }
             } elseif ($this->layouts !== null) {
                 $errors += $this->components->placementProblems($place['region'] === '' ? null : $place['region'], $where);
+            }
+            if (!$this->mayUse($source, $actor)) {
+                $errors['source'] = new Message('components.source_missing');
             }
             if (!$this->csrf->isValid($request)) {
                 $errors['form'] = new Message('auth.form_expired');
@@ -569,8 +575,12 @@ final class ComponentPages
         return $values;
     }
 
-    /** A source in words, for the admin: "Main menu (Menu)", "The visitor", "List: Events". */
-    private function describe(string $source, ?Actor $actor): string
+    /**
+     * A source in words, for the admin: "Main menu (Menu)", "The visitor", "List: Events". An
+     * object only by the actor's rights (since 0.3.5: editors reach these pages too, and must
+     * not learn the title of an object they may not see).
+     */
+    private function describe(string $source, Actor $actor): string
     {
         try {
             [$kind, $name] = DisplayRenderer::parseSource($source);
@@ -581,9 +591,27 @@ final class ComponentPages
         return match ($kind) {
             'current' => 'components.source.current',
             'list' => $this->lists->find($name)->title ?? $source,
-            'object' => ($object = $this->repository->find((int) $name)) === null ? $source : self::titleOf($object) . ' (#' . $name . ')',
+            'object' => ($object = $this->visibleObject((int) $name, $actor)) === null ? $source : self::titleOf($object) . ' (#' . $name . ')',
             default => $this->displays->hasSource($name) ? $this->displays->source($name)->label() : $source,
         };
+    }
+
+    /** An object source, if the actor may see it (since 0.3.5). */
+    private function visibleObject(int $id, Actor $actor): ?CampanellaObject
+    {
+        return $this->queries->first(Query::objects()->where('id', '=', $id), $actor);
+    }
+
+    /** Whether the actor may see the source's object (a source that is not an object: yes). */
+    private function mayUse(string $source, Actor $actor): bool
+    {
+        try {
+            [$kind, $name] = DisplayRenderer::parseSource($source);
+        } catch (DisplayException) {
+            return true; // the source's own check says what is wrong
+        }
+
+        return $kind !== 'object' || $this->visibleObject((int) $name, $actor) !== null;
     }
 
     private function displayLabel(string $display): string
