@@ -10,11 +10,11 @@ backward-incompatible.
 
 ## [Unreleased]
 
-**Colour schemes and the colour mode, parts 1–3.** The fifth step towards 0.4.0.
+**Colour schemes and the colour mode, parts 1–4a.** The fifth step towards 0.4.0.
 
 ### Added
 
-- **Colour schemes** ([PHP API, chapter 30](docs/php-api/30-appearance.md)):
+- **Colour schemes** ([PHP API, chapter 31](docs/php-api/31-appearance.md)):
   the site's colours in a light and a dark variant, from a JSON file of the core
   (`templates/scheme/`: `default`, `forest`, `sea`) or of the theme
   (`ColorScheme`, `ColorSchemeRegistry`). Every colour is `#rrggbb`, and a
@@ -39,6 +39,13 @@ backward-incompatible.
   another site is refused. The sample content (`seed`) puts it at the end of
   the navigation, as a component.
 - `Vary: Cookie` on every HTML page, since a page depends on the visitor's mode.
+
+### Security
+
+- Reviewed as a whole ([the review](docs/security.md#review-of-the-colour-schemes-and-the-colour-mode-036-2026-10-30)):
+  a scheme's colours are `#rrggbb` only, and a theme's label is escaped; the
+  visitor's mode is one of three words, set only by a request from the site's
+  own pages, back to its own paths. Nothing needed fixing.
 
 ### Changed
 

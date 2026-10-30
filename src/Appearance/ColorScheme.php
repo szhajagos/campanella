@@ -167,7 +167,7 @@ final readonly class ColorScheme
      */
     public function css(): string
     {
-        $css = "/* Campanella colour scheme: {$this->name} (generated; see docs/php-api/30-appearance.md) */\n";
+        $css = "/* Campanella colour scheme: {$this->name} (generated; see docs/php-api/31-appearance.md) */\n";
         foreach (self::VARIANTS as $variant) {
             $colors = $variant === 'light' ? $this->light : $this->dark;
             $css .= ($variant === 'light' ? ":root,\n[data-bs-theme=\"light\"]" : '[data-bs-theme="dark"]') . " {\n";

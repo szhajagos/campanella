@@ -126,6 +126,45 @@ version: upgrade it to 0.3.x ([Upgrading](upgrading.md)).
   may see, and puts an apostrophe before a text a spreadsheet would run as a
   formula (`=`, `+`, `-`, `@`).
 
+## Review of the colour schemes and the colour mode, 0.3.6 (2026-10-30)
+
+What 0.3.6 added was checked as it was built, then reviewed as a whole, with
+tests for each point (`Security review (0.3.6)` and the part tests). The review
+found nothing to fix.
+
+- **A scheme's colours:** a scheme is a JSON file of the core or the theme;
+  every colour must be `#rrggbb`, so nothing else reaches the CSS (no
+  `expression()`, no `url()`, no closing brace), and its name is
+  `[a-z0-9_]` only, so it cannot leave the CSS comment it is written into. A
+  scheme that is not valid is left out; the admin shows the reason escaped. A
+  theme's label is text, escaped where it is shown. The admin's previews put
+  the checked colours into `style` attributes (the admin's CSP allows inline
+  styles; the site's does not, and the site gets the colours only as the
+  `/color-scheme.css` file, so its `style-src 'self'` stays).
+- **Readability** is a check too: a scheme whose text, links or buttons are
+  hard to read (below 4.5:1, WCAG 2.2 AA) is refused, so a theme cannot make
+  the site unreadable by mistake.
+- **Choosing them:** *Appearance → Colour schemes* is for the system roles only
+  (editors get 403), POST with the CSRF token, all or nothing, only a scheme
+  and a mode that exist.
+- **The visitor's mode:** the switch is a form without a session or a CSRF
+  token, so a page with it is the same for everyone and starts no session.
+  `POST /color-mode` takes only `auto`, `light` or `dark` (else 400, and no
+  cookie); the cookie is `HttpOnly`, `SameSite=Lax`, `Secure` on HTTPS, for the
+  site's path. A request from another site (`Sec-Fetch-Site` other than
+  `same-origin`, or an `Origin` of another host or `null`) is refused with 403,
+  so another site cannot change a visitor's mode; it leads back only to a path
+  of this site (`AuthController::safeTarget()`: no other host, no header
+  injection). A cookie that is not a known mode is ignored, and the mode is
+  written into a page only as one of the three words.
+- **Caches:** since a page depends on that cookie, every HTML page says
+  `Vary: Cookie`, so an intermediate cache never gives one visitor's mode to
+  another; the scheme's CSS does not depend on the visitor and is cached by its
+  version.
+
+Accepted: a browser that sends neither `Sec-Fetch-Site` nor `Origin` (none
+current) is let through; it can only change its own colour mode.
+
 ## Review of the pages assembled from components, 0.3.5 (2026-10-30)
 
 What 0.3.5 added was checked as it was built, then reviewed as a whole, with

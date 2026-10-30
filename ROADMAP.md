@@ -350,8 +350,8 @@ same.
    display (a form, so it works without JavaScript; a small script of our own
    on top), its cookie; the sample content's switch in the navigation (done).
 4. **The upgrade, the guide, the release** (part 4, in two): **4a** the security
-   review and the upgrade's docs; **4b** the guide's chapter, the screenshots,
-   the release.
+   review and the upgrade's docs (done); **4b** the guide's chapter, the
+   screenshots, the release.
 
 **Regions and layouts (0.3.4, agreed 2026-10-29; released 2026-10-29),** in four parts:
 

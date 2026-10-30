@@ -250,7 +250,7 @@ sets the default look through Bootstrap's CSS variables. The color mode (light o
 dark) follows the visitor's system setting (`public/assets/theme.js`, loaded in
 `<head>`; a file rather than an inline script since 0.0.5, so a
 Content-Security-Policy can forbid inline scripts). Since 0.3.6 the site's colour
-scheme and colour mode are chosen in the admin ([chapter 30](30-appearance.md)).
+scheme and colour mode are chosen in the admin ([chapter 31](31-appearance.md)).
 
 `base.html.twig` provides the blocks `title`, `stylesheets`, `content` and
 `scripts`.

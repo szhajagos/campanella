@@ -53,6 +53,15 @@ and a page's own layout (`page_layout`), the front page setting (`front_page`),
 the admin's `/admin/<blueprint>/<id>/components`, and the rule that editors may
 change a page's own components (and only those).
 
+What 0.3.6 adds is covered too: `ColorScheme`, `ColorSchemeRegistry` and
+`Appearance` with the methods [chapter 31](php-api/31-appearance.md) marks Public;
+a scheme's JSON (`version` 1 and its eight colours, with the readability rule),
+the CSS variables it sets (`--cc-accent`, `--cc-on-accent` …), the settings
+`appearance.scheme` and `appearance.color_mode`, the `campanella_color_mode`
+cookie, `/color-scheme.css`, `POST /color-mode`, `color_mode()`,
+`color_scheme_url()`, `visitor_color_mode()`, and the `color_mode_switch`
+display with its `show_labels` setting.
+
 A theme that overrides a template keeps working, because the template's name
 and variables stay. Its **markup** (HTML elements, CSS classes, texts) may
 change in a 0.3.x, so a theme that copied a core template should compare its

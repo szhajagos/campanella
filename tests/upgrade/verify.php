@@ -305,6 +305,15 @@ $pages = $queriesPages->count(\Campanella\Query\Query::objects()->blueprint('pag
 $composed = $queriesPages->count(\Campanella\Query\Query::objects()->blueprint('page')->having(\Campanella\Capability\Composed::class), Actor::system());
 $check($pages === $composed, "only {$composed} of the {$pages} old pages are assembled from components");
 
+// 13. Colour schemes (since 0.3.6): the site keeps its colours (the default scheme) and its
+// colour mode (the visitor's system setting); no colour mode switch is added.
+$appearance = $c->get(\Campanella\Appearance\Appearance::class);
+$check($appearance->scheme()->name === 'default' && $appearance->siteMode() === 'auto' && $appearance->registry()->errors() === [], 'not the default scheme and mode after the upgrade');
+$front = $get('/', null);
+$check(str_contains($front->body, '/color-scheme.css?v=' . $appearance->version()) && !str_contains($front->body, 'data-bs-theme=') && ($front->headers['Vary'] ?? '') === 'Cookie', 'the front page does not link the scheme, or has a fixed mode');
+$check(str_contains($get('/color-scheme.css', null)->body, '--cc-accent: #8a3b12;'), 'the scheme\'s CSS is not the look before');
+$check(!str_contains($front->body, 'display-color-mode-switch'), 'the upgrade added a colour mode switch');
+
 echo "{$checks} checks, upgraded from {$snapshot['version']} (schema {$snapshot['schema']}) to " . Version::CAMPANELLA . ' (schema ' . Version::SCHEMA . ").\n";
 if ($problems !== []) {
     echo count($problems) . " problems:\n";

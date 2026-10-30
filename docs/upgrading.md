@@ -1,14 +1,14 @@
 # Upgrading to 0.3.x
 
 This guide takes a site from **any 0.3.x, 0.2.x or 0.1.x version** to the newest
-0.3.x (now **0.3.5**) in one go. You do not need to install
+0.3.x (now **0.3.6**) in one go. You do not need to install
 the versions in between: one upgrade runs every change since your version. The
 CHANGELOG has the same steps version by version; this page puts them
 together, and adds what to check and how to go back.
 
 | Your version | What to do |
 |---|---|
-| 0.3.0 – 0.3.4 | Upload the new files and run the upgrade (steps 1–3): 0.3.1 adds the importers' tables (schema 17), 0.3.2 the files' (schema 18), 0.3.3 the components' (schema 19), 0.3.4 a component's region (schema 20) and makes the header and footer components, 0.3.5 a component's page (schema 21). Back up `var/files/` from 0.3.2 on (step 1). CI upgrades 0.3.0, 0.3.1, 0.3.2, 0.3.3 and 0.3.4 to the current code on every push. |
+| 0.3.0 – 0.3.5 | Upload the new files and run the upgrade (steps 1–3): 0.3.1 adds the importers' tables (schema 17), 0.3.2 the files' (schema 18), 0.3.3 the components' (schema 19), 0.3.4 a component's region (schema 20) and makes the header and footer components, 0.3.5 a component's page (schema 21); 0.3.6 changes no table. Back up `var/files/` from 0.3.2 on (step 1). CI upgrades 0.3.0, 0.3.1, 0.3.2, 0.3.3 and 0.3.4 to the current code on every push. |
 | 0.2.0 – 0.2.9 | This guide. Supported and tested: CI upgrades 0.2.0 and 0.2.9 to the current code on every push, the latter with a content model made in the admin (`tests/upgrade/run.sh`). |
 | 0.1.0 – 0.1.5 | This guide, and also [From 0.1.x](#from-01x) below. Tested too: CI upgrades 0.1.0 and 0.1.5. |
 | 0.0.6, 0.0.7 | The upgrade runs (their schema version, 6, is accepted), but it is not tested. Also read the [0.1.0 section of the CHANGELOG](../CHANGELOG.md#010--2026-10-08). |
@@ -129,6 +129,7 @@ used only when an administrator starts using it.
 | 0.3.3 | Components (a source shown with a display), snippets, the displays in templates, the admin's menu in groups | Appearance → Components; Content → Snippet; `displays`, `display_sources` |
 | 0.3.4 | Layouts and regions: components placed in the regions, where they show; the header and footer as components; tokens in snippets | Appearance → Layouts, Appearance → Regions; `tokens` |
 | 0.3.5 | Pages assembled from components (their own layout and components, edited by editors too), a page as the front page | A page's form: *The page's components*; System → Site settings: *Front page* |
+| 0.3.6 | Colour schemes (light and dark, checked for readability), the colour mode, the visitor's colour mode switch | Appearance → Colour schemes; the *Colour mode switch* display of *The visitor* |
 
 New settings: `paths.search` (0.2.7, default `/search`), the search page's
 address, like the other `paths`; `paths.files` (0.3.2, default `/files`), the
@@ -195,6 +196,16 @@ without it, the core's own and `snippet`; [chapter 30](php-api/30-tokens.md)).
   if you keep your own copy of it).
 - **The front page can be a page** (0.3.5, *System → Site settings → Front
   page*); until you choose one, it shows the latest content as before.
+- **Colour schemes** (0.3.6, *Appearance → Colour schemes*): until you choose
+  one, the site keeps its colours (the *Terracotta* scheme is the look before)
+  and follows the visitor's system setting for light or dark, as before. Only
+  the info box changes a little: its *light* style takes the scheme's surface
+  colour, its *primary* style a shade of the accent, instead of Bootstrap's grey
+  and blue. No colour mode switch is added: make a component of *The visitor*
+  shown as *Colour mode switch*, and place it (e.g. in the navigation).
+- **Every HTML page says `Vary: Cookie`** (0.3.6), since a page depends on the
+  visitor's colour mode cookie: a cache in front of the site (a CDN) keeps a
+  copy per cookie.
 
 ## Themes and custom code
 
@@ -222,6 +233,13 @@ PHP code that uses Campanella's classes.
   block is the layout's `main`); one that **overrides** it keeps its own header
   and footer until it adds `region()` ([chapter 29](php-api/29-layouts.md#existing-themes)).
   A theme can bring its own layouts in `templates/layout/`.
+- **The colour scheme's CSS** (0.3.6): a theme that **overrides**
+  `base.html.twig` keeps its own colours until it links `color_scheme_url()`
+  after `campanella.css` and sets `<html data-bs-theme="{{ color_mode() }}">`
+  ([chapter 31](php-api/31-appearance.md#existing-themes)); `theme.js` only
+  sets the mode when the page has none. A theme can bring its own schemes in
+  `templates/scheme/`. `campanella.css` uses `--cc-on-accent` for the text on
+  the accent (a theme's own copy can keep its colours).
 - For anything else, the **Changed** sections of 0.2.1–0.2.9 in the
   [CHANGELOG](../CHANGELOG.md) list every change of the
   [PHP API](php-api/README.md).
@@ -366,12 +384,14 @@ in the [CHANGELOG](../CHANGELOG.md) list every change of the
 
 ## Checklist after the upgrade
 
-- [ ] The System page (*System → Status*) shows 0.3.5, no error and no warning
+- [ ] The System page (*System → Status*) shows 0.3.6, no error and no warning
       about PHP's JIT, the tables match the definitions, and no page is missing
       from the search; under *Images and files* the files' folder is writable.
 - [ ] The site's header shows its name, the main menu, the search and the
       buttons, the footer the year and the site's name; under *Appearance →
       Regions* they are in the Header, Navigation and Footer regions.
+- [ ] *Appearance → Colour schemes* (since 0.3.6) shows the three schemes and
+      none left out; the site looks as before until you choose another.
 - [ ] A page's form has *The page's components* (since 0.3.5), and `/` shows
       what *System → Site settings → Front page* says (the latest content,
       unless you chose a page).

@@ -1,4 +1,4 @@
-# 30. Appearance: colour schemes and the colour mode
+# 31. Appearance: colour schemes and the colour mode
 
 *Since 0.3.6.* The site's **colour scheme** is its colours in a light and a dark
 variant, chosen among the schemes of the core and the theme. The **colour mode**

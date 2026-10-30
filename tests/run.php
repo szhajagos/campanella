@@ -2461,6 +2461,58 @@ test('The colour mode switch (0.3.6): a form without a session; POST /color-mode
     check(!isset($kernel->handle(new Request('GET', '/color-scheme.css'))->headers['Vary']), 'the CSS does not vary');
 });
 
+test('Security review (0.3.6): the colour schemes and the colour mode: nothing from the visitor or a theme reaches a page unchecked', function () use ($displayKernel, $newUser): void {
+    $kernel = $displayKernel();
+    if ($kernel === null) {
+        return;
+    }
+    $c = $kernel->container();
+    $settings = $c->get(\Campanella\Settings\Settings::class);
+    $settings->set(['appearance.scheme' => null, 'appearance.color_mode' => null]);
+    $A = \Campanella\Appearance\Appearance::class;
+
+    // A theme's scheme: its label is text (escaped), its name cannot leave the CSS comment.
+    $theme = sys_get_temp_dir() . '/campanella-secscheme-' . bin2hex(random_bytes(4));
+    mkdir($theme . '/scheme', 0777, true);
+    $json = json_decode((string) file_get_contents(dirname(__DIR__) . '/templates/scheme/forest.json'), true);
+    file_put_contents($theme . '/scheme/gonosz.json', (string) json_encode(['label' => '<script>alert(1)</script>'] + $json));
+    file_put_contents($theme . '/scheme/rossz.json', (string) json_encode(['light' => ['accent' => 'expression(alert(1))'] + $json['light']] + $json));
+    $c->set(\Campanella\Appearance\ColorSchemeRegistry::class, static fn () => new \Campanella\Appearance\ColorSchemeRegistry([dirname(__DIR__) . '/templates', $theme]));
+    throws(\InvalidArgumentException::class, static fn () => \Campanella\Appearance\ColorScheme::fromJson('x*/body', (string) json_encode($json)));
+
+    $storage = new ArraySessionStorage();
+    $c->set(Session::class, static fn () => new Session($storage));
+    $c->get(AuthService::class)->login(new Request('GET', '/'), $newUser('bizt-szin@example.hu', 'bizt-szin-jelszo-1', ['administrator']));
+    $storage->endRequest();
+    $page = $kernel->handle(new Request('GET', '/admin/system/color-schemes'));
+    check($page->status === 200 && str_contains($page->body, '&lt;script&gt;alert(1)&lt;/script&gt;') && !str_contains($page->body, '<script>alert(1)'), 'a theme\'s label is escaped');
+    check(!str_contains($page->body, 'expression(') && str_contains($page->body, 'Colour scheme rossz: light.accent must be a colour'), 'a colour that is not #rrggbb is left out, with the reason');
+    $storage->endRequest();
+    $kernel->handle(new Request('POST', '/logout'));
+    $c->set(Session::class, static fn () => new Session(new ArraySessionStorage()));
+
+    // The visitor's cookie: only a known mode, never written into the page as sent.
+    foreach (['dark" onload="alert(1)', "dark\r\nX: y", 'DARK', ''] as $bad) {
+        $body = $kernel->handle(new Request('GET', '/', cookies: [$A::COOKIE => $bad]))->body;
+        check(str_contains($body, '<html lang="hu">') && !str_contains($body, 'onload='), 'an unknown cookie is ignored: ' . json_encode($bad));
+    }
+
+    // POST /color-mode: back to a path of this site only, no header injection; same origin only.
+    $post = static fn (array $post, array $headers = []) => $kernel->handle(new Request('POST', '/color-mode', post: $post + ['mode' => 'dark'], headers: $headers));
+    foreach (["/hirek\r\nSet-Cookie: x=1", 'https://rossz.example/', '/\\rossz.example', 'javascript:alert(1)'] as $return) {
+        check(($post(['return' => $return])->headers['Location'] ?? '') === '/', 'back to the front page for ' . json_encode($return));
+    }
+    check($post([], ['sec-fetch-site' => 'same-site'])->status === 403, 'not from another subdomain either');
+    check($post([], ['origin' => 'null', 'host' => 'pelda.hu'])->status === 403, 'not from a sandboxed frame');
+    $cookie = $post(['mode' => "dark; Domain=rossz.example"])->headers['Set-Cookie'] ?? null;
+    check($cookie === null, 'the cookie\'s value is only a known mode');
+
+    array_map('unlink', glob($theme . '/scheme/*') ?: []);
+    rmdir($theme . '/scheme');
+    rmdir($theme);
+    $settings->set(['appearance.scheme' => null, 'appearance.color_mode' => null]);
+});
+
 test('Security review (0.3.5): editors and a page\'s components: what they may not see or reach; the front page\'s redirect', function () use ($displayKernel, $newUser): void {
     $kernel = $displayKernel();
     if ($kernel === null) {
