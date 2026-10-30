@@ -8,7 +8,7 @@ together, and adds what to check and how to go back.
 
 | Your version | What to do |
 |---|---|
-| 0.3.0 – 0.3.5 | Upload the new files and run the upgrade (steps 1–3): 0.3.1 adds the importers' tables (schema 17), 0.3.2 the files' (schema 18), 0.3.3 the components' (schema 19), 0.3.4 a component's region (schema 20) and makes the header and footer components, 0.3.5 a component's page (schema 21); 0.3.6 changes no table. Back up `var/files/` from 0.3.2 on (step 1). CI upgrades 0.3.0, 0.3.1, 0.3.2, 0.3.3 and 0.3.4 to the current code on every push. |
+| 0.3.0 – 0.3.5 | Upload the new files and run the upgrade (steps 1–3): 0.3.1 adds the importers' tables (schema 17), 0.3.2 the files' (schema 18), 0.3.3 the components' (schema 19), 0.3.4 a component's region (schema 20) and makes the header and footer components, 0.3.5 a component's page (schema 21); 0.3.6 changes no table. Back up `var/files/` from 0.3.2 on (step 1). CI upgrades 0.3.0, 0.3.1, 0.3.2, 0.3.3, 0.3.4 and 0.3.5 to the current code on every push. |
 | 0.2.0 – 0.2.9 | This guide. Supported and tested: CI upgrades 0.2.0 and 0.2.9 to the current code on every push, the latter with a content model made in the admin (`tests/upgrade/run.sh`). |
 | 0.1.0 – 0.1.5 | This guide, and also [From 0.1.x](#from-01x) below. Tested too: CI upgrades 0.1.0 and 0.1.5. |
 | 0.0.6, 0.0.7 | The upgrade runs (their schema version, 6, is accepted), but it is not tested. Also read the [0.1.0 section of the CHANGELOG](../CHANGELOG.md#010--2026-10-08). |
@@ -46,7 +46,7 @@ working. What 0.3.x promises is in [Compatibility](compatibility.md).
 
    Copy them off the server.
 
-2. **Upload the new version.** Use the release package (`campanella-0.3.5.zip`
+2. **Upload the new version.** Use the release package (`campanella-0.3.6.zip`
    from the GitHub release); it includes the `vendor/` folder. With git:
    `git pull`, then `composer install --no-dev`.
 

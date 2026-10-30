@@ -40,5 +40,7 @@ felületet mutatják, a Campanella saját példatartalmával.
     meg egy komponens, kis képernyőn.
 15. [Oldalak komponensekből](15-oldalak.md): egy oldal saját komponensei és
     elrendezése (a szerkesztőknek is), új komponens egy oldalnak, a címlap.
+16. [Színsémák és színmód](16-szinsemak.md): a webhely színei világos és sötét
+    változatban, a színmód, a látogató színmód-váltója.
 
 [English version](../en/README.md)

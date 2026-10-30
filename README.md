@@ -1,4 +1,4 @@
-# Campanella 0.3.5
+# Campanella 0.3.6
 
 [![CI](https://github.com/szhajagos/campanella/actions/workflows/ci.yml/badge.svg)](https://github.com/szhajagos/campanella/actions/workflows/ci.yml)
 
@@ -14,7 +14,18 @@ between sites by export and import; and what 0.3.x keeps is promised (see the
 [compatibility promise](docs/compatibility.md)). Plans are in the
 [ROADMAP](ROADMAP.md), changes in the [CHANGELOG](CHANGELOG.md).
 
-## What is new in 0.3.5
+## What is new in 0.3.6
+
+**Colour schemes and the colour mode** (Appearance → Colour schemes): the
+site's colours in a light and a dark variant, chosen among the schemes of the
+core (*Terracotta*, *Forest*, *Sea*) and the theme, each checked to be easy to
+read (WCAG 2.2 AA); the colour mode follows the visitor's system setting, or is
+always light or dark. A **colour mode switch** lets a visitor choose; it is a
+component, so it goes where the administrator places it (the sample content: in
+the navigation). The admin follows the mode, never the scheme
+([guide](docs/guide/en/16-colour-schemes.md), [PHP API](docs/php-api/31-appearance.md)).
+
+## What was new in 0.3.5
 
 **Pages assembled from components:** a page (e.g. About us) can have
 components of its own below and beside its text, e.g. the latest news as cards,

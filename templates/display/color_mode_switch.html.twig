@@ -1,11 +1,17 @@
-{# The colour mode switch display (since 0.3.6): the visitor's own mode, as the system, light or dark. A form (it works without JavaScript); color-mode.js changes the mode at once. #}
+{# The colour mode switch display (since 0.3.6): the visitor's own mode, as the system, light or dark (an icon each, its label for screen readers or beside it). A form (it works without JavaScript); color-mode.js changes the mode at once. #}
 {%- set current = visitor_color_mode() %}
 <form method="post" action="{{ url('/color-mode') }}" class="display-color-mode-switch d-inline-block m-0" data-color-mode-switch>
     <input type="hidden" name="return" value="{{ page_path }}">
     <div class="btn-group btn-group-sm" role="group" aria-label="{{ t('color_mode.label') }}">
-        {%- for mode, symbol in {auto: '◐', light: '☀', dark: '☾'} %}
+        {%- for mode in ['auto', 'light', 'dark'] %}
         <button type="submit" name="mode" value="{{ mode }}" class="btn btn-outline-secondary{{ current == mode ? ' active' }}" aria-pressed="{{ current == mode ? 'true' : 'false' }}"{% if not settings.show_labels %} title="{{ t('color_mode.' ~ mode) }}"{% endif %}>
-            <span aria-hidden="true">{{ symbol }}</span>{% if settings.show_labels %} {{ t('color_mode.' ~ mode) }}{% else %}<span class="visually-hidden">{{ t('color_mode.' ~ mode) }}</span>{% endif %}
+            {%- if mode == 'auto' -%}
+            <svg class="display-color-mode-switch__icon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.75a6.25 6.25 0 0 1 0 12.5z" fill="currentColor"/></svg>
+            {%- elseif mode == 'light' -%}
+            <svg class="display-color-mode-switch__icon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><circle cx="8" cy="8" r="3" fill="currentColor"/><g stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 1v1.5M8 13.5V15M1 8h1.5M13.5 8H15M3.05 3.05l1.06 1.06M11.89 11.89l1.06 1.06M3.05 12.95l1.06-1.06M11.89 4.11l1.06-1.06"/></g></svg>
+            {%- else -%}
+            <svg class="display-color-mode-switch__icon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M13.5 10.2A6 6 0 0 1 5.8 2.5a6 6 0 1 0 7.7 7.7z" fill="currentColor"/></svg>
+            {%- endif -%}{% if settings.show_labels %} {{ t('color_mode.' ~ mode) }}{% else %}<span class="visually-hidden">{{ t('color_mode.' ~ mode) }}</span>{% endif %}
         </button>
         {%- endfor %}
     </div>

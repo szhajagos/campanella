@@ -473,9 +473,18 @@ def components(page):
 
 
 def color_schemes(page):
-    """Chapter 16 (since 0.3.6): the colour schemes page."""
+    """Chapter 16 (since 0.3.6): the colour schemes page; the visitor's switch, and the site in dark (the visitor's own mode, the site's settings unchanged)."""
     page.goto(BASE + "/admin/system/color-schemes")
     shot(page, "color-schemes", full_page=True)
+    view = page.context.browser.new_context(viewport={"width": 1280, "height": 800}, locale=page.context.pages[0].evaluate("navigator.language"), color_scheme="light")
+    visitor = view.new_page()
+    visitor.goto(BASE + "/")
+    shot(visitor, "color-mode-switch", element=".site-header")
+    with visitor.expect_response(lambda r: r.url.endswith("/color-mode")):
+        visitor.locator(".display-color-mode-switch button[value=dark]").click()
+    visitor.goto(BASE + "/")
+    shot(visitor, "site-dark", full_page=True)
+    view.close()
 
 
 def layouts(page, article_url):

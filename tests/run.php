@@ -2438,7 +2438,7 @@ test('The colour mode switch (0.3.6): a form without a session; POST /color-mode
     check(str_contains($switch, 'value="auto" class="btn btn-outline-secondary active" aria-pressed="true"') && !str_contains($switch, '_csrf'), 'the current one pressed; no CSRF token');
     check(str_contains($switch, '<span class="visually-hidden">Sötét</span>') && str_contains($switch, '/assets/color-mode.js'), 'its labels for screen readers; the script');
     $labels = $renderer->show('system:visitor', 'color_mode_switch', ['show_labels' => true], new \Campanella\Display\DisplayContext(Actor::anonymous(), '/'));
-    check(str_contains($labels, '</span> Világos') && !str_contains($labels, 'visually-hidden">Világos'), 'with labels');
+    check(str_contains($labels, '</svg> Világos') && !str_contains($labels, 'visually-hidden">Világos'), 'with labels');
     check(!$c->get(Session::class)->isStarted(), 'no session for the switch');
 
     $post = static fn (array $post, array $headers = []) => $kernel->handle(new Request('POST', '/color-mode', post: $post, headers: $headers));

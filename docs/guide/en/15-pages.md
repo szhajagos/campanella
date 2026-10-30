@@ -81,4 +81,5 @@ For theme makers: [PHP API, chapter 29](../../php-api/29-layouts.md#a-pages-own-
 
 ---
 
-Previous: [14. Layouts and regions](14-layouts.md) · [Contents](README.md)
+Previous: [14. Layouts and regions](14-layouts.md) ·
+Next: [16. Colour schemes and the colour mode](16-colour-schemes.md) · [Contents](README.md)

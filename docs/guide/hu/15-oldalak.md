@@ -86,4 +86,4 @@ A témák készítőinek szóló leírás:
 ---
 
 Előző: [14. Elrendezések és régiók](14-elrendezesek.md) ·
-[Tartalomjegyzék](README.md)
+Következő: [16. Színsémák és színmód](16-szinsemak.md) · [Tartalomjegyzék](README.md)

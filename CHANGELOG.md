@@ -8,9 +8,20 @@ Sections: **Added**, **Changed**, **Deprecated**, **Removed**, **Fixed**,
 **Security**. In 0.x versions, items under **Changed** and **Removed** may be
 backward-incompatible.
 
-## [Unreleased]
+## [0.3.6] – 2026-10-31
 
-**Colour schemes and the colour mode, parts 1–4a.** The fifth step towards 0.4.0.
+**Colour schemes and the colour mode.** The fifth step towards 0.4.0: the
+site's colours in a light and a dark variant, chosen in the admin; the colour
+mode; the visitor's colour mode switch as a component.
+
+**Upgrading from 0.3.0–0.3.5:** upload the new files and run the upgrade
+(`php bin/campanella install`, or `/admin/upgrade`); no table changes. The site
+keeps its colours (the *Terracotta* scheme is the look before) and its mode (the
+visitor's system setting) until you choose others; only the info box takes the
+scheme's colours. No colour mode switch is added: make a component of *The
+visitor* as *Colour mode switch* if you want one. A theme that overrides
+`base.html.twig` keeps its own colours until it links `color_scheme_url()`. From
+older versions: see [docs/upgrading.md](docs/upgrading.md).
 
 ### Added
 
@@ -46,6 +57,13 @@ backward-incompatible.
   a scheme's colours are `#rrggbb` only, and a theme's label is escaped; the
   visitor's mode is one of three words, set only by a request from the site's
   own pages, back to its own paths. Nothing needed fixing.
+
+### Documentation and tests
+
+- The guide's chapter 16, *Colour schemes and the colour mode* (hu, en), with
+  screenshots of the colour schemes page, the switch and the site in dark mode.
+- The upgrade test checks that an upgraded site keeps its colours and mode, and
+  gets no switch. CI: the upgrade from 0.3.5 (MySQL 8.4).
 
 ### Changed
 

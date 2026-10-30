@@ -150,7 +150,8 @@ for a year (`immutable`), without it (or with an old one) for five minutes.
 `color_mode_switch` (`Campanella\Display\Builtin\ColorModeSwitchDisplay`) is a
 display of the visitor (`system:visitor`), so a component shows it where an
 administrator places it (the sample content: at the end of the navigation). It
-is a form of three buttons, *as the system* (◐), *light* (☀), *dark* (☾), the
+is a form of three buttons, *as the system* (a half-filled circle), *light* (a
+sun), *dark* (a moon), inline SVG icons in the text's colour, the
 current one pressed (`aria-pressed`); each has its label for screen readers, or
 beside the symbol (`show_labels`). `visitor_color_mode()` is the request's mode
 (`auto` included).

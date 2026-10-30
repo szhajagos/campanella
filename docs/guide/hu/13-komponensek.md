@@ -64,7 +64,7 @@ listához a kártyák és a táblázat.
 | **Navigáció** | Egy menüt vízszintes sávként vagy függőleges listaként. |
 | **Kép**, **Letöltés** | Egy képet, vagy egy fájl letöltési linkjét a típusával és a méretével. |
 | **Kártyák**, **Táblázat** | Egy lista első elemeit. |
-| **Belépés/kilépés gomb**, **Admin gomb**, **Belépési űrlap**, **Felhasználói kártya** | A látogatónak. |
+| **Belépés/kilépés gomb**, **Admin gomb**, **Belépési űrlap**, **Felhasználói kártya**, **Színmód-váltó** (16. fejezet) | A látogatónak. |
 | **Keresőmező**, **A webhely neve**, **Morzsamenü** | A keresést, a webhely nevét, az oldal helyét. |
 
 **3. A komponens adatai és a beállítások**

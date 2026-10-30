@@ -60,7 +60,7 @@ list.
 | **Navigation** | A menu as a horizontal bar or a vertical list. |
 | **Image**, **Download** | An image, or a file's download link with its type and size. |
 | **Cards**, **Table** | A list's first items. |
-| **Log in/out button**, **Admin button**, **Login form**, **User card** | For the visitor. |
+| **Log in/out button**, **Admin button**, **Login form**, **User card**, **Colour mode switch** (chapter 16) | For the visitor. |
 | **Search box**, **Site name**, **Breadcrumbs** | The search, the site's name, where the page is. |
 
 **3. The component's details and the settings**

@@ -150,6 +150,7 @@ jobs:
     # Since 0.3.4 also from 0.3.3; on every upgraded site the header and footer become
     # components and the layouts are on. Since 0.3.5 also from 0.3.4; on every upgraded
     # site the pages are assembled from components.
+    # Since 0.3.6 also from 0.3.5; an upgraded site keeps its colours and gets no switch.
     name: Upgrade from ${{ matrix.from }} – ${{ matrix.db }}
     if: inputs.tag == ''
     runs-on: ubuntu-latest
@@ -168,6 +169,7 @@ jobs:
           - { from: 'v0.3.2', db: 'mariadb:10.6' }
           - { from: 'v0.3.3', db: 'mysql:8.0' }
           - { from: 'v0.3.4', db: 'mariadb:11.4' }
+          - { from: 'v0.3.5', db: 'mysql:8.4' }
 
     services:
       db:

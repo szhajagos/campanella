@@ -41,5 +41,7 @@ interface, with Campanella's own sample content (which is in Hungarian).
     component shows, on small screens.
 15. [Pages assembled from components](15-pages.md): a page's own components and
     layout (for editors too), a new component for a page, the front page.
+16. [Colour schemes and the colour mode](16-colour-schemes.md): the site's colours
+    in a light and a dark variant, the colour mode, the visitor's colour mode switch.
 
 [Magyar változat](../hu/README.md)
