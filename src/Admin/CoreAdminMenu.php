@@ -75,7 +75,7 @@ final class CoreAdminMenu
         });
 
         // For the system roles: the appearance (the components, if any; the layouts, since
-        // 0.3.4), the structure, the system.
+        // 0.3.4; the colour schemes, since 0.3.6), the structure, the system.
         $menu->add(AdminMenu::APPEARANCE, static function (Actor $actor) use ($access, $components): array {
             if (!$access->allowsSystem($actor)) {
                 return [];
@@ -84,6 +84,7 @@ final class CoreAdminMenu
                 ? [new AdminMenuItem('component', 'components.title', 'component'), new AdminMenuItem('regions', 'regions.title', 'component/regions')]
                 : [];
             $items[] = new AdminMenuItem('layouts', 'layouts.title', 'system/layouts');
+            $items[] = new AdminMenuItem('color_schemes', 'appearance.title', ColorSchemePages::PATH);
 
             return $items;
         });

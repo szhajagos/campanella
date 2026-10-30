@@ -41,6 +41,7 @@ use Campanella\Admin\AdminAccess;
 use Campanella\Admin\BlueprintEditor;
 use Campanella\Admin\ListEditor;
 use Campanella\Admin\ImporterPages;
+use Campanella\Admin\ColorSchemePages;
 use Campanella\Admin\LayoutPages;
 use Campanella\Admin\PageComponentPages;
 use Campanella\Admin\AdminMenu;
@@ -1165,6 +1166,7 @@ final class Kernel
                 $c->get(Flash::class),
                 $c->get(AdminAccess::class),
             ) : null,
+            new ColorSchemePages($c->get(Appearance::class), $c->get(Csrf::class), $c->get(Flash::class), $c->get(AdminAccess::class)),
         ));
 
         $c->set(ObjectForm::class, static fn (Container $c): ObjectForm => new ObjectForm(

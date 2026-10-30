@@ -462,12 +462,12 @@ def test_contact_form(browser):
 ADMIN_PAGES = [
     "/admin", "/admin/article", "/admin/article/new", "/admin/page", "/admin/image", "/admin/file", "/admin/media", "/admin/menu",
     "/admin/user", "/admin/user/new", "/admin/profile", "/admin/submission",
-    "/admin/system", "/admin/system/settings", "/admin/system/mail",
+    "/admin/system", "/admin/system/settings", "/admin/system/mail", "/admin/system/color-schemes",
     "/admin/system/blueprints", "/admin/system/lists", "/admin/system/model", "/admin/system/redirects",
     "/admin/system/importers", "/admin/system/importers/new",
     "/admin/component", "/admin/component/new/source", "/admin/snippet/new",
 ]
-ADMINISTRATORS_ONLY = ["/admin/component", "/admin/component/new/source", "/admin/user", "/admin/user/new", "/admin/submission", "/admin/system", "/admin/system/settings", "/admin/system/mail",
+ADMINISTRATORS_ONLY = ["/admin/component", "/admin/component/new/source", "/admin/user", "/admin/user/new", "/admin/submission", "/admin/system", "/admin/system/settings", "/admin/system/mail", "/admin/system/color-schemes",
                        "/admin/system/blueprints", "/admin/system/lists", "/admin/system/model", "/admin/system/redirects",
                        "/admin/system/importers", "/admin/system/importers/new"]
 
@@ -713,6 +713,34 @@ def test_layouts(browser):
 
 
 
+def test_color_schemes(browser):
+    """The colour schemes page from the Appearance menu: a scheme and the dark mode saved, the site in them; set back (since 0.3.6)."""
+    context = new_context(browser)
+    page = context.new_page()
+    login(page, ADMIN)
+    page.goto(BASE + "/admin")
+    with page.expect_navigation():
+        page.click(".admin-sidebar a[href$='/admin/system/color-schemes']")
+    check(page.locator("#appearance-scheme-default").is_checked() and page.locator("#appearance-mode-auto").is_checked(), "not the defaults")
+    page.check("#appearance-scheme-sea")
+    page.check("#appearance-mode-dark")
+    with page.expect_navigation():
+        page.click("form.admin-form button[type=submit]")
+    check(page.locator(".alert-success").count() == 1 and page.locator("html[data-bs-theme=dark]").count() == 1, "saved, the admin in dark")
+    view = context.new_page()
+    view.goto(BASE + "/")
+    check(view.locator("html[data-bs-theme=dark]").count() == 1, "the site is not dark")
+    accent = view.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--cc-accent').trim()")
+    check(accent == "#7fbfe8", "the site is not in the sea scheme: " + accent)
+    # Back to the defaults, for the other tests.
+    page.check("#appearance-scheme-default")
+    page.check("#appearance-mode-auto")
+    with page.expect_navigation():
+        page.click("form.admin-form button[type=submit]")
+    check(page.locator("#appearance-scheme-default").is_checked(), "not set back")
+    context.close()
+
+
 def test_regions(browser):
     """A component put into a region from the Regions page, then taken out (since 0.3.4)."""
     context = new_context(browser)
@@ -787,6 +815,7 @@ TESTS = [
     test_regions,
     test_layouts,
     test_page_components,
+    test_color_schemes,
 ]
 
 

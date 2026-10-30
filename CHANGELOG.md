@@ -10,7 +10,7 @@ backward-incompatible.
 
 ## [Unreleased]
 
-**Colour schemes and the colour mode, part 1.** The fifth step towards 0.4.0.
+**Colour schemes and the colour mode, parts 1–2.** The fifth step towards 0.4.0.
 
 ### Added
 
@@ -28,6 +28,10 @@ backward-incompatible.
   follows the mode, never the scheme.
 - The scheme as CSS at `/color-scheme.css`, linked with its version and cached
   for a year; `color_mode()` and `color_scheme_url()` in templates.
+- **Appearance → Colour schemes** in the admin (`ColorSchemePages`,
+  `/admin/system/color-schemes`, for administrators): the schemes, each with a
+  preview of its light and dark variant, the colour mode; the schemes left out,
+  with the reason, and a warning if the saved one is gone.
 
 ### Changed
 

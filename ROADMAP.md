@@ -345,7 +345,7 @@ same.
    site's mode, the visitor's cookie); `/color-scheme.css` with its version;
    `data-bs-theme` set by the server (done).
 2. **The admin** (part 2): *Appearance → Colour schemes*: the scheme, the mode,
-   a preview of both variants; the schemes left out and why.
+   a preview of both variants; the schemes left out and why (done).
 3. **The switch and the sample content** (part 3): the `color_mode_switch`
    display (a form, so it works without JavaScript; a small script of our own
    on top), its cookie; the sample content's switch in the navigation.

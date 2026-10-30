@@ -65,6 +65,7 @@ What they check:
 | Search and importers | The header's search finds and marks the words, never a draft; an importer made in the admin, its trial, its run going on by itself to its end |
 | Components (since 0.3.3) | A component made in the three steps (a menu as navigation, for logged-in users): the Appearance group in the menu, a setting out of range refused, the saved one listed; an editor gets 403 on the components' pages |
 | Regions and layouts (since 0.3.4) | From the Appearance menu: a component added to the footer region on the Regions page, then taken out; the site's layout and a region's look saved on the Layouts page, and set back. The header is made of components on every page |
+| Colour schemes (since 0.3.6) | From the Appearance menu: a scheme and the dark mode saved; the admin and the site in dark, the site in the scheme's accent; set back |
 | A page's components (since 0.3.5) | An editor, from the About us page's form: only the regions meant for a page, a new component in the three steps (its region kept, no conditions), shown on that page only, then deleted |
 | Files (since 0.3.2) | Two files uploaded on the Files list, one for the logged-in users; the media library lists them; the editor's file picker links the selected text to one; a visitor downloads the public one (an attachment, with the download's CSP) and gets 404 for the other, which a logged-in editor can download |
 

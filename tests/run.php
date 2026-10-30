@@ -1764,7 +1764,7 @@ test('AdminMenu: the groups and their links, by who looks; a module\'s links', f
     $content = $items($full, 'content');
     check(in_array('article', $content, true) && in_array('snippet', $content, true) && !array_intersect(['user', 'submission', 'component', 'image', 'file'], $content), implode(',', $content));
     check($items($full, 'media') === ['media', 'image', 'file'] && $items($full, 'audience') === ['submission', 'user']);
-    check($items($full, 'appearance') === ['component', 'regions', 'layouts'] && $items($full, 'structure') === ['blueprints', 'capabilities', 'lists', 'model']);
+    check($items($full, 'appearance') === ['component', 'regions', 'layouts', 'color_schemes'] && $items($full, 'structure') === ['blueprints', 'capabilities', 'lists', 'model']);
     check($items($full, 'system') === ['system', 'settings', 'mail', 'importers', 'redirects']);
     check($names($menu->build($editor)) === ['content', 'media'], 'an editor sees the system groups: ' . implode(',', $names($menu->build($editor))));
 
@@ -5946,6 +5946,62 @@ test('Kernel: the regions page (Appearance → Regions): adding, ordering, takin
     foreach ([$a, $b, $d] as $component) {
         $c->get(ObjectService::class)->delete($system, $fresh($component));
     }
+});
+
+test('Kernel: the colour schemes page (Appearance → Colour schemes), for administrators', function () use ($newUser): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $container = $kernel->container();
+    if ($container->get(Connection::class)->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $settings = $container->get(\Campanella\Settings\Settings::class);
+    $clear = static fn () => $settings->set(['appearance.scheme' => null, 'appearance.color_mode' => null]);
+    $clear();
+    $storage = new ArraySessionStorage();
+    $container->set(Session::class, static fn () => new Session($storage));
+    $auth = $container->get(AuthService::class);
+    $send = function (string $method, string $path, array $post = []) use ($kernel, $storage) {
+        $storage->endRequest();
+
+        return $kernel->handle(new Request($method, $path, post: $post));
+    };
+    $csrfOf = static fn ($response): string => preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $response->body, $m) === 1 ? $m[1] : '';
+
+    $auth->login(new Request('GET', '/'), $newUser('szinezo-szerk@example.hu', 'szinezo-jelszo-1', ['editor']));
+    check($send('GET', '/admin/system/color-schemes')->status === 403, 'not for editors');
+    check(!str_contains($send('GET', '/admin')->body, 'href="/admin/system/color-schemes"'), 'not in an editor\'s menu');
+    $auth->login(new Request('GET', '/'), $newUser('szinezo@example.hu', 'szinezo-jelszo-1', ['administrator']));
+
+    $page = $send('GET', '/admin/system/color-schemes');
+    check($page->status === 200 && str_contains($page->body, 'href="/admin/system/color-schemes" aria-current="page">Színsémák</a>'), 'in the Appearance group');
+    check(str_contains($page->body, 'id="appearance-scheme-default" value="default" checked') && str_contains($page->body, 'Terrakotta (alap)') && str_contains($page->body, 'Erdő') && str_contains($page->body, 'Tenger'), 'the schemes, the site\'s chosen');
+    check(str_contains($page->body, 'id="appearance-mode-auto" value="auto" checked') && substr_count($page->body, 'class="admin-scheme-preview') === 6, 'the mode; a preview of each variant');
+    check(str_contains($page->body, 'background: #f8faf6; color: #1b1f1b;'), 'the preview in the scheme\'s colours');
+    check($send('GET', '/admin/system/color-schemes/nincs')->status === 404);
+
+    $form = ['_csrf' => $csrfOf($page), 'scheme' => 'forest', 'color_mode' => 'dark'];
+    check($send('POST', '/admin/system/color-schemes', ['_csrf' => 'x'] + $form)->status === 400 && $settings->get('appearance.scheme') === null, 'an expired form');
+    $bad = $send('POST', '/admin/system/color-schemes', ['scheme' => 'nincs', 'color_mode' => 'lila'] + $form);
+    $settings->reset();
+    check($bad->status === 422 && str_contains($bad->body, 'Nincs ilyen színséma.') && str_contains($bad->body, 'Ismeretlen színmód.') && $settings->get('appearance.scheme') === null, 'nothing saved with an error');
+    $done = $send('POST', '/admin/system/color-schemes', $form);
+    check($done->status === 303 && ($done->headers['Location'] ?? '') === '/admin/system/color-schemes');
+    $settings->reset();
+    check($settings->get('appearance.scheme') === 'forest' && $settings->get('appearance.color_mode') === 'dark', 'saved');
+    $again = $send('GET', '/admin/system/color-schemes');
+    check(str_contains($again->body, 'A színséma és a színmód mentve.') && str_contains($again->body, 'id="appearance-scheme-forest" value="forest" checked') && str_contains($again->body, 'id="appearance-mode-dark" value="dark" checked'), 'shown as saved');
+    check(str_contains($again->body, '<html lang="hu" data-bs-theme="dark">'), 'the admin follows the mode');
+
+    // A scheme no longer there (e.g. the theme changed): the default one, and a warning.
+    $settings->set(['appearance.scheme' => 'elveszett']);
+    $gone = $send('GET', '/admin/system/color-schemes');
+    check(str_contains($gone->body, 'id="appearance-missing"') && str_contains($gone->body, 'id="appearance-scheme-default" value="default" checked'), 'a missing scheme told');
+
+    $clear();
+    putenv('CAMPANELLA_DB_PREFIX');
 });
 
 test('Kernel: the layouts page (Appearance → Layouts), for administrators', function () use ($newUser): void {

@@ -14,8 +14,9 @@ neutral.
 | `Appearance` | **Public** | The site's scheme and colour mode, from the settings; the mode of a request |
 | `AppearanceTwigExtension` | Internal | `color_mode()` and `color_scheme_url()` in templates |
 | `AppearanceController` | Internal | The scheme as CSS, at `/color-scheme.css` |
+| `ColorSchemePages` | Internal | The admin's *Appearance → Colour schemes* page (`Campanella\Admin`) |
 
-All are in `Campanella\Appearance`.
+All are in `Campanella\Appearance`, except `ColorSchemePages`.
 
 ## A scheme: a JSON file
 
@@ -107,6 +108,15 @@ The settings (saved on *Appearance → Colour schemes*):
 | `version(): string` | The CSS's version (a hash of it), for its address |
 | `save(?string $scheme, ?string $mode): void` | Saves them (null keeps one); `ValidationException` with `scheme` or `color_mode` for an unknown one, and nothing is saved |
 | `registry(): ColorSchemeRegistry` | |
+
+### In the admin: ColorSchemePages
+
+*Appearance → Colour schemes* (`/admin/system/color-schemes`, for the system
+roles, like the layouts): the schemes, each with a preview of its light and dark
+variant in its own colours, the site's chosen; the colour mode; the schemes left
+out, with the reason; a warning if the saved scheme is gone (e.g. after changing
+the theme: the site uses the default one meanwhile). Saving is
+`Appearance::save()`'s: all or nothing, with the problems at their fields.
 
 ## In templates
 

@@ -13,6 +13,7 @@ use Campanella\Admin\BlueprintEditor;
 use Campanella\Admin\ListColumns;
 use Campanella\Admin\ListEditor;
 use Campanella\Admin\ImporterPages;
+use Campanella\Admin\ColorSchemePages;
 use Campanella\Admin\LayoutPages;
 use Campanella\Admin\PageComponentPages;
 use Campanella\Admin\AdminMenu;
@@ -155,6 +156,7 @@ final class AdminController implements Controller
         private readonly ?TokenRegistry $tokens = null,
         private readonly ?LayoutPages $layoutPages = null,
         private readonly ?PageComponentPages $pageComponents = null,
+        private readonly ?ColorSchemePages $colorSchemes = null,
     ) {
     }
 
@@ -285,6 +287,10 @@ final class AdminController implements Controller
         // The layouts (since 0.3.4).
         if (($segments[0] ?? null) === 'layouts' && $this->layoutPages !== null) {
             return $this->layoutPages->handle($request, array_slice($segments, 1), fn (string $template, string $active, array $context): Response => $this->render($template, $active, $context));
+        }
+        // The colour schemes (since 0.3.6).
+        if (($segments[0] ?? null) === 'color-schemes' && $this->colorSchemes !== null) {
+            return $this->colorSchemes->handle($request, array_slice($segments, 1), fn (string $template, string $active, array $context): Response => $this->render($template, $active, $context));
         }
         // The redirects (since 0.2.7).
         if (($segments[0] ?? null) === 'redirects' && $this->redirectPages !== null) {

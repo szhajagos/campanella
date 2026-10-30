@@ -1,0 +1,64 @@
+{% extends '@core/admin/base.html.twig' %}
+
+{% macro error(errors, name) %}{% if errors[name] ?? null %}<div class="invalid-feedback d-block" id="appearance-{{ name }}-error">{{ t(errors[name].key, errors[name].params) }}</div>{% endif %}{% endmacro %}
+
+{#- A scheme's variant in small: its colours are #rrggbb, checked when the scheme was read. #}
+{% macro preview(colors, label) %}
+    <div class="admin-scheme-preview rounded border p-2 flex-fill" style="background: {{ colors.background }}; color: {{ colors.text }}; border-color: {{ colors.border }} !important;">
+        <div class="small fw-semibold mb-1">{{ label }}</div>
+        <div class="small mb-2">{{ t('appearance.preview_text') }} <span style="color: {{ colors.accent }}; text-decoration: underline;">{{ t('appearance.preview_link') }}</span> <span style="color: {{ colors.muted }};">{{ t('appearance.preview_muted') }}</span></div>
+        <div class="d-flex gap-2 align-items-center">
+            <span class="rounded px-2 py-1 small" style="background: {{ colors.accent }}; color: {{ colors.on_accent }};">{{ t('appearance.preview_button') }}</span>
+            <span class="rounded px-2 py-1 small flex-fill" style="background: {{ colors.surface }};">{{ t('appearance.preview_box') }}</span>
+        </div>
+    </div>
+{% endmacro %}
+
+{% block content %}
+    <h1 class="h3 mb-2">{{ t('appearance.title') }}</h1>
+    <p class="text-body-secondary mb-4">{{ t('appearance.intro') }}</p>
+
+    {% if alert ?? null %}<div class="alert alert-danger" role="alert">{{ t(alert) }}</div>{% endif %}
+    {% if missing %}<div class="alert alert-warning" role="alert" id="appearance-missing">{{ t('appearance.missing', {name: missing}) }}</div>{% endif %}
+    {% for name, why in broken %}
+        <div class="alert alert-warning" role="alert">{{ t('appearance.broken', {name: name}) }} <code>{{ why }}</code></div>
+    {% endfor %}
+
+    <form method="post" action="{{ admin_url('system/color-schemes') }}" class="admin-form" novalidate>
+        {{ csrf_field() }}
+        <div class="row g-4">
+            <div class="col-xl-8">
+                <fieldset class="card card-body mb-4">
+                    <legend class="h6 mb-3">{{ t('appearance.scheme') }}</legend>
+                    {% for scheme in schemes %}
+                        <div class="form-check mb-3 admin-scheme">
+                            <input class="form-check-input" type="radio" name="scheme" id="appearance-scheme-{{ scheme.name }}" value="{{ scheme.name }}"{{ form.scheme == scheme.name ? ' checked' }}>
+                            <label class="form-check-label fw-semibold" for="appearance-scheme-{{ scheme.name }}">{{ t(scheme.label) }}</label>
+                            {% if scheme.origin == 'theme' %}<span class="badge text-bg-secondary ms-1">{{ t('layouts.from_theme') }}</span>{% endif %}
+                            <div class="d-flex flex-wrap gap-2 mt-2" aria-hidden="true">
+                                {{ _self.preview(scheme.light, t('appearance.mode.light')) }}
+                                {{ _self.preview(scheme.dark, t('appearance.mode.dark')) }}
+                            </div>
+                        </div>
+                    {% endfor %}
+                    {{ _self.error(errors, 'scheme') }}
+                </fieldset>
+            </div>
+            <div class="col-xl-4">
+                <fieldset class="card card-body mb-4">
+                    <legend class="h6 mb-3">{{ t('appearance.color_mode') }}</legend>
+                    {% for mode in modes %}
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="color_mode" id="appearance-mode-{{ mode }}" value="{{ mode }}"{{ form.color_mode == mode ? ' checked' }} aria-describedby="appearance-mode-{{ mode }}-help">
+                            <label class="form-check-label" for="appearance-mode-{{ mode }}">{{ t('appearance.mode.' ~ mode) }}</label>
+                            <div class="form-text mt-0" id="appearance-mode-{{ mode }}-help">{{ t('appearance.mode.' ~ mode ~ '_help') }}</div>
+                        </div>
+                    {% endfor %}
+                    {{ _self.error(errors, 'color_mode') }}
+                    <p class="form-text mb-0 mt-2">{{ t('appearance.admin_note') }}</p>
+                </fieldset>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">{{ t('appearance.save') }}</button>
+    </form>
+{% endblock %}

@@ -69,6 +69,7 @@ The `subpath` route parameter selects the page. Everything goes through the
 | `/admin/<blueprint>/<id>/components` … | A page's own components, for those who may change the page, editors too (since 0.3.5; `PageComponentPages`, [chapter 29](29-layouts.md#in-the-admin-pagecomponentpages)) |
 | `/admin/component/regions` | The regions of a layout with their components: adding, ordering, taking out (since 0.3.4; [chapter 28](28-displays.md#in-the-admin-componentpages)) |
 | `/admin/system/layouts` | The layouts: the site's, the Blueprints' own, the regions' looks on small screens (since 0.3.4; `LayoutPages`, [chapter 29](29-layouts.md#in-the-admin-layoutpages)) |
+| `/admin/system/color-schemes` | The colour schemes and the colour mode (since 0.3.6; `ColorSchemePages`, [chapter 30](30-appearance.md#in-the-admin-colorschemepages)) |
 
 | Constant | Value |
 |---|---|

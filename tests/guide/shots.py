@@ -472,6 +472,12 @@ def components(page):
     shot(page, "component-list")
 
 
+def color_schemes(page):
+    """Chapter 16 (since 0.3.6): the colour schemes page."""
+    page.goto(BASE + "/admin/system/color-schemes")
+    shot(page, "color-schemes", full_page=True)
+
+
 def layouts(page, article_url):
     """Chapter 14 (since 0.3.4): the layouts, a region's components, the contact box beside an article."""
     page.goto(BASE + "/admin/system/layouts")
@@ -894,6 +900,7 @@ def main():
         components(page)
         layouts(page, article_url)
         pages(page)
+        color_schemes(page)
         own_types(page, browser, article_url)
         importing(page)
         users(page, browser)
