@@ -386,7 +386,7 @@ def test_contact_form(browser):
     # Too fast (a bot): shown again with the values, nothing saved.
     page.goto(BASE + "/contact")
     fill_contact(page, "Gyors Gépelő", "gyors@example.test", "Gyors", "Túl gyorsan küldöm.")
-    page.click("form button[type=submit]")
+    page.click("main form button[type=submit]")
     page.wait_for_load_state("load")
     check(page.locator(".alert-success").count() == 0 and page.input_value("#contact-name") == "Gyors Gépelő",
           "a too quick sending: not shown again with its values")
@@ -396,7 +396,7 @@ def test_contact_form(browser):
     time.sleep(CONTACT_WAIT)
     fill_contact(page, "Robot", "robot@example.test", "Spam", "Vegyél tőlem.")
     page.eval_on_selector("input[name=website]", "e => e.value = 'http://spam.example'")
-    page.click("form button[type=submit]")
+    page.click("main form button[type=submit]")
     page.wait_for_load_state("load")
     check(page.locator(".alert-success").count() == 1, "the honeypot: the bot is not told 'sent'")
 
@@ -405,7 +405,7 @@ def test_contact_form(browser):
     time.sleep(CONTACT_WAIT)
     fill_contact(page, "Idegen Oldal", "idegen@example.test", "Idegen", "Más oldalról jövök.")
     page.eval_on_selector("form input[name=_csrf]", "e => e.remove()")
-    page.click("form button[type=submit]")
+    page.click("main form button[type=submit]")
     page.wait_for_load_state("load")
     check(page.locator(".alert-success").count() == 0, "a sending without a CSRF token was accepted")
     check("Más oldalról jövök." not in page.content(), "a sending without a CSRF token: its text is shown again")
@@ -415,7 +415,7 @@ def test_contact_form(browser):
     time.sleep(CONTACT_WAIT)
     markup = "<img src=x onerror=alert(1)><script>alert(2)</script>"
     fill_contact(page, "Teszt Elek", "teszt.elek@example.test", "Kérdés", "Jó napot!\nEgy kérdésem van. " + markup)
-    page.click("form button[type=submit]")
+    page.click("main form button[type=submit]")
     page.wait_for_load_state("load")
     check(page.locator(".alert-success").count() == 1, "a real message was not accepted")
 
@@ -741,6 +741,31 @@ def test_color_schemes(browser):
     context.close()
 
 
+def test_color_mode_switch(browser):
+    """A visitor's colour mode switch in the navigation: dark at once, kept on the next page; light without JavaScript too (since 0.3.6)."""
+    context = new_context(browser)
+    page = context.new_page()
+    page.emulate_media(color_scheme="light")
+    page.goto(BASE + "/hirek")
+    switch = page.locator(".region--navigation .display-color-mode-switch")
+    check(switch.count() == 1 and page.locator("html[data-bs-theme=light]").count() == 1, "the switch is not in the navigation")
+    with page.expect_response(lambda r: r.url.endswith("/color-mode")):
+        switch.locator("button[value=dark]").click()
+    check(page.url.endswith("/hirek") and page.locator("html[data-bs-theme=dark]").count() == 1, "not dark at once, or the page changed")
+    check(switch.locator("button[value=dark]").get_attribute("aria-pressed") == "true", "the dark button is not pressed")
+    page.goto(BASE + "/kategoriak")
+    check(page.locator("html[data-bs-theme=dark]").count() == 1 and page.locator(".display-color-mode-switch button[value=dark].active").count() == 1, "not kept on the next page")
+    context.close()
+
+    plain = browser.new_context(locale="hu-HU", java_script_enabled=False, color_scheme="dark", extra_http_headers={"X-Forwarded-For": "198.51.100.250"})
+    page = plain.new_page()
+    page.goto(BASE + "/hirek")
+    with page.expect_navigation():
+        page.locator(".display-color-mode-switch button[value=light]").click()
+    check(page.url.endswith("/hirek") and page.locator("html[data-bs-theme=light]").count() == 1, "without JavaScript: not light, or not back on the page")
+    plain.close()
+
+
 def test_regions(browser):
     """A component put into a region from the Regions page, then taken out (since 0.3.4)."""
     context = new_context(browser)
@@ -816,6 +841,7 @@ TESTS = [
     test_layouts,
     test_page_components,
     test_color_schemes,
+    test_color_mode_switch,
 ]
 
 

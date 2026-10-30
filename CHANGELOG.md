@@ -10,7 +10,7 @@ backward-incompatible.
 
 ## [Unreleased]
 
-**Colour schemes and the colour mode, parts 1–2.** The fifth step towards 0.4.0.
+**Colour schemes and the colour mode, parts 1–3.** The fifth step towards 0.4.0.
 
 ### Added
 
@@ -32,6 +32,13 @@ backward-incompatible.
   `/admin/system/color-schemes`, for administrators): the schemes, each with a
   preview of its light and dark variant, the colour mode; the schemes left out,
   with the reason, and a warning if the saved one is gone.
+- **The colour mode switch** (`color_mode_switch`, a display of the visitor):
+  as the system, light, dark; a form (`POST /color-mode`) that works without
+  JavaScript, `color-mode.js` on top changes the mode at once. The visitor's
+  choice is a cookie for a year: no session, no CSRF token, and a request from
+  another site is refused. The sample content (`seed`) puts it at the end of
+  the navigation, as a component.
+- `Vary: Cookie` on every HTML page, since a page depends on the visitor's mode.
 
 ### Changed
 

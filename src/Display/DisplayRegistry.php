@@ -33,6 +33,7 @@ final class DisplayRegistry
         Builtin\LoginFormDisplay::class,
         Builtin\UserCardDisplay::class,
         Builtin\SearchBoxDisplay::class,
+        Builtin\ColorModeSwitchDisplay::class,
         Builtin\BrandingDisplay::class,
         Builtin\BreadcrumbsDisplay::class,
     ];

@@ -348,7 +348,7 @@ same.
    a preview of both variants; the schemes left out and why (done).
 3. **The switch and the sample content** (part 3): the `color_mode_switch`
    display (a form, so it works without JavaScript; a small script of our own
-   on top), its cookie; the sample content's switch in the navigation.
+   on top), its cookie; the sample content's switch in the navigation (done).
 4. **The upgrade, the guide, the release** (part 4, in two): **4a** the security
    review and the upgrade's docs; **4b** the guide's chapter, the screenshots,
    the release.

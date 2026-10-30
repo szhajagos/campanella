@@ -180,6 +180,7 @@ final class SeedCommand implements Command
 
         $this->mainMenu($categories, $about, $events, $container->get(Settings::class));
         $this->frontPage($container, $events, new DateTimeImmutable('-10 days', $utc));
+        $this->colorModeSwitch($container);
 
         $output->line();
         $output->line($this->t->translate('cli.seed.done', [
@@ -240,6 +241,23 @@ final class SeedCommand implements Command
         $item('Rólunk', 30, '', $about);
 
         $this->output->success($this->t->translate('cli.seed.menu', ['count' => $count]));
+    }
+
+    /**
+     * The colour mode switch (since 0.3.6): a component in the navigation, at its end, so a
+     * visitor can choose light or dark; an administrator can move or delete it (Regions).
+     * Only once, and only where the layouts are on (the header is made of components).
+     */
+    private function colorModeSwitch(Container $container): void
+    {
+        $components = $container->get(ComponentService::class);
+        if (!$components->isAvailable() || $container->get(Settings::class)->get('layout.enabled') !== '1'
+            || $components->find('szinmod_valto', $this->actor) !== null) {
+            return;
+        }
+        $switch = $components->create($this->actor, ['title' => 'Színmód-váltó', 'machine_name' => 'szinmod_valto'], 'system:visitor', 'color_mode_switch', ['show_labels' => '0']);
+        $components->place($this->actor, $switch, 'navigation', null, $components->nextWeight('navigation', $this->actor));
+        $this->output->success($this->t->translate('cli.seed.color_mode_switch'));
     }
 
     /**

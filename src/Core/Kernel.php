@@ -211,7 +211,7 @@ final class Kernel
         } catch (\Throwable $e) {
             return (new SecurityHeaders())->apply($this->failure($e), $request);
         }
-        $response = $this->personal($this->noindex($this->dispatch($request)));
+        $response = $this->byCookie($this->personal($this->noindex($this->dispatch($request))));
         try {
             $response = $this->container()->get(SecurityHeaders::class)->apply($response, $request);
         } catch (\Throwable) {
@@ -283,6 +283,17 @@ final class Kernel
      * an intermediate cache (proxy, CDN) must not store it. Error pages too (since 0.1.5:
      * a theme may show a form, e.g. contact_form(), on every page, error pages included).
      */
+    /**
+     * A page depends on the visitor's colour mode cookie (since 0.3.6): an intermediate
+     * cache must not give one visitor's page to another (`Vary: Cookie`).
+     */
+    private function byCookie(Response $response): Response
+    {
+        $type = $response->headers['Content-Type'] ?? 'text/html';
+
+        return str_starts_with($type, 'text/html') && !isset($response->headers['Vary']) ? $response->withHeader('Vary', 'Cookie') : $response;
+    }
+
     private function personal(Response $response): Response
     {
         try {
@@ -1035,7 +1046,9 @@ final class Kernel
             // For search engines (since 0.1.1).
             $router->add('/robots.txt', 'site', ['action' => 'robots']);
             // The site's colour scheme as CSS (since 0.3.6).
-            $router->add(AppearanceController::PATH, 'appearance');
+            $router->add(AppearanceController::PATH, 'appearance', ['action' => 'css']);
+            // The visitor's own colour mode, from the switch (since 0.3.6).
+            $router->add(AppearanceController::MODE_PATH, 'appearance', ['action' => 'mode']);
             $router->add('/sitemap.xml', 'site', ['action' => 'sitemap']);
             // The lists made in the admin, at their paths, unless a route above has it (since 0.2.5).
             foreach ($c->get(ListRegistry::class)->all() as $list) {

@@ -280,6 +280,7 @@ cannot show the subject are a `DisplayException`.
 | `login_form` | `LoginFormDisplay` | the visitor | `show_reset`: the forgotten password's link (yes); nothing for a logged-in visitor |
 | `user_card` | `UserCardDisplay` | the visitor | the user's name, the admin and logout buttons; nothing for an anonymous visitor |
 | `search_box` | `SearchBoxDisplay` | the search | `placeholder` (`search.placeholder`) |
+| `color_mode_switch` | `ColorModeSwitchDisplay` | the visitor | `show_labels` beside the symbols (no); since 0.3.6, [chapter 30](30-appearance.md#the-colour-mode-switch) |
 | `branding` | `BrandingDisplay` | the site | `show_slogan` (yes) |
 | `breadcrumbs` | `BreadcrumbsDisplay` | the breadcrumbs | `show_home` (yes) |
 

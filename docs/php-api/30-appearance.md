@@ -13,7 +13,7 @@ neutral.
 | `ColorSchemeRegistry` | **Public** | The schemes there are, from the core's and the theme's `scheme/` folders |
 | `Appearance` | **Public** | The site's scheme and colour mode, from the settings; the mode of a request |
 | `AppearanceTwigExtension` | Internal | `color_mode()` and `color_scheme_url()` in templates |
-| `AppearanceController` | Internal | The scheme as CSS, at `/color-scheme.css` |
+| `AppearanceController` | Internal | The scheme as CSS, at `/color-scheme.css`; the visitor's mode, `POST /color-mode` |
 | `ColorSchemePages` | Internal | The admin's *Appearance → Colour schemes* page (`Campanella\Admin`) |
 
 All are in `Campanella\Appearance`, except `ColorSchemePages`.
@@ -144,6 +144,33 @@ Content-Security-Policy stays `style-src 'self'`. With its version it is cached
 for a year (`immutable`), without it (or with an old one) for five minutes.
 
 `admin/base.html.twig` uses `color_mode()` only.
+
+## The colour mode switch
+
+`color_mode_switch` (`Campanella\Display\Builtin\ColorModeSwitchDisplay`) is a
+display of the visitor (`system:visitor`), so a component shows it where an
+administrator places it (the sample content: at the end of the navigation). It
+is a form of three buttons, *as the system* (◐), *light* (☀), *dark* (☾), the
+current one pressed (`aria-pressed`); each has its label for screen readers, or
+beside the symbol (`show_labels`). `visitor_color_mode()` is the request's mode
+(`auto` included).
+
+The form is sent to `POST /color-mode` (`mode`, and `return`: the page's path).
+`AppearanceController` sets the `campanella_color_mode` cookie for a year
+(`Path` the site's, `SameSite=Lax`, `HttpOnly`, `Secure` on HTTPS) and leads back
+to the page (`303`; a path of this site only, else the front page). Neither a
+session nor a CSRF token is used, so a page with the switch is the same for
+every visitor and starts no session. The cookie can only change how the pages
+look; still, a request from another site is refused (`403`, by `Sec-Fetch-Site`,
+or `Origin` in older browsers), so another site cannot change a visitor's mode.
+An unknown mode is `400`, `GET` is `405`.
+
+`public/assets/color-mode.js` (loaded by the display, deferred) changes the mode
+at once, without loading the page again, and sends the form in the background;
+without JavaScript the form works alone.
+
+Since the pages depend on the cookie, the Kernel sends `Vary: Cookie` with every
+HTML page, so an intermediate cache never gives one visitor's mode to another.
 
 ## Existing themes
 

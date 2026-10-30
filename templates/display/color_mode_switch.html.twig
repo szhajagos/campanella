@@ -1,0 +1,13 @@
+{# The colour mode switch display (since 0.3.6): the visitor's own mode, as the system, light or dark. A form (it works without JavaScript); color-mode.js changes the mode at once. #}
+{%- set current = visitor_color_mode() %}
+<form method="post" action="{{ url('/color-mode') }}" class="display-color-mode-switch d-inline-block m-0" data-color-mode-switch>
+    <input type="hidden" name="return" value="{{ page_path }}">
+    <div class="btn-group btn-group-sm" role="group" aria-label="{{ t('color_mode.label') }}">
+        {%- for mode, symbol in {auto: '◐', light: '☀', dark: '☾'} %}
+        <button type="submit" name="mode" value="{{ mode }}" class="btn btn-outline-secondary{{ current == mode ? ' active' }}" aria-pressed="{{ current == mode ? 'true' : 'false' }}"{% if not settings.show_labels %} title="{{ t('color_mode.' ~ mode) }}"{% endif %}>
+            <span aria-hidden="true">{{ symbol }}</span>{% if settings.show_labels %} {{ t('color_mode.' ~ mode) }}{% else %}<span class="visually-hidden">{{ t('color_mode.' ~ mode) }}</span>{% endif %}
+        </button>
+        {%- endfor %}
+    </div>
+</form>
+<script src="{{ asset('color-mode.js') }}" defer></script>

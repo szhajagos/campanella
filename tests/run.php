@@ -1553,7 +1553,7 @@ test('DisplayRegistry: the core\'s displays, which one shows what; a display dec
     $image = $repository->create('image', ['title' => 'Kép']);
     check(in_array('image', $names($S::object($image)), true) && !in_array('download', $names($S::object($image)), true));
     check($names($S::list([$article])) === ['cards', 'table']);
-    check($names($S::system('visitor', Actor::anonymous())) === ['login_button', 'admin_button', 'login_form', 'user_card']);
+    check($names($S::system('visitor', Actor::anonymous())) === ['login_button', 'admin_button', 'login_form', 'user_card', 'color_mode_switch']);
     check($names($S::system('search', '')) === ['search_box'] && $names($S::system('site')) === ['branding'] && $names($S::system('breadcrumbs')) === ['breadcrumbs']);
     check(array_keys($registry->sources()) === ['visitor', 'search', 'site', 'breadcrumbs']);
     check(!$registry->accepts('nincs-ilyen', $S::object($article)), 'an unknown display accepts nothing');
@@ -1792,7 +1792,7 @@ test('Components: checked on save, administrators only, shown by machine name wi
     $snippet = $objects->create($system, 'snippet', ['title' => 'Nyitva', 'body' => '<p>Mindig</p>']);
 
     check(array_map(static fn ($d): string => $d->name, $components->displaysFor('object:' . $menu->id())) === ['full', 'teaser', 'info_box', 'navigation']);
-    check(array_map(static fn ($d): string => $d->name, $components->displaysFor('system:visitor')) === ['login_button', 'admin_button', 'login_form', 'user_card']);
+    check(array_map(static fn ($d): string => $d->name, $components->displaysFor('system:visitor')) === ['login_button', 'admin_button', 'login_form', 'user_card', 'color_mode_switch']);
     check(in_array('download', array_map(static fn ($d): string => $d->name, $components->displaysFor('current')), true), 'current: every display for objects');
     check($components->displaysFor('object:999999999') === [] && $components->displaysFor('list:nincs') === [] && $components->displaysFor('rossz') === []);
 
@@ -2419,6 +2419,46 @@ test('Appearance (0.3.6): the scheme and the colour mode saved; the visitor\'s o
 
     $appearance->save('default', 'auto');
     check($settings->get('appearance.scheme') === null && $settings->get('appearance.color_mode') === null, 'the defaults are not stored');
+});
+
+test('The colour mode switch (0.3.6): a form without a session; POST /color-mode sets the cookie for this site only; pages vary by it', function () use ($displayKernel): void {
+    $kernel = $displayKernel();
+    if ($kernel === null) {
+        return;
+    }
+    $c = $kernel->container();
+    $storage = new ArraySessionStorage();
+    $c->set(Session::class, static fn () => new Session($storage));
+    $c->get(\Campanella\Settings\Settings::class)->set(['appearance.color_mode' => null]);
+    $renderer = $c->get(\Campanella\Display\DisplayRenderer::class);
+    $A = \Campanella\Appearance\Appearance::class;
+
+    $switch = $renderer->show('system:visitor', 'color_mode_switch', [], new \Campanella\Display\DisplayContext(Actor::anonymous(), '/hirek'));
+    check(str_contains($switch, 'action="/color-mode"') && str_contains($switch, 'name="return" value="/hirek"') && substr_count($switch, 'name="mode"') === 3, 'a form of three buttons');
+    check(str_contains($switch, 'value="auto" class="btn btn-outline-secondary active" aria-pressed="true"') && !str_contains($switch, '_csrf'), 'the current one pressed; no CSRF token');
+    check(str_contains($switch, '<span class="visually-hidden">Sötét</span>') && str_contains($switch, '/assets/color-mode.js'), 'its labels for screen readers; the script');
+    $labels = $renderer->show('system:visitor', 'color_mode_switch', ['show_labels' => true], new \Campanella\Display\DisplayContext(Actor::anonymous(), '/'));
+    check(str_contains($labels, '</span> Világos') && !str_contains($labels, 'visually-hidden">Világos'), 'with labels');
+    check(!$c->get(Session::class)->isStarted(), 'no session for the switch');
+
+    $post = static fn (array $post, array $headers = []) => $kernel->handle(new Request('POST', '/color-mode', post: $post, headers: $headers));
+    $done = $post(['mode' => 'dark', 'return' => '/hirek'], ['sec-fetch-site' => 'same-origin']);
+    check($done->status === 303 && ($done->headers['Location'] ?? '') === '/hirek', 'back to the page');
+    check(($done->headers['Set-Cookie'] ?? '') === $A::COOKIE . '=dark; Path=/; Max-Age=31536000; SameSite=Lax; HttpOnly', $done->headers['Set-Cookie'] ?? 'no cookie');
+    check(!$c->get(Session::class)->isStarted(), 'still no session');
+    $secure = $kernel->handle((new Request('POST', '/color-mode', post: ['mode' => 'light']))->withClient('127.0.0.1', true));
+    check(str_ends_with($secure->headers['Set-Cookie'] ?? '', '; Secure') && ($secure->headers['Location'] ?? '') === '/', 'Secure on HTTPS; no return: the front page');
+    check(($post(['mode' => 'auto', 'return' => '//rossz.example/x'])->headers['Location'] ?? '') === '/', 'never to another site');
+
+    check($post(['mode' => 'dark'], ['sec-fetch-site' => 'cross-site'])->status === 403, 'from another site: refused');
+    check($post(['mode' => 'dark'], ['origin' => 'https://rossz.example', 'host' => 'pelda.hu'])->status === 403, 'another origin: refused');
+    check($post(['mode' => 'dark'], ['origin' => 'http://pelda.hu', 'host' => 'pelda.hu'])->status === 303, 'its own origin');
+    check($post(['mode' => 'lila'])->status === 400 && !isset($post(['mode' => 'lila'])->headers['Set-Cookie']), 'an unknown mode');
+    check($kernel->handle(new Request('GET', '/color-mode'))->status === 405, 'GET is not allowed');
+
+    $page = $kernel->handle(new Request('GET', '/', cookies: [$A::COOKIE => 'dark']));
+    check(str_contains($page->body, 'data-bs-theme="dark"') && ($page->headers['Vary'] ?? '') === 'Cookie', 'the page in the visitor\'s mode, varying by the cookie');
+    check(!isset($kernel->handle(new Request('GET', '/color-scheme.css'))->headers['Vary']), 'the CSS does not vary');
 });
 
 test('Security review (0.3.5): editors and a page\'s components: what they may not see or reach; the front page\'s redirect', function () use ($displayKernel, $newUser): void {
@@ -9119,6 +9159,8 @@ test('Seed (0.3.0): the events Blueprint, its list and events, made once; the ma
     check((new \Campanella\Core\Kernel($root))->handle(new Request('GET', '/udvozlunk', ip: '198.51.100.43'))->status === 301, 'its own path leads to /');
     // Since 0.3.4 the menu is the header's component, the one the installation made with the built-in links, filled by seed.
     check(preg_match('#region--navigation.*menu--main.*Kezdőlap.*Hírek.*Események.*Kategóriák.*Rólunk#s', $front) === 1 && !str_contains($front, '>Főoldal</a>'), 'the sample menu in place of the built-in links');
+    // Since 0.3.6 the navigation has a colour mode switch, a component (the last one there).
+    check(str_contains($front, 'class="display-color-mode-switch'), 'the colour mode switch');
 
     // Again: nothing made twice.
     putenv('CAMPANELLA_DB_PREFIX');
