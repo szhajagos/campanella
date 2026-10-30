@@ -37,14 +37,15 @@
                 <div class="mb-3">
                     <label for="place-region" class="form-label fw-semibold">{{ t('components.place_region') }}</label>
                     <select class="form-select{{ (pe.region ?? null) ? ' is-invalid' }}" id="place-region" name="place[region]" aria-describedby="place-region-help">
-                        <option value="">{{ t('components.place_none') }}</option>
+                        {% if not place.of_page %}<option value="">{{ t('components.place_none') }}</option>{% endif %}
                         {% for name, label in place.regions %}
                             <option value="{{ name }}"{{ place.region == name ? ' selected' }}>{{ t(label) }}</option>
                         {% endfor %}
                     </select>
-                    <div class="form-text" id="place-region-help">{{ t('components.place_region_help') }}</div>
+                    <div class="form-text" id="place-region-help">{{ t(place.of_page ? 'components.place_region_page_help' : 'components.place_region_help') }}</div>
                     {% if pe.region ?? null %}<div class="invalid-feedback d-block">{{ t(pe.region.key, pe.region.params) }}</div>{% endif %}
                 </div>
+                {% if not place.of_page %}
                 <p class="fw-semibold mb-1">{{ t('components.place_where') }}</p>
                 <p class="form-text mt-0">{{ t('components.place_where_help') }}</p>
                 <div class="form-check mb-3">
@@ -75,12 +76,13 @@
                     <div class="form-text" id="place-except-help">{{ t('components.place_except_help') }}</div>
                     {% if pe.except ?? null %}<div class="invalid-feedback d-block">{{ t(pe.except.key, pe.except.params) }}</div>{% endif %}
                 </div>
+                {% endif %}
             </fieldset>
         {% endif %}
 
         <div class="d-flex gap-2 mt-4 pt-3 border-top">
             <button type="submit" class="btn btn-primary">{{ t(component ? 'admin.form.save' : 'admin.form.create') }}</button>
-            <a class="btn btn-outline-secondary" href="{{ admin_url('component') }}">{{ t('admin.form.cancel') }}</a>
+            <a class="btn btn-outline-secondary" href="{{ admin_url((crumb ?? null) ? crumb.url : 'component') }}">{{ t('admin.form.cancel') }}</a>
             {% if component %}<a class="btn btn-outline-danger ms-auto" href="{{ admin_url('component/' ~ component.id ~ '/delete') }}">{{ t('admin.delete.link') }}</a>{% endif %}
         </div>
     </form>

@@ -298,6 +298,25 @@ marks it.
 `Campanella\Display\DeletePageComponents` · Internal: the listener that deletes a
 deleted `Composed` object's own components, registered by the Kernel.
 
+### In the admin: PageComponentPages
+
+`Campanella\Admin\PageComponentPages` · Internal: a page's components, under its
+address, for those who may change it (editors too); its form links to them
+(*The page's components*, with their number).
+
+| Path | |
+|---|---|
+| `/admin/<blueprint>/<id>/components` | The page's layout (its own, or *as its content type's*), and its layout's regions meant for a page, each with its own components in their order: **Up**, **Down**, **Delete**, and **New component** (the three steps for this region). Its own components in a region its layout has not are listed apart, as not shown |
+| `POST …/components/layout` | Its own layout (`layout`; empty: its Blueprint's or the site's) |
+| `…/components/new/source`, `/display`, `/new` | A new component of the page ([chapter 28](28-displays.md#in-the-admin-componentpages)) |
+| `POST …/components/<component>/move-up`, `/move-down` | One of its own up or down (404 for another) |
+
+`isFor(CampanellaObject $object): bool` (it is `Composed`, and there are
+components), `count(CampanellaObject $page, Actor $actor): int`.
+
+The Regions page (*Appearance → Regions*) lists the whole site's components
+only; a page's own are with the page.
+
 ## Existing themes
 
 A theme that **extends** the core's `base.html.twig` and fills its blocks

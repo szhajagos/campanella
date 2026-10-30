@@ -1,0 +1,77 @@
+{% extends '@core/admin/base.html.twig' %}
+
+{# A page's own components (since 0.3.5): its layout, and its regions meant for a page with their components. #}
+{% block content %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb small mb-2">
+            <li class="breadcrumb-item"><a href="{{ admin_url(edit_path) }}">{{ page_title }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ t('page_components.title') }}</li>
+        </ol>
+    </nav>
+    <h1 class="h3 mb-2">{{ t('page_components.heading', {title: page_title}) }}</h1>
+    <p class="text-body-secondary mb-4">{{ t('page_components.intro') }}</p>
+
+    <form method="post" action="{{ admin_url(base ~ '/layout') }}" class="card card-body mb-4 admin-form" id="page-layout">
+        {{ csrf_field() }}
+        <div class="row g-2 align-items-end">
+            <div class="col-sm-8 col-lg-6">
+                <label class="form-label fw-semibold" for="page-layout-select">{{ t('page_components.layout') }}</label>
+                <select class="form-select" id="page-layout-select" name="layout" aria-describedby="page-layout-help">
+                    <option value="">{{ t('page_components.layout_inherited', {layout: t(inherited)}) }}</option>
+                    {% for l in layouts %}
+                        <option value="{{ l.name }}"{{ own_layout == l.name ? ' selected' }}>{{ t(l.label) }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-sm-auto"><button type="submit" class="btn btn-outline-primary">{{ t('layouts.save') }}</button></div>
+        </div>
+        <div class="form-text" id="page-layout-help">{{ t('page_components.layout_help') }}</div>
+    </form>
+
+    {% for region in regions %}
+        <section class="card mb-4 admin-region" id="region-{{ region.name }}">
+            <div class="card-header d-flex align-items-center gap-2">
+                <h2 class="h6 mb-0 me-auto">{{ t(region.label) }}</h2>
+                <a class="btn btn-sm btn-primary" href="{{ admin_url(base ~ '/new/source') }}?region={{ region.name|url_encode }}">{{ t('page_components.new') }}</a>
+            </div>
+            {% if region.components %}
+                <ol class="list-group list-group-flush list-group-numbered">
+                    {% for item in region.components %}
+                        <li class="list-group-item d-flex flex-wrap align-items-center gap-2 admin-region-item">
+                            <div class="me-auto">
+                                <a href="{{ admin_url('component/' ~ item.object.id) }}" class="fw-semibold">{{ item.object.title }}</a>
+                                <span class="small text-body-secondary">· {{ t(item.display) }}</span>
+                                {% if item.problem %}<div><span class="badge text-bg-danger fw-normal">{{ t('components.broken') }}</span> <span class="small text-danger">{{ t(item.problem.key, item.problem.params) }}</span></div>{% endif %}
+                            </div>
+                            <div class="d-flex gap-1">
+                                {% set first = loop.first %}{% set last = loop.last %}
+                                {% for action in ['move-up', 'move-down'] %}
+                                    <form method="post" action="{{ admin_url(base ~ '/' ~ item.object.id ~ '/' ~ action) }}">
+                                        {{ csrf_field() }}
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary"{{ (action == 'move-up' and first) or (action == 'move-down' and last) ? ' disabled' }} aria-label="{{ t('regions.' ~ action ~ '_label', {title: item.object.title}) }}">{{ t('regions.' ~ action) }}</button>
+                                    </form>
+                                {% endfor %}
+                                <a class="btn btn-sm btn-outline-danger" href="{{ admin_url('component/' ~ item.object.id ~ '/delete') }}" aria-label="{{ t('page_components.delete_label', {title: item.object.title}) }}">{{ t('admin.delete.link') }}</a>
+                            </div>
+                        </li>
+                    {% endfor %}
+                </ol>
+            {% else %}
+                <div class="card-body py-2 small text-body-secondary">{{ t('regions.empty') }}</div>
+            {% endif %}
+        </section>
+    {% endfor %}
+
+    {% if elsewhere %}
+        <div class="alert alert-warning" role="alert" id="page-components-elsewhere">
+            <p class="mb-2">{{ t('page_components.elsewhere') }}</p>
+            <ul class="mb-0">
+                {% for item in elsewhere %}
+                    <li><a href="{{ admin_url('component/' ~ item.object.id) }}">{{ item.object.title }}</a> <code class="small">{{ item.region ?: '–' }}</code></li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+
+    <p><a class="btn btn-outline-secondary" href="{{ admin_url(edit_path) }}">{{ t('page_components.back') }}</a></p>
+{% endblock %}

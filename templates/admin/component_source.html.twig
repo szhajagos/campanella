@@ -11,9 +11,9 @@
             <h2 class="h5" id="source-system">{{ t('components.sources.system') }}</h2>
             <div class="list-group mb-4">
                 {% for item in systems %}
-                    <a class="list-group-item list-group-item-action" href="{{ next ~ item.source|url_encode }}">{{ t(item.label) }}</a>
+                    <a class="list-group-item list-group-item-action" href="{{ next ~ item.source|url_encode ~ (keep ?? '') }}">{{ t(item.label) }}</a>
                 {% endfor %}
-                <a class="list-group-item list-group-item-action" href="{{ next ~ 'current' }}">{{ t('components.source.current') }}
+                <a class="list-group-item list-group-item-action" href="{{ next ~ 'current' ~ (keep ?? '') }}">{{ t('components.source.current') }}
                     <div class="small text-body-secondary">{{ t('components.source.current_help') }}</div></a>
             </div>
 
@@ -21,7 +21,7 @@
             {% if lists %}
                 <div class="list-group">
                     {% for item in lists %}
-                        <a class="list-group-item list-group-item-action" href="{{ next ~ item.source|url_encode }}">{{ item.label }} <code class="small text-body-secondary">{{ item.name }}</code></a>
+                        <a class="list-group-item list-group-item-action" href="{{ next ~ item.source|url_encode ~ (keep ?? '') }}">{{ item.label }} <code class="small text-body-secondary">{{ item.name }}</code></a>
                     {% endfor %}
                 </div>
             {% else %}
@@ -42,13 +42,14 @@
                     <label class="visually-hidden" for="source-q">{{ t('components.sources.search') }}</label>
                     <input type="search" class="form-control" id="source-q" name="q" value="{{ search }}" maxlength="100" placeholder="{{ t('components.sources.search') }}">
                 </div>
+                {% if region ?? null %}<input type="hidden" name="region" value="{{ region }}">{% endif %}
                 <div class="col-sm-auto"><button type="submit" class="btn btn-outline-primary w-100">{{ t('components.sources.find') }}</button></div>
             </form>
             {% if chosen %}
                 {% if found %}
                     <div class="list-group">
                         {% for item in found %}
-                            <a class="list-group-item list-group-item-action" href="{{ next ~ ('object:' ~ item.id)|url_encode }}">{{ item.title }} <span class="small text-body-secondary">#{{ item.id }}</span></a>
+                            <a class="list-group-item list-group-item-action" href="{{ next ~ ('object:' ~ item.id)|url_encode ~ (keep ?? '') }}">{{ item.title }} <span class="small text-body-secondary">#{{ item.id }}</span></a>
                         {% endfor %}
                     </div>
                     {% if found|length >= max %}<p class="form-text">{{ t('components.sources.more', {max: max}) }}</p>{% endif %}

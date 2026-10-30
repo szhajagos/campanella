@@ -2177,6 +2177,87 @@ test('Kernel: a page\'s own components (0.3.5): only on its page, in its regions
     }
 });
 
+test('Kernel: a page\'s components in the admin (0.3.5): its layout, the three steps for a page, the order, deleting; editors, but not the site\'s', function () use ($displayKernel, $newUser): void {
+    $kernel = $displayKernel();
+    if ($kernel === null) {
+        return;
+    }
+    $c = $kernel->container();
+    $system = Actor::system();
+    $objects = $c->get(ObjectService::class);
+    $components = $c->get(\Campanella\Display\ComponentService::class);
+    $storage = new ArraySessionStorage();
+    $c->set(Session::class, static fn () => new Session($storage));
+    $auth = $c->get(AuthService::class);
+    $send = function (string $method, string $path, array $post = []) use ($kernel, $storage) {
+        $storage->endRequest();
+        [$path, $query] = explode('?', $path, 2) + [1 => ''];
+        parse_str($query, $params);
+
+        return $kernel->handle(new Request($method, $path, query: $params, post: $post));
+    };
+    $csrfOf = static fn ($response): string => preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $response->body, $m) === 1 ? $m[1] : '';
+    $C = \Campanella\Capability\Component::class;
+
+    $page = $objects->create($system, 'page', ['title' => 'Admin oldal', 'path' => '/admin-oldal-teszt', 'body' => 'x'], publish: true);
+    $article = $objects->create($system, 'article', ['title' => 'Admin cikk', 'path' => '/admin-cikk-teszt', 'body' => 'x'], publish: true);
+    $site = $components->create($system, ['title' => 'Webhely komponense', 'machine_name' => 'admin_oldal_webhely'], 'system:search', 'search_box');
+    $base = '/admin/page/' . $page->id() . '/components';
+
+    $auth->login(new Request('GET', '/'), $newUser('oldaladmin-szerk@example.hu', 'oldaladmin-jelszo-1', ['editor']));
+    $form = $send('GET', '/admin/page/' . $page->id());
+    check(str_contains($form->body, 'admin-page-components') && str_contains($form->body, 'href="' . $base . '"') && str_contains($form->body, '0 saját komponens'), 'the link on the page\'s form');
+    check(!str_contains($send('GET', '/admin/article/' . $article->id())->body, 'admin-page-components') && $send('GET', '/admin/article/' . $article->id() . '/components')->status === 404, 'not for an article');
+
+    $overview = $send('GET', $base);
+    check($overview->status === 200 && str_contains($overview->body, 'id="region-content"') && !str_contains($overview->body, 'id="region-sidebar"') && !str_contains($overview->body, 'id="region-header"'), 'its regions meant for a page');
+    $csrf = $csrfOf($overview);
+    check($send('POST', $base . '/layout', ['_csrf' => $csrf, 'layout' => 'nincs'])->status === 303 && $c->get(\Campanella\Model\ObjectRepository::class)->find((int) $page->id())?->get('page_layout') === null, 'an unknown layout');
+    $send('POST', $base . '/layout', ['_csrf' => $csrf, 'layout' => 'sidebar']);
+    $page = $c->get(\Campanella\Model\ObjectRepository::class)->find((int) $page->id());
+    check($page->get('page_layout') === 'sidebar' && str_contains($send('GET', $base)->body, 'id="region-sidebar"'), 'its own layout');
+
+    // A new one in the three steps, for the sidebar.
+    $step1 = $send('GET', $base . '/new/source?region=sidebar');
+    check($step1->status === 200 && str_contains($step1->body, $base . '/new/display?source=system%3Avisitor&amp;region=sidebar') && str_contains($step1->body, 'href="' . $base . '"'), 'the steps under the page, the region kept: ' . (preg_match('#href="([^"]*display\?source=system%3Avisitor[^"]*)"#', $step1->body, $m) ? $m[1] : ''));
+    $step2 = $send('GET', $base . '/new/display?source=system:visitor&region=sidebar');
+    check(str_contains($step2->body, 'region=sidebar'), 'the region kept');
+    $step3 = $send('GET', $base . '/new?source=system:visitor&display=login_button&region=sidebar');
+    check($step3->status === 200 && preg_match('#<option value="sidebar" selected>#', $step3->body) === 1 && !str_contains($step3->body, 'name="place[paths]"') && !str_contains($step3->body, '<option value="header"'), 'the page\'s regions, no conditions');
+    $post = ['_csrf' => $csrfOf($step3), 'source' => 'system:visitor', 'display' => 'login_button', 'f' => ['title' => 'Oldal gombja', 'machine_name' => 'admin_oldal_gomb', 'visible_to' => 'public']];
+    check($send('POST', $base . '/new', $post + ['place' => ['region' => 'header']])->status === 422 && $components->find('admin_oldal_gomb', $system) === null, 'not the header');
+    $saved = $send('POST', $base . '/new', $post + ['place' => ['region' => 'sidebar']]);
+    check($saved->status === 303 && ($saved->headers['Location'] ?? '') === $base, (string) $saved->status);
+    $button = $components->find('admin_oldal_gomb', $system);
+    check($button !== null && $button->as($C)->page() === (int) $page->id() && $button->as($C)->region() === 'sidebar', 'the page\'s own, in the sidebar');
+    $send('POST', $base . '/new', ['_csrf' => $csrfOf($step3), 'f' => ['title' => 'Oldal keresője', 'machine_name' => 'admin_oldal_kereso', 'visible_to' => 'public'], 'source' => 'system:search', 'display' => 'search_box', 'place' => ['region' => 'sidebar']]);
+    $keys = static fn (): array => array_map(static fn ($x): string => (string) $x->get('machine_name'), $components->inRegion('sidebar', $system, (int) $page->id()));
+    check($keys() === ['admin_oldal_gomb', 'admin_oldal_kereso'], implode(',', $keys()));
+    $send('POST', $base . '/' . $components->find('admin_oldal_kereso', $system)->id() . '/move-up', ['_csrf' => $csrf]);
+    check($keys() === ['admin_oldal_kereso', 'admin_oldal_gomb'], 'moved up');
+    check($send('GET', $base . '/' . $button->id() . '/move-up')->status === 405 && $send('POST', $base . '/' . $site->id() . '/move-up', ['_csrf' => $csrf])->status === 404, 'only its own, by POST');
+    check(str_contains($send('GET', '/admin/page/' . $page->id())->body, '2 saját komponens'), 'counted on its form');
+
+    // The editor changes and deletes a page's own at its own address; the site's stay closed.
+    $edit = $send('GET', '/admin/component/' . $button->id());
+    check($edit->status === 200 && str_contains($edit->body, 'href="' . $base . '"'), 'its form, back to the page');
+    $delete = $send('GET', '/admin/component/' . $button->id() . '/delete');
+    check($delete->status === 200);
+    $gone = $send('POST', '/admin/component/' . $button->id() . '/delete', ['_csrf' => $csrfOf($delete)]);
+    check($gone->status === 303 && ($gone->headers['Location'] ?? '') === $base && $components->find('admin_oldal_gomb', $system) === null, 'deleted, back to the page');
+    check($send('GET', '/admin/component')->status === 403 && $send('GET', '/admin/component/' . $site->id())->status === 403 && $send('GET', '/admin/component/regions')->status === 403, 'not the site\'s');
+    check($send('GET', '/admin/component/new/source')->status === 403, 'no new site component');
+
+    $auth->login(new Request('GET', '/'), $newUser('oldaladmin@example.hu', 'oldaladmin-jelszo-1', ['administrator']));
+    $list = $send('GET', '/admin/component')->body;
+    check(preg_match('#Oldal keresője.*Az oldal sajátja: <a href="' . preg_quote($base, '#') . '">Admin oldal</a>#s', $list) === 1, 'the list says whose');
+    check(!str_contains($send('GET', '/admin/component/regions?layout=sidebar')->body, 'Oldal keresője'), 'not on the Regions page');
+
+    $objects->delete($system, $page);
+    $objects->delete($system, $article);
+    $objects->delete($system, $site);
+});
+
 /** For testing: a provider whose prefix the core's already has. */
 final class SecondSiteTokens implements \Campanella\Token\TokenProvider
 {

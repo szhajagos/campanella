@@ -1,7 +1,11 @@
 {# The steps of making a component (since 0.3.3): step 1, 2 or 3. #}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb small mb-2">
-        <li class="breadcrumb-item"><a href="{{ admin_url('component') }}">{{ t('components.title') }}</a></li>
+        {% if crumb ?? null %}
+            <li class="breadcrumb-item"><a href="{{ admin_url(crumb.url) }}">{{ crumb.label }}</a></li>
+        {% else %}
+            <li class="breadcrumb-item"><a href="{{ admin_url('component') }}">{{ t('components.title') }}</a></li>
+        {% endif %}
         {% if component %}<li class="breadcrumb-item"><a href="{{ admin_url('component/' ~ component.id) }}">{{ component.title }}</a></li>{% endif %}
         <li class="breadcrumb-item active" aria-current="page">{{ t(title) }}</li>
     </ol>

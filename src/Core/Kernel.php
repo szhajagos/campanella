@@ -42,6 +42,7 @@ use Campanella\Admin\BlueprintEditor;
 use Campanella\Admin\ListEditor;
 use Campanella\Admin\ImporterPages;
 use Campanella\Admin\LayoutPages;
+use Campanella\Admin\PageComponentPages;
 use Campanella\Admin\AdminMenu;
 use Campanella\Admin\ComponentPages;
 use Campanella\Admin\CoreAdminMenu;
@@ -1125,6 +1126,16 @@ final class Kernel
             $c->has(ComponentPages::class) ? $c->get(ComponentPages::class) : null,
             $c->get(TokenRegistry::class),
             new LayoutPages($c->get(LayoutService::class), $c->get(BlueprintRegistry::class), $c->get(Csrf::class), $c->get(Flash::class), $c->get(AdminAccess::class)),
+            $c->has(ComponentPages::class) ? new PageComponentPages(
+                $c->get(ComponentService::class),
+                $c->get(ComponentPages::class),
+                $c->get(LayoutService::class),
+                $c->get(ObjectService::class),
+                $c->get(DisplayRegistry::class),
+                $c->get(Csrf::class),
+                $c->get(Flash::class),
+                $c->get(AdminAccess::class),
+            ) : null,
         ));
 
         $c->set(ObjectForm::class, static fn (Container $c): ObjectForm => new ObjectForm(

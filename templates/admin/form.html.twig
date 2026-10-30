@@ -23,7 +23,7 @@
     {% endfor %}
 
     <div class="row g-4">
-        <div class="{{ publication or can_delete or media_url or download ? 'col-lg-8' : 'col-12' }}">
+        <div class="{{ publication or can_delete or media_url or download or page_components ? 'col-lg-8' : 'col-12' }}">
             <form method="post" action="{{ url(action) }}" class="admin-form" novalidate
                 {%- if upload and has_editor %} data-upload-url="{{ url(upload.url) }}" data-upload-max="{{ upload.max }}"
                     data-upload-too-large="{{ t('media.too_large', {max: upload.max_mb}) }}"
@@ -107,8 +107,15 @@
             {% endif %}
         </div>
 
-        {% if publication or can_delete or media_url or download %}
+        {% if publication or can_delete or media_url or download or page_components %}
             <aside class="col-lg-4">
+                {% if page_components %}
+                    <section class="card card-body mb-3 admin-page-components">
+                        <h2 class="h6">{{ t('page_components.title') }}</h2>
+                        <p class="small text-body-secondary mb-2">{{ t('page_components.card', {count: page_components.count}) }}</p>
+                        <a class="btn btn-sm btn-outline-primary align-self-start" href="{{ url(page_components.path) }}">{{ t('page_components.open') }}</a>
+                    </section>
+                {% endif %}
                 {% if media_url %}
                     {% include '@core/admin/_media.html.twig' %}
                 {% endif %}

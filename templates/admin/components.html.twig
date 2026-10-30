@@ -29,7 +29,7 @@
                             </td>
                             <td>{{ t(item.source) }}</td>
                             <td>{{ t(item.display) }}</td>
-                            <td class="small">{{ item.region ? t(item.region) : '–' }}</td>
+                            <td class="small">{{ item.region ? t(item.region) : '–' }}{% if item.page %}<div>{{ t('page_components.of_page') }} <a href="{{ admin_url(item.page.path) }}">{{ item.page.title }}</a></div>{% endif %}</td>
                             <td class="small">{% include '@core/admin/_visibility.html.twig' with {object: item.object} only %}</td>
                             <td><code class="small">{{ "{{ component('" ~ item.key ~ "') }}" }}</code></td>
                         </tr>

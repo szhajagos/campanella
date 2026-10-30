@@ -410,7 +410,17 @@ checked with the rest (`ComponentService::placementProblems()`) and saved with
 `place()`. Put into another region, it goes to that region's end; its order is
 set on the regions page. The list shows each component's region.
 
-Every page is for the system roles only (403 for an editor), every POST checks
+Since 0.3.5 a page's own components are made in the same three steps under
+the page's address (`/admin/<blueprint>/<id>/components/new/source`, `/display`,
+`/new`; `handle(…, ?CampanellaObject $page)`), the region chosen among those of
+the page's layout meant for a page (kept through the steps as `?region=`), with
+no conditions; an editor reaches these, and a page's own component's form and
+delete page (`/admin/component/<id>`, `/delete`), for the pages they may change,
+and comes back to the page's components. `pagePath(CampanellaObject $page): string`
+gives that address (`page/12/components`). The list shows whose page a
+component is.
+
+Every other page is for the system roles only (403 for an editor), every POST checks
 the CSRF token. `isAvailable()`: whether there are components
 (`ComponentService::isAvailable()`).
 

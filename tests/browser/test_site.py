@@ -735,6 +735,43 @@ def test_regions(browser):
     context.close()
 
 
+
+def test_page_components(browser):
+    """An editor gives the About us page a component of its own in the three steps, sees it there, deletes it (since 0.3.5)."""
+    context = new_context(browser)
+    page = context.new_page()
+    login(page, EDITOR)
+    page.goto(BASE + "/admin/page")
+    with page.expect_navigation():
+        page.locator("main table a", has_text="Rólunk").first.click()
+    with page.expect_navigation():
+        page.click(".admin-page-components a")
+    check(page.locator("#region-content").count() == 1 and page.locator("#region-header").count() == 0, "the page's regions")
+    with page.expect_navigation():
+        page.locator("#region-content a", has_text="Új komponens").click()
+    with page.expect_navigation():
+        page.click("main a[href*='source=system%3Asearch']")
+    with page.expect_navigation():
+        page.locator(".admin-displays a[href*='display=search_box']").first.click()
+    check(page.locator("#place-region").input_value() == "content" and page.locator("#place-paths").count() == 0, "the region kept, no conditions")
+    page.fill("#field-title", "Rólunk keresője")
+    page.fill("#field-machine_name", "rolunk_kereso")
+    with page.expect_navigation():
+        page.click("form.admin-form button[type=submit]")
+    check(page.locator(".alert-success").count() == 1 and page.locator("#region-content .admin-region-item", has_text="Rólunk keresője").count() == 1, "saved, listed with the page")
+    view = context.new_page()
+    view.goto(BASE + "/rolunk")
+    check(view.locator("main .display-search-box").count() == 1, "not shown on the page")
+    view.goto(BASE + "/hirek")
+    check(view.locator("main .display-search-box").count() == 0, "shown on another page")
+    with page.expect_navigation():
+        page.locator("#region-content .admin-region-item", has_text="Rólunk keresője").locator("a.btn-outline-danger").click()
+    with page.expect_navigation():
+        page.click("main form button.btn-danger")
+    check(page.locator("#region-content .admin-region-item", has_text="Rólunk keresője").count() == 0, "not deleted")
+    context.close()
+
+
 TESTS = [
     test_security_headers,
     test_login_and_logout,
@@ -749,6 +786,7 @@ TESTS = [
     test_components,
     test_regions,
     test_layouts,
+    test_page_components,
 ]
 
 

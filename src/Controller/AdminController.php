@@ -14,6 +14,7 @@ use Campanella\Admin\ListColumns;
 use Campanella\Admin\ListEditor;
 use Campanella\Admin\ImporterPages;
 use Campanella\Admin\LayoutPages;
+use Campanella\Admin\PageComponentPages;
 use Campanella\Admin\AdminMenu;
 use Campanella\Admin\ComponentPages;
 use Campanella\Admin\FilePages;
@@ -153,6 +154,7 @@ final class AdminController implements Controller
         private readonly ?ComponentPages $components = null,
         private readonly ?TokenRegistry $tokens = null,
         private readonly ?LayoutPages $layoutPages = null,
+        private readonly ?PageComponentPages $pageComponents = null,
     ) {
     }
 
@@ -221,6 +223,13 @@ final class AdminController implements Controller
         // The forms' messages (since 0.1.5): read-only pages of their own.
         if (($segments[0] ?? null) === SubmissionService::BLUEPRINT && $this->submissions !== null) {
             return $this->submissions->handle($request, $actor, array_slice($segments, 1), $render);
+        }
+
+        // A page's own components (since 0.3.5): /admin/<blueprint>/<id>/components/…
+        if (count($segments) >= 3 && $segments[2] === 'components' && $this->pageComponents !== null) {
+            $page = $this->find($this->contentBlueprint($segments[0]), $segments[1], $actor);
+
+            return $this->pageComponents->handle($request, $actor, $page, array_slice($segments, 3), $render);
         }
 
         return match (count($segments)) {
@@ -1003,6 +1012,11 @@ final class AdminController implements Controller
             'files_url' => $this->filePages !== null && $this->filePages->canBrowse() ? $this->access->path('media/files') : null,
             'type_names' => ImageProcessor::NAMES,
             'scoped' => $object->isNew() ? [] : $this->scopedTrees($object, $actor),
+            // A page assembled from components (since 0.3.5): the link to its components.
+            'page_components' => $this->pageComponents !== null && $this->pageComponents->isFor($object) ? [
+                'path' => $this->access->path(\Campanella\Admin\ComponentPages::pagePath($object)),
+                'count' => $this->pageComponents->count($object, $actor),
+            ] : null,
         ]);
 
         return $status === 200 ? $response : new Response($response->body, $status, $response->headers);

@@ -6,7 +6,7 @@
         <h1 class="h3 mb-0 me-auto">{{ t('regions.title') }}</h1>
         <a class="btn btn-outline-secondary" href="{{ admin_url('component') }}">{{ t('components.title') }}</a>
     </div>
-    <p class="text-body-secondary mb-3">{{ t('regions.intro') }}</p>
+    <p class="text-body-secondary mb-3">{{ t('regions.intro') }} {{ t('regions.pages_own') }}</p>
 
     {% if layouts|length > 1 %}
         <ul class="nav nav-tabs mb-4" aria-label="{{ t('regions.layouts') }}">

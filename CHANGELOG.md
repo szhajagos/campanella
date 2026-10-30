@@ -10,7 +10,7 @@ backward-incompatible.
 
 ## [Unreleased]
 
-**Pages assembled from components, part 1.** The fourth step towards 0.4.0.
+**Pages assembled from components, parts 1–2.** The fourth step towards 0.4.0.
 
 ### Added
 
@@ -25,6 +25,13 @@ backward-incompatible.
 - `ComponentService`: `create()` for a page, `pageProblem()`, `pageOf()`,
   `ofPage()`; `inRegion()`, `nextWeight()` and `move()` among the site's or a
   page's own. `ObjectService::allows()`.
+- **The page's components** in the admin (`PageComponentPages`): from a
+  page's form, its layout (its own, or its content type's) and its layout's
+  regions meant for a page, each with its own components: up, down, delete,
+  and a new one in the three steps (the region kept), for **editors** too; a
+  page's own component's form and delete page lead back to the page. The
+  Components list says whose page a component is; the Regions page lists the
+  site's only.
 
 ### Changed
 

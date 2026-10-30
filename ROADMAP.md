@@ -316,10 +316,11 @@ own path then leads to `/`); the sample content gets such a front page.
    (`component_page`, a field, not a relation: a deleted page's components go
    with it and never become the site's); the regions' `page` flag; the page's
    own layout; a page's own components shown first in its regions; the policy
-   (editors) and `ObjectService::update()` checking the changed object too.
+   (editors) and `ObjectService::update()` checking the changed object too
+   (done).
 2. **The admin** (part 2): *The page's components* in its editor, the three
    steps for a page, editors' rights; the Regions page shows the pages' own
-   apart.
+   apart (done).
 3. **The front page and the sample content** (part 3): the choice under Site
    settings, the redirect of its own path, the sample front page.
 4. **The upgrade, the guide, the release** (part 4).

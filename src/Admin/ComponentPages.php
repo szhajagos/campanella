@@ -52,6 +52,11 @@ use Closure;
  *
  * The form (3.) also says where the component shows (since 0.3.4): its region, and its
  * conditions (ComponentService::place()).
+ *
+ * A page's own components (since 0.3.5) are made in the same steps under the page's
+ * address (`/admin/<blueprint>/<id>/components/new/…`, PageComponentPages), with a region
+ * of the page's layout meant for a page and no conditions; editors may make, change and
+ * delete them (those of the pages they may change), never the site's.
  */
 final class ComponentPages
 {
@@ -75,6 +80,9 @@ final class ComponentPages
     ) {
     }
 
+    /** The page whose own component is made or changed in this request (since 0.3.5), or null. */
+    private ?CampanellaObject $page = null;
+
     /** Whether there are components on this site (ComponentService::isAvailable()). */
     public function isAvailable(): bool
     {
@@ -85,9 +93,28 @@ final class ComponentPages
      * @param list<string> $segments The path after /admin/component
      * @param Closure(string, string, array<string, mixed>): Response $render
      */
-    public function handle(Request $request, Actor $actor, array $segments, Closure $render): Response
+    public function handle(Request $request, Actor $actor, array $segments, Closure $render, ?CampanellaObject $page = null): Response
     {
-        if (!$this->access->allowsSystem($actor)) {
+        $this->page = null;
+        if ($page !== null) {
+            // A new component of a page (since 0.3.5): for those who may change the page.
+            if ($this->components->pageProblem($actor, $page) !== null) {
+                throw new HttpException(403, 'error.forbidden');
+            }
+            if (($segments[0] ?? null) !== 'new') {
+                throw HttpException::notFound();
+            }
+            $this->page = $page;
+        } elseif (ctype_digit($segments[0] ?? '') && ($owner = $this->pageOwner($segments[0], $actor)) !== null) {
+            // A page's own component: its page's editors change it (since 0.3.5).
+            if ($this->components->pageProblem($actor, $owner) !== null && !$this->access->allowsSystem($actor)) {
+                throw new HttpException(403, 'error.forbidden');
+            }
+            if (!in_array($segments[1] ?? null, [null, 'source', 'display', 'delete'], true)) {
+                throw HttpException::notFound();
+            }
+            $this->page = $owner;
+        } elseif (!$this->access->allowsSystem($actor)) {
             throw new HttpException(403, 'error.forbidden');
         }
         if ($segments === []) {
@@ -125,6 +152,8 @@ final class ComponentPages
                 'display' => $this->displayLabel($definition->display()),
                 'problem' => $this->components->problem($component),
                 'region' => $definition->region() === null ? null : ($this->regionChoices()[$definition->region()] ?? $definition->region()),
+                // Since 0.3.5: a page's own, with its page.
+                'page' => ($owner = $this->components->pageOf($component)) === null ? null : ['title' => self::titleOf($owner), 'path' => self::pagePath($owner)],
             ];
         }
 
@@ -166,7 +195,12 @@ final class ComponentPages
             $lists[] = ['source' => 'list:' . $list->name, 'label' => $list->title, 'name' => $list->name];
         }
 
-        return $render('component_source', 'component', [
+        $region = $this->askedRegion($request);
+
+        return $render('component_source', $this->active(), [
+            'crumb' => $this->crumb(),
+            'region' => $region,
+            'keep' => $region === null ? '' : '&region=' . rawurlencode($region),
             'title' => 'components.choose_source',
             'component' => $component,
             'base' => $this->base($component),
@@ -190,7 +224,9 @@ final class ComponentPages
         $source = $this->source($request);
         $offered = $this->components->displaysFor($source);
 
-        return $render('component_display', 'component', [
+        return $render('component_display', $this->active(), [
+            'crumb' => $this->crumb(),
+            'region' => $this->askedRegion($request),
             'title' => 'components.choose_display',
             'component' => $component,
             'base' => $this->base($component),
@@ -230,7 +266,13 @@ final class ComponentPages
             $input = ['f' => is_array($request->post['f'] ?? null) ? $request->post['f'] : []];
             $errors = $read['errors'];
             $where = Conditions::fromText($place['paths'], $place['blueprints'], $place['front'], $place['except']);
-            if ($this->layouts !== null) {
+            if ($this->page !== null) {
+                $where = Conditions::everywhere();
+                // A page's own goes into a region of its page's layout that is meant for a page.
+                if (!isset($this->pageRegionChoices()[$place['region']])) {
+                    $errors['region'] = new Message('components.region_not_page', ['region' => mb_substr($place['region'], 0, 64, 'UTF-8')]);
+                }
+            } elseif ($this->layouts !== null) {
                 $errors += $this->components->placementProblems($place['region'] === '' ? null : $place['region'], $where);
             }
             if (!$this->csrf->isValid($request)) {
@@ -240,19 +282,20 @@ final class ComponentPages
                 try {
                     $oldRegion = $current?->region();
                     if ($component === null) {
-                        $component = $this->components->create($actor, $read['values'], $source, $display, $settings);
+                        $component = $this->components->create($actor, $read['values'], $source, $display, $settings, $this->page);
                     } else {
                         $this->components->update($actor, $component, $read['values'], $source, $display, $settings);
                     }
                     if ($this->layouts !== null) {
                         // A component put into another region goes to its end.
                         $region = $place['region'] === '' ? null : $place['region'];
-                        $weight = $region !== null && $region !== $oldRegion ? $this->components->nextWeight($region, $actor) : null;
+                        $pageId = $this->page === null ? null : (int) $this->page->id();
+                        $weight = $region !== null && $region !== $oldRegion ? $this->components->nextWeight($region, $actor, $pageId) : null;
                         $this->components->place($actor, $component, $region, $where, $weight);
                     }
                     $this->flash->add(Flash::SUCCESS, new Message('components.saved', ['title' => self::titleOf($component)]));
 
-                    return Response::redirect($request->basePath . $this->access->path('component'), 303);
+                    return Response::redirect($request->basePath . $this->access->path($this->back()), 303);
                 } catch (ValidationException $e) {
                     $errors = $e->errors;
                 }
@@ -269,7 +312,10 @@ final class ComponentPages
         $settingErrors = array_intersect_key($errors, $definition->settings ?? []);
         $placeErrors = array_intersect_key($errors, array_flip(['region', 'paths', 'except', 'blueprints']));
         $values = $request->isPost() ? $settings : ($definition === null ? [] : $this->defaults($definition, $settings));
-        $response = $render('component_form', 'component', [
+        if ($this->page !== null && !$request->isPost() && $place['region'] === '') {
+            $place['region'] = $this->defaultPageRegion($request);
+        }
+        $response = $render('component_form', $this->active(), [
             'title' => $component === null ? 'components.new' : 'components.edit',
             'component' => $component,
             'base' => $this->base($component),
@@ -283,7 +329,13 @@ final class ComponentPages
             )),
             'settings' => $definition === null ? [] : $this->form->settings($definition->settings, $values, $settingErrors),
             'errors' => array_diff_key($errors, $settingErrors, $placeErrors, $object->fields()),
-            'place' => $this->layouts === null ? null : $place + ['errors' => $placeErrors, 'regions' => $this->regionChoices(), 'pages' => $this->pageBlueprints()],
+            'place' => $this->layouts === null ? null : $place + [
+                'errors' => $placeErrors,
+                'regions' => $this->page === null ? $this->regionChoices() : $this->pageRegionChoices(),
+                'pages' => $this->pageBlueprints(),
+                'of_page' => $this->page !== null,
+            ],
+            'crumb' => $this->crumb(),
             'problem' => $component === null || $changed ? null : $this->components->problem($component),
         ]);
 
@@ -301,10 +353,11 @@ final class ComponentPages
                 $this->flash->add(Flash::SUCCESS, new Message('components.deleted', ['title' => self::titleOf($component)]));
             }
 
-            return Response::redirect($request->basePath . $this->access->path('component'), 303);
+            return Response::redirect($request->basePath . $this->access->path($this->back()), 303);
         }
 
-        return $render('component_delete', 'component', [
+        return $render('component_delete', $this->active(), [
+            'crumb' => $this->crumb(),
             'title' => 'components.delete',
             'component' => $component,
             'key' => $component->as(Keyed::class)->key(),
@@ -553,7 +606,80 @@ final class ComponentPages
     /** The admin path of the component's steps: `component/new` or `component/12`. */
     private function base(?CampanellaObject $component): string
     {
+        if ($component === null && $this->page !== null) {
+            return self::pagePath($this->page) . '/new';
+        }
+
         return 'component/' . ($component === null ? 'new' : (int) $component->id());
+    }
+
+    /** The admin path of a page's components (since 0.3.5): `page/12/components`. */
+    public static function pagePath(CampanellaObject $page): string
+    {
+        return $page->blueprint() . '/' . (int) $page->id() . '/components';
+    }
+
+    /** Where to go after saving or deleting: the page's components, or the list. */
+    private function back(): string
+    {
+        return $this->page === null ? 'component' : self::pagePath($this->page);
+    }
+
+    /** The active menu item: the page's Blueprint for a page's own (editors have no Appearance). */
+    private function active(): string
+    {
+        return $this->page === null ? 'component' : $this->page->blueprint();
+    }
+
+    /** @return array{label: string, url: string}|null The page, for the steps' breadcrumb */
+    private function crumb(): ?array
+    {
+        return $this->page === null ? null : ['label' => self::titleOf($this->page), 'url' => self::pagePath($this->page)];
+    }
+
+    /** The page whose own component this is (an id in the path), if it still exists. */
+    private function pageOwner(string $id, Actor $actor): ?CampanellaObject
+    {
+        $component = $this->queries->first(Query::objects()->blueprint(ComponentService::BLUEPRINT)->where('id', '=', (int) $id), $actor);
+
+        return $component === null ? null : $this->components->pageOf($component);
+    }
+
+    /**
+     * The regions of the page's layout meant for a page's own components: name => label.
+     *
+     * @return array<string, string>
+     */
+    private function pageRegionChoices(): array
+    {
+        if ($this->page === null || $this->layouts === null) {
+            return [];
+        }
+        $choices = [];
+        foreach ($this->layouts->forPage($this->page)->regions as $name => $region) {
+            if ($region->page) {
+                $choices[$name] = $region->label;
+            }
+        }
+
+        return $choices;
+    }
+
+    /** A page's region asked for in the steps (?region=), if it is one of the page's. */
+    private function askedRegion(Request $request): ?string
+    {
+        $asked = $request->queryString('region');
+
+        return $this->page !== null && isset($this->pageRegionChoices()[$asked]) ? $asked : null;
+    }
+
+        /** The region asked for (?region=, from the page's components), or the first of the page's. */
+    private function defaultPageRegion(Request $request): string
+    {
+        $choices = $this->pageRegionChoices();
+        $asked = $request->queryString('region');
+
+        return isset($choices[$asked]) ? $asked : (string) array_key_first($choices);
     }
 
     private function find(string $id, Actor $actor): CampanellaObject
