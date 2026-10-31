@@ -366,7 +366,8 @@ for real (`tests/upgrade/`). CI runs it on every push:
 | 0.3.3 | MySQL 8.0 | (since 0.3.4) |
 | 0.3.4 | MariaDB 11.4 | (since 0.3.5) |
 | 0.3.5 | MySQL 8.4 | (since 0.3.6) |
-| 0.3.6 | MariaDB 10.6 | the previous version (since 0.3.7) |
+| 0.3.6 | MariaDB 10.6 | (since 0.3.7) |
+| 0.3.7 | MariaDB 11.4; MySQL 8.0 as an English site (`--locale=en`) | the last 0.3.x, with everything of 0.3.2–0.3.7 in use (since 0.4.0) |
 
 From 0.2.6 on the old site's content model also has Blueprints called `file`
 (since 0.3.2, up to 0.3.1) and `snippet` (since 0.3.3, up to 0.3.2), made in
@@ -381,6 +382,7 @@ but never lost.
 ```bash
 git worktree add /tmp/campanella-0.1.0 v0.1.0
 bash tests/upgrade/run.sh /tmp/campanella-0.1.0       # --offline: no composer install; --keep: keep the site
+                                                       # --locale=en: an English old site (since 0.4.0)
 ```
 
 1. **The old version** is installed into a temporary folder from its source
@@ -392,7 +394,14 @@ bash tests/upgrade/run.sh /tmp/campanella-0.1.0       # --offline: no composer i
    a Blueprint with a field of each kind (a date, a choice, a decimal, a
    multi-valued text, formatted text) and a relation, with its admin columns
    from 0.2.8; a list at its own path, with a filter from 0.2.9; two events,
-   and from 0.2.7 a changed path. Then a snapshot of every row of every
+   and from 0.2.7 a changed path. Since 0.4.0 also the parts of 0.3.2–0.3.7
+   the old version has, made with its own code: a file for logged-in users
+   only (0.3.2), a component for logged-in users (0.3.3) placed in the sidebar
+   on some paths with the site's layout with a sidebar (0.3.4), a page of its
+   own components as the front page (0.3.5), a colour scheme and a fixed mode
+   (0.3.6), and the content paths it has (0.3.7); after the upgrade each must
+   be there and work as before (the file and the component still hidden from
+   a visitor, the front page, the scheme, the paths). Then a snapshot of every row of every
    table (but `system`, `migrations` and `throttle`), and of every media file.
 2. **The upgrade:** the current files are copied over the old ones, as one
    uploads a new version (`config/local.php`, `public/media/` and `var/`

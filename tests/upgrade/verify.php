@@ -308,17 +308,50 @@ $check($pages === $composed, "only {$composed} of the {$pages} old pages are ass
 // 13. Colour schemes (since 0.3.6): the site keeps its colours (the default scheme) and its
 // colour mode (the visitor's system setting); no colour mode switch is added.
 $appearance = $c->get(\Campanella\Appearance\Appearance::class);
-$check($appearance->scheme()->name === 'default' && $appearance->siteMode() === 'auto' && $appearance->registry()->errors() === [], 'not the default scheme and mode after the upgrade');
+$chosen = isset($snapshot['parts']['appearance']);
+$check($chosen || ($appearance->scheme()->name === 'default' && $appearance->siteMode() === 'auto'), 'not the default scheme and mode after the upgrade');
+$check($appearance->registry()->errors() === [], 'a colour scheme is left out: ' . json_encode($appearance->registry()->errors()));
 $front = $get('/', null);
-$check(str_contains($front->body, '/color-scheme.css?v=' . $appearance->version()) && !str_contains($front->body, 'data-bs-theme=') && ($front->headers['Vary'] ?? '') === 'Cookie', 'the front page does not link the scheme, or has a fixed mode');
-$check(str_contains($get('/color-scheme.css', null)->body, '--cc-accent: #8a3b12;'), 'the scheme\'s CSS is not the look before');
+$check(str_contains($front->body, '/color-scheme.css?v=' . $appearance->version()) && ($chosen || !str_contains($front->body, 'data-bs-theme=')) && ($front->headers['Vary'] ?? '') === 'Cookie', 'the front page does not link the scheme, or has a fixed mode');
+$check($chosen || str_contains($get('/color-scheme.css', null)->body, '--cc-accent: #8a3b12;'), 'the scheme\'s CSS is not the look before');
 // (The sample content of 0.3.6 and later has a switch of its own: only an older site is checked.)
 $check(version_compare($snapshot['version'], '0.3.6', '>=') || !str_contains($front->body, 'display-color-mode-switch'), 'the upgrade added a colour mode switch');
 
-// 14. The content paths (since 0.3.7): an old site keeps /hirek and /kategoriak, whatever its language.
+// 14. The content paths (since 0.3.7): an old site keeps the paths it had: /hirek and
+// /kategoriak before 0.3.7, whatever its language; those of its language from 0.3.7 on.
 $settings->reset();
-$check($settings->get('content.path.news') === null && $get('/hirek', null)->status === 200 && $get('/kategoriak', null)->status === 200, 'the old site lost /hirek or /kategoriak');
-$check($get('/news', null)->status === 404, 'the old site got /news');
+$paths = $snapshot['parts']['paths'] ?? ['news' => '/hirek', 'categories' => '/kategoriak'];
+$check($get($paths['news'], null)->status === 200 && $get($paths['categories'], null)->status === 200, 'the old site lost its news or categories path (' . $paths['news'] . ', ' . $paths['categories'] . ')');
+if (!isset($snapshot['parts']['paths'])) {
+    $check($settings->get('content.path.news') === null && $get('/news', null)->status === 404, 'the old site got /news');
+}
+
+// 15. The parts of 0.3.2–0.3.7 the old site had (since 0.4.0): each kept, and working.
+$parts = $snapshot['parts'] ?? [];
+if (isset($parts['file'])) {
+    $check($get($parts['file']['url'], null)->status === 404, 'a file for logged-in users only reaches a visitor');
+    $check($get($parts['file']['url'], $asAdmin)->status === 200, 'a file for logged-in users does not download for the administrator');
+}
+$home = $get('/', null)->body;
+if (isset($parts['component'])) {
+    $check(!str_contains($home, $parts['component']['text']), 'a component for logged-in users shows to a visitor');
+    $kept = $c->get(\Campanella\Model\ObjectRepository::class)->find($parts['component']['id']);
+    $check($kept !== null && (!isset($parts['component']['region']) || $kept->get('component_region') === $parts['component']['region']), 'a component lost its region');
+    if (isset($parts['component']['region'])) {
+        $check(str_contains($get('/', $asAdmin)->body, $parts['component']['text']), 'a component in the sidebar does not show where its conditions say');
+    }
+}
+if (isset($parts['layout'])) {
+    $check($c->get(\Campanella\Layout\LayoutService::class)->site()->name === $parts['layout'] && str_contains($home, 'aria-label="' . $c->get(\Campanella\I18n\Translator::class)->translate('layout.region.sidebar') . '"'), 'the site lost its layout with a sidebar');
+}
+if (isset($parts['front_page'])) {
+    $check(str_contains($home, $parts['front_page']['text']) && str_contains($home, 'display-search-box'), 'the front page is not the page of components any more');
+    $check($get('/frissitesi-cimlap', null)->status === 301, 'the front page\'s own path does not lead to /');
+}
+if (isset($parts['appearance'])) {
+    $check(str_contains($home, 'data-bs-theme="' . $parts['appearance']['mode'] . '"'), 'the site lost its colour mode');
+    $check(str_contains($get('/color-scheme.css', null)->body, '--cc-accent: ' . $parts['appearance']['accent'] . ';'), 'the site lost its colour scheme');
+}
 
 echo "{$checks} checks, upgraded from {$snapshot['version']} (schema {$snapshot['schema']}) to " . Version::CAMPANELLA . ' (schema ' . Version::SCHEMA . ").\n";
 if ($problems !== []) {

@@ -1,30 +1,32 @@
-# Upgrading to 0.3.x
+# Upgrading to 0.4.0
 
-This guide takes a site from **any 0.3.x, 0.2.x or 0.1.x version** to the newest
-0.3.x (now **0.3.7**) in one go. You do not need to install
+This guide takes a site from **any 0.3.x, 0.2.x or 0.1.x version** to
+**0.4.0**, the fourth milestone, in one go. You do not need to install
 the versions in between: one upgrade runs every change since your version. The
 CHANGELOG has the same steps version by version; this page puts them
 together, and adds what to check and how to go back.
 
 | Your version | What to do |
 |---|---|
-| 0.3.0 – 0.3.6 | Upload the new files and run the upgrade (steps 1–3): 0.3.1 adds the importers' tables (schema 17), 0.3.2 the files' (schema 18), 0.3.3 the components' (schema 19), 0.3.4 a component's region (schema 20) and makes the header and footer components, 0.3.5 a component's page (schema 21); 0.3.6 and 0.3.7 change no table. Back up `var/files/` from 0.3.2 on (step 1). CI upgrades 0.3.0, 0.3.1, 0.3.2, 0.3.3, 0.3.4, 0.3.5 and 0.3.6 to the current code on every push. |
+| 0.3.0 – 0.3.7 | Upload the new files and run the upgrade (steps 1–3); read [From 0.3.x](#from-03x) for what 0.4.0 changes. 0.3.1 adds the importers' tables (schema 17), 0.3.2 the files' (schema 18), 0.3.3 the components' (schema 19), 0.3.4 a component's region (schema 20) and makes the header and footer components, 0.3.5 a component's page (schema 21); 0.3.6 and 0.3.7 change no table. Back up `var/files/` from 0.3.2 on (step 1). CI upgrades every 0.3.x to the current code on every push, 0.3.7 with everything of 0.3.2–0.3.7 in use (restricted files, components in regions, a layout with a sidebar, a page of components as the front page, a colour scheme), in Hungarian and as an English site. |
 | 0.2.0 – 0.2.9 | This guide. Supported and tested: CI upgrades 0.2.0 and 0.2.9 to the current code on every push, the latter with a content model made in the admin (`tests/upgrade/run.sh`). |
 | 0.1.0 – 0.1.5 | This guide, and also [From 0.1.x](#from-01x) below. Tested too: CI upgrades 0.1.0 and 0.1.5. |
 | 0.0.6, 0.0.7 | The upgrade runs (their schema version, 6, is accepted), but it is not tested. Also read the [0.1.0 section of the CHANGELOG](../CHANGELOG.md#010--2026-10-08). |
-| Older than 0.0.6 | Upgrade to 0.0.7 first, then follow this guide. 0.3.x refuses to upgrade the database and changes nothing. |
+| Older than 0.0.6 | Upgrade to 0.0.7 first, then follow this guide. 0.4.0 refuses to upgrade the database and changes nothing. |
 
 Your version is shown on the System page (`/admin/system`), and by
 `php bin/campanella status`.
 
 The requirements did not change: PHP 8.3 or newer, MariaDB 10.6+ or MySQL 8.0+.
 
-**Nothing is incompatible.** 0.2.x marked nothing Deprecated, so 0.3.x removes
-and renames nothing: a site, a theme or code written for any 0.2.x keeps
-working. What 0.3.x promises is in [Compatibility](compatibility.md).
+**Nothing is incompatible.** Neither 0.2.x nor 0.3.x marked anything
+Deprecated, so 0.3.0 and 0.4.0 remove and rename nothing: a site, a theme or
+code written for any 0.3.x or 0.2.x keeps working. What 0.4.x promises is in
+[Compatibility](compatibility.md).
 
 ## Contents
 
+- [From 0.3.x](#from-03x)
 - [The steps](#the-steps)
 - [What the upgrade changes in the database](#what-the-upgrade-changes-in-the-database)
 - [What is new since 0.2.0](#what-is-new-since-020)
@@ -33,6 +35,27 @@ working. What 0.3.x promises is in [Compatibility](compatibility.md).
 - [From 0.1.x](#from-01x)
 - [Checklist after the upgrade](#checklist-after-the-upgrade)
 - [Going back](#going-back)
+
+## From 0.3.x
+
+The usual case. 0.4.0 brings no new feature: it releases what 0.3.2–0.3.7
+built as one whole, reviewed (security, accessibility), tested and documented.
+Everything written for 0.3.x keeps working: 0.3.x marked nothing Deprecated, so
+0.4.0 removes and renames nothing, and changes no table.
+
+What a site of an older 0.3.x gets with the upgrade is in
+[What is new since 0.2.0](#what-is-new-since-020) (the rows from your version
+on); what behaves differently in [What behaves differently](#what-behaves-differently)
+(the items marked with a version after yours). What 0.4.0 itself changes:
+
+- **Accessibility** ([the review](accessibility.md)): every page starts with a
+  *Skip to the content* link, seen only when it has the keyboard's focus; the
+  layouts' header is a `<div class="navbar">` instead of a `<nav>` (each menu in
+  it stays a `<nav>` of its own); under a list's heading the cards' titles are
+  `h3`; the focus ring is in the colour scheme's accent. A theme's own CSS that
+  styles `.site-header nav` should style `.site-header .navbar` instead.
+- **0.3.x gets security fixes until 0.5.0 is out**; 0.2.x's support ends with
+  0.4.0, as promised.
 
 ## The steps
 
@@ -46,7 +69,7 @@ working. What 0.3.x promises is in [Compatibility](compatibility.md).
 
    Copy them off the server.
 
-2. **Upload the new version.** Use the release package (`campanella-0.3.7.zip`
+2. **Upload the new version.** Use the release package (`campanella-0.4.0.zip`
    from the GitHub release); it includes the `vendor/` folder. With git:
    `git pull`, then `composer install --no-dev`.
 
@@ -256,7 +279,7 @@ PHP code that uses Campanella's classes.
 
 ## From 0.1.x
 
-From 0.1.0 to 0.1.5, the upgrade to 0.3.x also runs everything 0.2.0 brought.
+From 0.1.0 to 0.1.5, the upgrade to 0.4.0 also runs everything 0.2.0 brought.
 The tables of schema 7 to 12:
 
 | Schema | Version | Change |
@@ -394,7 +417,7 @@ in the [CHANGELOG](../CHANGELOG.md) list every change of the
 
 ## Checklist after the upgrade
 
-- [ ] The System page (*System → Status*) shows 0.3.7, no error and no warning
+- [ ] The System page (*System → Status*) shows 0.4.0, no error and no warning
       about PHP's JIT, the tables match the definitions, and no page is missing
       from the search; under *Images and files* the files' folder is writable.
 - [ ] The site's header shows its name, the main menu, the search and the
@@ -412,7 +435,8 @@ in the [CHANGELOG](../CHANGELOG.md) list every change of the
 - [ ] A file uploaded under *Media → Files* downloads from its address; one
       for logged-in users gives "Page not found" in a private window.
 - [ ] The front page, an article with an image, a list, the search
-      (`/search?q=…`) and a 404 page look right.
+      (`/search?q=…`) and a 404 page look right; the first Tab on a page shows
+      *Skip to the content* (since 0.4.0).
 - [ ] Logging in and out work.
 - [ ] The Blueprints and lists made in the admin (if any) are under System,
       and their pages work.

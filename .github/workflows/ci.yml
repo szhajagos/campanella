@@ -152,7 +152,9 @@ jobs:
     # site the pages are assembled from components.
     # Since 0.3.6 also from 0.3.5; an upgraded site keeps its colours and gets no switch.
     # Since 0.3.7 also from 0.3.6; an upgraded site keeps its content paths (/hirek).
-    name: Upgrade from ${{ matrix.from }} – ${{ matrix.db }}
+    # Since 0.4.0 from 0.3.7, the last 0.3.x, with everything of 0.3.2–0.3.7 (old-fixture.php),
+    # in Hungarian and as an English site (its own paths, /news).
+    name: Upgrade from ${{ matrix.from }} – ${{ matrix.db }}${{ matrix.locale && format(' – {0}', matrix.locale) || '' }}
     if: inputs.tag == ''
     runs-on: ubuntu-latest
     strategy:
@@ -172,6 +174,8 @@ jobs:
           - { from: 'v0.3.4', db: 'mariadb:11.4' }
           - { from: 'v0.3.5', db: 'mysql:8.4' }
           - { from: 'v0.3.6', db: 'mariadb:10.6' }
+          - { from: 'v0.3.7', db: 'mariadb:11.4' }
+          - { from: 'v0.3.7', db: 'mysql:8.0', locale: 'en' }
 
     services:
       db:
@@ -218,7 +222,7 @@ jobs:
         run: git worktree add "$RUNNER_TEMP/campanella-old" "${{ matrix.from }}"
 
       - name: Upgrade, and check that nothing was lost
-        run: bash tests/upgrade/run.sh "$RUNNER_TEMP/campanella-old"
+        run: bash tests/upgrade/run.sh "$RUNNER_TEMP/campanella-old" ${{ matrix.locale && format('--locale={0}', matrix.locale) || '' }}
 
   performance:
     # The performance check (since 0.3.0): tests/performance/run.sh fills a site with

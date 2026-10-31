@@ -25,20 +25,23 @@ OLD_SRC="${1:-}"
 shift || true
 OFFLINE=0
 KEEP=0
+LOCALE=hu
 for arg in "$@"; do
     case "$arg" in
         --offline) OFFLINE=1 ;;
         --keep) KEEP=1 ;;
+        --locale=hu|--locale=en) LOCALE="${arg#--locale=}" ;;
         *) echo "Unknown option: $arg" >&2; exit 2 ;;
     esac
 done
 if [ -z "$OLD_SRC" ] || [ ! -f "$OLD_SRC/bin/campanella" ]; then
-    echo "Usage: tests/upgrade/run.sh <old source folder> [--offline] [--keep]" >&2
+    echo "Usage: tests/upgrade/run.sh <old source folder> [--offline] [--keep] [--locale=hu|en]" >&2
     exit 2
 fi
 
 export CAMPANELLA_DB_PREFIX="${CAMPANELLA_DB_PREFIX:-upg_}"
-export CAMPANELLA_LOCALE=hu
+# The old site's language (since 0.4.0: --locale=en, an English site of 0.3.7 with its own paths).
+export CAMPANELLA_LOCALE="$LOCALE"
 WORK="$(mktemp -d)"
 SITE="$WORK/site"
 

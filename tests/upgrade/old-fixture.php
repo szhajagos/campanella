@@ -14,7 +14,8 @@ declare(strict_types=1);
  * 0.3.0): if the old version has the content model's import (0.2.6 and later), a
  * Blueprint made "in the admin" with its own fields, events of it, a list of them, and
  * (0.2.7 and later) a changed path, i.e. a redirect, are added as well, with that
- * version's own code. The passwords are test values.
+ * version's own code. Since 0.4.0 also the parts of 0.3.2–0.3.7 the old version has (see
+ * below). The passwords are test values.
  */
 
 use Campanella\Access\Actor;
@@ -141,6 +142,50 @@ if (class_exists(\Campanella\Transfer\ModelImport::class)) {
         'filters' => class_exists(\Campanella\Query\FieldFilters::class), 'own_file' => $ownFile, 'own_snippet' => $ownSnippet];
 }
 
+// The parts of 0.3.2–0.3.7 (since 0.4.0), each only if the old version has it, with its own
+// code: a file for logged-in users only, a component for members in the sidebar on some
+// paths, the site's layout with a sidebar, a page of its own components as the front page, a
+// chosen colour scheme and mode, and the content paths as the old site has them.
+$parts = [];
+if (class_exists(\Campanella\Media\FileService::class) && $c->has(\Campanella\Media\FileService::class) && $c->get(\Campanella\Media\FileService::class)->isAvailable()) {
+    $tmp = tempnam(sys_get_temp_dir(), 'upgf');
+    file_put_contents($tmp, "nev;kor\nAnna;30\n");
+    $members = $c->get(\Campanella\Media\FileService::class)->upload($system, $tmp, 'tagoknak.csv', \Campanella\Capability\Restricted::USERS, [], 'Frissítési tagfájl');
+    @unlink($tmp);
+    $parts['file'] = ['id' => (int) $members->id(), 'url' => $c->get(\Campanella\Media\FileService::class)->url($members)];
+}
+if (class_exists(\Campanella\Display\ComponentService::class) && $c->get(\Campanella\Display\ComponentService::class)->isAvailable()) {
+    $components = $c->get(\Campanella\Display\ComponentService::class);
+    $snippet = $objects->create($system, 'snippet', ['title' => 'Frissítési tagdoboz', 'body' => '<p>Csak tagoknak szól.</p>']);
+    $box = $components->create($system, ['title' => 'Frissítési tagdoboz', 'machine_name' => 'frissitesi_tagdoboz', 'visible_to' => \Campanella\Capability\Restricted::USERS], 'object:' . $snippet->id(), 'info_box');
+    $parts['component'] = ['id' => (int) $box->id(), 'text' => 'Csak tagoknak szól.'];
+    if (class_exists(\Campanella\Layout\Conditions::class)) {
+        // 0.3.4 and later: in the sidebar, on the news' pages and the front page; the site's layout with a sidebar.
+        $components->place($system, $box, 'sidebar', \Campanella\Layout\Conditions::fromText("/hirek\n/news", [], true, ''));
+        $c->get(\Campanella\Layout\LayoutService::class)->save('sidebar');
+        $parts['component'] += ['region' => 'sidebar'];
+        $parts['layout'] = 'sidebar';
+    }
+    if (class_exists(\Campanella\Capability\Composed::class)) {
+        // 0.3.5 and later: a page of its own components, made the front page.
+        $front = $objects->create($system, 'page', ['title' => 'Frissítési címlap', 'path' => '/frissitesi-cimlap', 'body' => '<p>A régi webhely címlapja.</p>'], publish: true);
+        $own = $components->create($system, ['title' => 'Frissítési címlap keresője', 'machine_name' => 'frissitesi_cimlap_kereso'], 'system:search', 'search_box', [], $front);
+        $components->place($system, $own, 'content');
+        $c->get(\Campanella\Settings\Settings::class)->set(['site.front_page' => (string) $front->id()]);
+        $parts['front_page'] = ['id' => (int) $front->id(), 'component' => (int) $own->id(), 'text' => 'A régi webhely címlapja.'];
+    }
+}
+if (class_exists(\Campanella\Appearance\Appearance::class)) {
+    // 0.3.6 and later: a colour scheme and a fixed mode.
+    $c->get(\Campanella\Appearance\Appearance::class)->save('forest', 'dark');
+    $parts['appearance'] = ['scheme' => 'forest', 'mode' => 'dark', 'accent' => '#2f6b3a'];
+}
+if (class_exists(\Campanella\Site\ContentPaths::class)) {
+    // 0.3.7 and later: the content paths as the old site has them (/news on an English one).
+    $paths = $c->get(\Campanella\Site\ContentPaths::class);
+    $parts['paths'] = ['news' => $paths->get('news'), 'categories' => $paths->get('categories')];
+}
+
 // The snapshot: every row of every table (but the system's own bookkeeping), so
 // verify.php can check that the upgrade kept them (its new columns aside).
 $db = $c->get(Connection::class);
@@ -167,6 +212,7 @@ file_put_contents($snapshot, json_encode([
     'image' => ['id' => (int) $image->id(), 'src' => $src],
     'article' => ['id' => (int) $article->id(), 'path' => '/frissitesi-probacikk'],
     'model' => $model,
+    'parts' => $parts,
     'users' => [
         'admin' => ['upgrade-admin@example.hu', 'upgrade-admin-jelszo-1'],
         'editor' => ['upgrade-editor@example.hu', 'upgrade-editor-jelszo-1'],

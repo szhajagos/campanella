@@ -348,7 +348,7 @@ stays for 1.0. A part too big for a day is split (a, b).
    everything (restricted files, components in regions with conditions, a
    layout with a sidebar, a page of components as the front page, a chosen
    colour scheme, English) that must survive; upgrading from any 0.3.x, 0.2.x
-   or 0.1.x.
+   or 0.1.x (done).
 3. **A performance check** (part 3): a front page of many components, a layout
    with a sidebar, cards of a list among 10 000 objects, restricted files, with
    limits, on MariaDB and MySQL.

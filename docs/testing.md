@@ -8,7 +8,7 @@ run locally too.
 |---|---|---|
 | Tests | `composer test` | The PHP code, on a real database (table prefix `test_`) |
 | Static analysis and docs | `composer analyse`, `composer docs:check`, `composer docs:links`, `composer lang:check` | Types (PHPStan level 8); every public class and method documented; links; translations |
-| Upgrade test | `tests/upgrade/run.sh <old source>` | A real upgrade from 0.1.0, 0.1.5, 0.2.0, 0.2.9, 0.3.0, 0.3.1, 0.3.2, 0.3.3, 0.3.4, 0.3.5 or 0.3.6 (from 0.2.9 on with a content model): nothing is lost (since 0.2.0; see [The upgrade test](php-api/17-migrations.md#the-upgrade-test)) |
+| Upgrade test | `tests/upgrade/run.sh <old source>` | A real upgrade from 0.1.0, 0.1.5, 0.2.0, 0.2.9, 0.3.0, 0.3.1, 0.3.2, 0.3.3, 0.3.4, 0.3.5, 0.3.6 or 0.3.7 (from 0.2.9 on with a content model): nothing is lost (since 0.2.0; see [The upgrade test](php-api/17-migrations.md#the-upgrade-test)) |
 | Performance check | `tests/performance/run.sh` | 10 000 objects; the busiest pages answer within their limits of time and SQL queries (since 0.3.0; [below](#the-performance-check)) |
 | Browser tests | `tests/browser/run.sh` | The site in a real browser, its protections first (since 0.2.0; below) |
 | Release package | `tests/package/check.sh` | The installation package as a site owner gets it: its contents, installing it from the browser on a minimal PHP, the browser tests on it (since 0.2.0; below) |

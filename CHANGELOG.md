@@ -10,7 +10,7 @@ backward-incompatible.
 
 ## [Unreleased]
 
-**The fourth milestone, part 1.**
+**The fourth milestone, parts 1–2.**
 
 ### Fixed
 
@@ -19,6 +19,17 @@ backward-incompatible.
   around the menus; the cards' titles are `h3` under the list's heading (the
   teaser display's `heading` setting, 2–4); the focus ring in the scheme's
   accent.
+
+### Documentation and tests
+
+- The upgrade guide is for 0.4.0, from any 0.3.x, 0.2.x or 0.1.x, with a section
+  of its own for 0.3.x. The upgrade test's old site has everything of 0.3.2–0.3.7
+  its version has (a file for logged-in users, a component for members in the
+  sidebar on some paths, the site's layout with a sidebar, a page of components
+  as the front page, a colour scheme and mode, the content paths), and each is
+  checked after the upgrade; `tests/upgrade/run.sh --locale=en` makes it an
+  English site. CI: the upgrades from 0.3.7, in Hungarian (MariaDB 11.4) and as
+  an English site (MySQL 8.0).
 
 ### Security
 
