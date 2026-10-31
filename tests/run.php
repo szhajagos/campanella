@@ -2461,6 +2461,29 @@ test('The colour mode switch (0.3.6): a form without a session; POST /color-mode
     check(!isset($kernel->handle(new Request('GET', '/color-scheme.css'))->headers['Vary']), 'the CSS does not vary');
 });
 
+test('Teaser (0.4.0): an object without a page of its own: a file\'s title leads to its download, another\'s to nowhere; never an error', function () use ($displayKernel): void {
+    $kernel = $displayKernel();
+    if ($kernel === null) {
+        return;
+    }
+    $c = $kernel->container();
+    $c->set(Session::class, static fn () => new Session(new ArraySessionStorage()));
+    $system = Actor::system();
+    $renderer = $c->get(\Campanella\Display\DisplayRenderer::class);
+    $context = new \Campanella\Display\DisplayContext($system, '/');
+    $snippet = $c->get(ObjectService::class)->create($system, 'snippet', ['title' => 'Oldal nélküli részlet', 'body' => 'x']);
+    $plain = $renderer->show('object:' . $snippet->id(), 'teaser', [], $context);
+    check(str_contains($plain, '<h2 class="h4 mb-1">Oldal nélküli részlet</h2>') && !str_contains($plain, 'href='), 'a title without a link, no "more": ' . $plain);
+    $files = $c->get(\Campanella\Media\FileService::class);
+    if ($files->isAvailable()) {
+        $file = $files->upload($system, testFile("a;b\n"), 'tizer.csv', title: 'Letölthető tizer');
+        $shown = $renderer->show('object:' . $file->id(), 'teaser', [], $context);
+        check(str_contains($shown, 'href="/files/' . $file->id() . '/tizer.csv">Letölthető tizer</a>') && !str_contains($shown, 'class="more'), 'a file\'s title leads to its download: ' . $shown);
+        $c->get(ObjectService::class)->delete($system, $file);
+    }
+    $c->get(ObjectService::class)->delete($system, $snippet);
+});
+
 test('Security review (0.4.0): the parts of 0.3.2–0.3.7 together: a page\'s components, lists in them, the visitor\'s rights all the way down; the accessibility fixes', function () use ($displayKernel): void {
     $kernel = $displayKernel();
     if ($kernel === null) {

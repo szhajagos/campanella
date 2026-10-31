@@ -45,6 +45,8 @@ const RUNS = 7;
  * host or CI machine; a page over them has become slower than it should be. The site's pages
  * have 75 statements since 0.3.4 (60 before): their header and footer are components, about
  * 15 statements (the regions' components, the footer's snippet, the menu); the admin, 60.
+ * A page of components (since 0.4.0) costs about 6 more for each of its components (its
+ * source's query, then its objects loaded in batches): the measured front page of 9, 130.
  */
 $pages = [
     // A list made in the admin, with visitors' filters (0.2.9).
@@ -65,6 +67,15 @@ $pages = [
     ['Search, a word prefix, page 20', '/search?q=keny&page=20', false, 500, 75, 'keny'],
     // An event's own page, for comparison.
     ['An event\'s page', '@event', false, 300, 75, 'Helyszín'],
+
+    // Since 0.4.0: a front page of components (cards and a table of the 10 000 events, boxes,
+    // the search, the login form; the site's own in the sidebar), files some of which are for
+    // logged-in users only, the colour scheme's CSS.
+    ['The front page of 9 components', '/', false, 500, 130, 'Mért fájl 1'],
+    ['The front page, as the administrator', '/', true, 500, 130, 'A mért címlap szövege'],
+    ['A list of 200 files, half restricted', '/perf-files', false, 500, 75, 'Mért fájlok'],
+    ['The files, as the administrator', '/perf-files', true, 500, 75, 'Mért fájl 10'],
+    ['The colour scheme\'s CSS', '/color-scheme.css', false, 100, 10, '--cc-accent: #2f6b3a'],
 ];
 
 /** One request, as a new one: its response, time (ms) and number of SQL statements. */

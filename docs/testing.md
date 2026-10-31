@@ -133,20 +133,56 @@ php tests/performance/measure.php <site>       # again, on a site kept with --ke
    visitors' filters (20 a page), another as a table (50 a page). Then 10 000
    objects saved one by one as the admin saves them (search index, relation,
    path; one in ten a draft), their texts of 3 paragraphs made from a fixed
-   vocabulary with a fixed seed, so every run has the same data.
+   vocabulary with a fixed seed, so every run has the same data. Since 0.4.0
+   also what 0.3.2–0.3.7 added: 200 files to download, half of them for
+   logged-in users only, with a list of them (a table, 50 a page); a front page
+   assembled from components in the layout with a sidebar (the 10 000 events as
+   9 cards in 3 columns and as a table of 10, an info box, the search, another
+   box and the login form), and 3 of the site's own components in the sidebar
+   on the front page (a box, the user card, the files as cards); the *Forest*
+   colour scheme.
 3. **The pages** (`measure.php`), each requested once to warm up, then 7 times
    as new requests (a new Kernel, container and connection): the list's first
    and 100th page, with one and with all 4 filters, the table; the admin's
    list unsorted, sorted by an own column, with 4 filters, with a title search
    on page 5; the search for a common word, two words, a rare word, a word's
-   beginning on page 20; an event's own page. Checked: the **median time**
+   beginning on page 20; an event's own page; since 0.4.0 the front page of
+   components (as a visitor and as the administrator), the files' list (as
+   both; a visitor sees only the public half), the colour scheme's CSS.
+   Checked: the **median time**
    against the page's limit (500 ms, the event's page 300 ms), and the
    **number of SQL statements** the request sent (the server's count) against
    75 for the site's pages and 60 for the admin's (since 0.3.4 the site's header
-   and footer are components: about 15 statements, [below](#the-layouts-since-034)).
+   and footer are components: about 15 statements, [below](#the-layouts-since-034));
+   a page of components about 6 more for each component (its source's query,
+   then its objects in batches), so the front page of 9 has 130, and the CSS 10.
+   Each check also needs a text on the page: the front page's comes from the
+   sidebar's last component, so a region that fails to show fails the check.
    The time depends on the machine, so its limit leaves room for a slow
    one; the count does not, and a page that loads something once per object
    shown goes over it at once.
+
+### The results for 0.4.0
+
+Measured on 2026-10-31 (a development container; PHP 8.3, the medians of the
+pages added in 0.4.0; the others are near those of 0.3.0 below, with the
+header's and footer's 15 statements more since 0.3.4):
+
+| Page | MariaDB 10.11 | MySQL 8.0 | SQL statements |
+|---|---|---|---|
+| The front page of 9 components | 142 ms | 196 ms | 109 |
+| The front page, as the administrator | 127 ms | 132 ms | 117 |
+| A list of 200 files, half restricted | 33 ms | 32 ms | 52 |
+| The files, as the administrator | 34 ms | 58 ms | 60 |
+| The colour scheme's CSS | 7 ms | 10 ms | 6 |
+| A list, first page (for comparison) | 114 ms | 126 ms | 62 |
+
+Found by it, and fixed: the teaser display linked every title to the object's
+page, so cards of a list of objects without one (files, snippets) failed, and
+the whole region with them; now a file's title leads to its download, another's
+is shown without a link. Seen, and left for later: a list's condition on a field
+joins every Blueprint's table that has a field of that name, not only the
+list's own (the result is right; it is one join more).
 
 ### The results for 0.3.0
 

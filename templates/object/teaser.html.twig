@@ -1,7 +1,9 @@
 {# Short rendering in lists: the teaser display (since 0.3.3; settings.show_date, settings.show_lead; heading: the title's level, 2–4, since 0.4.0). Blueprint-specific variant: object/<blueprint>--teaser.html.twig #}
 {%- set level = heading ?? 2 %}
+{#- Where the title leads (since 0.4.0): the object's page; a file's download (a file has no page); else nowhere. #}
+{%- set href = object.path is defined and object.path ? url(object.path) : file_url(object) %}
 <article class="object object--teaser object--{{ object.blueprint }} py-3 border-bottom">
-    <h{{ level }} class="h4 mb-1"><a class="text-reset text-decoration-none" href="{{ url(object.path) }}">{{ object.title }}</a></h{{ level }}>
+    <h{{ level }} class="h4 mb-1">{% if href %}<a class="text-reset text-decoration-none" href="{{ href }}">{{ object.title }}</a>{% else %}{{ object.title }}{% endif %}</h{{ level }}>
     {% if (settings.show_date ?? true) and object.published_at is defined and object.published_at %}
         <p class="meta small text-body-secondary mb-2"><time datetime="{{ object.published_at|date('c') }}">{{ object.published_at|date }}</time></p>
     {% endif %}
@@ -9,5 +11,7 @@
         <p class="mb-2">{{ object.lead }}</p>
     {% endif %}
     {{ include('object/_relations.html.twig') }}
-    <a class="more small" href="{{ url(object.path) }}">{{ t('content.more') }}</a>
+    {%- if object.path is defined and object.path %}
+    <a class="more small" href="{{ href }}">{{ t('content.more') }}</a>
+    {%- endif %}
 </article>

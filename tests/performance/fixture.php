@@ -134,3 +134,51 @@ for ($i = 1; $i <= $count; $i++) {
 
 // An administrator for the admin's pages (measure.php logs in as it, without a password).
 $c->get(\Campanella\Service\UserService::class)->create($system, 'Mérő Admin', 'perf-admin@example.hu', bin2hex(random_bytes(16)), ['administrator']);
+
+// Since 0.4.0, what 0.3.2–0.3.7 added, as a site uses it: 200 files to download, half of
+// them for logged-in users only, in a list; a front page assembled from components (cards
+// of the 10 000 events, a table of them, info boxes, the search, the login form) in the
+// layout with a sidebar, with the site's own components in the sidebar on the front page; a
+// chosen colour scheme.
+$system = Actor::system();
+$files = $c->get(\Campanella\Media\FileService::class);
+for ($i = 1; $i <= 200; $i++) {
+    $tmp = tempnam(sys_get_temp_dir(), 'perf');
+    file_put_contents($tmp, "nev;szam\nsor;{$i}\n");
+    $files->upload($system, $tmp, sprintf('meres-%03d.csv', $i), $i % 2 === 0 ? \Campanella\Capability\Restricted::USERS : \Campanella\Capability\Restricted::PUBLIC, [], 'Mért fájl ' . $i);
+    @unlink($tmp);
+}
+$store = $c->get(\Campanella\Lists\ListStore::class);
+$store->save('perf_files', [
+    'version' => 1, 'title' => 'Mért fájlok', 'blueprint' => $files->blueprint(), 'conditions' => [],
+    'sort' => [['field' => 'title', 'dir' => 'asc']], 'per_page' => 50, 'display' => 'table',
+    'columns' => [], 'path' => '/perf-files', 'filters' => [],
+]);
+$c->get(\Campanella\Lists\ListRegistry::class)->loadStored($store->load());
+
+$components = $c->get(\Campanella\Display\ComponentService::class);
+$front = $objects->create($system, 'page', ['title' => 'Mért címlap', 'path' => '/mert-cimlap', 'body' => '<p>A mért címlap szövege.</p>', 'page_layout' => 'sidebar'], publish: true);
+$snippets = [];
+for ($i = 1; $i <= 3; $i++) {
+    $snippets[$i] = $objects->create($system, 'snippet', ['title' => 'Mért doboz ' . $i, 'body' => '<p>' . ucfirst($text(25)) . '.</p>']);
+}
+$own = [
+    ['perf_cards', 'list:perf_events', 'cards', ['count' => '9', 'columns' => '3', 'show_more' => '1', 'show_title' => '1'], 'content'],
+    ['perf_table_cards', 'list:perf_table', 'table', ['count' => '10', 'show_more' => '1'], 'content'],
+    ['perf_box_1', 'object:' . $snippets[1]->id(), 'info_box', [], 'content'],
+    ['perf_search', 'system:search', 'search_box', [], 'sidebar'],
+    ['perf_box_2', 'object:' . $snippets[2]->id(), 'info_box', [], 'sidebar'],
+    ['perf_login', 'system:visitor', 'login_form', [], 'sidebar'],
+];
+foreach ($own as $weight => [$key, $source, $display, $settings, $region]) {
+    $component = $components->create($system, ['title' => 'Mért ' . $key, 'machine_name' => $key], $source, $display, $settings, $front);
+    $components->place($system, $component, $region, null, $weight);
+}
+// The site's own, in the sidebar on the front page only (the other pages measured stay as they were).
+foreach ([['perf_site_box', 'object:' . $snippets[3]->id(), 'info_box'], ['perf_site_user', 'system:visitor', 'user_card'], ['perf_site_files', 'list:perf_files', 'cards']] as $weight => [$key, $source, $display]) {
+    $component = $components->create($system, ['title' => 'Mért ' . $key, 'machine_name' => $key], $source, $display, $display === 'cards' ? ['count' => '5', 'columns' => '1', 'show_more' => '1'] : []);
+    $components->place($system, $component, 'sidebar', \Campanella\Layout\Conditions::fromText('', [], true, ''), 100 + $weight);
+}
+$c->get(\Campanella\Settings\Settings::class)->set(['site.front_page' => (string) $front->id()]);
+$c->get(\Campanella\Appearance\Appearance::class)->save('forest', null);
+echo "  200 files, a front page of 6 components and 3 of the site's, the forest scheme\n";

@@ -10,10 +10,13 @@ backward-incompatible.
 
 ## [Unreleased]
 
-**The fourth milestone, parts 1–2.**
+**The fourth milestone, parts 1–3.**
 
 ### Fixed
 
+- The teaser display (and so the cards) of an object without a page of its own
+  (a file, a snippet) failed, and hid the whole region it was in; now a file's
+  title leads to its download, another's is shown without a link.
 - Accessibility ([the review](docs/accessibility.md)): a *Skip to the content*
   link on every page; the layouts' header is no longer a navigation landmark
   around the menus; the cards' titles are `h3` under the list's heading (the
@@ -30,6 +33,9 @@ backward-incompatible.
   checked after the upgrade; `tests/upgrade/run.sh --locale=en` makes it an
   English site. CI: the upgrades from 0.3.7, in Hungarian (MariaDB 11.4) and as
   an English site (MySQL 8.0).
+- The performance check measures what 0.3.2–0.3.7 added too: a front page of 9
+  components with the site's own in the sidebar, 200 files half of them
+  restricted, the colour scheme's CSS, with limits.
 
 ### Security
 

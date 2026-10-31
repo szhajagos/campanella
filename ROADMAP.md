@@ -351,7 +351,8 @@ stays for 1.0. A part too big for a day is split (a, b).
    or 0.1.x (done).
 3. **A performance check** (part 3): a front page of many components, a layout
    with a sidebar, cards of a list among 10 000 objects, restricted files, with
-   limits, on MariaDB and MySQL.
+   limits, on MariaDB and MySQL (done; found and fixed: the teaser of an object
+   without a page).
 4. **The guide as a whole** (part 4): the first steps with the Appearance menu,
    backups and upgrading for 0.4.0, troubleshooting for components, layouts and
    colours, the contents; the screenshots.
@@ -478,6 +479,10 @@ capability, `Restricted`, applied by the access policy. This is decided before
 
 ## Later
 
+- **A list's conditions by field name** (seen in 0.4.0's performance check):
+  a condition or filter on a field joins every Blueprint's table that has a
+  field of that name, not only the list's own Blueprint's. The result is right;
+  joining only the list's own would save a join on sites with many Blueprints.
 - **The project's website** (after 1.0; 2026-10-13), e.g. campanellacms.org:
   guides for site owners and developers, the API reference, downloads. Run on
   Campanella itself; the documentation's source stays in this repository
