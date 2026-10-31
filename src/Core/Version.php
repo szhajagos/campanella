@@ -6,7 +6,7 @@ namespace Campanella\Core;
 
 final class Version
 {
-    public const string CAMPANELLA = '0.3.7';
+    public const string CAMPANELLA = '0.4.0';
 
     /**
      * The database schema version; incremented with migrations and new core tables

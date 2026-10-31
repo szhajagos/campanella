@@ -1,4 +1,4 @@
-# Campanella 0.3.7
+# Campanella 0.4.0
 
 [![CI](https://github.com/szhajagos/campanella/actions/workflows/ci.yml/badge.svg)](https://github.com/szhajagos/campanella/actions/workflows/ci.yml)
 
@@ -7,14 +7,48 @@ behavior is determined by the capabilities attached to it.
 
 0.1.0 was the first milestone: a real website can be run and managed from the
 browser with it. 0.2.0 was the second: the site communicates (e-mail, a
-forgotten password, a contact form, search engines and sharing). **0.3.0** is
-the third: **content types built in the admin**, without programming, with
-their fields, lists for visitors with filters, search and redirects, carried
-between sites by export and import; and what 0.3.x keeps is promised (see the
-[compatibility promise](docs/compatibility.md)). Plans are in the
-[ROADMAP](ROADMAP.md), changes in the [CHANGELOG](CHANGELOG.md).
+forgotten password, a contact form, search engines and sharing). 0.3.0 was the
+third: content types built in the admin, without programming, with their
+fields, lists for visitors with filters, search and redirects. **0.4.0** is the
+fourth: **building pages and the look** in the admin: files to download for
+everyone or some users, components shown with displays, layouts with regions,
+pages assembled from components (editors arrange their own), colour schemes
+with a light and a dark mode, sample content in the site's language; and what
+0.4.x keeps is promised (see the [compatibility promise](docs/compatibility.md)).
+Plans are in the [ROADMAP](ROADMAP.md), changes in the [CHANGELOG](CHANGELOG.md).
 
-## What is new in 0.3.7
+## What is new in 0.4.0
+
+The fourth milestone brings no new feature: it releases what 0.3.2–0.3.7 built
+(below) as one whole, reviewed, tested and documented.
+
+- **A security review** of 0.3.2–0.3.7 together: the visitor's rights hold
+  through a page's components and the lists in them, at any depth
+  ([docs/security.md](docs/security.md#security-review-for-040-2026-10-31)).
+- **An accessibility check** of the site's new parts, by hand: a *Skip to the
+  content* link, the menus as the only navigation landmarks, headings in
+  order, a clear focus ring ([docs/accessibility.md](docs/accessibility.md)).
+- **Upgrade tests** from every 0.3.x, the last one with everything of
+  0.3.2–0.3.7 in use, in Hungarian and as an English site; the upgrade guide
+  for any 0.3.x, 0.2.x or 0.1.x ([docs/upgrading.md](docs/upgrading.md)).
+- **A performance check** of a front page of components, restricted files and
+  the colour scheme, with 10 000 objects; it found a teaser that failed for
+  objects without a page, now fixed ([docs/testing.md](docs/testing.md#the-performance-check)).
+- **The guide** as a whole for 0.4.x, in Hungarian and English, its English
+  pictures with English sample content ([docs/guide](docs/guide/README.md)).
+- **The compatibility promise for 0.4.x**, now also for displays, components,
+  layouts, colour schemes, tokens and the content paths
+  ([docs/compatibility.md](docs/compatibility.md)); 0.3.x gets security fixes
+  until 0.5.0 is out, 0.2.x's end with 0.4.0.
+
+The details are in the [CHANGELOG](CHANGELOG.md#040--2026-10-31).
+
+## What 0.3.1–0.3.7 built
+
+The steps towards 0.4.0, building pages and the look
+([ROADMAP](ROADMAP.md#040--building-pages-and-the-look)).
+
+### 0.3.7
 
 **Sample content in the site's language:** an English site gets English sample
 content (`seed`, or *Sample content* when installing): articles, events, a
@@ -24,7 +58,7 @@ an existing site keeps its paths. The samples are data files
 (`resources/seed/<language>.json`), so another language is one more file
 ([PHP API](docs/php-api/09-system.md#the-sample-content)).
 
-## What was new in 0.3.6
+### 0.3.6
 
 **Colour schemes and the colour mode** (Appearance → Colour schemes): the
 site's colours in a light and a dark variant, chosen among the schemes of the
@@ -35,7 +69,7 @@ component, so it goes where the administrator places it (the sample content: in
 the navigation). The admin follows the mode, never the scheme
 ([guide](docs/guide/en/16-colour-schemes.md), [PHP API](docs/php-api/31-appearance.md)).
 
-## What was new in 0.3.5
+### 0.3.5
 
 **Pages assembled from components:** a page (e.g. About us) can have
 components of its own below and beside its text, e.g. the latest news as cards,
@@ -46,7 +80,7 @@ still shows the latest content. The sample content has such a front page
 ([guide](docs/guide/en/15-pages.md),
 [PHP API](docs/php-api/29-layouts.md#a-pages-own-components)).
 
-## What was new in 0.3.4
+### 0.3.4
 
 **Layouts and regions** (Appearance → Layouts, Appearance → Regions): a page's
 layout has regions (header, navigation, content, sidebar, footer), and
@@ -60,7 +94,7 @@ upgrade as they looked; the footer is a snippet with **tokens** such as
 template and a JSON file) ([guide](docs/guide/en/14-layouts.md),
 [PHP API](docs/php-api/29-layouts.md)).
 
-## What was new in 0.3.3
+### 0.3.3
 
 **Components** (Appearance → Components): a component shows a source with a
 display: a menu as navigation, a **snippet** (a short text such as the opening
@@ -71,7 +105,7 @@ by its machine name, `{{ component('contact_box') }}`. A theme can use the 16 bu
 directly too (`display()`). The admin's menu is in groups now
 ([guide](docs/guide/en/13-components.md), [PHP API](docs/php-api/28-displays.md)).
 
-## What was new in 0.3.2
+### 0.3.2
 
 **Files to download** (Media → Files): PDF, Office, OpenDocument, text and CSV
 files, checked by their content (never macros, pages or programs), kept outside
@@ -81,7 +115,7 @@ the web root and always sent as a download, for **everyone**, for the
 form; the editor links the selected text to a file
 ([guide](docs/guide/en/05-images.md), [PHP API](docs/php-api/27-files.md)).
 
-## What was new in 0.3.1
+### 0.3.1
 
 **Importers** (System → Importers): the rows of a CSV file (e.g. saved from
 Excel) or the objects of a JSON file become objects of a Blueprint, by a

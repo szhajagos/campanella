@@ -8,9 +8,33 @@ Sections: **Added**, **Changed**, **Deprecated**, **Removed**, **Fixed**,
 **Security**. In 0.x versions, items under **Changed** and **Removed** may be
 backward-incompatible.
 
-## [Unreleased]
+## [0.4.0] – 2026-10-31
 
-**The fourth milestone, parts 1–4.**
+**The fourth milestone: building pages and the look.** What 0.3.2–0.3.7 built
+(files to download, displays and components, regions and layouts, pages
+assembled from components, colour schemes, sample content in the site's
+language), released as one whole: a security review of the parts together, an
+accessibility check of the site's new parts, upgrade tests from every 0.3.x,
+the upgrade guide for 0.4.0, a performance check of the new pages, the guide as
+a whole, and the compatibility promise for 0.4.x. No new feature; nothing
+removed or renamed.
+
+**Upgrading from 0.3.x:** upload the new files and run the upgrade
+(`php bin/campanella install`, or `/admin/upgrade`); no table changes. A
+theme's own CSS that styles `.site-header nav` should style `.site-header
+.navbar` (the layouts' header is no longer a `<nav>`). From 0.2.x or 0.1.x: see
+[docs/upgrading.md](docs/upgrading.md). **0.3.x gets security fixes until
+0.5.0 is out; 0.2.x's security fixes end with this release.**
+
+### Added
+
+- **The compatibility promise for 0.4.x** ([docs/compatibility.md](docs/compatibility.md)):
+  what 0.3.x promised, and now also the displays (their names and settings),
+  a source's written form, a component's stored form and who may change it,
+  the layouts' and the colour schemes' JSON, the tokens, the settings saved in
+  the admin, the content paths, the new addresses and Twig functions.
+- [docs/accessibility.md](docs/accessibility.md): what is checked, fixed and
+  accepted.
 
 ### Fixed
 
