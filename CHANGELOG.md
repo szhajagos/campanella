@@ -10,7 +10,7 @@ backward-incompatible.
 
 ## [Unreleased]
 
-**Sample content in the site's language, parts 1–2.** The sixth step towards 0.4.0.
+**Sample content in the site's language, parts 1–3a.** The sixth step towards 0.4.0.
 
 ### Added
 
@@ -36,6 +36,13 @@ backward-incompatible.
 - `config/routes.php` routes only the front page; the news and the categories
   are routed at the content paths. A copy of the file from before that routes
   them keeps its routes.
+
+### Security
+
+- Reviewed as a whole ([the review](docs/security.md#review-of-the-sample-content-and-the-content-paths-037-2026-10-31)).
+  Fixed: a content path is routed after the system's own routes and only where
+  nothing is routed, so it can never hide the admin's front page or a system
+  page (an exact route wins over the admin's prefix).
 
 ## [0.3.6] – 2026-10-31
 

@@ -1043,14 +1043,6 @@ final class Kernel
 
         $c->set(Router::class, static function (Container $c) use ($root): Router {
             $static = require $root . '/config/routes.php';
-            // The news and the categories in the site's language (since 0.3.7), unless the
-            // file routes them itself (a copy from before).
-            $own = array_map(static fn (array $route): string => (string) ($route[1]['query'] ?? ''), $static);
-            foreach ($c->get(ContentPaths::class)->routes($c->get(Translator::class)) as $path => $route) {
-                if (!in_array($route[1]['query'], $own, true) && !isset($static[$path])) {
-                    $static[$path] = $route;
-                }
-            }
             $router = new Router($static);
             $router->prefix($c->get(AdminAccess::class)->path(), 'admin');
             $router->add($c->get(AdminAccess::class)->path('upgrade'), 'upgrade');
@@ -1073,6 +1065,15 @@ final class Kernel
             // The visitor's own colour mode, from the switch (since 0.3.6).
             $router->add(AppearanceController::MODE_PATH, 'appearance', ['action' => 'mode']);
             $router->add('/sitemap.xml', 'site', ['action' => 'sitemap']);
+            // The news and the categories in the site's language (since 0.3.7), after the
+            // system's own routes, so they never take the admin's or a system page's place;
+            // not if config/routes.php routes them itself (a copy from before).
+            $own = array_map(static fn (array $route): string => (string) ($route[1]['query'] ?? ''), $static);
+            foreach ($c->get(ContentPaths::class)->routes($c->get(Translator::class)) as $path => [$handler, $params]) {
+                if (!in_array($params['query'], $own, true) && !$router->isRouted($path)) {
+                    $router->add($path, $handler, $params);
+                }
+            }
             // The lists made in the admin, at their paths, unless a route above has it (since 0.2.5).
             foreach ($c->get(ListRegistry::class)->all() as $list) {
                 if ($list->path !== null && !$router->isRouted($list->path)) {

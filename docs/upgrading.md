@@ -130,6 +130,7 @@ used only when an administrator starts using it.
 | 0.3.4 | Layouts and regions: components placed in the regions, where they show; the header and footer as components; tokens in snippets | Appearance → Layouts, Appearance → Regions; `tokens` |
 | 0.3.5 | Pages assembled from components (their own layout and components, edited by editors too), a page as the front page | A page's form: *The page's components*; System → Site settings: *Front page* |
 | 0.3.6 | Colour schemes (light and dark, checked for readability), the colour mode, the visitor's colour mode switch | Appearance → Colour schemes; the *Colour mode switch* display of *The visitor* |
+| 0.3.7 | Sample content in the site's language (English too), the news and categories paths in the language of a new site | `seed --locale`; `resources/seed/` |
 
 New settings: `paths.search` (0.2.7, default `/search`), the search page's
 address, like the other `paths`; `paths.files` (0.3.2, default `/files`), the
@@ -203,6 +204,15 @@ without it, the core's own and `snippet`; [chapter 30](php-api/30-tokens.md)).
   colour, its *primary* style a shade of the accent, instead of Bootstrap's grey
   and blue. No colour mode switch is added: make a component of *The visitor*
   shown as *Colour mode switch*, and place it (e.g. in the navigation).
+- **Your site keeps its paths** (0.3.7): the news stay at `/hirek`, the
+  categories at `/kategoriak`, whatever the site's language; only a site
+  installed with 0.3.7 or later gets them in its language (`/news`,
+  `/categories` in English). `config/routes.php` now routes only the front page:
+  if you keep your own copy of it with `/hirek` and `/kategoriak`, those routes
+  stay and win.
+- **`seed` adds sample content in the site's language** (0.3.7): on an English
+  site run after the upgrade it adds the English samples (beside the Hungarian
+  ones, if you ran it before); `--locale=hu` keeps it Hungarian.
 - **Every HTML page says `Vary: Cookie`** (0.3.6), since a page depends on the
   visitor's colour mode cookie: a cache in front of the site (a CDN) keeps a
   copy per cookie.
@@ -390,6 +400,8 @@ in the [CHANGELOG](../CHANGELOG.md) list every change of the
 - [ ] The site's header shows its name, the main menu, the search and the
       buttons, the footer the year and the site's name; under *Appearance →
       Regions* they are in the Header, Navigation and Footer regions.
+- [ ] The news and the categories open at the paths they had (`/hirek`,
+      `/kategoriak`, unless you route them yourself).
 - [ ] *Appearance → Colour schemes* (since 0.3.6) shows the three schemes and
       none left out; the site looks as before until you choose another.
 - [ ] A page's form has *The page's components* (since 0.3.5), and `/` shows

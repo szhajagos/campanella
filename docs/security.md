@@ -126,6 +126,31 @@ version: upgrade it to 0.3.x ([Upgrading](upgrading.md)).
   may see, and puts an apostrophe before a text a spreadsheet would run as a
   formula (`=`, `+`, `-`, `@`).
 
+## Review of the sample content and the content paths, 0.3.7 (2026-10-31)
+
+What 0.3.7 added was checked as it was built, then reviewed as a whole, with
+tests for each point (`Security review (0.3.7)` and the part tests):
+
+- **The sample content** is the core's data, used by the command line only
+  (`seed`; the browser's installation asks for it with the administrator's
+  form). Its file is checked whole before anything is made; its texts are plain
+  text, escaped into paragraphs, and then filtered as any formatted text; its
+  machine names are checked; its events' Blueprint and list go through the
+  content model's import with all of its checks. The language (`--locale`, or
+  the configuration's) must be a locale (`hu`, `en_GB`): it cannot name another
+  folder or file.
+- **The content paths** are settings written only by a new installation
+  (`NewSite`, never on an upgrade: a test runs the installer on an installed
+  site). A saved path is taken only as a plain path of the site (no other host,
+  no `//`, no query, no `..`); anything else falls back to the old path.
+- **Found and fixed in the review:** a content path was routed as an exact
+  route before the system's own, and an exact route wins over the admin's
+  prefix, so a content path set to `/admin` would have hidden the admin's front
+  page. The content paths are now routed after the system's routes and only
+  where nothing is routed, so they never take the place of the admin, logging
+  in, the search or another system page; a list made in the admin cannot take
+  them either.
+
 ## Review of the colour schemes and the colour mode, 0.3.6 (2026-10-30)
 
 What 0.3.6 added was checked as it was built, then reviewed as a whole, with

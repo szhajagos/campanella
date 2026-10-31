@@ -2461,6 +2461,51 @@ test('The colour mode switch (0.3.6): a form without a session; POST /color-mode
     check(!isset($kernel->handle(new Request('GET', '/color-scheme.css'))->headers['Vary']), 'the CSS does not vary');
 });
 
+test('Security review (0.3.7): the sample content and the content paths: data checked, never a way in', function () use ($displayKernel): void {
+    // The sample texts are plain text: markup in them is escaped, never run.
+    check(\Campanella\Html\PlainText::toHtml("<script>alert(1)</script>\n\nx") === '<p>&lt;script&gt;alert(1)&lt;/script&gt;</p><p>x</p>', 'a sample text is escaped');
+    // The language cannot name another folder or file.
+    foreach (['../../config/local', 'hu/../en', 'hu.json', 'HU', "hu\0"] as $locale) {
+        throws(\InvalidArgumentException::class, static fn () => \Campanella\Cli\SeedContent::forLocale($locale));
+    }
+
+    $kernel = $displayKernel();
+    if ($kernel === null) {
+        return;
+    }
+    $c = $kernel->container();
+    $settings = $c->get(\Campanella\Settings\Settings::class);
+    $paths = new \Campanella\Site\ContentPaths($settings);
+    // A saved content path is taken only as a plain path of the site.
+    foreach (['//rossz.example/x', 'https://rossz.example/', '/news" onclick="x', '/news?x=1', '/../admin', '/Hirek', '/', ''] as $bad) {
+        $settings->set(['content.path.news' => $bad === '' ? null : $bad]);
+        check($paths->get('news') === '/hirek', 'not taken: ' . json_encode($bad));
+    }
+    $settings->set(['content.path.news' => null]);
+
+    // NewSite only on a new site: never on an installed one (an upgrade).
+    $ran = false;
+    $installer = new \Campanella\Database\Installer($c->get(Connection::class), $c->get(\Campanella\Capability\CapabilityRegistry::class), null, null, static function () use (&$ran): void {
+        $ran = true;
+    });
+    check($installer->isInstalled(), 'the test database is installed');
+    $installer->install();
+    check(!$ran, 'NewSite ran on an installed site');
+
+    // A content path never takes the place of the admin or the system's pages: the router
+    // routes them first, and a list or object cannot take a routed path.
+    $router = $c->get(\Campanella\Http\Router::class);
+    check($router->isRouted('/hirek') && $router->isRouted('/kategoriak'), 'the content paths are routed');
+    check(($router->match(new Request('GET', '/admin'))->handler) === 'admin', 'the admin stays the admin');
+    $settings->set(['content.path.news' => '/admin', 'content.path.categories' => '/login']);
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $fresh = new \Campanella\Core\Kernel(dirname(__DIR__));
+    putenv('CAMPANELLA_DB_PREFIX');
+    $shadow = $fresh->container()->get(\Campanella\Http\Router::class);
+    check($shadow->match(new Request('GET', '/admin'))->handler === 'admin' && $shadow->match(new Request('GET', '/login'))->handler === 'auth', 'a content path at the admin\'s or a system page\'s path is not routed');
+    $settings->set(['content.path.news' => null, 'content.path.categories' => null]);
+});
+
 test('Security review (0.3.6): the colour schemes and the colour mode: nothing from the visitor or a theme reaches a page unchecked', function () use ($displayKernel, $newUser): void {
     $kernel = $displayKernel();
     if ($kernel === null) {

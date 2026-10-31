@@ -247,7 +247,8 @@ the login page and every error page send `X-Robots-Tag: noindex` too.
 
 ## The content paths (`ContentPaths`)
 
-*Since 0.3.7.* The core's content has three paths in the site's language: the
+*Since 0.3.7.* `ContentPaths` · **Public**; `NewSite`, `ContentPathsTwigExtension`
+· Internal. The core's content has three paths in the site's language: the
 news (`news`) and the categories (`categories`), the lists of
 `config/queries.php`, routed by the Kernel with their titles translated
 (`site.nav.news`, `site.nav.categories`), and the about page (`about`), a link of
@@ -271,7 +272,11 @@ upgrade. `ContentPaths::forLanguage(string $locale)` is a new site's paths,
 A `config/routes.php` of one's own (a copy from before 0.3.7) that routes the
 `news` or the `categories` query itself keeps its route; the content path is
 then not routed. In templates: `{{ url(content_path('news')) }}`
-(`ContentPathsTwigExtension`).
+(`ContentPathsTwigExtension`; an unknown name is an error).
+
+The content paths are routed after the system's own routes (the admin, logging
+in, the search …) and only where nothing is routed yet, so a content path never
+takes a system page's place; the lists made in the admin come after them.
 
 ## The front page
 

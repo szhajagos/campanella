@@ -347,8 +347,8 @@ edited in the admin may come later.
    titles in the site's language, saved by the installation and the upgrade; the
    starter menu's links; the default slogan (done).
 3. **The upgrade, the guide, the release** (part 3, in two): **3a** the security
-   review and the upgrade's docs; **3b** the guide, the English screenshots with
-   English content, the release.
+   review and the upgrade's docs (done); **3b** the guide, the English
+   screenshots with English content, the release.
 
 **Colour schemes and the colour mode (0.3.6, agreed 2026-10-30; released 2026-10-31),** in four
 parts. Decided: the admin chooses among the schemes of the core and the theme

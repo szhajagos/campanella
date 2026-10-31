@@ -62,6 +62,13 @@ cookie, `/color-scheme.css`, `POST /color-mode`, `color_mode()`,
 `color_scheme_url()`, `visitor_color_mode()`, and the `color_mode_switch`
 display with its `show_labels` setting.
 
+What 0.3.7 adds: `ContentPaths` (its `get()`, `forLanguage()` and the path names
+`news`, `categories`, `about`), the settings `content.path.news`,
+`content.path.categories` and `content.path.about`, `content_path()` in
+templates, and `seed --locale`. The sample content's file format
+(`resources/seed/*.json`) is Internal: it may change with the samples; what
+`seed` makes is not promised either.
+
 A theme that overrides a template keeps working, because the template's name
 and variables stay. Its **markup** (HTML elements, CSS classes, texts) may
 change in a 0.3.x, so a theme that copied a core template should compare its
