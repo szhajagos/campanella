@@ -1,0 +1,301 @@
+{
+  "version": 1,
+  "language": "Magyar",
+  "categories": {
+    "tudomany": {
+      "title": "Tudomány",
+      "body": "Tudománytörténet és technika."
+    },
+    "campanella": {
+      "title": "Campanella",
+      "body": "Hírek és írások a Campanella CMS-ről."
+    }
+  },
+  "articles": [
+    {
+      "title": "Neumann János",
+      "when": "-5 days",
+      "lead": "A számítógép-architektúra egyik atyja.",
+      "body": "Neumann János 1903-ban született Budapesten.\n\nNevéhez fűződik a tárolt programú számítógép elve, amelyet ma Neumann-architektúraként ismerünk.",
+      "categories": [
+        "tudomany"
+      ]
+    },
+    {
+      "title": "Digitális Agora",
+      "when": "-3 days",
+      "lead": "Közösségi tér a hálózaton.",
+      "body": "A Digitális Agora a nyilvános vita és az együttműködés helye.\n\nEz a cikk a Campanella első példatartalmai közé tartozik.",
+      "categories": [
+        "campanella"
+      ]
+    },
+    {
+      "title": "Megjelent a Campanella 0.0.1",
+      "when": "-1 day",
+      "lead": "Az első, minimális mag.",
+      "body": "Object, Blueprint, Capability, Query és Presentation: ennyiből áll az első változat.\n\nMinden további funkció erre a magra épül.",
+      "categories": [
+        "campanella"
+      ]
+    },
+    {
+      "title": "Capability-k röviden",
+      "when": "-2 hours",
+      "lead": "Nem típusok, hanem képességek.",
+      "body": "Egy objektum attól cikk, hogy milyen képességei vannak: Titled, Textual, Routable, Publishable.\n\nA típus csak egy elnevezett capability-csomag, a Blueprint.",
+      "categories": [
+        "campanella",
+        "tudomany"
+      ]
+    },
+    {
+      "title": "Időzített hír",
+      "when": "+2 days",
+      "lead": "Ez a hír még nem látható.",
+      "body": "Jövőbeli publikálási dátummal mentve: a megadott időpontban magától jelenik meg.",
+      "categories": [
+        "tudomany"
+      ]
+    }
+  ],
+  "draft": {
+    "title": "Piszkozat",
+    "body": "Ez egy publikálatlan cikk. Anonymous látogató nem látja, és a listákban sem jelenik meg."
+  },
+  "about": {
+    "title": "Rólunk",
+    "body": "A Campanella egy capability-vezérelt CMS.\n\nEz az oldal egy „page” Blueprint alapján készült objektum."
+  },
+  "events": {
+    "blueprint_name": "esemeny",
+    "list_name": "esemenyek",
+    "fields": {
+      "start": "kezdes",
+      "kind": "fajta",
+      "place": "helyszin",
+      "price": "belepo"
+    },
+    "blueprint": {
+      "version": 1,
+      "label": "Esemény",
+      "capabilities": [
+        "titled",
+        "textual",
+        "routable",
+        "publishable"
+      ],
+      "fields": [
+        {
+          "name": "kezdes",
+          "type": "datetime",
+          "label": "Kezdés",
+          "queryable": true,
+          "required": true
+        },
+        {
+          "name": "fajta",
+          "type": "choice",
+          "label": "Fajta",
+          "queryable": true,
+          "required": true,
+          "choices": [
+            {
+              "key": "eloadas",
+              "label": "Előadás"
+            },
+            {
+              "key": "koncert",
+              "label": "Koncert"
+            },
+            {
+              "key": "kiallitas",
+              "label": "Kiállítás"
+            },
+            {
+              "key": "seta",
+              "label": "Séta"
+            },
+            {
+              "key": "gyerek",
+              "label": "Gyerekprogram"
+            }
+          ]
+        },
+        {
+          "name": "helyszin",
+          "type": "string",
+          "label": "Helyszín",
+          "length": 120
+        },
+        {
+          "name": "belepo",
+          "type": "decimal",
+          "label": "Belépő (Ft)",
+          "queryable": true,
+          "scale": 0
+        }
+      ],
+      "relations": [],
+      "admin_columns": [
+        "kezdes",
+        "fajta",
+        "belepo"
+      ]
+    },
+    "list": {
+      "version": 1,
+      "title": "Közelgő események",
+      "blueprint": "esemeny",
+      "conditions": [
+        {
+          "field": "kezdes",
+          "op": ">=",
+          "relative": "now"
+        }
+      ],
+      "sort": [
+        {
+          "field": "kezdes",
+          "dir": "asc"
+        }
+      ],
+      "per_page": 10,
+      "display": "table",
+      "columns": [
+        "kezdes",
+        "fajta",
+        "helyszin",
+        "belepo"
+      ],
+      "path": "/esemenyek",
+      "filters": [
+        "fajta",
+        "kezdes",
+        "belepo"
+      ]
+    },
+    "samples": [
+      {
+        "title": "Őszi könyvbörze",
+        "days": -6,
+        "time": "10:00",
+        "kind": "kiallitas",
+        "place": "Városi könyvtár, aula",
+        "price": "0",
+        "body": "Régi és új könyvek cseréje, vására.\n\nEz az esemény már elmúlt: a közelgő események listáján nem szerepel."
+      },
+      {
+        "title": "Neumann János és a számítógép",
+        "days": 4,
+        "time": "18:00",
+        "kind": "eloadas",
+        "place": "Városi könyvtár, nagyterem",
+        "price": "0",
+        "body": "Előadás a tárolt programú számítógép elvéről és születéséről.\n\nA belépés díjtalan."
+      },
+      {
+        "title": "Barokk est: vonósnégyes",
+        "days": 9,
+        "time": "19:30",
+        "kind": "koncert",
+        "place": "Református templom",
+        "price": "3500",
+        "body": "Bach, Vivaldi és Telemann művei.\n\nJegyek a helyszínen, az előadás előtt egy órával."
+      },
+      {
+        "title": "Történelmi séta a belvárosban",
+        "days": 16,
+        "time": "10:00",
+        "kind": "seta",
+        "place": "Indulás a Fő térről",
+        "price": "1500",
+        "body": "Kétórás séta a belváros régi házai és udvarai között, idegenvezetővel."
+      },
+      {
+        "title": "Régi utcák: fotókiállítás",
+        "days": 23,
+        "time": "17:00",
+        "kind": "kiallitas",
+        "place": "Galéria",
+        "price": "0",
+        "body": "Száz év fényképei a város utcáiról. A megnyitón a gyűjtők is jelen lesznek."
+      },
+      {
+        "title": "Jazz a pincében",
+        "days": 37,
+        "time": "20:00",
+        "kind": "koncert",
+        "place": "Kultúrház, pinceklub",
+        "price": "2500",
+        "body": "Trió-est sztenderdekkel és saját szerzeményekkel."
+      },
+      {
+        "title": "Bábszínház gyerekeknek",
+        "days": 52,
+        "time": "15:00",
+        "kind": "gyerek",
+        "place": "Kultúrház, kisterem",
+        "price": "1000",
+        "body": "Mesejáték bábokkal, négy éves kortól."
+      }
+    ]
+  },
+  "menu": {
+    "title": "Főmenü",
+    "home": "Kezdőlap",
+    "news": {
+      "title": "Hírek",
+      "url": "/hirek"
+    },
+    "categories": {
+      "title": "Kategóriák",
+      "url": "/kategoriak"
+    },
+    "events": "Események"
+  },
+  "front_page": {
+    "title": "Üdvözlünk",
+    "body": "Ez a Campanella példawebhelyének címlapja: egy komponensekből összeállított oldal.\n\nAlatta a friss hírek és a közelgő események, mellette az elérhetőség; mindegyik egy komponens, amelyet az oldal szerkesztőjében (Az oldal komponensei) rendezhetsz át.",
+    "news_list_name": "friss_hirek",
+    "news_list": {
+      "version": 1,
+      "title": "Friss hírek",
+      "blueprint": "article",
+      "conditions": [],
+      "sort": [
+        {
+          "field": "published_at",
+          "dir": "desc"
+        }
+      ],
+      "per_page": 3,
+      "display": "teaser",
+      "columns": [],
+      "path": null,
+      "filters": []
+    },
+    "contact": {
+      "title": "Elérhetőség",
+      "body": "Telefon: +36 1 234 5678\nE-mail: info@pelda.hu\n\nHétköznap 9 és 17 óra között."
+    },
+    "components": {
+      "news": {
+        "title": "Friss hírek",
+        "machine_name": "cimlap_hirek"
+      },
+      "events": {
+        "title": "Közelgő események",
+        "machine_name": "cimlap_esemenyek"
+      },
+      "contact": {
+        "title": "Elérhetőség",
+        "machine_name": "cimlap_elerhetoseg"
+      }
+    }
+  },
+  "color_mode_switch": {
+    "title": "Színmód-váltó",
+    "machine_name": "szinmod_valto"
+  }
+}

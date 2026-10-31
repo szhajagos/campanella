@@ -8,6 +8,19 @@ Sections: **Added**, **Changed**, **Deprecated**, **Removed**, **Fixed**,
 **Security**. In 0.x versions, items under **Changed** and **Removed** may be
 backward-incompatible.
 
+## [Unreleased]
+
+**Sample content in the site's language, part 1.** The sixth step towards 0.4.0.
+
+### Changed
+
+- **The sample content is data** ([PHP API, chapter 9](docs/php-api/09-system.md#the-sample-content)):
+  one JSON file per language in `resources/seed/` (`hu.json`, the content
+  before), read and checked whole before anything is made (`SeedContent`). `seed`
+  uses the site's language, or `--locale=<locale>`, and says which file it
+  takes; a language without a file of its own gets English, else the first
+  there is.
+
 ## [0.3.6] – 2026-10-31
 
 **Colour schemes and the colour mode.** The fifth step towards 0.4.0: the

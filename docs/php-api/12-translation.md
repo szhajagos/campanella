@@ -7,8 +7,9 @@ base language, Hungarian is a full translation. Since 0.0.4.
 
 Covered: templates, login, error pages, validation messages, the
 command-line output, and the labels of capabilities, fields, relations and
-Blueprints ([chapter 13](13-admin.md#labels)). Not translated: the sample
-content of `seed`, which is data rather than interface text. The two messages shown before
+Blueprints ([chapter 13](13-admin.md#labels)). The sample content of
+`seed` is not translated text but data, one file per language (since 0.3.7,
+[chapter 9](09-system.md#the-sample-content)). The two messages shown before
 the system is loaded (PHP version too old, `vendor` folder missing) are in the
 base language, English.
 

@@ -250,7 +250,7 @@ components use later.
 | **0.3.4** ✔ | Released 2026-10-29. **Regions and layouts** (detailed below): the core's two layouts and the theme's own (JSON), `region()`; how a region shows on small screens; components placed in regions (order, who sees them, where); a layout for the site and per Blueprint; tokens in snippets; the upgrade keeps the header and footer as they are. |
 | **0.3.5** ✔ | Released 2026-10-30. **Pages:** pages assembled from components (a front page, an "about us" page), their own layout; editors edit their components (detailed below; agreed 2026-10-30). |
 | **0.3.6** ✔ | Released 2026-10-31. **Appearance** (2026-10-11): colour schemes with light and dark variants, the colour mode (the visitor's system setting, or fixed); a visitor's switch as a component, not a button built into the header (detailed below; agreed 2026-10-30). |
-| **0.3.7** | **Sample content in the site's language** (2026-10-12): an English site gets English samples and paths (now `seed` is Hungarian only, `/hirek` too). |
+| **0.3.7** | **Sample content in the site's language** (2026-10-12): an English site gets English samples and paths (now `seed` is Hungarian only, `/hirek` too; detailed below, agreed 2026-10-31). |
 | **0.4.0** | **The milestone**, as 0.3.0: a security review, upgrade tests from 0.3.0 and the last 0.3.x, the guide's chapters, a performance check, the compatibility promise for 0.4.x. |
 
 Decided on 2026-10-26:
@@ -328,6 +328,27 @@ own path then leads to `/`); the sample content gets such a front page.
 4. **The upgrade, the guide, the release** (part 4, in two, decided 2026-10-30):
    **4a** the security review and the upgrade's docs (done); **4b** the guide's
    chapter, the screenshots, the release (done).
+
+**Sample content in the site's language (0.3.7, agreed 2026-10-31),** in three
+parts. Decided: the sample content is data, one JSON file per language
+(`resources/seed/`), so a new language is a new file; `seed` uses the site's
+language (or `--locale`). The English content has the same structure, adapted
+(John von Neumann; made-up details at `example.com`, `+1 555`), with English
+machine names for the events (`event`, `starts`, `kind`, `admission`). The core's
+two content paths (the news, the categories) are chosen by the installation in
+the site's language (`/news`, `/categories` in English) and saved as settings; an
+existing site keeps `/hirek` and `/kategoriak` (the upgrade saves them). Paths
+edited in the admin may come later.
+
+1. **The sample content as data** (part 1): `SeedContent` (the file checked
+   whole, the language chosen), `resources/seed/hu.json` with the content before,
+   `seed --locale` (done).
+2. **English** (part 2): `en.json`; the news' and the categories' paths and
+   titles in the site's language, saved by the installation and the upgrade; the
+   starter menu's links; the default slogan.
+3. **The upgrade, the guide, the release** (part 3, in two): **3a** the security
+   review and the upgrade's docs; **3b** the guide, the English screenshots with
+   English content, the release.
 
 **Colour schemes and the colour mode (0.3.6, agreed 2026-10-30; released 2026-10-31),** in four
 parts. Decided: the admin chooses among the schemes of the core and the theme

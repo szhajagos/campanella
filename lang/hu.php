@@ -81,6 +81,7 @@ return [
     'cli.install.server' => 'Adatbázis-szerver: {version}',
     'cli.install.done' => 'Kész. Példatartalomhoz: php bin/campanella seed',
     'cli.seed.description' => 'Példatartalmat hoz létre (ismételten futtatható)',
+    'cli.seed.language' => 'A példatartalom nyelve: {language} ({file})',
     'cli.seed.categories' => '{path} → kategóriák: {categories}',
     'cli.seed.draft' => 'piszkozat',
     'cli.seed.done' => 'Kész: {total} objektum, ebből {public} nyilvánosan látható.',

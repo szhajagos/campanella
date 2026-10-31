@@ -83,6 +83,7 @@ return [
     'cli.install.server' => 'Database server: {version}',
     'cli.install.done' => 'Done. For sample content: php bin/campanella seed',
     'cli.seed.description' => 'Creates sample content (can be run repeatedly)',
+    'cli.seed.language' => 'The sample content\'s language: {language} ({file})',
     'cli.seed.categories' => '{path} → categories: {categories}',
     'cli.seed.draft' => 'draft',
     'cli.seed.done' => 'Done: {total} objects, {public} of them publicly visible.',

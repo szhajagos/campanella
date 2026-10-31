@@ -190,7 +190,7 @@ from ([chapter 17](17-migrations.md#the-oldest-version-that-can-be-upgraded)).
 | `import:run` | Runs an importer on a file: without `--yes` a trial of its first items, with it the run to its end and its log; exit code 1 if an item failed (since 0.3.1; [chapter 26](26-importers.md)) |
 | `import:undo` | Deletes the objects a run of an importer made, after a backup; without `--yes` it only says how many (since 0.3.1; [chapter 26](26-importers.md)) |
 | `media:variants` | Makes the smaller copies of the images that have none yet; `--all`: of every image again (since 0.1.2; [chapter 16](16-media.md#smaller-copies-variants)) |
-| `seed` | Sample content. Can be run repeatedly: whatever already exists by path is not created again. Since 0.3.0 also a content model as the admin makes it: the Blueprint `esemeny` (*Esemény*: a start, a kind, a venue, a ticket price; 3 admin columns), the list `esemenyek` of the upcoming ones at `/esemenyek` (a table, with 3 visitors' filters), and seven events (one in the past); imported as System → Content model does, only if the site has neither of these names |
+| `seed [--locale=en]` | Sample content, in the site's language (since 0.3.7; `--locale` asks for another; [below](#the-sample-content)). Can be run repeatedly: whatever already exists by path is not created again. Since 0.3.0 also a content model as the admin makes it: the Blueprint `esemeny` (*Esemény*: a start, a kind, a venue, a ticket price; 3 admin columns), the list `esemenyek` of the upcoming ones at `/esemenyek` (a table, with 3 visitors' filters), and seven events (one in the past); imported as System → Content model does, only if the site has neither of these names |
 | `status` | Version, the system check ([chapter 14](14-system-check.md)), capabilities, Blueprints, object count; reports if the database needs an upgrade. Exits with `1` if a check reports an error |
 | `schema:check` | Compares the table definitions with the database and lists the differences (exits with `1` if there is one; a table no definition has is only reported); `--sql`: prints the statements of the additive ones, and those that would lose data as comments. Changes nothing ([chapter 8](08-database.md#comparing-schemacomparator)) |
 | `html:sanitize` | Filters the stored HTML texts with the allowlist; `--dry-run`: only lists them ([chapter 15](15-html.md#texts-stored-earlier-htmlsanitize)) |
@@ -234,6 +234,40 @@ module system it will become registrable.
 | `Output` · **Public** | `__construct($stream = STDOUT, $errors = STDERR)`; `line(string $text = '')`, `success(string $text)` (with a ✔ mark), `error(string $text)` (with a ✘ mark, to the error stream), `raw(string $text)` (as it is, without a line break; since 0.2.6) |
 | `InstallCommand`, `SeedCommand`, `StatusCommand`, `HtmlSanitizeCommand`, `SchemaCheckCommand`, `MigrateCommand`, `DbBackupCommand`, `ModelExportCommand`, `ModelImportCommand`, `SearchIndexCommand`, `ImportRunCommand`, `ImportUndoCommand`, `SubmissionsPruneCommand`, `MigrationRunner` · **Internal** | The built-in commands |
 | `InstallCommand::layoutSetup(Container $container, Output $output): void` · **Internal** | Since 0.3.4: after `install` and `migrate`, the header and footer as components, once (`LayoutSetup`, [chapter 29](29-layouts.md#the-header-and-footer-layoutsetup)); says which were made |
+| `SeedContent`, `SeedReader` · **Internal** | Since 0.3.7: a sample content file, read and checked ([below](#the-sample-content)) |
+
+### The sample content
+
+*Since 0.3.7.* What `seed` makes is data, not code: one JSON file per language
+in `resources/seed/` (`hu.json`; `en.json` from part 2 of 0.3.7). A new language
+is a new file. `seed` takes the site's language (`locale` in `config/app.php`),
+or `--locale=<locale>`; `SeedContent::forLocale()` looks for the locale's own
+file (`hu_HU.json`), then its language's (`hu.json`), then English, then the
+first there is, and the command says which one it uses.
+`SeedContent::available()` lists the languages there are files for,
+`SeedContent::directory()` is the core's folder.
+
+The file holds the categories, the articles (each with when it was published,
+relative to now: `"-5 days"`), the draft, the *about us* page, the events (their
+Blueprint and list as the content model stores them, which of their fields is
+the start, the kind, the venue and the price, and the samples), the main menu's
+texts and links, the front page (its text, the latest news' list, the contact
+box, its components' titles and machine names) and the colour mode switch's
+title. The texts are plain text: an empty line starts a new paragraph.
+
+`SeedContent::fromJson()` checks the file whole before anything is made (via
+`SeedReader`): each text is a text of at most 4000 characters, each machine
+name is one, each link a path of the site, each article's categories are given,
+each of the events' fields is in their Blueprint, each time is a time. A problem
+names its place, e.g. *Sample content en: articles.2.lead must be a text of at
+most 4000 characters.*, and nothing is made.
+
+`SeedReader` reads a value by its place and checks its kind: `text()`,
+`name()` (a machine name), `key()`, `path()`, `int()`, `number()` (a whole
+number written as a text, as a decimal field takes it), `time()` (`18:30`),
+`when()` (a time from now: `-5 days`), `titled()` (a title and a body),
+`strings()` (a list of machine names), `map()`, `items()`; `problem()` makes the
+exception that names the place.
 
 ## Helper classes
 

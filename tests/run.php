@@ -9169,6 +9169,58 @@ test('Review (0.3.0): the search is throttled, takes no operators; redirects sen
 
 echo "\nThe sample events, and lists kept whole (0.3.0)\n";
 
+test('Seed content (0.3.7): a language file, checked whole; the locale\'s, its language\'s, English, else the first there is', function (): void {
+    $S = \Campanella\Cli\SeedContent::class;
+    $hu = $S::forLocale('hu');
+    check($hu->locale === 'hu' && $hu->language === 'Magyar' && in_array('hu', $S::available(), true), 'the core\'s Hungarian file');
+    check(array_keys($hu->categories) === ['tudomany', 'campanella'] && count($hu->articles) === 5 && $hu->articles[3]['categories'] === ['campanella', 'tudomany'], 'the categories and articles');
+    check($hu->eventBlueprintName === 'esemeny' && $hu->eventFields === ['start' => 'kezdes', 'kind' => 'fajta', 'place' => 'helyszin', 'price' => 'belepo'] && count($hu->eventSamples) === 7, 'the events');
+    check($hu->menu['news'] === ['title' => 'Hírek', 'url' => '/hirek'] && $hu->frontPage['title'] === 'Üdvözlünk' && $hu->newsListName === 'friss_hirek' && $hu->colorModeSwitch['machine_name'] === 'szinmod_valto', 'the menu, the front page, the switch');
+
+    $valid = json_decode((string) file_get_contents(dirname(__DIR__) . '/resources/seed/hu.json'), true);
+    $with = static function (callable $change) use ($valid): string {
+        $data = $valid;
+        $change($data);
+
+        return (string) json_encode($data);
+    };
+    $refused = static function (string $json, string $part) use ($S): void {
+        try {
+            $S::fromJson('xx', $json);
+            check(false, 'taken, expected: ' . $part);
+        } catch (\InvalidArgumentException $e) {
+            check(str_contains($e->getMessage(), $part), $part . ' → ' . $e->getMessage());
+        }
+    };
+    $refused('{', 'not valid JSON');
+    $refused($with(static function (array &$d): void { $d['version'] = 2; }), 'version must be 1');
+    $refused($with(static function (array &$d): void { unset($d['about']); }), 'about.title is missing');
+    $refused($with(static function (array &$d): void { $d['articles'][2]['lead'] = ''; }), 'articles.2.lead must be a text');
+    $refused($with(static function (array &$d): void { $d['articles'][0]['body'] = str_repeat('x', 4001); }), 'articles.0.body must be a text of at most 4000');
+    $refused($with(static function (array &$d): void { $d['articles'][1]['categories'] = ['nincs']; }), 'articles.1.categories names a category that is not given (nincs)');
+    $refused($with(static function (array &$d): void { $d['articles'][1]['when'] = 'next tuesday'; }), 'articles.1.when must be a time from now');
+    $refused($with(static function (array &$d): void { $d['categories']['Rossz Kulcs'] = ['title' => 'x', 'body' => 'y']; }), 'categories has a key that is not a machine name');
+    $refused($with(static function (array &$d): void { $d['events']['fields']['kind'] = 'nincs_ilyen'; }), "events.fields.kind is not a field of the events' Blueprint");
+    $refused($with(static function (array &$d): void { $d['events']['samples'][0]['time'] = '25:00'; }), 'events.samples.0.time must be a time');
+    $refused($with(static function (array &$d): void { $d['events']['samples'][0]['price'] = '12.5'; }), 'events.samples.0.price must be a whole number');
+    $refused($with(static function (array &$d): void { $d['menu']['news']['url'] = 'https://rossz.example/'; }), 'menu.news.url must be a path');
+    $refused($with(static function (array &$d): void { $d['front_page']['components']['news']['machine_name'] = 'Nem-jo'; }), 'front_page.components.news.machine_name must be a machine name');
+    $refused($with(static function (array &$d): void { $d['events']['samples'] = []; }), 'events.samples must be a list of at least one');
+
+    // The language: the locale's own, its language's, English, else the first there is.
+    $dir = sys_get_temp_dir() . '/campanella-seed-' . bin2hex(random_bytes(4));
+    mkdir($dir);
+    file_put_contents($dir . '/hu.json', $with(static function (array &$d): void { $d['language'] = 'Magyar (próba)'; }));
+    check($S::forLocale('hu_HU', $dir)->language === 'Magyar (próba)' && $S::forLocale('de', $dir)->locale === 'hu', 'its language\'s; the first there is');
+    file_put_contents($dir . '/en.json', $with(static function (array &$d): void { $d['language'] = 'English (test)'; }));
+    check($S::forLocale('de', $dir)->locale === 'en' && $S::forLocale('hu', $dir)->locale === 'hu' && $S::available($dir) === ['en', 'hu'], 'English for a language without a file');
+    file_put_contents($dir . '/de.json', '{"version": 1}');
+    throws(\InvalidArgumentException::class, static fn () => $S::forLocale('de', $dir));
+    throws(\InvalidArgumentException::class, static fn () => $S::forLocale('../hu', $dir));
+    array_map('unlink', glob($dir . '/*') ?: []);
+    rmdir($dir);
+});
+
 test('Seed (0.3.0): the events Blueprint, its list and events, made once; the main menu links the list', function (): void {
     $root = dirname(__DIR__);
     $env = 'CAMPANELLA_DB_PREFIX=seedt_ CAMPANELLA_LOCALE=hu';
@@ -9189,6 +9241,10 @@ test('Seed (0.3.0): the events Blueprint, its list and events, made once; the ma
     $out = [];
     exec($env . ' php ' . escapeshellarg($root . '/bin/campanella') . ' seed 2>&1', $out, $code);
     check($code === 0 && str_contains(implode("\n", $out), 'esemeny'), implode("\n", $out));
+    check(str_contains(implode("\n", $out), 'A példatartalom nyelve: Magyar (resources/seed/hu.json)'), 'the language told (0.3.7)');
+    $bad = [];
+    exec($env . ' php ' . escapeshellarg($root . '/bin/campanella') . ' seed --locale=../x 2>&1', $bad, $badCode);
+    check($badCode === 1 && str_contains(implode("\n", $bad), 'Not a locale'), 'a locale that is not one: ' . implode("\n", $bad));
 
     putenv('CAMPANELLA_DB_PREFIX=seedt_');
     $kernel = new \Campanella\Core\Kernel($root);
