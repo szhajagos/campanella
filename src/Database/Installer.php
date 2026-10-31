@@ -32,6 +32,7 @@ final class Installer
         private readonly CapabilityRegistry $capabilities,
         private readonly ?Migrator $migrator = null,
         private readonly ?BlueprintRegistry $blueprints = null,
+        private readonly ?\Closure $onFresh = null,
     ) {
     }
 
@@ -79,6 +80,10 @@ final class Installer
         $this->setSystemValue('schema_version', Version::SCHEMA);
         if ($this->systemValue('installed_at') === null) {
             $this->setSystemValue('installed_at', gmdate('Y-m-d H:i:s'));
+        }
+        // A new site's values in its language (since 0.3.7, NewSite): never on an upgrade.
+        if ($fresh && $this->onFresh !== null) {
+            ($this->onFresh)();
         }
 
         return $names;

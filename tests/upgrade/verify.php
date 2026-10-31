@@ -314,6 +314,11 @@ $check(str_contains($front->body, '/color-scheme.css?v=' . $appearance->version(
 $check(str_contains($get('/color-scheme.css', null)->body, '--cc-accent: #8a3b12;'), 'the scheme\'s CSS is not the look before');
 $check(!str_contains($front->body, 'display-color-mode-switch'), 'the upgrade added a colour mode switch');
 
+// 14. The content paths (since 0.3.7): an old site keeps /hirek and /kategoriak, whatever its language.
+$settings->reset();
+$check($settings->get('content.path.news') === null && $get('/hirek', null)->status === 200 && $get('/kategoriak', null)->status === 200, 'the old site lost /hirek or /kategoriak');
+$check($get('/news', null)->status === 404, 'the old site got /news');
+
 echo "{$checks} checks, upgraded from {$snapshot['version']} (schema {$snapshot['schema']}) to " . Version::CAMPANELLA . ' (schema ' . Version::SCHEMA . ").\n";
 if ($problems !== []) {
     echo count($problems) . " problems:\n";

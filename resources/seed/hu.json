@@ -244,14 +244,8 @@
   "menu": {
     "title": "Főmenü",
     "home": "Kezdőlap",
-    "news": {
-      "title": "Hírek",
-      "url": "/hirek"
-    },
-    "categories": {
-      "title": "Kategóriák",
-      "url": "/kategoriak"
-    },
+    "news": "Hírek",
+    "categories": "Kategóriák",
     "events": "Események"
   },
   "front_page": {

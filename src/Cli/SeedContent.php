@@ -17,7 +17,8 @@ namespace Campanella\Cli;
  *    "events": {"blueprint_name", "list_name", "fields": {"start", "kind", "place", "price"},
  *               "blueprint": {a Blueprint as the content model stores it}, "list": {a list, likewise},
  *               "samples": [{"title", "days", "time", "kind", "place", "price", "body"}, …]},
- *    "menu": {"title", "home", "news": {"title", "url"}, "categories": {"title", "url"}, "events"},
+ *    "menu": {"title", "home", "news", "categories", "events"} (the links' texts; the paths are
+ *            the site's: ContentPaths),
  *    "front_page": {"title", "body", "news_list_name", "news_list": {a list},
  *                   "contact": {"title", "body"},
  *                   "components": {"news", "events", "contact": {"title", "machine_name"}}},
@@ -41,7 +42,7 @@ final readonly class SeedContent
      * @param array<string, mixed> $eventBlueprint
      * @param array<string, mixed> $eventList
      * @param list<array{title: string, days: int, time: string, kind: string, place: string, price: string, body: string}> $eventSamples
-     * @param array{title: string, home: string, news: array{title: string, url: string}, categories: array{title: string, url: string}, events: string} $menu
+     * @param array{title: string, home: string, news: string, categories: string, events: string} $menu
      * @param array{title: string, body: string} $frontPage
      * @param array<string, mixed> $newsList
      * @param array{title: string, body: string} $contact
@@ -181,10 +182,8 @@ final readonly class SeedContent
             $r->map('events.list'),
             $samples,
             [
-                'title' => $r->text('menu.title'), 'home' => $r->text('menu.home'),
-                'news' => ['title' => $r->text('menu.news.title'), 'url' => $r->path('menu.news.url')],
-                'categories' => ['title' => $r->text('menu.categories.title'), 'url' => $r->path('menu.categories.url')],
-                'events' => $r->text('menu.events'),
+                'title' => $r->text('menu.title'), 'home' => $r->text('menu.home'), 'news' => $r->text('menu.news'),
+                'categories' => $r->text('menu.categories'), 'events' => $r->text('menu.events'),
             ],
             $r->titled('front_page'),
             $r->name('front_page.news_list_name'),

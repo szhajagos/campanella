@@ -345,7 +345,7 @@ edited in the admin may come later.
    `seed --locale` (done).
 2. **English** (part 2): `en.json`; the news' and the categories' paths and
    titles in the site's language, saved by the installation and the upgrade; the
-   starter menu's links; the default slogan.
+   starter menu's links; the default slogan (done).
 3. **The upgrade, the guide, the release** (part 3, in two): **3a** the security
    review and the upgrade's docs; **3b** the guide, the English screenshots with
    English content, the release.

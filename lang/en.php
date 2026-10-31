@@ -17,6 +17,7 @@ return [
     'site.nav.news' => 'News',
     'site.nav.categories' => 'Categories',
     'site.nav.about' => 'About us',
+    'site.default_slogan' => 'A capability-driven CMS',
     'site.nav.toggle' => 'Toggle navigation',
 
     // Content lists

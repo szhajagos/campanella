@@ -205,7 +205,9 @@ the installation page (before the sample content). The components:
 
 A machine name already taken gets `_2`, `_3` …. A site without a main menu
 gets one with the links the header had built in (`STARTER_LINKS`: the front
-page, `/hirek`, `/kategoriak`, `/rolunk`); its id is kept in
+page, the news, the categories, about us; since 0.3.7 at the site's content paths,
+[chapter 20](20-site.md#the-content-paths-contentpaths): `/news` … on an English
+site); its id is kept in
 `layout.starter_menu`, and `seed` fills that menu with the sample one (instead
 of leaving it). A site whose `snippet` Blueprint is its own (made before 0.3.3)
 gets no footer; one whose `component` Blueprint is its own keeps the old header

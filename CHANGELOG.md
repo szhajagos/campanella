@@ -10,7 +10,20 @@ backward-incompatible.
 
 ## [Unreleased]
 
-**Sample content in the site's language, part 1.** The sixth step towards 0.4.0.
+**Sample content in the site's language, parts 1–2.** The sixth step towards 0.4.0.
+
+### Added
+
+- **English sample content** (`resources/seed/en.json`): the same site in
+  English, with English machine names for the events (`event`: `starts`,
+  `kind`, `venue`, `admission`, the list at `/events`), the front page at
+  `/welcome`, made-up details at `example.com`.
+- **The content paths in the site's language** ([PHP API, chapter 20](docs/php-api/20-site.md#the-content-paths-contentpaths)):
+  a new English site has its news at `/news`, its categories at `/categories`
+  (the starter menu links them, and `/about-us`), with their titles translated,
+  and an English default slogan (`NewSite`, once, when the installation makes
+  the tables). A site installed before keeps `/hirek` and `/kategoriak`.
+  `content_path()` in templates.
 
 ### Changed
 
@@ -20,6 +33,9 @@ backward-incompatible.
   uses the site's language, or `--locale=<locale>`, and says which file it
   takes; a language without a file of its own gets English, else the first
   there is.
+- `config/routes.php` routes only the front page; the news and the categories
+  are routed at the content paths. A copy of the file from before that routes
+  them keeps its routes.
 
 ## [0.3.6] – 2026-10-31
 

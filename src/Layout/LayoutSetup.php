@@ -13,6 +13,7 @@ use Campanella\Query\Query;
 use Campanella\Query\QueryEngine;
 use Campanella\Service\ObjectService;
 use Campanella\Settings\Settings;
+use Campanella\Site\ContentPaths;
 
 /**
  * The site's header and footer as components (since 0.3.4): what the core's base.html.twig
@@ -37,12 +38,15 @@ final class LayoutSetup
     /** The setting that names the main menu made here (while it has only the built-in links). */
     public const string STARTER_MENU = 'layout.starter_menu';
 
-    /** The built-in links of the header before 0.3.4: message key => path. */
+    /**
+     * The built-in links of the header before 0.3.4: message key => path; since 0.3.7 a
+     * content path's name (ContentPaths: `/news` on an English site) in place of a path.
+     */
     public const array STARTER_LINKS = [
         'site.nav.home' => '/',
-        'site.nav.news' => '/hirek',
-        'site.nav.categories' => '/kategoriak',
-        'site.nav.about' => '/rolunk',
+        'site.nav.news' => 'news',
+        'site.nav.categories' => 'categories',
+        'site.nav.about' => 'about',
     ];
 
     public const string FOOTER_TEXT = '© [date:year] [site:name] · Campanella [campanella:version]';
@@ -54,6 +58,7 @@ final class LayoutSetup
         private readonly QueryEngine $queries,
         private readonly BlueprintRegistry $blueprints,
         private readonly Translator $translator,
+        private readonly ContentPaths $paths = new ContentPaths(),
     ) {
     }
 
@@ -134,7 +139,8 @@ final class LayoutSetup
         }
         $menu = $this->objects->create($system, 'menu', ['title' => $this->translator->translate('setup.main_menu'), 'machine_name' => self::MAIN_MENU]);
         $weight = 0;
-        foreach (self::STARTER_LINKS as $key => $path) {
+        foreach (self::STARTER_LINKS as $key => $link) {
+            $path = str_starts_with($link, '/') ? $link : $this->paths->get($link);
             $this->objects->create($system, 'menu_item', ['title' => $this->translator->translate($key), 'url' => $path, 'weight' => $weight], false, ['menu' => [(int) $menu->id()]]);
             $weight += 10;
         }

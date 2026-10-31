@@ -23,6 +23,7 @@ use Campanella\Query\Query;
 use Campanella\Query\QueryEngine;
 use Campanella\Service\ObjectService;
 use Campanella\Settings\Settings;
+use Campanella\Site\ContentPaths;
 use Campanella\Site\SiteSettings;
 use Campanella\Support\Slugger;
 use Campanella\Transfer\ModelImport;
@@ -117,7 +118,7 @@ final class SeedCommand implements Command
 
         $events = $this->events($container);
 
-        $this->mainMenu($categories, $about, $events, $container->get(Settings::class));
+        $this->mainMenu($categories, $about, $events, $container->get(Settings::class), $container->get(ContentPaths::class));
         $this->frontPage($container, $events, new DateTimeImmutable('-10 days', $utc));
         $this->colorModeSwitch($container);
 
@@ -138,7 +139,7 @@ final class SeedCommand implements Command
      * @param array<string, CampanellaObject> $categories
      * @param string|null $events The events list's path, if the site has it
      */
-    private function mainMenu(array $categories, CampanellaObject $about, ?string $events, Settings $settings): void
+    private function mainMenu(array $categories, CampanellaObject $about, ?string $events, Settings $settings, ContentPaths $paths): void
     {
         $exists = $this->queries->first(Query::objects()->blueprint('menu')->where('machine_name', '=', 'main'), $this->actor);
         // The main menu the installation made with the built-in links (since 0.3.4,
@@ -168,8 +169,9 @@ final class SeedCommand implements Command
             ]);
         };
         $item($texts['home'], 0, '/');
-        $item($texts['news']['title'], 10, $texts['news']['url']);
-        $list = $item($texts['categories']['title'], 20, $texts['categories']['url']);
+        // The site's paths (since 0.3.7: in its language, ContentPaths).
+        $item($texts['news'], 10, $paths->get('news'));
+        $list = $item($texts['categories'], 20, $paths->get('categories'));
         $weight = 0;
         foreach ($categories as $category) {
             $item($category->as(Titled::class)->title(), $weight, '', $category, $list);

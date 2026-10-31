@@ -9175,7 +9175,7 @@ test('Seed content (0.3.7): a language file, checked whole; the locale\'s, its l
     check($hu->locale === 'hu' && $hu->language === 'Magyar' && in_array('hu', $S::available(), true), 'the core\'s Hungarian file');
     check(array_keys($hu->categories) === ['tudomany', 'campanella'] && count($hu->articles) === 5 && $hu->articles[3]['categories'] === ['campanella', 'tudomany'], 'the categories and articles');
     check($hu->eventBlueprintName === 'esemeny' && $hu->eventFields === ['start' => 'kezdes', 'kind' => 'fajta', 'place' => 'helyszin', 'price' => 'belepo'] && count($hu->eventSamples) === 7, 'the events');
-    check($hu->menu['news'] === ['title' => 'Hírek', 'url' => '/hirek'] && $hu->frontPage['title'] === 'Üdvözlünk' && $hu->newsListName === 'friss_hirek' && $hu->colorModeSwitch['machine_name'] === 'szinmod_valto', 'the menu, the front page, the switch');
+    check($hu->menu['news'] === 'Hírek' && $hu->frontPage['title'] === 'Üdvözlünk' && $hu->newsListName === 'friss_hirek' && $hu->colorModeSwitch['machine_name'] === 'szinmod_valto', 'the menu, the front page, the switch');
 
     $valid = json_decode((string) file_get_contents(dirname(__DIR__) . '/resources/seed/hu.json'), true);
     $with = static function (callable $change) use ($valid): string {
@@ -9203,7 +9203,7 @@ test('Seed content (0.3.7): a language file, checked whole; the locale\'s, its l
     $refused($with(static function (array &$d): void { $d['events']['fields']['kind'] = 'nincs_ilyen'; }), "events.fields.kind is not a field of the events' Blueprint");
     $refused($with(static function (array &$d): void { $d['events']['samples'][0]['time'] = '25:00'; }), 'events.samples.0.time must be a time');
     $refused($with(static function (array &$d): void { $d['events']['samples'][0]['price'] = '12.5'; }), 'events.samples.0.price must be a whole number');
-    $refused($with(static function (array &$d): void { $d['menu']['news']['url'] = 'https://rossz.example/'; }), 'menu.news.url must be a path');
+    $refused($with(static function (array &$d): void { $d['menu']['news'] = ['title' => 'x']; }), 'menu.news must be a text');
     $refused($with(static function (array &$d): void { $d['front_page']['components']['news']['machine_name'] = 'Nem-jo'; }), 'front_page.components.news.machine_name must be a machine name');
     $refused($with(static function (array &$d): void { $d['events']['samples'] = []; }), 'events.samples must be a list of at least one');
 
@@ -9219,6 +9219,81 @@ test('Seed content (0.3.7): a language file, checked whole; the locale\'s, its l
     throws(\InvalidArgumentException::class, static fn () => $S::forLocale('../hu', $dir));
     array_map('unlink', glob($dir . '/*') ?: []);
     rmdir($dir);
+});
+
+test('Content paths (0.3.7): in the site\'s language for a new site; an old one keeps /hirek; the lists routed there with translated titles', function (): void {
+    $P = \Campanella\Site\ContentPaths::class;
+    check($P::forLanguage('en') === ['news' => '/news', 'categories' => '/categories', 'about' => '/about-us'] && $P::forLanguage('hu_HU')['news'] === '/hirek' && $P::forLanguage('de')['news'] === '/news', 'by language; English for the others');
+    $none = new $P();
+    check($none->get('news') === '/hirek' && $none->get('about') === '/rolunk', 'none saved (before 0.3.7): the old ones');
+    throws(\InvalidArgumentException::class, static fn () => $none->get('nincs'));
+
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    putenv('CAMPANELLA_DB_PREFIX');
+    $c = $kernel->container();
+    if ($c->get(Connection::class)->prefix() !== 'test_') {
+        return;
+    }
+    $settings = $c->get(\Campanella\Settings\Settings::class);
+    $saved = new $P($settings);
+    $settings->set(['content.path.news' => '/news', 'content.path.categories' => 'nem-ut']);
+    check($saved->get('news') === '/news' && $saved->get('categories') === '/kategoriak', 'the saved one; a broken one is not taken');
+    $translator = \Campanella\I18n\Translator::fromDirectory(dirname(__DIR__) . '/lang', 'en');
+    $routes = $saved->routes($translator);
+    check(array_keys($routes) === ['/news', '/kategoriak'] && $routes['/news'][0] === 'query' && $routes['/news'][1]['query'] === 'news' && $routes['/news'][1]['title'] === 'News' && $routes['/kategoriak'][1]['title'] === 'Categories', 'the routes, their titles translated');
+
+    // NewSite: the paths and the slogan in the language, a saved value kept.
+    $settings->set(['content.path.news' => null, 'content.path.categories' => '/sajat', 'content.path.about' => null, 'site.slogan' => null]);
+    (new \Campanella\Site\NewSite($settings, $translator, 'en'))->apply();
+    $settings->reset();
+    check($settings->get('content.path.news') === '/news' && $settings->get('content.path.categories') === '/sajat' && $settings->get('content.path.about') === '/about-us' && $settings->get('site.slogan') === 'A capability-driven CMS', 'a new site\'s values; a saved one kept');
+    $settings->set(['content.path.news' => null, 'content.path.categories' => null, 'content.path.about' => null, 'site.slogan' => null]);
+});
+
+test('An English site (0.3.7): installed in English, its sample content, paths and menu in English', function (): void {
+    $root = dirname(__DIR__);
+    $env = 'CAMPANELLA_DB_PREFIX=seeden_ CAMPANELLA_LOCALE=en';
+    $drop = static function (): void {
+        putenv('CAMPANELLA_DB_PREFIX=seeden_');
+        $db = (new \Campanella\Core\Kernel(dirname(__DIR__)))->container()->get(Connection::class);
+        $db->execute('SET FOREIGN_KEY_CHECKS = 0');
+        foreach ($db->fetchColumn("SHOW TABLES LIKE 'seeden\\_%'") as $table) {
+            $db->execute('DROP TABLE `' . $table . '`');
+        }
+        $db->execute('SET FOREIGN_KEY_CHECKS = 1');
+        putenv('CAMPANELLA_DB_PREFIX');
+    };
+    $drop();
+    exec($env . ' php ' . escapeshellarg($root . '/bin/campanella') . ' install --yes 2>&1', $out, $code);
+    check($code === 0, implode("\n", $out));
+    $out = [];
+    exec($env . ' php ' . escapeshellarg($root . '/bin/campanella') . ' seed 2>&1', $out, $code);
+    check($code === 0 && str_contains(implode("\n", $out), "The sample content's language: English (resources/seed/en.json)"), implode("\n", $out));
+
+    putenv('CAMPANELLA_DB_PREFIX=seeden_');
+    putenv('CAMPANELLA_LOCALE=en');
+    try {
+        $kernel = new \Campanella\Core\Kernel($root);
+        $get = static fn (string $path) => (new \Campanella\Core\Kernel($root))->handle(new Request('GET', $path, ip: '198.51.100.44'));
+        $news = $get('/news');
+        check($news->status === 200 && str_contains($news->body, '<h1') && str_contains($news->body, 'News') && str_contains($news->body, 'Capabilities in brief'), 'the news at /news, in English');
+        check($get('/categories')->status === 200 && $get('/hirek')->status === 404 && $get('/kategoriak')->status === 404, 'the categories at /categories; no Hungarian paths');
+        $front = $get('/')->body;
+        check(str_contains($front, 'This is the front page of Campanella') && str_contains($front, 'display-cards__title">Latest news') && str_contains($front, 'display-cards__title">Upcoming events') && str_contains($front, 'example.com'), 'the English front page');
+        check(preg_match('#menu--main.*href="/".*Home.*href="/news".*News.*href="/events".*Events.*href="/categories".*Categories.*About us#s', $front) === 1, 'the main menu in English, at the English paths');
+        $events = $get('/events');
+        check($events->status === 200 && str_contains($events->body, 'Baroque evening: string quartet') && str_contains($events->body, 'name="f[kind]"'), 'the events at /events, with filters');
+        check($get('/welcome')->status === 301 && $get('/about-us')->status === 200 && $get('/john-von-neumann')->status === 200, 'the pages\' English paths');
+        $c = $kernel->container();
+        $event = $c->get(BlueprintRegistry::class)->find('event');
+        check($event !== null && array_keys($event->fields) === ['starts', 'kind', 'venue', 'admission'] && $c->get(BlueprintRegistry::class)->find('esemeny') === null, 'the events\' Blueprint with English machine names');
+        check($c->get(\Campanella\Settings\Settings::class)->get('content.path.news') === '/news' && $c->get(\Campanella\Site\SiteSettings::class)->values()['slogan'] === 'A capability-driven CMS', 'the paths and the slogan saved by the installation');
+    } finally {
+        putenv('CAMPANELLA_DB_PREFIX');
+        putenv('CAMPANELLA_LOCALE');
+        $drop();
+    }
 });
 
 test('Seed (0.3.0): the events Blueprint, its list and events, made once; the main menu links the list', function (): void {

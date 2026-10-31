@@ -15,6 +15,9 @@ use Campanella\Mail\MailCheck;
 use Campanella\Mail\Mailer;
 use Campanella\Settings\Settings;
 use Campanella\Site\MetaBuilder;
+use Campanella\Site\ContentPaths;
+use Campanella\Site\ContentPathsTwigExtension;
+use Campanella\Site\NewSite;
 use Campanella\Site\SiteSettings;
 use Campanella\Site\SiteValues;
 use Campanella\Service\SubmissionService;
@@ -777,6 +780,14 @@ final class Kernel
             $c->get(CapabilityRegistry::class),
             $c->get(Migrator::class),
             $c->get(BlueprintRegistry::class),
+            // A new site's values in its language (since 0.3.7).
+            static fn () => $c->get(NewSite::class)->apply(),
+        ));
+        $c->set(ContentPaths::class, static fn (Container $c): ContentPaths => new ContentPaths($c->get(Settings::class)));
+        $c->set(NewSite::class, static fn (Container $c): NewSite => new NewSite(
+            $c->get(Settings::class),
+            $c->get(Translator::class),
+            (string) $c->get(Config::class)->get('locale', 'hu'),
         ));
         // The content model's export and import (since 0.2.6).
         $c->set(ObjectReferences::class, static fn (Container $c): ObjectReferences => new ObjectReferences($c->get(Connection::class)));
@@ -856,6 +867,8 @@ final class Kernel
             $format = $c->get(Translator::class)->translate('date.format');
             $core->setDateFormat($format !== 'date.format' ? $format : 'Y-m-d H:i');
 
+            // content_path() (since 0.3.7).
+            $twig->addExtension(new ContentPathsTwigExtension(static fn (): ContentPaths => $c->get(ContentPaths::class)));
             // color_mode(), color_scheme_url() (since 0.3.6).
             $twig->addExtension(new AppearanceTwigExtension(
                 static fn (): Appearance => $c->get(Appearance::class),
@@ -1011,6 +1024,7 @@ final class Kernel
             $c->get(QueryEngine::class),
             $c->get(BlueprintRegistry::class),
             $c->get(Translator::class),
+            $c->get(ContentPaths::class),
         ));
         $regions = $this->regions = new Regions(
             static fn (): ComponentService => $c->get(ComponentService::class),
@@ -1028,7 +1042,16 @@ final class Kernel
         ));
 
         $c->set(Router::class, static function (Container $c) use ($root): Router {
-            $router = new Router(require $root . '/config/routes.php');
+            $static = require $root . '/config/routes.php';
+            // The news and the categories in the site's language (since 0.3.7), unless the
+            // file routes them itself (a copy from before).
+            $own = array_map(static fn (array $route): string => (string) ($route[1]['query'] ?? ''), $static);
+            foreach ($c->get(ContentPaths::class)->routes($c->get(Translator::class)) as $path => $route) {
+                if (!in_array($route[1]['query'], $own, true) && !isset($static[$path])) {
+                    $static[$path] = $route;
+                }
+            }
+            $router = new Router($static);
             $router->prefix($c->get(AdminAccess::class)->path(), 'admin');
             $router->add($c->get(AdminAccess::class)->path('upgrade'), 'upgrade');
             $router->add(InstallController::PATH, 'install');

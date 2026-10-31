@@ -239,7 +239,7 @@ module system it will become registrable.
 ### The sample content
 
 *Since 0.3.7.* What `seed` makes is data, not code: one JSON file per language
-in `resources/seed/` (`hu.json`; `en.json` from part 2 of 0.3.7). A new language
+in `resources/seed/` (`hu.json`, `en.json`). A new language
 is a new file. `seed` takes the site's language (`locale` in `config/app.php`),
 or `--locale=<locale>`; `SeedContent::forLocale()` looks for the locale's own
 file (`hu_HU.json`), then its language's (`hu.json`), then English, then the
@@ -251,19 +251,20 @@ The file holds the categories, the articles (each with when it was published,
 relative to now: `"-5 days"`), the draft, the *about us* page, the events (their
 Blueprint and list as the content model stores them, which of their fields is
 the start, the kind, the venue and the price, and the samples), the main menu's
-texts and links, the front page (its text, the latest news' list, the contact
+texts (its links go to the site's own paths:
+[`ContentPaths`](20-site.md#the-content-paths-contentpaths)), the front page (its text, the latest news' list, the contact
 box, its components' titles and machine names) and the colour mode switch's
 title. The texts are plain text: an empty line starts a new paragraph.
 
 `SeedContent::fromJson()` checks the file whole before anything is made (via
 `SeedReader`): each text is a text of at most 4000 characters, each machine
-name is one, each link a path of the site, each article's categories are given,
+name is one, each article's categories are given,
 each of the events' fields is in their Blueprint, each time is a time. A problem
 names its place, e.g. *Sample content en: articles.2.lead must be a text of at
 most 4000 characters.*, and nothing is made.
 
 `SeedReader` reads a value by its place and checks its kind: `text()`,
-`name()` (a machine name), `key()`, `path()`, `int()`, `number()` (a whole
+`name()` (a machine name), `key()`, `int()`, `number()` (a whole
 number written as a text, as a decimal field takes it), `time()` (`18:30`),
 `when()` (a time from now: `-5 days`), `titled()` (a title and a body),
 `strings()` (a list of machine names), `map()`, `items()`; `problem()` makes the

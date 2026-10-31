@@ -55,17 +55,6 @@ final readonly class SeedReader
         return $key;
     }
 
-    /** A path of the site: /something. */
-    public function path(string $at): string
-    {
-        $value = $this->value($at);
-        if (!is_string($value) || preg_match('#^/[a-z0-9/_-]*$#D', $value) !== 1) {
-            throw $this->problem($at, 'must be a path such as /news');
-        }
-
-        return $value;
-    }
-
     public function int(string $at): int
     {
         $value = $this->value($at);

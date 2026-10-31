@@ -8,7 +8,8 @@ namespace Campanella\Http;
  * Maps the request to a resource.
  *
  * Order:
- *   1. the static routes of config/routes.php (e.g. /hirek → Query);
+ *   1. the static routes of config/routes.php and the content paths (e.g. /hirek → Query;
+ *      since 0.3.7 in the site's language, ContentPaths);
  *   2. any other path may belong to a Routable object (→ ObjectController).
  *
  * The Router does not query the database: whether there really is an object

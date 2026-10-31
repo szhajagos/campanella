@@ -1,0 +1,295 @@
+{
+  "version": 1,
+  "language": "English",
+  "categories": {
+    "science": {
+      "title": "Science",
+      "body": "History of science and technology."
+    },
+    "campanella": {
+      "title": "Campanella",
+      "body": "News and writing about the Campanella CMS."
+    }
+  },
+  "articles": [
+    {
+      "title": "John von Neumann",
+      "when": "-5 days",
+      "lead": "One of the fathers of computer architecture.",
+      "body": "John von Neumann was born in Budapest in 1903.\n\nHis name is attached to the stored-program computer, known today as the von Neumann architecture.",
+      "categories": [
+        "science"
+      ]
+    },
+    {
+      "title": "Digital Agora",
+      "when": "-3 days",
+      "lead": "A shared space on the network.",
+      "body": "The Digital Agora is a place for public debate and for working together.\n\nThis article is among the first sample content of Campanella.",
+      "categories": [
+        "campanella"
+      ]
+    },
+    {
+      "title": "Campanella 0.0.1 is out",
+      "when": "-1 day",
+      "lead": "The first, minimal core.",
+      "body": "Object, Blueprint, Capability, Query and Presentation: that is all the first version has.\n\nEverything else is built on this core.",
+      "categories": [
+        "campanella"
+      ]
+    },
+    {
+      "title": "Capabilities in brief",
+      "when": "-2 hours",
+      "lead": "Not types, but capabilities.",
+      "body": "An object is an article because of its capabilities: Titled, Textual, Routable, Publishable.\n\nA type is only a named bundle of capabilities: a Blueprint.",
+      "categories": [
+        "campanella",
+        "science"
+      ]
+    },
+    {
+      "title": "Scheduled news",
+      "when": "+2 days",
+      "lead": "This news is not visible yet.",
+      "body": "Saved with a publication date in the future: it appears by itself at that time.",
+      "categories": [
+        "science"
+      ]
+    }
+  ],
+  "draft": {
+    "title": "Draft",
+    "body": "This is an unpublished article. Anonymous visitors do not see it, and it is not in the lists."
+  },
+  "about": {
+    "title": "About us",
+    "body": "Campanella is a capability-driven CMS.\n\nThis page is an object made from the “page” Blueprint."
+  },
+  "events": {
+    "blueprint_name": "event",
+    "list_name": "events",
+    "fields": {
+      "start": "starts",
+      "kind": "kind",
+      "place": "venue",
+      "price": "admission"
+    },
+    "blueprint": {
+      "version": 1,
+      "label": "Event",
+      "capabilities": [
+        "titled",
+        "textual",
+        "routable",
+        "publishable"
+      ],
+      "fields": [
+        {
+          "name": "starts",
+          "type": "datetime",
+          "label": "Starts",
+          "queryable": true,
+          "required": true
+        },
+        {
+          "name": "kind",
+          "type": "choice",
+          "label": "Kind",
+          "queryable": true,
+          "required": true,
+          "choices": [
+            {
+              "key": "talk",
+              "label": "Talk"
+            },
+            {
+              "key": "concert",
+              "label": "Concert"
+            },
+            {
+              "key": "exhibition",
+              "label": "Exhibition"
+            },
+            {
+              "key": "walk",
+              "label": "Walk"
+            },
+            {
+              "key": "children",
+              "label": "For children"
+            }
+          ]
+        },
+        {
+          "name": "venue",
+          "type": "string",
+          "label": "Venue",
+          "length": 120
+        },
+        {
+          "name": "admission",
+          "type": "decimal",
+          "label": "Admission ($)",
+          "queryable": true,
+          "scale": 0
+        }
+      ],
+      "relations": [],
+      "admin_columns": [
+        "starts",
+        "kind",
+        "admission"
+      ]
+    },
+    "list": {
+      "version": 1,
+      "title": "Upcoming events",
+      "blueprint": "event",
+      "conditions": [
+        {
+          "field": "starts",
+          "op": ">=",
+          "relative": "now"
+        }
+      ],
+      "sort": [
+        {
+          "field": "starts",
+          "dir": "asc"
+        }
+      ],
+      "per_page": 10,
+      "display": "table",
+      "columns": [
+        "starts",
+        "kind",
+        "venue",
+        "admission"
+      ],
+      "path": "/events",
+      "filters": [
+        "kind",
+        "starts",
+        "admission"
+      ]
+    },
+    "samples": [
+      {
+        "title": "Autumn book fair",
+        "days": -6,
+        "time": "10:00",
+        "kind": "exhibition",
+        "place": "City library, hall",
+        "price": "0",
+        "body": "Old and new books to swap and to buy.\n\nThis event is over: it is not on the list of upcoming events."
+      },
+      {
+        "title": "John von Neumann and the computer",
+        "days": 4,
+        "time": "18:00",
+        "kind": "talk",
+        "place": "City library, main room",
+        "price": "0",
+        "body": "A talk on the stored-program computer and how it was born.\n\nAdmission is free."
+      },
+      {
+        "title": "Baroque evening: string quartet",
+        "days": 9,
+        "time": "19:30",
+        "kind": "concert",
+        "place": "St Mary's Church",
+        "price": "25",
+        "body": "Works by Bach, Vivaldi and Telemann.\n\nTickets at the door, from an hour before the concert."
+      },
+      {
+        "title": "A historical walk downtown",
+        "days": 16,
+        "time": "10:00",
+        "kind": "walk",
+        "place": "From the Main Square",
+        "price": "10",
+        "body": "A two-hour walk among the old houses and courtyards of downtown, with a guide."
+      },
+      {
+        "title": "Old streets: a photo exhibition",
+        "days": 23,
+        "time": "17:00",
+        "kind": "exhibition",
+        "place": "Gallery",
+        "price": "0",
+        "body": "A hundred years of photographs of the city's streets. The collectors will be at the opening."
+      },
+      {
+        "title": "Jazz in the cellar",
+        "days": 37,
+        "time": "20:00",
+        "kind": "concert",
+        "place": "Community centre, cellar club",
+        "price": "15",
+        "body": "A trio evening of standards and pieces of their own."
+      },
+      {
+        "title": "Puppet theatre for children",
+        "days": 52,
+        "time": "15:00",
+        "kind": "children",
+        "place": "Community centre, small hall",
+        "price": "5",
+        "body": "A fairy tale with puppets, from the age of four."
+      }
+    ]
+  },
+  "menu": {
+    "title": "Main menu",
+    "home": "Home",
+    "news": "News",
+    "categories": "Categories",
+    "events": "Events"
+  },
+  "front_page": {
+    "title": "Welcome",
+    "body": "This is the front page of Campanella's sample site: a page assembled from components.\n\nBelow the text the latest news and the upcoming events, beside it the contact details; each is a component you can rearrange from the page's editor (The page's components).",
+    "news_list_name": "latest_news",
+    "news_list": {
+      "version": 1,
+      "title": "Latest news",
+      "blueprint": "article",
+      "conditions": [],
+      "sort": [
+        {
+          "field": "published_at",
+          "dir": "desc"
+        }
+      ],
+      "per_page": 3,
+      "display": "teaser",
+      "columns": [],
+      "path": null,
+      "filters": []
+    },
+    "contact": {
+      "title": "Contact",
+      "body": "Phone: +1 555 0100\nE-mail: info@example.com\n\nWeekdays from 9 am to 5 pm."
+    },
+    "components": {
+      "news": {
+        "title": "Latest news",
+        "machine_name": "front_news"
+      },
+      "events": {
+        "title": "Upcoming events",
+        "machine_name": "front_events"
+      },
+      "contact": {
+        "title": "Contact",
+        "machine_name": "front_contact"
+      }
+    }
+  },
+  "color_mode_switch": {
+    "title": "Colour mode switch",
+    "machine_name": "color_mode_switch"
+  }
+}

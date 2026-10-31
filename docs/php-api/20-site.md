@@ -245,6 +245,34 @@ request would end in 404, never in the admin; the query is kept
 The admin pages already send `X-Robots-Tag: noindex, nofollow`. Since 0.1.1
 the login page and every error page send `X-Robots-Tag: noindex` too.
 
+## The content paths (`ContentPaths`)
+
+*Since 0.3.7.* The core's content has three paths in the site's language: the
+news (`news`) and the categories (`categories`), the lists of
+`config/queries.php`, routed by the Kernel with their titles translated
+(`site.nav.news`, `site.nav.categories`), and the about page (`about`), a link of
+the starter menu only.
+
+| | Hungarian | English (and any other language) |
+|---|---|---|
+| `news` | `/hirek` | `/news` |
+| `categories` | `/kategoriak` | `/categories` |
+| `about` | `/rolunk` | `/about-us` |
+
+A new site saves its language's (`NewSite`, once, when `Installer::install()`
+makes the tables of an empty database; never on an upgrade) as the settings
+`content.path.news`, `content.path.categories`, `content.path.about`, together
+with the default slogan in its language (`site.default_slogan`). A site
+installed before 0.3.7 has none, so `ContentPaths::get(string $name)` gives it
+the Hungarian ones it always had (`ContentPaths::LEGACY`): nothing changes on the
+upgrade. `ContentPaths::forLanguage(string $locale)` is a new site's paths,
+`ContentPaths::routes(Translator $translator)` the lists' routes.
+
+A `config/routes.php` of one's own (a copy from before 0.3.7) that routes the
+`news` or the `categories` query itself keeps its route; the content path is
+then not routed. In templates: `{{ url(content_path('news')) }}`
+(`ContentPathsTwigExtension`).
+
 ## The front page
 
 *Since 0.3.5.* The front page (`/`) shows the latest content (the `frontpage`

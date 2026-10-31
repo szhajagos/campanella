@@ -58,9 +58,9 @@
                             {%- endfor %}
                         {%- else %}
                             <li class="nav-item"><a class="nav-link" href="{{ url('/') }}">{{ t('site.nav.home') }}</a></li>
-                            <li class="nav-item"><a class="nav-link" href="{{ url('/hirek') }}">{{ t('site.nav.news') }}</a></li>
-                            <li class="nav-item"><a class="nav-link" href="{{ url('/kategoriak') }}">{{ t('site.nav.categories') }}</a></li>
-                            <li class="nav-item"><a class="nav-link" href="{{ url('/rolunk') }}">{{ t('site.nav.about') }}</a></li>
+                            <li class="nav-item"><a class="nav-link" href="{{ url(content_path('news')) }}">{{ t('site.nav.news') }}</a></li>
+                            <li class="nav-item"><a class="nav-link" href="{{ url(content_path('categories')) }}">{{ t('site.nav.categories') }}</a></li>
+                            <li class="nav-item"><a class="nav-link" href="{{ url(content_path('about')) }}">{{ t('site.nav.about') }}</a></li>
                         {%- endif %}
                     </ul>
                     {# The search (since 0.2.7). #}

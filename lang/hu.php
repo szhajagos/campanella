@@ -15,6 +15,7 @@ return [
     'site.nav.news' => 'Hírek',
     'site.nav.categories' => 'Kategóriák',
     'site.nav.about' => 'Rólunk',
+    'site.default_slogan' => 'Capability-vezérelt CMS',
     'site.nav.toggle' => 'Menü megnyitása',
 
     // Content lists
