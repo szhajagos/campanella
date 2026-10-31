@@ -88,7 +88,7 @@ OWN = {
         "extra_field": {"name": "korhatar", "type": "integer", "label": "Korhatár"},
     },
     "en": {
-        "label": "Event", "name": "event",
+        "label": "Activity", "name": "activity",
         "fields": [
             ("Starts", "starts", "datetime", True, True, {}),
             ("Kind", "kind", "choice", True, True, {"choices": "talk | Talk\nconcert | Concert\nwalk | Walk"}),
@@ -102,7 +102,7 @@ OWN = {
             ("An autumn walk in the hills", 12, "08:30", "walk", "Meeting at the station", "5", True, "A day's walk of about 9 miles. Bring food and water."),
             ("Choir concert", 20, "18:00", "concert", "The music school's hall", "8.50", False, "The town choir's autumn concert, with music from across Europe."),
         ],
-        "list_title": "Event calendar", "list_name": "calendar", "list_path": "/events",
+        "list_title": "Activity calendar", "list_name": "calendar", "list_path": "/activities",
         "filter": "walk", "search": "walk", "new_path": "/opening-hours",
         "extra_field": {"name": "min_age", "type": "integer", "label": "Minimum age"},
     },
@@ -123,9 +123,9 @@ IMPORT = {
         ],
     },
     "en": {
-        "label": "Events from the spreadsheet", "name": "events_csv", "key": "ID", "title": "Title",
+        "label": "Activities from the spreadsheet", "name": "activities_csv", "key": "ID", "title": "Title",
         "mapping": [("Starts", "starts"), ("Kind", "kind"), ("Venue", "venue"), ("Price", "price"), ("Booking", "booking"), ("Description", "body")],
-        "file": "events.csv",
+        "file": "activities.csv",
         "rows": [
             "ID;Title;Starts;Kind;Venue;Price;Booking;Description",
             "E-101;Winter stargazing;{d1} 18:30;Talk;The observatory;0;no;Looking at the winter sky through telescopes.",
@@ -280,7 +280,7 @@ def content(page):
     page.wait_for_load_state("load")
 
     # A scheduled one of the sample content.
-    page.goto(BASE + "/admin/article?q=" + ("Id%C5%91z%C3%ADtett"))
+    page.goto(BASE + "/admin/article?q=" + ("Id%C5%91z%C3%ADtett" if LANG == "hu" else "Scheduled"))
     link = page.locator("table tbody a").first
     if link.count() > 0:
         link.click()
@@ -527,7 +527,7 @@ PAGES = {
 def pages(page):
     """Chapter 15 (since 0.3.5): a page's components, a new one for the page, the front page setting."""
     page.goto(BASE + "/admin/page")
-    page.locator("main table a", has_text="Üdvözlünk").first.click()
+    page.locator("main table a", has_text=("Üdvözlünk" if LANG == "hu" else "Welcome")).first.click()
     page.wait_for_load_state("load")
     shot(page, "page-form-components", element=".admin-page-components")
     page.click(".admin-page-components a")

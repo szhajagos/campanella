@@ -46,7 +46,8 @@ Completed changes are listed in the [CHANGELOG](CHANGELOG.md).
 | 0.3.4 | Regions and layouts (released 2026-10-29): layouts (a template and a JSON file, from the core and the theme) with regions, each collapsed or hidden on small screens; the site's layout and a Blueprint's own; components placed in regions, in an order, with conditions (paths, Blueprints, the front page, except); Appearance → Layouts and → Regions; the header and footer as components, made by the upgrade; tokens in snippets; the guide's chapter on layouts. The third step of 0.4.0. |
 | 0.3.5 | Pages assembled from components (released 2026-10-30): `Composed`, a page's own layout and components, shown only on it, in the regions meant for a page (content, sidebar); *The page's components* in its editor, for editors too; the front page can be a chosen page (its own path leads to `/`); the sample front page; the guide's chapter on pages. The fourth step of 0.4.0. |
 | 0.3.6 | Colour schemes and the colour mode (released 2026-10-31): schemes from JSON (the core's three, the theme's), checked for readability; the colour mode (the system's, light, dark) and the visitor's own; Appearance → Colour schemes; the colour mode switch as a component, in the sample content's navigation; `Vary: Cookie`; the guide's chapter on colour schemes. The fifth step of 0.4.0. |
-| – | Continuous integration (GitHub Actions): PHPStan, documentation, tests on MariaDB 10.6/11.4 and MySQL 8.0/8.4, upgrades from 0.1.0, 0.1.5, 0.2.0, 0.2.9, 0.3.0, 0.3.1, 0.3.2, 0.3.3, 0.3.4 and 0.3.5, a performance check, browser tests, the installation package checked before every release (with `vendor/`, for every version tag) |
+| 0.3.7 | Sample content in the site's language (released 2026-10-31): the samples as data (`resources/seed/<language>.json`, checked whole), Hungarian and English; a new site's news and categories at paths in its language, an existing site's kept; the English guide with English samples. The sixth step of 0.4.0. |
+| – | Continuous integration (GitHub Actions): PHPStan, documentation, tests on MariaDB 10.6/11.4 and MySQL 8.0/8.4, upgrades from 0.1.0, 0.1.5, 0.2.0, 0.2.9, 0.3.0, 0.3.1, 0.3.2, 0.3.3, 0.3.4, 0.3.5 and 0.3.6, a performance check, browser tests, the installation package checked before every release (with `vendor/`, for every version tag) |
 
 ## Next: the road to 1.0
 
@@ -250,7 +251,7 @@ components use later.
 | **0.3.4** ✔ | Released 2026-10-29. **Regions and layouts** (detailed below): the core's two layouts and the theme's own (JSON), `region()`; how a region shows on small screens; components placed in regions (order, who sees them, where); a layout for the site and per Blueprint; tokens in snippets; the upgrade keeps the header and footer as they are. |
 | **0.3.5** ✔ | Released 2026-10-30. **Pages:** pages assembled from components (a front page, an "about us" page), their own layout; editors edit their components (detailed below; agreed 2026-10-30). |
 | **0.3.6** ✔ | Released 2026-10-31. **Appearance** (2026-10-11): colour schemes with light and dark variants, the colour mode (the visitor's system setting, or fixed); a visitor's switch as a component, not a button built into the header (detailed below; agreed 2026-10-30). |
-| **0.3.7** | **Sample content in the site's language** (2026-10-12): an English site gets English samples and paths (now `seed` is Hungarian only, `/hirek` too; detailed below, agreed 2026-10-31). |
+| **0.3.7** ✔ | Released 2026-10-31. **Sample content in the site's language** (2026-10-12): an English site gets English samples and paths (now `seed` is Hungarian only, `/hirek` too; detailed below, agreed 2026-10-31). |
 | **0.4.0** | **The milestone**, as 0.3.0: a security review, upgrade tests from 0.3.0 and the last 0.3.x, the guide's chapters, a performance check, the compatibility promise for 0.4.x. |
 
 Decided on 2026-10-26:
@@ -329,7 +330,7 @@ own path then leads to `/`); the sample content gets such a front page.
    **4a** the security review and the upgrade's docs (done); **4b** the guide's
    chapter, the screenshots, the release (done).
 
-**Sample content in the site's language (0.3.7, agreed 2026-10-31),** in three
+**Sample content in the site's language (0.3.7, agreed 2026-10-31; released 2026-10-31),** in three
 parts. Decided: the sample content is data, one JSON file per language
 (`resources/seed/`), so a new language is a new file; `seed` uses the site's
 language (or `--locale`). The English content has the same structure, adapted
@@ -348,7 +349,7 @@ edited in the admin may come later.
    starter menu's links; the default slogan (done).
 3. **The upgrade, the guide, the release** (part 3, in two): **3a** the security
    review and the upgrade's docs (done); **3b** the guide, the English
-   screenshots with English content, the release.
+   screenshots with English content, the release (done).
 
 **Colour schemes and the colour mode (0.3.6, agreed 2026-10-30; released 2026-10-31),** in four
 parts. Decided: the admin chooses among the schemes of the core and the theme

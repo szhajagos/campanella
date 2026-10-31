@@ -6,7 +6,7 @@ site's items from the rows of the file. The same file (or a newer version of
 it) can be imported again later: what did not change is skipped, what changed
 is updated, what is new is made.
 
-This chapter goes on with chapter 11's event calendar: the events come from a
+This chapter goes on with chapter 11's activity calendar: the activities come from a
 spreadsheet. Importers are set up and run by an administrator.
 
 ## What can be imported?
@@ -20,7 +20,7 @@ The file must be **UTF-8** (otherwise accented letters would break; the
 importer says so). The admin takes a file of at most 5 MB; a larger one can be
 imported on the command line (see the end of the chapter).
 
-One row becomes one item: an event, an article, a product. The items become
+One row becomes one item: an activity, an article, a product. The items become
 items of one kind of content (a Blueprint); users, images and menu items cannot
 be imported this way.
 
@@ -31,7 +31,7 @@ filters) in a CSV file of the form an importer reads:
 ![The CSV export button above the list](../images/en/export-button.png)
 
 Its columns are the fields' machine names (`title`, `starts` …). To edit the
-events in a spreadsheet, download it, change or add to it, and import it back.
+activities in a spreadsheet, download it, change or add to it, and import it back.
 
 ## The spreadsheet
 
@@ -44,7 +44,7 @@ E-102;Advent concert;2026-12-01 17:00;Concert;St Mary's church;6.50;no;Advent so
 ```
 
 - **The ID** is different in every row, and does not change later. It tells the
-  importer whether a row means an event imported before. A plain number will
+  importer whether a row means an activity imported before. A plain number will
   do, as long as it is unique.
 - **A date:** `2026-11-25` (or `2026.11.25.`); with a time: `2026-11-25 18:30`.
   The time is in the site's time zone; `2026-11-25T18:30:00+00:00` gives one
@@ -66,12 +66,12 @@ On the **System → Importers** page, **New importer**:
 ![A new importer](../images/en/importer-new.png)
 
 - **Name:** as it is listed.
-- **Machine name:** `events_csv`. The command line uses it; it cannot be
+- **Machine name:** `activities_csv`. The command line uses it; it cannot be
   changed later.
-- **Blueprint:** what the rows become, here *Event*.
+- **Blueprint:** what the rows become, here *Activity*.
 - **Format:** CSV or JSON.
 - **Key column:** the ID's column, exactly as in the header: `ID`.
-- **Title column:** the column the events' titles come from: `Title`.
+- **Title column:** the column the activities' titles come from: `Title`.
 
 ## Which column becomes what
 
@@ -107,7 +107,7 @@ what its first ten rows would become:
 
 ![The trial](../images/en/importer-trial.png)
 
-- **New** rows become new events, **changes** rows update an event imported
+- **New** rows become new activities, **changes** rows update an activity imported
   before, **unchanged** rows are skipped.
 - **Error** rows are skipped, with the reason next to them: here the fourth
   row's start ("next week") is not a date.
@@ -125,8 +125,8 @@ log:
 - The errors by row, with the row's number and key: correct them in the
   spreadsheet, and import it again. The rows already in order are then skipped
   as unchanged.
-- **Undo the run** (after a backup) deletes the events this run made. What it
-  changed in older events stays.
+- **Undo the run** (after a backup) deletes the activities this run made. What it
+  changed in older activities stays.
 
 If you close the page meanwhile, the run stops where it is; opening its page
 again (from the log) goes on with it. **Stop** ends it: what it did stays.
@@ -141,7 +141,7 @@ If a file is updated regularly (e.g. another system saves it every night), the
 host's scheduled tasks (cron) can run the importer:
 
 ```
-php bin/campanella import:run events_csv /path/to/events.csv --yes
+php bin/campanella import:run activities_csv /path/to/activities.csv --yes
 ```
 
 Without `--yes` it only prints the trial. The command line takes a file of any

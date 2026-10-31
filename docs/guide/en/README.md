@@ -29,7 +29,7 @@ interface, with Campanella's own sample content (which is in Hungarian).
    how, restoring, upgrading to a newer version.
 10. [When something does not work](10-troubleshooting.md): common problems,
     their causes and what to do; where to get help.
-11. [Your own kinds of content: an event calendar](11-own-content-types.md):
+11. [Your own kinds of content: an activity calendar](11-own-content-types.md):
     a new kind of content and its fields, the admin's list, a list for
     visitors with filters, carrying it to another site.
 12. [Importing from a spreadsheet](12-importing.md): CSV and JSON files,

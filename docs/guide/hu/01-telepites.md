@@ -115,8 +115,11 @@ Most már az űrlap is megjelenik:
    karakter legyen. Egy hosszú, máshol nem használt jelszó a legjobb, például
    egy jelszókezelőből.
 3. **Példatartalom:** ha bejelölöd, a Campanella létrehoz néhány cikket, két
-   kategóriát, egy „Rólunk” oldalt és a főmenüt. Az első ismerkedéshez
-   hasznos, később egyenként törölheted.
+   kategóriát, egy „Rólunk” oldalt, eseményeket, egy címlapot és a főmenüt. Az
+   első ismerkedéshez hasznos, később egyenként törölheted. A példatartalom a
+   webhely nyelvén készül (0.3.7 óta magyarul vagy angolul; más nyelven
+   angolul), ahogy a hírek és a kategóriák címe is: magyarul `/hirek` és
+   `/kategoriak`, angolul `/news` és `/categories`.
 4. Kattints a **Telepítés** gombra.
 
 A telepítés néhány másodperc. Utána a Campanella be is léptet, és az admin

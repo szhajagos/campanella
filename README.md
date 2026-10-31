@@ -1,4 +1,4 @@
-# Campanella 0.3.6
+# Campanella 0.3.7
 
 [![CI](https://github.com/szhajagos/campanella/actions/workflows/ci.yml/badge.svg)](https://github.com/szhajagos/campanella/actions/workflows/ci.yml)
 
@@ -14,7 +14,17 @@ between sites by export and import; and what 0.3.x keeps is promised (see the
 [compatibility promise](docs/compatibility.md)). Plans are in the
 [ROADMAP](ROADMAP.md), changes in the [CHANGELOG](CHANGELOG.md).
 
-## What is new in 0.3.6
+## What is new in 0.3.7
+
+**Sample content in the site's language:** an English site gets English sample
+content (`seed`, or *Sample content* when installing): articles, events, a
+front page assembled from components, the main menu. A new site's news and
+categories are at paths in its language (`/news`, `/categories` in English);
+an existing site keeps its paths. The samples are data files
+(`resources/seed/<language>.json`), so another language is one more file
+([PHP API](docs/php-api/09-system.md#the-sample-content)).
+
+## What was new in 0.3.6
 
 **Colour schemes and the colour mode** (Appearance → Colour schemes): the
 site's colours in a light and a dark variant, chosen among the schemes of the

@@ -312,7 +312,8 @@ $check($appearance->scheme()->name === 'default' && $appearance->siteMode() === 
 $front = $get('/', null);
 $check(str_contains($front->body, '/color-scheme.css?v=' . $appearance->version()) && !str_contains($front->body, 'data-bs-theme=') && ($front->headers['Vary'] ?? '') === 'Cookie', 'the front page does not link the scheme, or has a fixed mode');
 $check(str_contains($get('/color-scheme.css', null)->body, '--cc-accent: #8a3b12;'), 'the scheme\'s CSS is not the look before');
-$check(!str_contains($front->body, 'display-color-mode-switch'), 'the upgrade added a colour mode switch');
+// (The sample content of 0.3.6 and later has a switch of its own: only an older site is checked.)
+$check(version_compare($snapshot['version'], '0.3.6', '>=') || !str_contains($front->body, 'display-color-mode-switch'), 'the upgrade added a colour mode switch');
 
 // 14. The content paths (since 0.3.7): an old site keeps /hirek and /kategoriak, whatever its language.
 $settings->reset();

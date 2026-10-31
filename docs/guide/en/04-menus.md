@@ -6,15 +6,15 @@ what is in it, in what order, and what goes into a drop-down.
 ## Menus and menu items
 
 - The **Menu** list shows the menus. After installing there is one, named
-  **Főmenü** (main menu): the site's header shows it (the *Main menu*
+  **Main menu**: the site's header shows it (the *Main menu*
   component, chapter 14). Do not delete it, and do
   not change its machine name (`main`).
 - The **Menu item** list shows the menus' items, as a tree:
 
 ![The main menu's items](../images/en/menu-items.png)
 
-This is the sample content's main menu: under **Kategóriák** there are two
-items (**Tudomány**, **Campanella**). On the site, Kategóriák becomes a
+This is the sample content's main menu: under **Categories** there are two
+items (**Science**, **Campanella**). On the site, Categories becomes a
 drop-down with these two.
 
 If there are several menus, the **Menu** filter chooses whose items you see.
@@ -31,12 +31,12 @@ an item under it):
 - **Parent:** to put it under another item, in a drop-down, choose that item
   here. Empty: the menu's top level.
 - **Weight:** the order; a smaller number comes first. In the example,
-  Kategóriák has 20 and Rólunk 30, so an item weighing 25 goes between them.
+  Categories has 20 and About us 30, so an item weighing 25 goes between them.
 - **Leads to:** an article, page or category of the site. Chosen here, the
   item leads to the right place even if the target's path changes later.
 - **URL:** if you do not choose from the list above, enter the address here:
-  a path of the site (e.g. `/hirek`, or a list's address such as
-  `/esemenyek`, chapter 11) or a full address of another site (`https://…`).
+  a path of the site (e.g. `/news`, or a list's address such as
+  `/events`, chapter 11) or a full address of another site (`https://…`).
 
 After **Create** the item appears on the site at once:
 

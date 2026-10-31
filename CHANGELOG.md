@@ -8,9 +8,18 @@ Sections: **Added**, **Changed**, **Deprecated**, **Removed**, **Fixed**,
 **Security**. In 0.x versions, items under **Changed** and **Removed** may be
 backward-incompatible.
 
-## [Unreleased]
+## [0.3.7] – 2026-10-31
 
-**Sample content in the site's language, parts 1–3a.** The sixth step towards 0.4.0.
+**Sample content in the site's language.** The sixth step towards 0.4.0: the
+sample content as data, in Hungarian and English; a new site's news and
+categories at paths in its language.
+
+**Upgrading from 0.3.0–0.3.6:** upload the new files and run the upgrade
+(`php bin/campanella install`, or `/admin/upgrade`); no table changes. Your site
+keeps its paths (`/hirek`, `/kategoriak`) and its content; only a new site gets
+paths in its language. `seed` now adds the samples in the site's language
+(`--locale=hu` for Hungarian). From older versions: see
+[docs/upgrading.md](docs/upgrading.md).
 
 ### Added
 
@@ -43,6 +52,14 @@ backward-incompatible.
   Fixed: a content path is routed after the system's own routes and only where
   nothing is routed, so it can never hide the admin's front page or a system
   page (an exact route wins over the admin's prefix).
+
+### Documentation and tests
+
+- The guide in English shows the English sample content (its screenshots too);
+  its example of chapters 11–12 is an *Activity* calendar, beside the sample's
+  *Event*. The installation chapters say the samples are in the site's language.
+- Tests: an English site installed and seeded; the upgrade keeps the old paths.
+  CI: the upgrade from 0.3.6 (MariaDB 10.6).
 
 ## [0.3.6] – 2026-10-31
 

@@ -195,10 +195,10 @@ Editors cannot delete; that is for administrators.
 ## Removing the sample content
 
 If you asked for sample content when installing, delete or rewrite it before
-the site goes public: the articles (Neumann János, Digitális Agora …), the
-**Tudomány** and **Campanella** categories, the **Rólunk** page, the events
-(**Esemény**, chapter 11, at its end), and the main menu's items pointing to
-them (chapter 4).
+the site goes public: the articles (John von Neumann, Digital Agora …), the
+**Science** and **Campanella** categories, the **About us** and **Welcome**
+pages, the events (**Event**, chapter 11, at its end), and the main menu's
+items pointing to them (chapter 4).
 
 ---
 

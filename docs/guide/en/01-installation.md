@@ -110,10 +110,12 @@ Now the form appears too:
    password must be at least 10 characters; a long one used nowhere else is
    best, e.g. from a password manager.
 3. **Sample content:** if ticked, Campanella creates a few articles, two
-   categories, a page ("Rólunk", about us) and the main menu, so there is something to
-   look at; you can delete them one by one later. The sample content is in
-   Hungarian (for now), whatever the interface's language: replace it with
-   your own as you go.
+   categories, an *About us* page, events, a front page and the main menu, so
+   there is something to look at; you can delete them one by one later. The
+   sample content is in the site's language (since 0.3.7; Hungarian or English,
+   English for any other language), as are the paths of the news and the
+   categories (`/news` and `/categories` in English, `/hirek` and `/kategoriak`
+   in Hungarian): replace it with your own as you go.
 4. Click **Install**.
 
 Installing takes a few seconds. Then Campanella logs you in and takes you to

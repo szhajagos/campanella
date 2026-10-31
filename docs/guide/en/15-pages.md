@@ -58,7 +58,7 @@ Site settings**, under **Front page**.
 ![Setting the front page](../images/en/settings-front-page.png)
 
 - At `/`, the page shows, with its own components and layout.
-- The page's own address (e.g. `/udvozlunk`) leads to `/`, so it has one
+- The page's own address (e.g. `/welcome`) leads to `/`, so it has one
   address; search engines see it so too.
 - While the page is a **draft**, visitors see the latest content; you (logged
   in) see the page already.

@@ -91,7 +91,7 @@ In a component's form, under **Where it shows** (chapter 13):
 - **On which pages:** with nothing set, everywhere.
   - **On the front page:** on the front page.
   - **On these paths:** one a line, starting with `/`. `*` stands for
-    anything: `/hirek/*` is every page under `/hirek/` (not `/hirek` itself).
+    anything: `/news/*` is every page under `/news/` (not `/news` itself).
   - **On the pages of these Blueprints' objects:** e.g. every article's page.
   - **Never on these paths:** the exceptions, one a line too.
 
@@ -109,7 +109,7 @@ Here the *Contact us* box went into the sidebar, on the articles' pages only:
 |---|---|
 | A component does not show | It is in no region (its form), the page does not match its conditions (**On which pages**), or the visitor may not see it (**Who sees it**). The page's layout may also have no such region (e.g. a sidebar in the *One column* layout). |
 | The sidebar is empty, not shown | The page's layout is *One column*: on **Appearance → Layouts** give the page's content type *With a sidebar*. |
-| The header lost its menu | The *Main menu* component was taken out of its region: put it back into the Navigation on the **Regions** page. If it was deleted, make a new one: the source is the *Főmenü*, the display *Navigation*. |
+| The header lost its menu | The *Main menu* component was taken out of its region: put it back into the Navigation on the **Regions** page. If it was deleted, make a new one: the source is the *Main menu*, the display *Navigation*. |
 | The footer shows an old text | The footer is the *Footer* snippet: change that. |
 | A part is missing on a phone | The region is hidden on small screens: on **Appearance → Layouts** set it to *Always shown* or *collapsed*. |
 
