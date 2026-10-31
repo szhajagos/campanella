@@ -16,6 +16,7 @@ return [
     'site.nav.categories' => 'Kategóriák',
     'site.nav.about' => 'Rólunk',
     'site.default_slogan' => 'Capability-vezérelt CMS',
+    'site.skip_to_content' => 'Ugrás a tartalomra',
     'site.nav.toggle' => 'Menü megnyitása',
 
     // Content lists
@@ -1399,6 +1400,7 @@ return [
     'display.setting.show_more' => 'Hivatkozás a lista oldalára',
     'display.setting.show_reset' => 'Hivatkozás az elfelejtett jelszóhoz',
     'display.setting.placeholder' => 'Szöveg az üres mezőben (üresen: „Keresés…”)',
+    'display.setting.heading' => 'A cím szintje (2–4; a 3 egy saját cím alatt)',
     'display.setting.show_slogan' => 'A szlogen látszik',
     'display.setting.show_home' => 'A kezdőlap az első elem',
     'display.choice.horizontal' => 'Vízszintes sáv',

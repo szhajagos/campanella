@@ -15,6 +15,8 @@
     {% block stylesheets %}{% endblock %}
 </head>
 <body class="d-flex flex-column min-vh-100">
+    {#- Straight to the content, for the keyboard (since 0.4.0): seen only when it has the focus. #}
+    <a class="visually-hidden-focusable site-skip" href="#main">{{ t('site.skip_to_content') }}</a>
     {#- The page's own content (the block a page or a theme fills), placed by the layout. #}
     {%- set main %}{% block content %}{% endblock %}{% endset %}
     {%- set campanella_layout = page_layout() %}
@@ -86,7 +88,7 @@
         </nav>
     </header>
 
-    <main class="container site-container flex-grow-1 py-4 py-md-5">
+    <main class="container site-container flex-grow-1 py-4 py-md-5" id="main" tabindex="-1">
         {{ main }}
     </main>
 

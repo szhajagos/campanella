@@ -26,13 +26,15 @@ final class TeaserDisplay extends Display
         return [
             new Field('show_date', FieldType::Boolean, required: true, default: true, label: 'display.setting.show_date'),
             new Field('show_lead', FieldType::Boolean, required: true, default: true, label: 'display.setting.show_lead'),
+            // The title's heading level (since 0.4.0): 3 under a heading of its own, e.g. a list's in cards.
+            new Field('heading', FieldType::Integer, required: true, default: 2, label: 'display.setting.heading'),
         ];
     }
 
     #[\Override]
     public function variables(Subject $subject, array $settings, DisplayContext $context): array
     {
-        return ['mode' => 'teaser'];
+        return ['mode' => 'teaser', 'heading' => max(2, min(4, (int) ($settings['heading'] ?? 2)))];
     }
 
     #[\Override]

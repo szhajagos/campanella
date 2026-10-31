@@ -2,7 +2,7 @@
 {{ include('layout/_header.html.twig') }}
 <div class="container site-container flex-grow-1 py-4 py-md-5">
     <div class="row g-5">
-        <main class="col-lg-8">
+        <main class="col-lg-8" id="main" tabindex="-1">
             {{ main }}
             {{ region('content', {class: 'mt-4'}) }}
         </main>

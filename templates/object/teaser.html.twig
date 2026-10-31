@@ -1,6 +1,7 @@
-{# Short rendering in lists: the teaser display (since 0.3.3; settings.show_date, settings.show_lead). Blueprint-specific variant: object/<blueprint>--teaser.html.twig #}
+{# Short rendering in lists: the teaser display (since 0.3.3; settings.show_date, settings.show_lead; heading: the title's level, 2–4, since 0.4.0). Blueprint-specific variant: object/<blueprint>--teaser.html.twig #}
+{%- set level = heading ?? 2 %}
 <article class="object object--teaser object--{{ object.blueprint }} py-3 border-bottom">
-    <h2 class="h4 mb-1"><a class="text-reset text-decoration-none" href="{{ url(object.path) }}">{{ object.title }}</a></h2>
+    <h{{ level }} class="h4 mb-1"><a class="text-reset text-decoration-none" href="{{ url(object.path) }}">{{ object.title }}</a></h{{ level }}>
     {% if (settings.show_date ?? true) and object.published_at is defined and object.published_at %}
         <p class="meta small text-body-secondary mb-2"><time datetime="{{ object.published_at|date('c') }}">{{ object.published_at|date }}</time></p>
     {% endif %}

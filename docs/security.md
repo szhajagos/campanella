@@ -126,6 +126,32 @@ version: upgrade it to 0.3.x ([Upgrading](upgrading.md)).
   may see, and puts an apostrophe before a text a spreadsheet would run as a
   formula (`=`, `+`, `-`, `@`).
 
+## Security review for 0.4.0 (2026-10-31)
+
+The steps 0.3.2–0.3.7 were each reviewed when they were released (below); for
+the milestone they were reviewed together, where they meet, with a test for
+each point (`Security review (0.4.0)`):
+
+- **The visitor's rights all the way down:** a page assembled from components
+  shows a component, the component its source, a list in it its items, each
+  read with the visitor's rights: a draft shown by a page's own component, or
+  in a list shown as cards on that page, reaches nobody who may not see it, at
+  any depth. A restricted file is not even listed for them, and its download
+  answers 404 (0.3.2); a component meant for some users shows only to them
+  (0.3.3).
+- **Who may build what:** layouts, regions, colour schemes and the site's
+  components stay with the administrators; editors change only a page's own
+  components, of pages they may change (0.3.5).
+- **The headers:** the site's strict Content-Security-Policy (`script-src
+  'self'; style-src 'self'`, no inline code) holds on every new page, a page of
+  components included; the colour scheme is a file, the switch's script too.
+  Personal responses say `private, no-store`; every HTML page `Vary: Cookie`.
+- **Dependencies:** `composer audit` runs in CI on every push (since 0.1.0) and
+  before every release.
+
+Nothing needed fixing for security. The accessibility check of the same parts
+is in [accessibility.md](accessibility.md).
+
 ## Review of the sample content and the content paths, 0.3.7 (2026-10-31)
 
 What 0.3.7 added was checked as it was built, then reviewed as a whole, with

@@ -8,6 +8,24 @@ Sections: **Added**, **Changed**, **Deprecated**, **Removed**, **Fixed**,
 **Security**. In 0.x versions, items under **Changed** and **Removed** may be
 backward-incompatible.
 
+## [Unreleased]
+
+**The fourth milestone, part 1.**
+
+### Fixed
+
+- Accessibility ([the review](docs/accessibility.md)): a *Skip to the content*
+  link on every page; the layouts' header is no longer a navigation landmark
+  around the menus; the cards' titles are `h3` under the list's heading (the
+  teaser display's `heading` setting, 2–4); the focus ring in the scheme's
+  accent.
+
+### Security
+
+- The parts of 0.3.2–0.3.7 reviewed together ([the review](docs/security.md#security-review-for-040-2026-10-31)):
+  the visitor's rights hold through a page's components and the lists in them.
+  Nothing needed fixing.
+
 ## [0.3.7] – 2026-10-31
 
 **Sample content in the site's language.** The sixth step towards 0.4.0: the

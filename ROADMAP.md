@@ -252,7 +252,7 @@ components use later.
 | **0.3.5** ✔ | Released 2026-10-30. **Pages:** pages assembled from components (a front page, an "about us" page), their own layout; editors edit their components (detailed below; agreed 2026-10-30). |
 | **0.3.6** ✔ | Released 2026-10-31. **Appearance** (2026-10-11): colour schemes with light and dark variants, the colour mode (the visitor's system setting, or fixed); a visitor's switch as a component, not a button built into the header (detailed below; agreed 2026-10-30). |
 | **0.3.7** ✔ | Released 2026-10-31. **Sample content in the site's language** (2026-10-12): an English site gets English samples and paths (now `seed` is Hungarian only, `/hirek` too; detailed below, agreed 2026-10-31). |
-| **0.4.0** | **The milestone**, as 0.3.0: a security review, upgrade tests from 0.3.0 and the last 0.3.x, the guide's chapters, a performance check, the compatibility promise for 0.4.x. |
+| **0.4.0** | **The milestone**, as 0.3.0: a security review, upgrade tests from 0.3.0 and the last 0.3.x, the guide's chapters, a performance check, the compatibility promise for 0.4.x (detailed below; agreed 2026-10-31). |
 
 Decided on 2026-10-26:
 
@@ -329,6 +329,37 @@ own path then leads to `/`); the sample content gets such a front page.
 4. **The upgrade, the guide, the release** (part 4, in two, decided 2026-10-30):
    **4a** the security review and the upgrade's docs (done); **4b** the guide's
    chapter, the screenshots, the release (done).
+
+**The fourth milestone (0.4.0, agreed 2026-10-31),** in five parts. What
+0.3.2–0.3.7 built (files, displays and components, regions and layouts, pages
+assembled from components, colour schemes, sample content in the site's
+language), released as one whole, with no new feature. Decided: what was left
+for later in 0.3.x (layouts edited in the admin, dragging components, colour
+schemes and content paths edited in the admin) comes as 0.4.x steps before
+0.5.0; the accessibility of the site's new parts is checked by hand (no
+automatic checker: the common ones are not MIT-compatible), the full review
+stays for 1.0. A part too big for a day is split (a, b).
+
+1. **The security review and the accessibility check** (part 1): 0.3.2–0.3.7
+   together, where they meet; the site's new parts with the keyboard, in both
+   colour modes (done: the skip link, the header's landmark, the cards'
+   headings, the focus ring).
+2. **Upgrade tests and the upgrade guide** (part 2): an old site of 0.3.7 with
+   everything (restricted files, components in regions with conditions, a
+   layout with a sidebar, a page of components as the front page, a chosen
+   colour scheme, English) that must survive; upgrading from any 0.3.x, 0.2.x
+   or 0.1.x.
+3. **A performance check** (part 3): a front page of many components, a layout
+   with a sidebar, cards of a list among 10 000 objects, restricted files, with
+   limits, on MariaDB and MySQL.
+4. **The guide as a whole** (part 4): the first steps with the Appearance menu,
+   backups and upgrading for 0.4.0, troubleshooting for components, layouts and
+   colours, the contents; the screenshots.
+5. **The compatibility promise for 0.4.x and the release** (part 5): the
+   displays, the sources' written forms, the layouts' and schemes' JSON, the
+   tokens, the settings, the admin's addresses, the templates' functions; 0.3.x
+   gets security fixes until 0.5.0, 0.2.x's end here; the milestone's
+   CHANGELOG entry, the README, the release.
 
 **Sample content in the site's language (0.3.7, agreed 2026-10-31; released 2026-10-31),** in three
 parts. Decided: the sample content is data, one JSON file per language

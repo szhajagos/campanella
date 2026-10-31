@@ -267,7 +267,7 @@ cannot show the subject are a `DisplayException`.
 | Display | Class | For | Settings (default) |
 |---|---|---|---|
 | `full` | `FullDisplay` | a `Titled` object | `show_title` (yes), `show_date` (yes; since 0.3.5) |
-| `teaser` | `TeaserDisplay` | a `Titled` object | `show_date` (yes), `show_lead` (yes) |
+| `teaser` | `TeaserDisplay` | a `Titled` object | `show_date` (yes), `show_lead` (yes), `heading`: the title's level, 2–4 (2; since 0.4.0: `cards` passes 3 under the list's heading) |
 | `link` | `LinkDisplay` | a `Routable` object | `text` (the title) |
 | `info_box` | `InfoBoxDisplay` | a `Titled` object (its text, if `Textual`) | `show_title` (yes), `style`: `light`, `primary`, `info`, `warning` (light) |
 | `navigation` | `NavigationDisplay` | a menu | `style`: `horizontal` (a bar with dropdowns) or `vertical` (a list); `depth` 1–3 (2) |

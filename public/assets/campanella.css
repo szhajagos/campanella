@@ -51,6 +51,8 @@
     --bs-link-hover-color-rgb: var(--cc-accent-rgb);
     --bs-primary: var(--cc-accent);
     --bs-primary-rgb: var(--cc-accent-rgb);
+    /* The keyboard's focus ring in the scheme's accent, clearly seen (since 0.4.0; Bootstrap's is a pale blue). */
+    --bs-focus-ring-color: rgba(var(--cc-accent-rgb), .5);
     --bs-body-font-family: Georgia, "Times New Roman", serif;
     --bs-body-font-size: 1.0625rem;
     --bs-body-line-height: 1.6;
@@ -167,3 +169,7 @@ h1, h2, h3, .h1, .h2, .h3, .h4, .h5 { line-height: 1.25; }
 .region--footer .body > :last-child { margin-bottom: 0; }
 /* The colour mode switch (since 0.3.6): its icons on the text's line. */
 .display-color-mode-switch__icon { vertical-align: -.125em; }
+/* The skip link (since 0.4.0): above everything while it has the focus. */
+.site-skip:focus { position: absolute; top: .5rem; left: .5rem; z-index: 1080; padding: .5rem 1rem; background: var(--bs-body-bg); color: var(--bs-body-color); border: 2px solid var(--cc-accent); border-radius: .375rem; }
+/* The main content takes the focus from the skip link, without an outline of its own. */
+main:focus { outline: none; }

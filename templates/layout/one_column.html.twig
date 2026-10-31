@@ -1,6 +1,6 @@
 {# The one-column layout (since 0.3.4): header, navigation, content (the page's own first: main), footer. #}
 {{ include('layout/_header.html.twig') }}
-<main class="container site-container flex-grow-1 py-4 py-md-5">
+<main class="container site-container flex-grow-1 py-4 py-md-5" id="main" tabindex="-1">
     {{ main }}
     {{ region('content', {class: 'mt-4'}) }}
 </main>

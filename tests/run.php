@@ -2042,7 +2042,7 @@ test('Kernel: a page in its layout: the regions\' components in their order, whe
         check($page->status === 200 && str_contains($page->body, 'region--header') && str_contains($page->body, 'display-branding'), 'the header region');
         check(preg_match('#region--navigation region--collapse-md.*display-login-button.*display-search-box#s', $page->body) === 1, 'the navigation, collapsed below md, in its order');
         check(str_contains($page->body, 'data-bs-target="#region-navigation"') && str_contains($page->body, 'd-md-none'), 'the toggle button');
-        check(preg_match('#<main class="col-lg-8">.*A cikk szövege.*</main>\s*<aside class="col-lg-4"[^>]*>.*Oldalsáv szöveg#s', $page->body) === 1, 'the content and the sidebar');
+        check(preg_match('#<main class="col-lg-8"[^>]*>.*A cikk szövege.*</main>\s*<aside class="col-lg-4"[^>]*>.*Oldalsáv szöveg#s', $page->body) === 1, 'the content and the sidebar');
         check(!str_contains($page->body, 'Csak tagoknak') && !str_contains($page->body, 'site-footer'), 'a component for users, or one for other paths');
 
         $front = $kernel->handle(new Request('GET', '/'))->body;
@@ -2459,6 +2459,55 @@ test('The colour mode switch (0.3.6): a form without a session; POST /color-mode
     $page = $kernel->handle(new Request('GET', '/', cookies: [$A::COOKIE => 'dark']));
     check(str_contains($page->body, 'data-bs-theme="dark"') && ($page->headers['Vary'] ?? '') === 'Cookie', 'the page in the visitor\'s mode, varying by the cookie');
     check(!isset($kernel->handle(new Request('GET', '/color-scheme.css'))->headers['Vary']), 'the CSS does not vary');
+});
+
+test('Security review (0.4.0): the parts of 0.3.2–0.3.7 together: a page\'s components, lists in them, the visitor\'s rights all the way down; the accessibility fixes', function () use ($displayKernel): void {
+    $kernel = $displayKernel();
+    if ($kernel === null) {
+        return;
+    }
+    $c = $kernel->container();
+    $c->set(Session::class, static fn () => new Session(new ArraySessionStorage()));
+    $system = Actor::system();
+    $objects = $c->get(ObjectService::class);
+    $components = $c->get(\Campanella\Display\ComponentService::class);
+
+    $settings = $c->get(\Campanella\Settings\Settings::class);
+    $enabled = $settings->get('layout.enabled');
+    $settings->set(['layout.enabled' => '1']);
+    // A page assembled from components: a draft shown by one, a list as cards by another.
+    $page = $objects->create($system, 'page', ['title' => 'Mérföldkő oldal', 'path' => '/merfoldko-oldal', 'body' => 'Az oldal szövege.'], publish: true);
+    $draft = $objects->create($system, 'article', ['title' => 'Mérföldkő piszkozat', 'path' => '/merfoldko-piszkozat', 'body' => 'titok']);
+    $public = $objects->create($system, 'article', ['title' => 'Mérföldkő hír', 'path' => '/merfoldko-hir', 'body' => 'x'], publish: true);
+    $lists = $c->get(\Campanella\Lists\ListStore::class);
+    $lists->save('merfoldko_lista', ['version' => 1, 'title' => 'Mérföldkő lista', 'blueprint' => 'article', 'conditions' => [], 'sort' => [['field' => 'published_at', 'dir' => 'desc']], 'per_page' => 50, 'display' => 'teaser', 'columns' => [], 'path' => null, 'filters' => []]);
+    $c->get(\Campanella\Lists\ListRegistry::class)->loadStored($lists->load());
+    $shown = $components->create($system, ['title' => 'Mérföldkő mutató', 'machine_name' => 'merfoldko_mutato'], 'object:' . $draft->id(), 'link', [], $page);
+    $components->place($system, $shown, 'content', null, 0);
+    $cards = $components->create($system, ['title' => 'Mérföldkő kártyák', 'machine_name' => 'merfoldko_kartyak'], 'list:merfoldko_lista', 'cards', ['count' => '50', 'columns' => '1', 'show_more' => '0', 'show_title' => '1'], $page);
+    $components->place($system, $cards, 'content', null, 1);
+
+    $view = $kernel->handle(new Request('GET', '/merfoldko-oldal', ip: '198.51.100.71'));
+    try {
+    check($view->status === 200 && str_contains($view->body, 'Mérföldkő hír') && str_contains($view->body, 'display-cards__title">Mérföldkő lista'), 'the page with its components');
+    check(!str_contains($view->body, 'Mérföldkő piszkozat') && !str_contains($view->body, '/merfoldko-piszkozat'), 'a draft reaches a visitor neither through a component nor through a list in one');
+    $csp = $view->headers['Content-Security-Policy'] ?? '';
+    check(str_contains($csp, "script-src 'self'") && str_contains($csp, "style-src 'self'") && !str_contains($csp, 'unsafe-inline'), 'the site\'s strict policy on a page of components: ' . $csp);
+
+    // Accessibility (0.4.0): straight to the content; the header is not a <nav> around the menus; the cards' titles under the list's heading.
+    check(str_contains($view->body, 'class="visually-hidden-focusable site-skip" href="#main"') && str_contains($view->body, 'id="main" tabindex="-1"'), 'the skip link and its target');
+    preg_match('#<header class="site-header.*?</header>#s', $view->body, $header);
+    check(isset($header[0]) && !str_contains($header[0], '<nav class="navbar'), 'the header is not a navigation landmark of its own');
+    check(preg_match('#display-cards__title">Mérföldkő lista</h2>.*?<h3 class="h4 mb-1"><a [^>]*href="/merfoldko-hir"#s', $view->body) === 1, 'the cards\' titles are h3 under the list\'s h2');
+    $plain = $c->get(\Campanella\Display\DisplayRenderer::class)->show('list:merfoldko_lista', 'cards', ['count' => '5', 'columns' => '1', 'show_title' => '0'], new \Campanella\Display\DisplayContext(Actor::anonymous(), '/'));
+    check(str_contains($plain, '<h2 class="h4 mb-1">'), 'without the list\'s heading: h2');
+    } finally {
+    foreach ([$shown, $cards, $page, $draft, $public] as $object) {
+        $objects->delete($system, $c->get(\Campanella\Model\ObjectRepository::class)->find((int) $object->id()));
+    }
+    $lists->delete('merfoldko_lista');
+    $settings->set(['layout.enabled' => $enabled]);
+    }
 });
 
 test('Security review (0.3.7): the sample content and the content paths: data checked, never a way in', function () use ($displayKernel): void {

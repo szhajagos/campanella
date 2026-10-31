@@ -1,14 +1,17 @@
 {# The cards display (since 0.3.3): a list's objects with the teaser display; settings.columns, settings.show_more (the list's page). #}
 <div class="display-cards{{ list ? ' result--' ~ list.name }}">
-    {%- if (settings.show_title ?? false) and list %}<h2 class="h4 mb-3 display-cards__title">{{ list.title }}</h2>{% endif %}
+    {%- set titled = (settings.show_title ?? false) and list %}
+    {%- if titled %}<h2 class="h4 mb-3 display-cards__title">{{ list.title }}</h2>{% endif %}
+    {#- Under the list's heading the cards' titles are a level lower (since 0.4.0). #}
+    {%- set teaser = titled ? {heading: 3} : {} %}
     {%- if items is empty %}
         <p class="empty text-body-secondary">{{ t('content.empty') }}</p>
     {%- elseif settings.columns > 1 %}
         <div class="row row-cols-1 row-cols-md-{{ settings.columns }} g-4">
-            {%- for item in items %}<div class="col">{{ render_object(item, 'teaser') }}</div>{% endfor %}
+            {%- for item in items %}<div class="col">{{ render_object(item, 'teaser', teaser) }}</div>{% endfor %}
         </div>
     {%- else %}
-        {%- for item in items %}{{ render_object(item, 'teaser') }}{% endfor %}
+        {%- for item in items %}{{ render_object(item, 'teaser', teaser) }}{% endfor %}
     {%- endif %}
     {%- if settings.show_more and list and list.path %}
         <p class="mt-3 mb-0"><a class="more" href="{{ url(list.path) }}">{{ t('display.more', {list: list.title}) }}</a></p>

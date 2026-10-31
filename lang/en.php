@@ -18,6 +18,7 @@ return [
     'site.nav.categories' => 'Categories',
     'site.nav.about' => 'About us',
     'site.default_slogan' => 'A capability-driven CMS',
+    'site.skip_to_content' => 'Skip to the content',
     'site.nav.toggle' => 'Toggle navigation',
 
     // Content lists
@@ -1401,6 +1402,7 @@ return [
     'display.setting.show_more' => 'Link to the list\'s page',
     'display.setting.show_reset' => 'Link to the forgotten password',
     'display.setting.placeholder' => 'Text in the empty box (empty: "Search…")',
+    'display.setting.heading' => 'The title\'s heading level (2–4; 3 under a heading of its own)',
     'display.setting.show_slogan' => 'Show the slogan',
     'display.setting.show_home' => 'The front page first',
     'display.choice.horizontal' => 'Horizontal bar',

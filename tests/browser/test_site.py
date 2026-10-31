@@ -713,6 +713,21 @@ def test_layouts(browser):
 
 
 
+def test_skip_link(browser):
+    """The first Tab reaches the skip link, which shows and leads to the content (since 0.4.0)."""
+    context = new_context(browser)
+    page = context.new_page()
+    page.goto(BASE + "/hirek")
+    page.keyboard.press("Tab")
+    focused = page.evaluate("document.activeElement.className")
+    check("site-skip" in focused, "the first Tab is not the skip link: " + focused)
+    box = page.locator(".site-skip").bounding_box()
+    check(box is not None and box["width"] > 20, "the skip link does not show when focused")
+    page.keyboard.press("Enter")
+    check(page.evaluate("document.activeElement.id") == "main", "the skip link does not lead to the content")
+    context.close()
+
+
 def test_color_schemes(browser):
     """The colour schemes page from the Appearance menu: a scheme and the dark mode saved, the site in them; set back (since 0.3.6)."""
     context = new_context(browser)
@@ -842,6 +857,7 @@ TESTS = [
     test_page_components,
     test_color_schemes,
     test_color_mode_switch,
+    test_skip_link,
 ]
 
 
