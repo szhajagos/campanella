@@ -35,10 +35,10 @@ The menu on the left, in groups:
 | Group | What it is for |
 |---|---|
 | **Dashboard** | An overview: how many items of each kind of content there are, and what changed lately. |
-| **Content** | The lists of the kinds of content: **Article**, **Page**, **Category**, **Menu**, **Menu item**, **Snippet**, and your own kinds of content (**Event** in the sample content). Here you create, edit and publish content (chapters 3–4 and 11). |
+| **Content** | The lists of the kinds of content: **Article**, **Page**, **Category**, **Menu**, **Menu item**, **Snippet**, and your own kinds of content (**Event** in the sample content). Here you create, edit and publish content (chapters 3–4 and 11); a page's own components are arranged from its form (chapter 15). |
 | **Media library** | **All**: the uploaded images and files together; the **Images** and **Files** lists (chapter 5). |
 | **Audience** | The **Submissions**: the messages from the contact form (chapter 7), and the **Users** (chapter 6). For administrators only. |
-| **Appearance** | The **Components**: what appears on the site, and how (chapter 13). For administrators only. |
+| **Appearance** | The **Components** (what appears on the site, and how), the **Regions** (where, in what order), the **Layouts** (the pages' structure) and the **Colour schemes** (the site's colours, light and dark): chapters 13–16. For administrators only. |
 | **Structure** | **Blueprints** (the kinds of content), **Capabilities** (their building blocks), **Lists** and **Content model**: for your own kinds of content (chapter 11). For administrators only. |
 | **System** | The **Status** (the site's state, below), the **Site settings**, setting up **E-mail** and its log, the **Importers** (they bring in content from spreadsheets, chapter 12) and the **Redirects** (they lead on from old addresses, chapter 3). For administrators only. |
 

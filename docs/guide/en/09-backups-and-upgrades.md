@@ -64,7 +64,7 @@ be told about them, follow this page's feed
   improvements. Campanella promises that these change nothing your site
   relies on ([compatibility promise](../../compatibility.md)). Always worth
   installing; security fixes as soon as possible.
-- **New versions** (e.g. 0.2 → 0.3): new features, and there may be changes.
+- **New versions** (e.g. 0.3 → 0.4): new features, and there may be changes.
   Read the release notes first, as there may be something for you to do.
 
 ### Step by step
@@ -74,8 +74,8 @@ be told about them, follow this page's feed
 2. **Download** the new `campanella-<version>.zip`, and unpack it on your
    computer.
 3. **Upload it**, replacing the program's folders: `bin/`, `config/` (except
-   `local.php`!), `lang/`, `public/` (except `public/media/`!), `src/`,
-   `templates/`, `vendor/`, and the files at the top level. **Do not delete
+   `local.php`!), `lang/`, `public/` (except `public/media/`!), `resources/`
+   (since 0.3.7), `src/`, `templates/`, `vendor/`, and the files at the top level. **Do not delete
    or overwrite:** `config/local.php`, the `public/media/` folder, the `var/`
    folder, and the `themes/` folder, if any.
 4. **Open the site.** If the new version changes the database too, visitors
@@ -113,7 +113,7 @@ again, and restore the database from the backup made before the upgrade (the
 upgrade page shows its name). The developers'
 [upgrade guide](../../upgrading.md#going-back) has the details.
 
-What to do when upgrading from 0.2.x or 0.1.x to 0.3 is collected in the
+What to do when upgrading from 0.3.x, 0.2.x or 0.1.x to 0.4 is collected in the
 [upgrade guide](../../upgrading.md) too.
 
 ---

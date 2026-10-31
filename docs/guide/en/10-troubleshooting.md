@@ -43,6 +43,19 @@ do. When something does not work, always look at the **System → Status** page 
 | A list's page does not show | The list has no path, or the lists (**Structure → Lists**) show an error for it, e.g. because its Blueprint changed in the file. A list shows only published items. |
 | Wrong addresses in share links or e-mails | The **Web address (URL)** under **System → Site settings** is not the site's current address (e.g. after turning on HTTPS or a domain change). Correct it (chapter 2). |
 
+## The site's look
+
+| What you see | Why, and what to do |
+|---|---|
+| The header's menu, the search or the footer is gone | Its component was taken out of its region, or deleted. Put it back on **Appearance → Regions**; if it was deleted, make a new one (chapter 14). |
+| A component does not show | Look at its form: who sees it (**Who may see it**), on which pages (the conditions under **Where it shows**), and whether the page's layout has its region. *Not working* in the list means its source is gone, e.g. deleted (chapters 13–14). |
+| A component does not show on small screens | Its region is hidden there, or collapsed behind a button: set it on **Appearance → Layouts** (chapter 14). |
+| There is no sidebar | The layout is *One column*: a content type's is set on **Appearance → Layouts**, a page's among its components (chapters 14–15). |
+| A page's own component does not show | The page's layout has no such region (e.g. after changing the layout), or its source is a draft the visitor may not see (chapter 15). |
+| The front page shows the latest content | The page chosen for the front page is still a draft, or none is chosen in the **Site settings** (chapter 15). |
+| The site is dark, though the colour mode is *Light* (or the other way) | The visitor's own choice (the colour mode switch) comes first (chapter 16). |
+| The colours do not change with the scheme | The theme uses its own base template; or the browser shows the old ones: Ctrl+F5 (chapter 16). |
+
 ## The contact form and e-mail
 
 | What you see | Cause, what to do |

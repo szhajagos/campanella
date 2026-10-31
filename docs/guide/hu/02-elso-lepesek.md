@@ -36,10 +36,10 @@ A bal oldali menü csoportokban:
 | Csoport | Mire való? |
 |---|---|
 | **Irányítópult** | Áttekintés: hány elem van az egyes tartalomtípusokból, és mi változott legutóbb. |
-| **Tartalom** | A tartalomtípusok listái: **Cikk**, **Oldal**, **Kategória**, **Menü**, **Menüpont**, **Szövegrészlet**, és a saját tartalomtípusaid (a példatartalomban az **Esemény**). Itt hozol létre, szerkesztesz és teszel közzé tartalmat (3–4. és 11. fejezet). |
+| **Tartalom** | A tartalomtípusok listái: **Cikk**, **Oldal**, **Kategória**, **Menü**, **Menüpont**, **Szövegrészlet**, és a saját tartalomtípusaid (a példatartalomban az **Esemény**). Itt hozol létre, szerkesztesz és teszel közzé tartalmat (3–4. és 11. fejezet); egy oldal saját komponenseit az oldal űrlapjáról rendezed (15. fejezet). |
 | **Médiatár** | **Összes**: a feltöltött képek és fájlok együtt; a **Képek** és a **Fájlok** listája (5. fejezet). |
 | **Közönség** | A **Beküldések**: a kapcsolati űrlapon érkezett üzenetek (7. fejezet), és a **Felhasználók** (6. fejezet). Csak az adminisztrátorok látják. |
-| **Megjelenés** | A **Komponensek**: mi jelenjen meg a webhelyen, és hogyan (13. fejezet). Csak az adminisztrátorok látják. |
+| **Megjelenés** | A **Komponensek** (mi jelenjen meg a webhelyen, és hogyan), a **Régiók** (hol és milyen sorrendben), az **Elrendezések** (az oldalak szerkezete) és a **Színsémák** (a webhely színei, világos és sötét módban): 13–16. fejezet. Csak az adminisztrátorok látják. |
 | **Szerkezet** | A **Blueprintek** (a tartalomtípusok), a **Capability-k** (az építőköveik), a **Listák** és a **Tartalommodell**: a saját tartalomtípusokhoz kellenek (11. fejezet). Csak az adminisztrátorok látják. |
 | **Rendszer** | Az **Állapot** (a webhely állapota, lent), a **Webhely-beállítások**, az **E-mail** beállítása és naplója, az **Importálók** (táblázatokból töltenek fel tartalmat, 12. fejezet) és az **Átirányítások** (a régi címekről vezetnek tovább, 3. fejezet). Csak az adminisztrátorok látják. |
 

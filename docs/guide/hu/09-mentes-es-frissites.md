@@ -64,7 +64,7 @@ követheted.
   változtatnak meg semmit, amire az oldalad épít
   ([kompatibilitási ígéret](../../compatibility.md), angolul). Ezeket mindig
   érdemes telepíteni, a biztonsági javításokat minél előbb.
-- **Új verziók** (például 0.2 → 0.3): új funkciók, és változások is lehetnek.
+- **Új verziók** (például 0.3 → 0.4): új funkciók, és változások is lehetnek.
   Előtte olvasd el a kiadás leírását, mert lehet teendőd.
 
 ### Lépésről lépésre
@@ -75,7 +75,8 @@ követheted.
    gépeden.
 3. **Töltsd fel**, és cseréld le vele a program mappáit: `bin/`, `config/`
    (a `local.php` kivételével!), `lang/`, `public/` (a `public/media/`
-   kivételével!), `src/`, `templates/`, `vendor/`, és a gyökérben lévő
+   kivételével!), `resources/` (0.3.7 óta), `src/`, `templates/`, `vendor/`,
+   és a gyökérben lévő
    fájlokat. **Ne töröld és ne írd felül:** a `config/local.php`-t, a
    `public/media/` mappát, a `var/` mappát és a `themes/` mappát, ha van.
 4. **Nyisd meg az oldalt.** Ha az új verzió az adatbázist is módosítja, a
@@ -114,7 +115,7 @@ fájljait, és az adatbázist a frissítés előtt készült mentésből (a fris
 oldala kiírja a nevét). A részleteket a fejlesztői
 [frissítési útmutató](../../upgrading.md#going-back) írja le (angolul).
 
-A 0.2.x és 0.1.x verziókról a 0.3-ra frissítés teendőit szintén a
+A 0.3.x, 0.2.x és 0.1.x verziókról a 0.4-re frissítés teendőit szintén a
 [frissítési útmutató](../../upgrading.md) gyűjti össze.
 
 ---

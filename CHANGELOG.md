@@ -10,7 +10,7 @@ backward-incompatible.
 
 ## [Unreleased]
 
-**The fourth milestone, parts 1–3.**
+**The fourth milestone, parts 1–4.**
 
 ### Fixed
 
@@ -33,6 +33,11 @@ backward-incompatible.
   checked after the upgrade; `tests/upgrade/run.sh --locale=en` makes it an
   English site. CI: the upgrades from 0.3.7, in Hungarian (MariaDB 11.4) and as
   an English site (MySQL 8.0).
+- The guide as a whole for 0.4.x (hu, en): the first steps name the whole
+  Appearance menu and a page's own components; backups and upgrading for 0.4,
+  with `resources/` among the folders to upload (it was missing since 0.3.7);
+  troubleshooting has a section on the site's look (components, regions,
+  layouts, the front page, the colours); the screenshots again.
 - The performance check measures what 0.3.2–0.3.7 added too: a front page of 9
   components with the site's own in the sidebar, 200 files half of them
   restricted, the colour scheme's CSS, with limits.

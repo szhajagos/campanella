@@ -43,6 +43,19 @@ meg (2. fejezet): a legtöbb beállítási hibát ott látod, a teendővel együ
 | Egy lista oldala nem jelenik meg | A listának nincs útvonala, vagy a listákban (**Szerkezet → Listák**) hibát jelez, például mert a Blueprintje megváltozott a fájlban. A lista csak a közzétett elemeket mutatja. |
 | Hibás címek a megosztási linkekben vagy az e-mailekben | A **Rendszer → Webhely-beállítások** oldalon a **Webcím (URL)** nem a webhely mostani címe (például a HTTPS bekapcsolása vagy egy domaincsere után). Írd át (2. fejezet). |
 
+## A webhely kinézete
+
+| Amit látsz | Az ok és a megoldás |
+|---|---|
+| Eltűnt a fejléc menüje, a kereső vagy a lábléc | A komponenst kivették a régiójából, vagy törölték. A **Megjelenés → Régiók** oldalon tedd vissza; ha törölték, készíts újat (14. fejezet). |
+| Egy komponens nem jelenik meg | Nézd meg az űrlapját: kinek látszik (**Ki láthatja**), mely oldalakon (a **Hol jelenik meg** feltételei), és van-e olyan régió az oldal elrendezésében. A listában a **Nem működik** jelzés azt jelenti, hogy a forrása megszűnt, például törölték (13–14. fejezet). |
+| Egy komponens nem látszik kis képernyőn | A régiója kis képernyőn rejtett, vagy egy gomb mögé csukott: a **Megjelenés → Elrendezések** oldalon állíthatod (14. fejezet). |
+| Nincs oldalsáv | Az oldal elrendezése *Egy hasáb*: a tartalomtípusé a **Megjelenés → Elrendezések** oldalon, egy oldalé az oldal komponenseinél állítható (14–15. fejezet). |
+| Egy oldal saját komponense nem látszik | Az oldal elrendezésében nincs meg a régiója (például az elrendezés cseréje után), vagy a forrása piszkozat, és a látogató nem láthatja (15. fejezet). |
+| A címlap a legújabb tartalmakat mutatja | A címlapnak választott oldal még piszkozat, vagy nincs oldal kiválasztva a **Webhely-beállításokban** (15. fejezet). |
+| A webhely sötét, pedig a színmód *Világos* (vagy fordítva) | A látogató saját választása (a színmód-váltó) előbbre való (16. fejezet). |
+| A színek nem változnak a színsémával | A téma a saját alapsablonját használja; vagy a böngésző a régit mutatja: Ctrl+F5 (16. fejezet). |
+
 ## A kapcsolati űrlap és az e-mail
 
 | Amit látsz | Az ok és a megoldás |

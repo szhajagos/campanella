@@ -5,8 +5,8 @@ it, write content, manage the users and take care of the backups. No
 programming knowledge is needed; where something is technical (editing a
 settings file), it is described step by step.
 
-The guide describes Campanella 0.3.x. The pictures show the English
-interface, with Campanella's own sample content (which is in Hungarian).
+The guide describes Campanella 0.4.x. The pictures show the English
+interface, with Campanella's own sample content in English.
 
 ## Contents
 
@@ -28,7 +28,7 @@ interface, with Campanella's own sample content (which is in Hungarian).
 9. [Backups and upgrades](09-backups-and-upgrades.md): what to back up and
    how, restoring, upgrading to a newer version.
 10. [When something does not work](10-troubleshooting.md): common problems,
-    their causes and what to do; where to get help.
+    their causes and what to do (the site's look too); where to get help.
 11. [Your own kinds of content: an activity calendar](11-own-content-types.md):
     a new kind of content and its fields, the admin's list, a list for
     visitors with filters, carrying it to another site.

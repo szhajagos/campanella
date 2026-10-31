@@ -75,8 +75,8 @@ on); what behaves differently in [What behaves differently](#what-behaves-differ
 
    Keep these: `config/local.php`, `public/media/`, `var/` and `themes/`.
    Replace the program's folders as a whole (`bin/`, `config/` except
-   `local.php`, `lang/`, `public/assets/`, `public/index.php`, `src/`,
-   `templates/`, `vendor/`). Do not copy them over the old ones: files removed
+   `local.php`, `lang/`, `public/assets/`, `public/index.php`, `resources/`
+   (since 0.3.7: the sample content), `src/`, `templates/`, `vendor/`). Do not copy them over the old ones: files removed
    since your version would stay behind. If you changed `config/blueprints.php`,
    compare your copy with the new one (0.2.8 added `'admin_columns'` to the
    articles, 0.3.2 the `file` Blueprint, 0.3.3 the `snippet` and `component`

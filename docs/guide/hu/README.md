@@ -5,7 +5,7 @@ feltöltik és telepítik, tartalmat írnak, kezelik a felhasználókat és
 gondoskodnak a mentésről. Programozói tudás nem kell hozzá. Ami mégis
 technikai (egy beállítási fájl szerkesztése), azt lépésről lépésre leírja.
 
-Az útmutató a Campanella 0.3.x verzióit írja le. A képek a magyar nyelvű
+Az útmutató a Campanella 0.4.x verzióit írja le. A képek a magyar nyelvű
 felületet mutatják, a Campanella saját példatartalmával.
 
 ## Tartalom
@@ -27,7 +27,7 @@ felületet mutatják, a Campanella saját példatartalmával.
 9. [Mentés és frissítés](09-mentes-es-frissites.md): mit és hogyan ments,
    visszaállítás, frissítés újabb verzióra.
 10. [Ha valami nem működik](10-hibaelharitas.md): gyakori jelenségek, okuk
-    és a teendő; hol kérj segítséget.
+    és a teendő (a webhely kinézete is); hol kérj segítséget.
 11. [Saját tartalomtípusok: egy programnaptár](11-sajat-tartalomtipusok.md):
     egy új tartalomtípus és mezői, az admin listája, egy lista a látogatóknak
     szűrőkkel, átvitel egy másik webhelyre.

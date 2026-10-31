@@ -355,7 +355,7 @@ stays for 1.0. A part too big for a day is split (a, b).
    without a page).
 4. **The guide as a whole** (part 4): the first steps with the Appearance menu,
    backups and upgrading for 0.4.0, troubleshooting for components, layouts and
-   colours, the contents; the screenshots.
+   colours, the contents; the screenshots (done).
 5. **The compatibility promise for 0.4.x and the release** (part 5): the
    displays, the sources' written forms, the layouts' and schemes' JSON, the
    tokens, the settings, the admin's addresses, the templates' functions; 0.3.x
