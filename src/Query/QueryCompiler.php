@@ -50,7 +50,7 @@ final class QueryCompiler
     /** SELECT o.id ... with ordering and pagination. */
     public function compile(Query $query): CompiledQuery
     {
-        $this->reset();
+        $this->reset($query);
         $where = $this->compileCondition($query->conditions());
 
         $order = [];
@@ -75,7 +75,7 @@ final class QueryCompiler
     /** SELECT COUNT(*) ... with the same conditions, without pagination. */
     public function compileCount(Query $query): CompiledQuery
     {
-        $this->reset();
+        $this->reset($query);
         $where = $this->compileCondition($query->conditions());
         // Capability tables join 1:1 on object_id, so the JOIN does not multiply rows.
         $sql = 'SELECT COUNT(*) FROM {objects} o' . $this->joinSql() . ($where === '' ? '' : ' WHERE ' . $where);
@@ -83,8 +83,18 @@ final class QueryCompiler
         return new CompiledQuery($sql, $this->params);
     }
 
-    private function reset(): void
+    /**
+     * The Blueprints the query is limited to at its top (`blueprint()`), or null (since
+     * 0.4.1): a field of theirs is then read from their tables only, not from every
+     * Blueprint's that has a field of that name.
+     *
+     * @var list<string>|null
+     */
+    private ?array $only = null;
+
+    private function reset(?Query $query = null): void
     {
+        $this->only = $query === null ? null : self::limitedTo($query->conditions());
         $this->joins = [];
         $this->params = [];
         $this->relationCount = 0;
@@ -185,7 +195,7 @@ final class QueryCompiler
         );
         if (($operator === Operator::NotEquals || $operator === Operator::NotIn) && $this->capabilities->fieldOwner($field->name) === null) {
             // A Blueprint's own field (since 0.2.2): the object is of a Blueprint that has it.
-            $names = array_map(fn ($b): string => $this->param($b->name), $this->blueprints?->queryableOwners($field->name) ?? []);
+            $names = array_map(fn ($b): string => $this->param($b->name), $this->owners($field->name));
             $sql = sprintf('(o.`blueprint` IN (%s) AND %s)', $names === [] ? 'NULL' : implode(', ', $names), $sql);
         } elseif ($operator === Operator::NotEquals || $operator === Operator::NotIn) {
             $owner = $this->capabilities->fieldOwner($field->name)
@@ -274,6 +284,51 @@ final class QueryCompiler
     }
 
     /**
+     * The Blueprints that have the queryable field: those the query is limited to, if it is
+     * and one of them has it; else every one (the result is the same, the blueprint condition
+     * leaves the others out).
+     *
+     * @return list<\Campanella\Model\Blueprint>
+     */
+    private function owners(string $field): array
+    {
+        $owners = $this->blueprints?->queryableOwners($field) ?? [];
+        if ($this->only !== null) {
+            $limited = array_values(array_filter($owners, fn ($b): bool => in_array($b->name, $this->only, true)));
+            if ($limited !== []) {
+                return $limited;
+            }
+        }
+
+        return $owners;
+    }
+
+    /**
+     * The Blueprints of a `blueprint =` or `blueprint IN` condition at the top of an AND
+     * group (where it limits the whole query), or null.
+     *
+     * @return list<string>|null
+     */
+    private static function limitedTo(Group $where): ?array
+    {
+        if ($where->any) {
+            return null;
+        }
+        foreach ($where->conditions as $condition) {
+            if ($condition instanceof FieldCondition && $condition->field === 'blueprint') {
+                if ($condition->operator === Operator::Equals && is_string($condition->value)) {
+                    return [$condition->value];
+                }
+                if ($condition->operator === Operator::In && is_array($condition->value)) {
+                    return array_values(array_filter($condition->value, 'is_string'));
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * A Blueprint's own queryable field (since 0.2.2): its column in the Blueprint's
      * table; if several Blueprints have it, the one of the object's Blueprint
      * (an object is of one Blueprint, so at most one of the columns has a row).
@@ -284,7 +339,7 @@ final class QueryCompiler
         if ($own->isMultiple() && $forOrdering) {
             throw new QueryException("Field '{$field}' is multi-valued, so it cannot be sorted on.");
         }
-        $owners = $this->blueprints->queryableOwners($field);
+        $owners = $this->owners($field);
         if ($owners === []) {
             throw $this->notQueryable($field, $forOrdering);
         }

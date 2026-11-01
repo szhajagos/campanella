@@ -16,6 +16,7 @@ use Campanella\Mail\Mailer;
 use Campanella\Settings\Settings;
 use Campanella\Site\MetaBuilder;
 use Campanella\Site\ContentPaths;
+use Campanella\Site\ContentPathsChange;
 use Campanella\Site\ContentPathsTwigExtension;
 use Campanella\Site\NewSite;
 use Campanella\Site\SiteSettings;
@@ -1117,7 +1118,14 @@ final class Kernel
             new UserPages($c->get(UserService::class), $c->get(AuthService::class), $c->get(Csrf::class), $c->get(Flash::class), $c->get(AdminAccess::class)),
             $c->get(UserService::class),
             new StructurePages($c->get(BlueprintRegistry::class), $c->get(CapabilityRegistry::class), $c->get(QueryEngine::class), $c->get(AdminAccess::class)),
-            new SettingsPage($c->get(SiteSettings::class), $c->get(QueryEngine::class), $c->get(MediaStorage::class), $c->get(Csrf::class), $c->get(Flash::class), $c->get(AdminAccess::class)),
+            new SettingsPage($c->get(SiteSettings::class), $c->get(QueryEngine::class), $c->get(MediaStorage::class), $c->get(Csrf::class), $c->get(Flash::class), $c->get(AdminAccess::class), new ContentPathsChange(
+                $c->get(ContentPaths::class),
+                $c->get(Settings::class),
+                $c->get(ListPathCheck::class),
+                $c->get(Redirects::class),
+                $c->get(QueryEngine::class),
+                $c->get(ObjectRepository::class),
+            )),
             new MediaUsage($c->get(Connection::class), $c->get(QueryEngine::class), $c->get(SiteSettings::class)),
             new MailPages($c->get(Mailer::class), $c->get(ObjectRepository::class), $c->get(Throttle::class), $c->get(Csrf::class), $c->get(Flash::class), $c->get(AdminAccess::class)),
             $c->get(SitePaths::class),

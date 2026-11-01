@@ -74,7 +74,9 @@ Blueprint's table (`bp_<name>`). If several Blueprints have the field, every
 table is joined and the value is that of the object's own Blueprint
 (`COALESCE`), so `Query::objects()->where('price', '<', 100)` covers products
 and offers alike; an object of a Blueprint without the field has no value
-(`IS NULL`). Values are given as the field's type takes them: a Decimal as a
+(`IS NULL`). A query limited to some Blueprints at its top (`blueprint()`, as a
+list's query is) joins only their tables (since 0.4.1; the results are the
+same). Values are given as the field's type takes them: a Decimal as a
 number or numeric text, a Date as a `CalendarDate` or `'Y-m-d'`.
 
 ```php

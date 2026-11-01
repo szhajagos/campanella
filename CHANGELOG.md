@@ -8,6 +8,26 @@ Sections: **Added**, **Changed**, **Deprecated**, **Removed**, **Fixed**,
 **Security**. In 0.x versions, items under **Changed** and **Removed** may be
 backward-incompatible.
 
+## [Unreleased]
+
+**The content paths in the admin, part 1.** The first step after 0.4.0.
+
+### Added
+
+- **The content's paths** in *System → Site settings*
+  ([PHP API, chapter 20](docs/php-api/20-site.md#the-content-paths-contentpaths)):
+  the news' and the categories' paths can be changed (e.g. `/hirek` → `/news`),
+  checked to be free (not the admin's, a system page's, a list's or an
+  object's); the old path leads on to the new one, and the menu items that
+  linked it link the new one. Saved together with the other settings, or not
+  at all (`ContentPathsChange`).
+
+### Changed
+
+- A query limited to some Blueprints (a list's) joins only their tables for a
+  field they have, not every Blueprint's with a field of that name (seen in
+  0.4.0's performance check; the results are the same).
+
 ## [0.4.0] – 2026-10-31
 
 **The fourth milestone: building pages and the look.** What 0.3.2–0.3.7 built

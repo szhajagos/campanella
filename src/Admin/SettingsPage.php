@@ -40,6 +40,7 @@ final class SettingsPage
         private readonly Csrf $csrf,
         private readonly Flash $flash,
         private readonly AdminAccess $access,
+        private readonly ?\Campanella\Site\ContentPathsChange $paths = null,
     ) {
     }
 
@@ -57,10 +58,15 @@ final class SettingsPage
             'privacy_url' => (string) $values['privacy_url'],
             'front_page' => (string) ($values['front_page'] ?? ''),
         ];
+        // The content paths (since 0.4.1).
+        foreach ($this->paths?->current() ?? [] as $name => $path) {
+            $form['path_' . $name] = $path;
+        }
         $context = [
+            'content_paths' => $this->paths !== null,
             'title' => 'settings.title',
             'origin' => SiteSettings::originOf($request),
-            'images' => $this->images($actor, $form['share_image']),
+            'images' => $this->images($actor, (string) $values['share_image']),
             'pages' => $this->composedPages($actor),
             'max' => SiteSettings::MAX_LENGTH,
             'errors' => [],
@@ -74,14 +80,26 @@ final class SettingsPage
             $input[$key] = $request->postString($key);
         }
         $input['indexing'] = $request->postString('indexing') === '1' ? '1' : '0';
-        $form = ['indexing' => $input['indexing'] === '1'] + $input;
+        $paths = [];
+        foreach (\Campanella\Site\ContentPathsChange::NAMES as $name) {
+            // A field not sent (e.g. an older form) leaves its path as it is.
+            if ($this->paths !== null && isset($request->post['path_' . $name])) {
+                $paths[$name] = $request->postString('path_' . $name);
+            }
+        }
+        $form = ['indexing' => $input['indexing'] === '1'] + $input + array_combine(array_map(static fn (string $n): string => 'path_' . $n, array_keys($paths)), array_values($paths));
         if (!$this->csrf->isValid($request)) {
             return self::status($render('settings', 'settings', $context + ['form' => $form, 'alert' => 'auth.form_expired']), 400);
         }
+        // All or nothing: the paths are checked first, saved last.
         try {
+            $newPaths = $this->paths?->check($paths) ?? [];
             $this->site->save($input);
         } catch (ValidationException $e) {
             return self::status($render('settings', 'settings', ['errors' => $e->errors, 'alert' => 'admin.form.invalid', 'form' => $form] + $context), 422);
+        }
+        foreach ($this->paths?->apply($newPaths) ?? [] as $change) {
+            $this->flash->add(Flash::SUCCESS, new \Campanella\I18n\Message('settings.content_path_changed', $change));
         }
         $this->flash->add(Flash::SUCCESS, 'settings.saved');
 

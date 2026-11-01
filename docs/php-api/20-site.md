@@ -278,6 +278,22 @@ The content paths are routed after the system's own routes (the admin, logging
 in, the search …) and only where nothing is routed yet, so a content path never
 takes a system page's place; the lists made in the admin come after them.
 
+**Changing them in the admin** (since 0.4.1, *System → Site settings → The
+content's paths*): `ContentPathsChange` · Internal. `check(array $input)` checks
+the news' and the categories' new paths (name => path; a missing or unchanged
+one stays), saving nothing: a path is `/` and small letters, digits, `-`, `_`
+in segments (at most 100 characters; a trailing `/` is dropped), not taken
+(`ListPathCheck`: a route, the admin, a public folder, an object), and not the
+other's; a problem is a `ValidationException` at `path_news` or
+`path_categories`. `apply(array $new)` saves them, adds a redirect from the old
+path to the new one (unless the old one has one already), and makes the menu
+items that linked the old path (or a page of it, `?page=2`) link the new one;
+it returns what changed (`from`, `to`, the number of `links`). `save()` is the
+two together; `current()` the paths now. The settings page checks the paths
+first and saves them last, so its other settings and the paths are saved
+together or not at all. The about page (`about`) is only a starter menu link,
+not routed, so it is not changed here.
+
 ## The front page
 
 *Since 0.3.5.* The front page (`/`) shows the latest content (the `frontpage`

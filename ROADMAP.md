@@ -455,13 +455,19 @@ capability, `Restricted`, applied by the access policy. This is decided before
 ### 0.4.x – after the milestone
 
 Steps towards 0.5.0, each keeping the 0.4.x promise; what 0.3.x left for later
-(decided 2026-10-31), to be planned in detail one by one:
+(decided 2026-10-31; the order and the ways agreed 2026-11-01):
 
-- **Layouts edited in the admin**, besides the core's and the theme's.
-- **Dragging components** into place, on top of the up and down buttons.
-- **Colour schemes made in the admin**, with the same readability check.
-- **The content paths changed in the admin** (`/hirek` → `/news`), with
-  redirects from the old ones.
+| Step | Contents |
+|---|---|
+| **0.4.1** | **The content paths in the admin** (*System → Site settings*): the news' and the categories' paths changed, checked to be free; the old one leads on (a redirect), the menu items follow. Also: a list's query joins only its own Blueprint's tables (seen in 0.4.0's performance check). In two parts: the feature (part 1, done); the guide, the review, the release (part 2). |
+| **0.4.2** | **Colour schemes made in the admin**: colour pickers for the eight colours in both variants, with the live preview and the same readability check as a scheme's file (`#rrggbb` only, 4.5:1); stored in the database, carried by the content model's export. |
+| **0.4.3** | **Dragging** with **SortableJS** (MIT; served from `public/assets/vendor/` like Bootstrap and Jodit, its version pinned, loaded only where something can be dragged; decided 2026-11-01 over a script of our own, for what it gives in many places: touch screens, scrolling, lists into lists, nesting), in two parts: (a) the components on the Regions page, also from one region to another, and a page's own components; (b) the menu items, nesting them under one another. The up and down buttons (and choosing a parent) stay, for the keyboard and screen readers; each drop is saved by a POST with the CSRF token and checked on the server as now. |
+
+**Layouts edited in the admin come after the modules (0.5.0)** (decided
+2026-11-01), so a module can bring layouts too. Open, for then: rows of
+columns, each a region, with set proportions; on small screens the order the
+columns stack in and from which breakpoint (like the zones of Drupal's Omega
+theme). The layout's JSON (`version` 1) would get new optional keys for it.
 
 ### 0.5.0 – extensibility
 

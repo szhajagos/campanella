@@ -94,6 +94,21 @@
                     {{ _self.error(errors, 'front_page') }}
                 </section>
 
+                {% if content_paths %}
+                {#- The content paths (since 0.4.1): the old one leads on to the new one. #}
+                <section class="card card-body mb-4" id="settings-content-paths">
+                    <h2 class="h6 mb-1">{{ t('settings.group.content_paths') }}</h2>
+                    <p class="form-text mt-0 mb-3">{{ t('settings.content_paths_help') }}</p>
+                    {% for name in ['news', 'categories'] %}
+                        {% set key = 'path_' ~ name %}
+                        <label for="settings-{{ key }}" class="form-label fw-semibold">{{ t('settings.content_path.' ~ name) }}</label>
+                        <input type="text" class="form-control font-monospace{{ _self.invalid(errors, key) }}" id="settings-{{ key }}" name="{{ key }}" value="{{ form[key] }}" maxlength="100" spellcheck="false" autocomplete="off"{{ _self.described(errors, key) }}>
+                        <div class="form-text mb-3" id="settings-{{ key }}-help">{{ t('settings.content_path_example', {path: name == 'news' ? '/news' : '/categories'}) }}</div>
+                        {{ _self.error(errors, key) }}
+                    {% endfor %}
+                </section>
+                {% endif %}
+
                 <section class="card card-body mb-4">
                     <h2 class="h6 mb-3">{{ t('settings.group.privacy') }}</h2>
                     <label for="settings-privacy_url" class="form-label fw-semibold">{{ t('settings.privacy_url') }}</label>

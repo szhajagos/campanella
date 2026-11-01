@@ -6010,6 +6010,37 @@ test('Kernel: the site settings page, for administrators', function () use ($new
     check($chosen->status === 303 && $settings->get('site.front_page') === (string) $composed->id(), 'saved');
     $objectService->delete(Actor::system(), $composed);
 
+    // The content paths (since 0.4.1): checked, all or nothing; the old one leads on, the menu items follow.
+    $settings->set(['site.front_page' => null, 'content.path.news' => null, 'content.path.categories' => null]);
+    $menu = $objectService->create(Actor::system(), 'menu', ['title' => 'Útvonal-menü', 'machine_name' => 'utvonal_menu']);
+    $link = $objectService->create(Actor::system(), 'menu_item', ['title' => 'Hírek', 'url' => '/hirek', 'weight' => 0], false, ['menu' => [(int) $menu->id()]]);
+    $second = $objectService->create(Actor::system(), 'menu_item', ['title' => 'Hírek 2', 'url' => '/hirek?page=2', 'weight' => 1], false, ['menu' => [(int) $menu->id()]]);
+    $article = $objectService->create(Actor::system(), 'article', ['title' => 'Foglalt út', 'path' => '/foglalt-ut', 'body' => 'x']);
+    $page = $send('GET', '/admin/system/settings');
+    check(str_contains($page->body, 'id="settings-path_news" name="path_news" value="/hirek"') && str_contains($page->body, 'value="/kategoriak"'), 'the paths in the form');
+    $base = ['_csrf' => $csrfOf($page), 'name' => 'Útvonalas webhely', 'url' => 'https://pelda.hu/', 'front_page' => ''] + $form;
+    foreach ([['path_news' => '/Rossz Út'], ['path_news' => '/admin'], ['path_news' => '/login'], ['path_news' => '/foglalt-ut'], ['path_news' => '/assets/x'], ['path_news' => '//rossz.example'], ['path_categories' => '/hirek'], ['path_news' => '/kozos', 'path_categories' => '/kozos']] as $bad) {
+        $refused = $send('POST', '/admin/system/settings', $bad + $base);
+        $settings->reset();
+        check($refused->status === 422 && $settings->get('content.path.news') === null && $settings->get('content.path.categories') === null && $settings->get('site.name') !== 'Útvonalas webhely', 'refused, nothing saved: ' . json_encode($bad));
+    }
+    check(str_contains($send('POST', '/admin/system/settings', ['path_news' => '/admin'] + $base)->body, 'Ezt az útvonalat már más használja'), 'the reason');
+    $done = $send('POST', '/admin/system/settings', ['path_news' => '/news/', 'path_categories' => '/kategoriak'] + $base);
+    $settings->reset();
+    check($done->status === 303 && $settings->get('content.path.news') === '/news' && $settings->get('content.path.categories') === null && $settings->get('site.name') === 'Útvonalas webhely', 'saved (the trailing / dropped), the other unchanged');
+    check(str_contains($send('GET', '/admin/system/settings')->body, 'Az útvonal megváltozott: /hirek → /news. A régi cím továbbvezet; 2 menüpont az újra mutat.'), 'told');
+    check($container->get(\Campanella\Site\Redirects::class)->target('/hirek') === '/news', 'the old path leads on');
+    $routes = (new \Campanella\Site\ContentPaths($settings))->routes($container->get(\Campanella\I18n\Translator::class));
+    check(isset($routes['/news'], $routes['/kategoriak']) && !isset($routes['/hirek']), 'the news routed at the new path');
+    $repository = $container->get(\Campanella\Model\ObjectRepository::class);
+    check($repository->find((int) $link->id())?->get('url') === '/news' && $repository->find((int) $second->id())?->get('url') === '/news?page=2', 'the menu items point to the new path');
+
+    foreach ([$second, $link, $menu, $article] as $object) {
+        $objectService->delete(Actor::system(), $repository->find((int) $object->id()));
+    }
+    $settings->set(['content.path.news' => null, 'content.path.categories' => null]);
+    $container->get(\Campanella\Database\Connection::class)->execute("DELETE FROM {redirects} WHERE source = '/hirek'");
+
     $settings->set(array_fill_keys(array_map(static fn (string $k): string => 'site.' . $k, \Campanella\Site\SiteSettings::KEYS), null));
     putenv('CAMPANELLA_DB_PREFIX');
 });
@@ -7884,6 +7915,15 @@ test('Queryable own fields: stored in bp_<name>, loaded, filtered and sorted', f
     check($ids(Query::objects()->blueprint('product')->where('price', '>', '10')) === [$a], 'filtered by a decimal');
     check($ids(Query::objects()->blueprint('product')->orderBy('released')) === [$b, $a], 'sorted by a date');
     check($ids(Query::objects()->where('price', '>=', 5)->orderBy('price', 'DESC')) === [$a, $c, $b], 'across two Blueprints (COALESCE)');
+    // Limited to one Blueprint (a list's query), only its table is joined (since 0.4.1); the results stay.
+    $compiler = new QueryCompiler($capabilities, $registry);
+    $limited = $compiler->compile(Query::objects()->blueprint('product')->where('price', '>', '1')->orderBy('price'))->sql;
+    check(str_contains($limited, '{bp_product}') && !str_contains($limited, '{bp_offer}') && !str_contains($limited, 'COALESCE'), 'only the list\'s own table: ' . $limited);
+    $both = $compiler->compile(Query::objects()->blueprint('product', 'offer')->where('price', '>', '1'))->sql;
+    check(str_contains($both, '{bp_product}') && str_contains($both, '{bp_offer}'), 'both of two Blueprints');
+    check(str_contains($compiler->compile(Query::objects()->where('price', '>', '1'))->sql, 'COALESCE'), 'not limited: every Blueprint that has it');
+    check($ids(Query::objects()->blueprint('product')->where('price', '>', '1')->orderBy('price')) === [$b, $a] && $ids(Query::objects()->blueprint('offer')->where('price', '>', '1')) === [$c], 'the same results');
+    check($compiler->compileCount(Query::objects()->blueprint('offer')->where('tags', '=', 'akció'))->sql !== '', 'a multi-valued field of another Blueprint: still compiled');
     check($ids(Query::objects()->where('released', '=', new \Campanella\Model\CalendarDate('2025-01-15'))) === [$b]);
     check($ids(Query::objects()->where('color', 'IN', ['blue'])) === [$b] && $ids(Query::objects()->where('tags', '=', 'akció')) === [$a]);
     check($ids(Query::objects()->where('tags', '!=', 'akció')->orderBy('id')) === [$b], 'not equal: only the objects of a Blueprint that has the field');

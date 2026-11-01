@@ -713,6 +713,29 @@ def test_layouts(browser):
 
 
 
+def test_content_paths(browser):
+    """The news' path changed in the Site settings: the old address leads on, the menu follows; set back (since 0.4.1)."""
+    context = new_context(browser)
+    page = context.new_page()
+    login(page, ADMIN)
+    page.goto(BASE + "/admin/system/settings")
+    page.fill("#settings-path_news", "/friss")
+    with page.expect_navigation():
+        page.click("form.admin-form button[type=submit]")
+    check(page.locator(".alert-success", has_text="/hirek → /friss").count() == 1, "the change is not told")
+    view = context.new_page()
+    view.goto(BASE + "/hirek")
+    check(view.url.endswith("/friss") and view.locator("main h1").count() == 1, "the old path does not lead to the new one: " + view.url)
+    check(view.locator(".region--navigation a[href$='/friss']").count() >= 1, "the menu does not link the new path")
+    # Back, for the other tests.
+    page.fill("#settings-path_news", "/hirek")
+    with page.expect_navigation():
+        page.click("form.admin-form button[type=submit]")
+    view.goto(BASE + "/hirek")
+    check(view.url.endswith("/hirek"), "not set back")
+    context.close()
+
+
 def test_skip_link(browser):
     """The first Tab reaches the skip link, which shows and leads to the content (since 0.4.0)."""
     context = new_context(browser)
@@ -858,6 +881,7 @@ TESTS = [
     test_color_schemes,
     test_color_mode_switch,
     test_skip_link,
+    test_content_paths,
 ]
 
 
