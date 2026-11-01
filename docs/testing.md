@@ -66,6 +66,7 @@ What they check:
 | Components (since 0.3.3) | A component made in the three steps (a menu as navigation, for logged-in users): the Appearance group in the menu, a setting out of range refused, the saved one listed; an editor gets 403 on the components' pages |
 | Regions and layouts (since 0.3.4) | From the Appearance menu: a component added to the footer region on the Regions page, then taken out; the site's layout and a region's look saved on the Layouts page, and set back. The header is made of components on every page |
 | Colour schemes (since 0.3.6) | From the Appearance menu: a scheme and the dark mode saved; the admin and the site in dark, the site in the scheme's accent; set back |
+| A colour scheme of one's own (since 0.4.2) | Made from a copy of Sea: the preview and the colour picker follow a colour typed in; saved and listed, then deleted |
 | Content paths (since 0.4.1) | The news' path changed in the Site settings: the change told, the old address leads to the new one, the menu links it; set back |
 | Skip link (since 0.4.0) | The first Tab reaches *Skip to the content*, which shows, and Enter moves the focus to the main content |
 | Colour mode switch (since 0.3.6) | A visitor's switch in the navigation: dark at once (without loading the page), kept on the next page; without JavaScript the form makes it light and leads back |

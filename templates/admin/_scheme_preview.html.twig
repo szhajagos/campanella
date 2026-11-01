@@ -1,0 +1,9 @@
+{#- A colour scheme's variant in small (since 0.3.6; a partial since 0.4.2): colors are #rrggbb, checked when the scheme was read or sent. The colours are CSS variables, so the editor's script can change them. #}
+<div class="admin-scheme-preview rounded border p-2 flex-fill" data-scheme-preview="{{ variant }}" style="{% for name, value in colors %}--sp-{{ name|replace({'_': '-'}) }}: {{ value }};{% endfor %}">
+    <div class="small fw-semibold mb-1">{{ t('appearance.mode.' ~ variant) }}</div>
+    <div class="small mb-2">{{ t('appearance.preview_text') }} <span class="admin-scheme-preview__link">{{ t('appearance.preview_link') }}</span> <span class="admin-scheme-preview__muted">{{ t('appearance.preview_muted') }}</span></div>
+    <div class="d-flex gap-2 align-items-center">
+        <span class="rounded px-2 py-1 small admin-scheme-preview__button">{{ t('appearance.preview_button') }}</span>
+        <span class="rounded px-2 py-1 small flex-fill admin-scheme-preview__box">{{ t('appearance.preview_box') }}</span>
+    </div>
+</div>

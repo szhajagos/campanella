@@ -736,6 +736,31 @@ def test_content_paths(browser):
     context.close()
 
 
+def test_color_scheme_editor(browser):
+    """A colour scheme made from a copy of Sea: the preview and the picker follow what is typed; saved, then deleted (since 0.4.2)."""
+    context = new_context(browser)
+    page = context.new_page()
+    login(page, ADMIN)
+    page.goto(BASE + "/admin/system/color-schemes")
+    with page.expect_navigation():
+        page.click("main a[href*='/color-schemes/new?from=sea']")
+    page.fill("#scheme-label", "Böngésző-séma")
+    page.fill("#scheme-name", "bongeszo_sema")
+    page.fill("#scheme-light-accent", "#1a4f73")
+    preview = page.evaluate("getComputedStyle(document.querySelector('[data-scheme-preview=light]')).getPropertyValue('--sp-accent').trim()")
+    picker = page.locator("[data-scheme-picker='scheme-light-accent']").input_value()
+    check(preview == "#1a4f73" and picker == "#1a4f73", "the preview or the picker does not follow: %s, %s" % (preview, picker))
+    with page.expect_navigation():
+        page.click("form.admin-form button[type=submit]")
+    check(page.locator(".alert-success").count() == 1 and page.locator("#appearance-scheme-bongeszo_sema").count() == 1, "not saved, or not listed")
+    with page.expect_navigation():
+        page.click("main a[href$='/color-schemes/bongeszo_sema/delete']")
+    with page.expect_navigation():
+        page.click("main form button.btn-danger")
+    check(page.locator("#appearance-scheme-bongeszo_sema").count() == 0, "not deleted")
+    context.close()
+
+
 def test_skip_link(browser):
     """The first Tab reaches the skip link, which shows and leads to the content (since 0.4.0)."""
     context = new_context(browser)
@@ -882,6 +907,7 @@ TESTS = [
     test_color_mode_switch,
     test_skip_link,
     test_content_paths,
+    test_color_scheme_editor,
 ]
 
 

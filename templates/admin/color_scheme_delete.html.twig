@@ -1,0 +1,23 @@
+{% extends '@core/admin/base.html.twig' %}
+
+{# Deleting a colour scheme made in the admin (since 0.4.2); not the site's own. #}
+{% block content %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb small mb-2">
+            <li class="breadcrumb-item"><a href="{{ admin_url('system/color-schemes') }}">{{ t('appearance.title') }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ scheme.label }}</li>
+        </ol>
+    </nav>
+    <h1 class="h3 mb-4">{{ t('appearance.delete') }}</h1>
+    {% if in_use %}
+        <div class="alert alert-warning" role="alert" id="scheme-in-use">{{ t('appearance.delete_in_use') }}</div>
+        <a class="btn btn-outline-secondary" href="{{ admin_url('system/color-schemes') }}">{{ t('admin.form.cancel') }}</a>
+    {% else %}
+        <div class="alert alert-warning" role="alert">{{ t('appearance.delete_warning', {label: scheme.label}) }}</div>
+        <form method="post" action="{{ admin_url('system/color-schemes/' ~ scheme.name ~ '/delete') }}" class="d-flex gap-2">
+            {{ csrf_field() }}
+            <button type="submit" class="btn btn-danger">{{ t('admin.delete.confirm') }}</button>
+            <a class="btn btn-outline-secondary" href="{{ admin_url('system/color-schemes') }}">{{ t('admin.form.cancel') }}</a>
+        </form>
+    {% endif %}
+{% endblock %}

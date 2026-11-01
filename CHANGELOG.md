@@ -8,6 +8,21 @@ Sections: **Added**, **Changed**, **Deprecated**, **Removed**, **Fixed**,
 **Security**. In 0.x versions, items under **Changed** and **Removed** may be
 backward-incompatible.
 
+## [Unreleased]
+
+**Colour schemes made in the admin, part 1.** The second step after 0.4.0.
+
+### Added
+
+- **Colour schemes made in the admin** ([PHP API, chapter 31](docs/php-api/31-appearance.md#made-in-the-admin)):
+  *Appearance → Colour schemes → New colour scheme* (or *Make a copy* of any):
+  the eight colours in both variants as `#rrggbb`, a colour picker beside each
+  and the preview following as you type (`color-scheme-editor.js`); checked as
+  a scheme's file, each problem at its colour (`ColorScheme::problems()`);
+  changed and deleted there, never the site's own while it is chosen. Stored in
+  the new `color_schemes` table (`ColorSchemeStore`; schema version 22); read by
+  `ColorSchemeRegistry` after the files', never under a file's name.
+
 ## [0.4.1] – 2026-11-01
 
 **The content paths in the admin.** The first step after 0.4.0.

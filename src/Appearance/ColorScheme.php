@@ -123,6 +123,49 @@ final readonly class ColorScheme
         return new self($name, $label, $variants['light'], $variants['dark'], $origin);
     }
 
+    /**
+     * The problems of a scheme's colours, for a form (since 0.4.2): by the colour's place
+     * (`light.accent`), a message key and its parameters; empty if the scheme is valid and
+     * readable. The same rules as fromJson()'s.
+     *
+     * @param array<string, mixed> $light
+     * @param array<string, mixed> $dark
+     * @return array<string, array{key: string, params: array<string, string>}>
+     */
+    public static function problems(array $light, array $dark): array
+    {
+        $problems = [];
+        foreach (['light' => $light, 'dark' => $dark] as $variant => $colors) {
+            $valid = [];
+            foreach (array_keys(self::COLORS) as $color) {
+                $value = $colors[$color] ?? null;
+                if (!is_string($value) || preg_match('/^#[0-9a-fA-F]{6}$/D', $value) !== 1) {
+                    $problems[$variant . '.' . $color] = ['key' => 'appearance.color_invalid', 'params' => []];
+                } else {
+                    $valid[$color] = strtolower($value);
+                }
+            }
+            if (isset($valid['accent'], $valid['background'])) {
+                $valid['accent_subtle'] = self::mix($valid['accent'], $valid['background'], self::SUBTLE);
+            }
+            foreach ([...self::READABLE, ['text', 'accent_subtle']] as [$fore, $back]) {
+                if (!isset($valid[$fore], $valid[$back]) || isset($problems[$variant . '.' . $fore])) {
+                    continue;
+                }
+                $ratio = self::contrast($valid[$fore], $valid[$back]);
+                if ($ratio < self::MIN_CONTRAST) {
+                    $problems[$variant . '.' . $fore] = ['key' => 'appearance.contrast_low', 'params' => [
+                        'on' => $back === 'accent_subtle' ? 'accent' : $back,
+                        'ratio' => number_format($ratio, 2),
+                        'min' => number_format(self::MIN_CONTRAST, 1),
+                    ]];
+                }
+            }
+        }
+
+        return $problems;
+    }
+
     /** The contrast ratio of two #rrggbb colours (WCAG 2.2): 1 to 21. */
     public static function contrast(string $a, string $b): float
     {

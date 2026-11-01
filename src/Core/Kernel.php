@@ -79,6 +79,7 @@ use Campanella\Appearance\Appearance;
 use Campanella\Appearance\AppearanceController;
 use Campanella\Appearance\AppearanceTwigExtension;
 use Campanella\Appearance\ColorSchemeRegistry;
+use Campanella\Appearance\ColorSchemeStore;
 use Campanella\Database\Connection;
 use Campanella\Database\DatabaseBackup;
 use Campanella\Database\Installer;
@@ -1004,9 +1005,11 @@ final class Kernel
         $c->set(ColorSchemeRegistry::class, static function (Container $c) use ($root): ColorSchemeRegistry {
             $theme = $c->get(Theme::class);
 
-            return new ColorSchemeRegistry($theme->templateDir === null ? [$root . '/templates'] : [$root . '/templates', $theme->templateDir]);
+            return new ColorSchemeRegistry($theme->templateDir === null ? [$root . '/templates'] : [$root . '/templates', $theme->templateDir], $c->get(ColorSchemeStore::class));
         });
         $c->set(Appearance::class, static fn (Container $c): Appearance => new Appearance($c->get(Settings::class), $c->get(ColorSchemeRegistry::class)));
+        // The colour schemes made in the admin (since 0.4.2).
+        $c->set(ColorSchemeStore::class, static fn (Container $c): ColorSchemeStore => new ColorSchemeStore($c->get(Connection::class)));
         $c->set('controller.appearance', static fn (Container $c): Controller => new AppearanceController($c->get(Appearance::class)));
         $c->set(LayoutRegistry::class, static function (Container $c) use ($root): LayoutRegistry {
             $theme = $c->get(Theme::class);
@@ -1211,7 +1214,7 @@ final class Kernel
                 $c->get(Flash::class),
                 $c->get(AdminAccess::class),
             ) : null,
-            new ColorSchemePages($c->get(Appearance::class), $c->get(Csrf::class), $c->get(Flash::class), $c->get(AdminAccess::class)),
+            new ColorSchemePages($c->get(Appearance::class), $c->get(Csrf::class), $c->get(Flash::class), $c->get(AdminAccess::class), $c->get(ColorSchemeStore::class)),
         ));
 
         $c->set(ObjectForm::class, static fn (Container $c): ObjectForm => new ObjectForm(

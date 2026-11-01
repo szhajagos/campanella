@@ -1,0 +1,60 @@
+{% extends '@core/admin/base.html.twig' %}
+
+{#- A colour scheme made in the admin (since 0.4.2): its name, label, and eight colours in both variants, with a preview. A colour is #rrggbb in its text field (the form works without JavaScript); the colour picker beside it and the preview follow it (color-scheme-editor.js). #}
+{% macro error(errors, name) %}{% if errors[name] ?? null %}<div class="invalid-feedback d-block" id="scheme-{{ name|replace({'.': '-'}) }}-error">{{ t(errors[name].key, errors[name].params|map(v => v in ['background', 'surface', 'accent', 'accent_hover', 'text'] ? t('appearance.color.' ~ v) : v)) }}</div>{% endif %}{% endmacro %}
+
+{% block content %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb small mb-2">
+            <li class="breadcrumb-item"><a href="{{ admin_url('system/color-schemes') }}">{{ t('appearance.title') }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ is_new ? t('appearance.new') : form.label }}</li>
+        </ol>
+    </nav>
+    <h1 class="h3 mb-2">{{ is_new ? t('appearance.new') : t('appearance.edit') }}</h1>
+    <p class="text-body-secondary mb-4">{{ t('appearance.form_intro') }}</p>
+    {% if alert ?? null %}<div class="alert alert-danger" role="alert">{{ t(alert) }}</div>{% endif %}
+
+    <form method="post" action="{{ admin_url('system/color-schemes/' ~ (is_new ? 'new' : form.name)) }}{{ is_new and from ? '?from=' ~ from|url_encode }}" class="admin-form" data-scheme-editor novalidate>
+        {{ csrf_field() }}
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <label class="form-label fw-semibold" for="scheme-label">{{ t('appearance.label') }}</label>
+                <input type="text" class="form-control{{ (errors.label ?? null) ? ' is-invalid' }}" id="scheme-label" name="label" value="{{ form.label }}" maxlength="100" required>
+                {{ _self.error(errors, 'label') }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label fw-semibold" for="scheme-name">{{ t('appearance.name') }}</label>
+                <input type="text" class="form-control font-monospace{{ (errors.name ?? null) ? ' is-invalid' }}" id="scheme-name" name="name" value="{{ form.name }}" maxlength="64" pattern="[a-z][a-z0-9_]*" spellcheck="false" aria-describedby="scheme-name-help"{{ not is_new ? ' readonly' }} required>
+                <div class="form-text" id="scheme-name-help">{{ t(is_new ? 'appearance.name_help' : 'appearance.name_fixed') }}</div>
+                {{ _self.error(errors, 'name') }}
+            </div>
+        </div>
+
+        <div class="row g-4">
+            {% for variant in ['light', 'dark'] %}
+                <fieldset class="col-xl-6">
+                    <legend class="h6">{{ t('appearance.mode.' ~ variant) }}</legend>
+                    {{ include('@core/admin/_scheme_preview.html.twig', {variant: variant, colors: form[variant]}) }}
+                    {% for color in colors %}
+                        {% set key = variant ~ '.' ~ color %}
+                        {% set id = 'scheme-' ~ variant ~ '-' ~ color|replace({'_': '-'}) %}
+                        <div class="row g-2 align-items-center mt-1">
+                            <label class="col-sm-5 col-form-label" for="{{ id }}">{{ t('appearance.color.' ~ color) }}</label>
+                            <div class="col-sm-7 d-flex gap-2">
+                                <input type="color" class="form-control form-control-color" value="{{ form[variant][color] matches '/^#[0-9a-fA-F]{6}$/' ? form[variant][color] : '#000000' }}" data-scheme-picker="{{ id }}" aria-label="{{ t('appearance.picker', {color: t('appearance.color.' ~ color)}) }}" tabindex="-1">
+                                <input type="text" class="form-control font-monospace{{ (errors[key] ?? null) ? ' is-invalid' }}" id="{{ id }}" name="{{ variant }}[{{ color }}]" value="{{ form[variant][color] }}" maxlength="7" pattern="#[0-9a-fA-F]{6}" spellcheck="false" data-scheme-color="{{ color|replace({'_': '-'}) }}" data-scheme-variant="{{ variant }}"{% if errors[key] ?? null %} aria-describedby="scheme-{{ key|replace({'.': '-'}) }}-error"{% endif %}>
+                            </div>
+                            <div class="col-12">{{ _self.error(errors, key) }}</div>
+                        </div>
+                    {% endfor %}
+                </fieldset>
+            {% endfor %}
+        </div>
+        <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-primary">{{ t('appearance.save_scheme') }}</button>
+            <a class="btn btn-outline-secondary" href="{{ admin_url('system/color-schemes') }}">{{ t('admin.form.cancel') }}</a>
+        </div>
+    </form>
+{% endblock %}
+
+{% block scripts %}<script src="{{ asset('color-scheme-editor.js') }}" defer></script>{% endblock %}

@@ -10,7 +10,8 @@ neutral.
 | Class | | |
 |---|---|---|
 | `ColorScheme` | **Public** | A scheme: its name, label, light and dark colours; its CSS |
-| `ColorSchemeRegistry` | **Public** | The schemes there are, from the core's and the theme's `scheme/` folders |
+| `ColorSchemeRegistry` | **Public** | The schemes there are, from the core's and the theme's `scheme/` folders, and those made in the admin (since 0.4.2) |
+| `ColorSchemeStore` | **Public** | The schemes made in the admin, in the `color_schemes` table (since 0.4.2) |
 | `Appearance` | **Public** | The site's scheme and colour mode, from the settings; the mode of a request |
 | `AppearanceTwigExtension` | Internal | `color_mode()` and `color_scheme_url()` in templates |
 | `AppearanceController` | Internal | The scheme as CSS, at `/color-scheme.css`; the visitor's mode, `POST /color-mode` |
@@ -76,6 +77,24 @@ colours (1 to 21), `ColorScheme::luminance()` a colour's relative luminance,
 the variables above for `:root, [data-bs-theme="light"]` and for
 `[data-bs-theme="dark"]`.
 
+### Made in the admin
+
+*Since 0.4.2.* An administrator makes a scheme on *Appearance → Colour schemes*
+(**New colour scheme**, or **Make a copy** of any scheme): its name (a label),
+its machine name (fixed once made, and never a scheme's of the core or the
+theme), and its eight colours in both variants, each as `#rrggbb` (a colour
+picker beside it, and the preview, follow it). It is checked as a scheme's file
+is: `ColorScheme::problems(array $light, array $dark)` gives each problem at its
+colour's place (`light.muted` …: `appearance.color_invalid`, or
+`appearance.contrast_low` with the background it is on and the ratio), and
+`fromJson()` reads it once more before it is saved. It is stored by
+`ColorSchemeStore` (`load()`: name => its JSON, as a file has it; `save(ColorScheme
+$scheme)`, `delete(string $name)`), and `ColorSchemeRegistry` reads it after the
+files' schemes, with the origin `admin`; one stored under a file's name, or
+broken, is left out with the reason. `get()` of a file's scheme does not read
+the database, so a site whose scheme is a file's sends no statement for it. Such a scheme is changed and deleted
+there; the site's own scheme cannot be deleted (choose another first).
+
 ## ColorSchemeRegistry
 
 | Method | |
@@ -84,6 +103,8 @@ the variables above for `:root, [data-bs-theme="light"]` and for
 | `has(string $name): bool` | |
 | `get(string $name): ColorScheme` | The scheme, or `default` for an unknown name |
 | `errors(): array` | The schemes left out: name => why |
+| `isFromFile(string $name): bool` | A scheme of the core or the theme (since 0.4.2) |
+| `reset(): void` | Forgets the schemes read, after one is saved or deleted (since 0.4.2) |
 
 `ColorSchemeRegistry::DEFAULT` is `default`: the colours `campanella.css` has
 had since 0.0.4, so a site looks the same after the upgrade to 0.3.6.

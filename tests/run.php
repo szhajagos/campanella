@@ -6218,8 +6218,8 @@ test('Kernel: the colour schemes page (Appearance → Colour schemes), for admin
     $page = $send('GET', '/admin/system/color-schemes');
     check($page->status === 200 && str_contains($page->body, 'href="/admin/system/color-schemes" aria-current="page">Színsémák</a>'), 'in the Appearance group');
     check(str_contains($page->body, 'id="appearance-scheme-default" value="default" checked') && str_contains($page->body, 'Terrakotta (alap)') && str_contains($page->body, 'Erdő') && str_contains($page->body, 'Tenger'), 'the schemes, the site\'s chosen');
-    check(str_contains($page->body, 'id="appearance-mode-auto" value="auto" checked') && substr_count($page->body, 'class="admin-scheme-preview') === 6, 'the mode; a preview of each variant');
-    check(str_contains($page->body, 'background: #f8faf6; color: #1b1f1b;'), 'the preview in the scheme\'s colours');
+    check(str_contains($page->body, 'id="appearance-mode-auto" value="auto" checked') && substr_count($page->body, 'data-scheme-preview=') === 6, 'the mode; a preview of each variant');
+    check(str_contains($page->body, '--sp-background: #f8faf6;--sp-text: #1b1f1b;'), 'the preview in the scheme\'s colours');
     check($send('GET', '/admin/system/color-schemes/nincs')->status === 404);
 
     $form = ['_csrf' => $csrfOf($page), 'scheme' => 'forest', 'color_mode' => 'dark'];
@@ -6242,6 +6242,101 @@ test('Kernel: the colour schemes page (Appearance → Colour schemes), for admin
 
     $clear();
     putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('Kernel: colour schemes made in the admin (0.4.2): from a copy, checked as a file\'s, chosen, changed, deleted unless in use', function () use ($newUser): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $container = $kernel->container();
+    if ($container->get(Connection::class)->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $settings = $container->get(\Campanella\Settings\Settings::class);
+    $settings->set(['appearance.scheme' => null, 'appearance.color_mode' => null]);
+    $container->get(Connection::class)->execute('DELETE FROM {color_schemes}');
+    $storage = new ArraySessionStorage();
+    $container->set(Session::class, static fn () => new Session($storage));
+    $auth = $container->get(AuthService::class);
+    $send = function (string $method, string $path, array $post = []) use ($kernel, $storage, $container) {
+        $storage->endRequest();
+        $container->get(\Campanella\Appearance\ColorSchemeRegistry::class)->reset();
+        [$path, $query] = explode('?', $path, 2) + [1 => ''];
+        parse_str($query, $params);
+
+        return $kernel->handle(new Request($method, $path, query: $params, post: $post));
+    };
+    $csrfOf = static fn ($response): string => preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $response->body, $m) === 1 ? $m[1] : '';
+
+    $auth->login(new Request('GET', '/'), $newUser('sajatszin-szerk@example.hu', 'sajatszin-jelszo-1', ['editor']));
+    check($send('GET', '/admin/system/color-schemes/new')->status === 403, 'not for editors');
+    $auth->login(new Request('GET', '/'), $newUser('sajatszin@example.hu', 'sajatszin-jelszo-1', ['administrator']));
+
+    $new = $send('GET', '/admin/system/color-schemes/new?from=sea');
+    check($new->status === 200 && str_contains($new->body, 'name="light[accent]" value="#1d5f8a"') && str_contains($new->body, 'color-scheme-editor.js'), 'a copy of Sea to start from');
+    $sea = json_decode((string) file_get_contents(dirname(__DIR__) . '/templates/scheme/sea.json'), true);
+    $form = ['_csrf' => $csrfOf($new), 'name' => 'tengerpart', 'label' => 'Tengerpart', 'light' => $sea['light'], 'dark' => $sea['dark']];
+
+    $bad = $send('POST', '/admin/system/color-schemes/new', ['name' => 'Rossz Név', 'label' => '', 'light' => ['accent' => 'piros', 'muted' => '#c0c0c0'] + $sea['light']] + $form);
+    check($bad->status === 422, 'refused');
+    check(str_contains($bad->body, 'A gépi név kisbetűvel kezdődik') && str_contains($bad->body, 'Adj meg egy legfeljebb 100 karakteres nevet.') && str_contains($bad->body, 'id="scheme-light-accent-error">Egy szín #rrggbb alakú'), 'the name, the label, a colour');
+    check(str_contains($bad->body, 'id="scheme-light-muted-error">Nehezen olvasható: Háttér háttéren a kontraszt'), 'the contrast, at its colour');
+    check($send('POST', '/admin/system/color-schemes/new', ['name' => 'sea'] + $form)->status === 422 && $send('POST', '/admin/system/color-schemes/new', ['name' => 'forest'] + $form)->status === 422, 'not a file\'s name');
+    check($container->get(Connection::class)->fetchValue('SELECT COUNT(*) FROM {color_schemes}') === 0 || (int) $container->get(Connection::class)->fetchValue('SELECT COUNT(*) FROM {color_schemes}') === 0, 'nothing saved');
+
+    $done = $send('POST', '/admin/system/color-schemes/new', ['light' => ['accent' => '#1A4F73'] + $sea['light']] + $form);
+    check($done->status === 303, 'saved');
+    $list = $send('GET', '/admin/system/color-schemes');
+    check(str_contains($list->body, 'A színséma mentve: Tengerpart.') && str_contains($list->body, 'id="appearance-scheme-tengerpart"') && str_contains($list->body, 'href="/admin/system/color-schemes/tengerpart"'), 'listed, with its link');
+    check(str_contains($list->body, '--sp-accent: #1a4f73;'), 'its preview (small letters)');
+    check($send('POST', '/admin/system/color-schemes/new', $form)->status === 422, 'its name is taken now');
+
+    // Chosen, and the site in it; then it cannot be deleted.
+    $send('POST', '/admin/system/color-schemes', ['_csrf' => $csrfOf($list), 'scheme' => 'tengerpart', 'color_mode' => 'auto']);
+    $settings->reset();
+    check($settings->get('appearance.scheme') === 'tengerpart', 'chosen');
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $css = (new \Campanella\Core\Kernel(dirname(__DIR__)))->handle(new Request('GET', '/color-scheme.css'));
+    putenv('CAMPANELLA_DB_PREFIX');
+    check(str_contains($css->body, 'colour scheme: tengerpart') && str_contains($css->body, '--cc-accent: #1a4f73;'), 'the site in it');
+    $confirm = $send('GET', '/admin/system/color-schemes/tengerpart/delete');
+    check(str_contains($confirm->body, 'id="scheme-in-use"') && !str_contains($confirm->body, 'btn-danger'), 'in use: not offered');
+    $send('POST', '/admin/system/color-schemes/tengerpart/delete', ['_csrf' => $csrfOf($list)]);
+    check((int) $container->get(Connection::class)->fetchValue('SELECT COUNT(*) FROM {color_schemes}') === 1, 'in use: not deleted');
+
+    // Changed (its name stays), then deleted once another is chosen.
+    $edit = $send('GET', '/admin/system/color-schemes/tengerpart');
+    check(str_contains($edit->body, 'value="tengerpart" maxlength="64"') && str_contains($edit->body, ' readonly'), 'its name cannot change');
+    $changed = $send('POST', '/admin/system/color-schemes/tengerpart', ['_csrf' => $csrfOf($edit), 'name' => 'mas_nev', 'label' => 'Tengerpart 2', 'light' => $sea['light'], 'dark' => $sea['dark']]);
+    $container->get(\Campanella\Appearance\ColorSchemeRegistry::class)->reset();
+    check($changed->status === 303 && $container->get(\Campanella\Appearance\ColorSchemeRegistry::class)->get('tengerpart')->label === 'Tengerpart 2' && !$container->get(\Campanella\Appearance\ColorSchemeRegistry::class)->has('mas_nev'), 'changed, under its own name');
+    check($send('GET', '/admin/system/color-schemes/sea')->status === 404 && $send('GET', '/admin/system/color-schemes/sea/delete')->status === 404, 'a file\'s scheme is not edited here');
+    $settings->set(['appearance.scheme' => null]);
+    $gone = $send('POST', '/admin/system/color-schemes/tengerpart/delete', ['_csrf' => $csrfOf($edit)]);
+    check($gone->status === 303 && (int) $container->get(Connection::class)->fetchValue('SELECT COUNT(*) FROM {color_schemes}') === 0, 'deleted');
+
+    $settings->set(['appearance.scheme' => null, 'appearance.color_mode' => null]);
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('ColorSchemeRegistry (0.4.2): the schemes made in the admin after the files\'; never under a file\'s name; a broken one left out', function () use ($displayKernel): void {
+    $kernel = $displayKernel();
+    if ($kernel === null) {
+        return;
+    }
+    $c = $kernel->container();
+    $db = $c->get(Connection::class);
+    $db->execute('DELETE FROM {color_schemes}');
+    $forest = (string) file_get_contents(dirname(__DIR__) . '/templates/scheme/forest.json');
+    $now = gmdate('Y-m-d H:i:s');
+    foreach (['sajat' => $forest, 'sea' => $forest, 'torott' => '{"version": 1}'] as $name => $json) {
+        $db->insert('color_schemes', ['name' => $name, 'definition' => $json, 'created_at' => $now, 'updated_at' => $now]);
+    }
+    $registry = new \Campanella\Appearance\ColorSchemeRegistry([dirname(__DIR__) . '/templates'], $c->get(\Campanella\Appearance\ColorSchemeStore::class));
+    check(array_keys($registry->all()) === ['default', 'forest', 'sea', 'sajat'] && $registry->get('sajat')->origin === 'admin' && $registry->get('sea')->origin === 'core', 'after the files\', a file\'s name kept');
+    check(isset($registry->errors()['sea'], $registry->errors()['torott']) && $registry->isFromFile('sea') && !$registry->isFromFile('sajat'), 'the others left out, with the reason');
+    $db->execute('DELETE FROM {color_schemes}');
 });
 
 test('Kernel: the layouts page (Appearance → Layouts), for administrators', function () use ($newUser): void {

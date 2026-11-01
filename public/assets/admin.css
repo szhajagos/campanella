@@ -87,3 +87,9 @@
 .admin-upload__visibility { border-top: 1px solid var(--bs-border-color-translucent); padding-top: .75rem; }
 /* The colour schemes' previews (since 0.3.6): each variant in small, side by side. */
 .admin-scheme-preview { min-width: 14rem; max-width: 22rem; }
+/* The previews' colours are variables (since 0.4.2), so the scheme's form can change them as you type. */
+.admin-scheme-preview { background: var(--sp-background); color: var(--sp-text); border-color: var(--sp-border) !important; }
+.admin-scheme-preview__link { color: var(--sp-accent); text-decoration: underline; }
+.admin-scheme-preview__muted { color: var(--sp-muted); }
+.admin-scheme-preview__button { background: var(--sp-accent); color: var(--sp-on-accent); }
+.admin-scheme-preview__box { background: var(--sp-surface); }

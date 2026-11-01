@@ -29,6 +29,7 @@ final class CoreSchema
     public const string IMPORTERS = 'importers';
     public const string IMPORT_RUNS = 'import_runs';
     public const string IMPORT_ITEMS = 'import_items';
+    public const string COLOR_SCHEMES = 'color_schemes';
 
     /** @return list<Table> */
     public static function tables(): array
@@ -329,6 +330,19 @@ final class CoreSchema
                 primaryKey: ['importer', 'item_key'],
                 indexes: ['idx_object' => ['object_id'], 'idx_created_run' => ['importer', 'created_run'], 'idx_last_run' => ['importer', 'last_run']],
                 foreignKeys: [new ForeignKey('object_id', self::OBJECTS)],
+            ),
+            // The colour schemes made in the admin (since 0.4.2, schema version 22): the definition
+            // as JSON, as a scheme's file has it, loaded but never queried
+            // (Campanella\Appearance\ColorSchemeStore).
+            new Table(
+                name: self::COLOR_SCHEMES,
+                columns: [
+                    new Column('name', ColumnType::String, length: 64),
+                    new Column('definition', ColumnType::Json),
+                    new Column('created_at', ColumnType::DateTime),
+                    new Column('updated_at', ColumnType::DateTime),
+                ],
+                primaryKey: ['name'],
             ),
             // Throttling of attempts (e.g. login). The SHA-256 hash of the key.
             new Table(

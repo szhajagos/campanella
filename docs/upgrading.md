@@ -129,6 +129,7 @@ has schema version 12, 0.3.0 has 16, 0.3.1 has 17, 0.3.2 has 18, 0.3.3 has 19, 0
 | 19 | 0.3.3 | `cap_component` table: the components |
 | 20 | 0.3.4 | The `component_region` column of `cap_component`: a component's region |
 | 21 | 0.3.5 | The `component_page` column of `cap_component`: the page a component belongs to |
+| 22 | 0.4.2 | The `color_schemes` table: the colour schemes made in the admin |
 
 With a table prefix, every name starts with it (`cc_lists`, …).
 

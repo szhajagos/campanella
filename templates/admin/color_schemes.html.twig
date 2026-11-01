@@ -2,20 +2,12 @@
 
 {% macro error(errors, name) %}{% if errors[name] ?? null %}<div class="invalid-feedback d-block" id="appearance-{{ name }}-error">{{ t(errors[name].key, errors[name].params) }}</div>{% endif %}{% endmacro %}
 
-{#- A scheme's variant in small: its colours are #rrggbb, checked when the scheme was read. #}
-{% macro preview(colors, label) %}
-    <div class="admin-scheme-preview rounded border p-2 flex-fill" style="background: {{ colors.background }}; color: {{ colors.text }}; border-color: {{ colors.border }} !important;">
-        <div class="small fw-semibold mb-1">{{ label }}</div>
-        <div class="small mb-2">{{ t('appearance.preview_text') }} <span style="color: {{ colors.accent }}; text-decoration: underline;">{{ t('appearance.preview_link') }}</span> <span style="color: {{ colors.muted }};">{{ t('appearance.preview_muted') }}</span></div>
-        <div class="d-flex gap-2 align-items-center">
-            <span class="rounded px-2 py-1 small" style="background: {{ colors.accent }}; color: {{ colors.on_accent }};">{{ t('appearance.preview_button') }}</span>
-            <span class="rounded px-2 py-1 small flex-fill" style="background: {{ colors.surface }};">{{ t('appearance.preview_box') }}</span>
-        </div>
-    </div>
-{% endmacro %}
 
 {% block content %}
-    <h1 class="h3 mb-2">{{ t('appearance.title') }}</h1>
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+        <h1 class="h3 mb-0 me-auto">{{ t('appearance.title') }}</h1>
+        {% if can_make %}<a class="btn btn-primary" href="{{ admin_url('system/color-schemes/new') }}">{{ t('appearance.new') }}</a>{% endif %}
+    </div>
     <p class="text-body-secondary mb-4">{{ t('appearance.intro') }}</p>
 
     {% if alert ?? null %}<div class="alert alert-danger" role="alert">{{ t(alert) }}</div>{% endif %}
@@ -35,9 +27,14 @@
                             <input class="form-check-input" type="radio" name="scheme" id="appearance-scheme-{{ scheme.name }}" value="{{ scheme.name }}"{{ form.scheme == scheme.name ? ' checked' }}>
                             <label class="form-check-label fw-semibold" for="appearance-scheme-{{ scheme.name }}">{{ t(scheme.label) }}</label>
                             {% if scheme.origin == 'theme' %}<span class="badge text-bg-secondary ms-1">{{ t('layouts.from_theme') }}</span>{% endif %}
+                            {% if scheme.origin == 'admin' %}<span class="badge text-bg-info ms-1">{{ t('appearance.own') }}</span>{% endif %}
+                            <span class="ms-2 small">
+                                {%- if scheme.origin == 'admin' %}<a href="{{ admin_url('system/color-schemes/' ~ scheme.name) }}">{{ t('appearance.edit_link') }}</a> · <a href="{{ admin_url('system/color-schemes/' ~ scheme.name ~ '/delete') }}" class="text-danger">{{ t('admin.delete.link') }}</a> · {% endif -%}
+                                {%- if can_make %}<a href="{{ admin_url('system/color-schemes/new') }}?from={{ scheme.name|url_encode }}">{{ t('appearance.copy') }}</a>{% endif -%}
+                            </span>
                             <div class="d-flex flex-wrap gap-2 mt-2" aria-hidden="true">
-                                {{ _self.preview(scheme.light, t('appearance.mode.light')) }}
-                                {{ _self.preview(scheme.dark, t('appearance.mode.dark')) }}
+                                {{ include('@core/admin/_scheme_preview.html.twig', {variant: 'light', colors: scheme.light}) }}
+                                {{ include('@core/admin/_scheme_preview.html.twig', {variant: 'dark', colors: scheme.dark}) }}
                             </div>
                         </div>
                     {% endfor %}

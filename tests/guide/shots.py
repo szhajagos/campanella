@@ -472,10 +472,21 @@ def components(page):
     shot(page, "component-list")
 
 
+OWN_SCHEME = {
+    "hu": {"label": "Egyesületi zöld", "name": "egyesuleti_zold"},
+    "en": {"label": "Club green", "name": "club_green"},
+}[LANG]
+
+
 def color_schemes(page):
     """Chapter 16 (since 0.3.6): the colour schemes page; the visitor's switch, and the site in dark (the visitor's own mode, the site's settings unchanged)."""
     page.goto(BASE + "/admin/system/color-schemes")
     shot(page, "color-schemes", full_page=True)
+    # A scheme of one's own, from a copy of Forest (since 0.4.2); not saved.
+    page.goto(BASE + "/admin/system/color-schemes/new?from=forest")
+    page.fill("#scheme-label", OWN_SCHEME["label"])
+    page.fill("#scheme-name", OWN_SCHEME["name"])
+    shot(page, "color-scheme-form", full_page=True)
     view = page.context.browser.new_context(viewport={"width": 1280, "height": 800}, locale=page.context.pages[0].evaluate("navigator.language"), color_scheme="light")
     visitor = view.new_page()
     visitor.goto(BASE + "/")
