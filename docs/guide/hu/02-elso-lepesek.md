@@ -89,6 +89,19 @@ webhely: az oldalcímekben, a keresőknek és megosztáskor.
   látogatók személyes adatait. A kapcsolati űrlap alatt link mutat rá. Erről a
   7. fejezet szól.
 
+**A tartalom útvonalai** (0.4.1 óta)
+
+![A tartalom útvonalai](../images/hu/settings-content-paths.png)
+
+- **A hírek** és **A kategóriák:** a két lista oldalának címe. A telepítés a
+  webhely nyelvén adja (magyarul `/hirek` és `/kategoriak`, angolul `/news` és
+  `/categories`), itt átírhatod. Csak kisbetű, szám, kötőjel és aláhúzás
+  lehet benne, és nem lehet olyan cím, amelyet már más használ (az admin, egy
+  rendszeroldal, egy lista vagy egy tartalom).
+- Ha átírod, **a régi cím az újra vezet tovább**, így a régi linkek és
+  könyvjelzők is működnek; a régire mutató menüpontok pedig maguktól az újra
+  mutatnak. Az oldal egy üzenetben elmondja, mi változott.
+
 A végén kattints a **Mentés** gombra.
 
 ## A Rendszer oldal

@@ -126,6 +126,27 @@ version: upgrade it to 0.3.x ([Upgrading](upgrading.md)).
   may see, and puts an apostrophe before a text a spreadsheet would run as a
   formula (`=`, `+`, `-`, `@`).
 
+## Review of the content paths in the admin, 0.4.1 (2026-11-01)
+
+What 0.4.1 added, reviewed with tests for each point (the settings page's and
+`Security review (0.3.7)`'s):
+
+- **Who:** only the system roles reach *System → Site settings*; the form needs
+  its CSRF token, and saves the paths with the other settings or not at all.
+- **What a path may be:** `/` and small letters, digits, `-`, `_` in segments,
+  at most 100 characters: no other host, no `//`, no `..`, no query, nothing
+  that would need escaping; and not taken: not a route (the admin under its
+  path, logging in, the search, a list), not a public folder (`/assets`,
+  `/themes`, `/media`), not an object's path, not the other content path. Even
+  a path saved past the form is taken only in that form, and routed only where
+  nothing else is (0.3.7).
+- **The redirect** from the old path is the redirects' own (a path of this
+  site, answered only where nothing else answers, with its query kept); the
+  menu items that linked the old path are changed as an administrator would,
+  through the repository.
+
+Nothing needed fixing.
+
 ## Security review for 0.4.0 (2026-10-31)
 
 The steps 0.3.2–0.3.7 were each reviewed when they were released (below); for

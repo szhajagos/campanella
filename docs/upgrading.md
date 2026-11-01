@@ -1,18 +1,19 @@
 # Upgrading to 0.4.0
 
-This guide takes a site from **any 0.3.x, 0.2.x or 0.1.x version** to
-**0.4.0**, the fourth milestone, in one go. You do not need to install
+This guide takes a site from **any 0.4.x, 0.3.x, 0.2.x or 0.1.x version** to
+the newest 0.4.x (now **0.4.1**), in one go. You do not need to install
 the versions in between: one upgrade runs every change since your version. The
 CHANGELOG has the same steps version by version; this page puts them
 together, and adds what to check and how to go back.
 
 | Your version | What to do |
 |---|---|
+| 0.4.0 | Upload the new files and run the upgrade (steps 1–3); 0.4.1 changes no table. CI upgrades 0.4.0 to the current code on every push. |
 | 0.3.0 – 0.3.7 | Upload the new files and run the upgrade (steps 1–3); read [From 0.3.x](#from-03x) for what 0.4.0 changes. 0.3.1 adds the importers' tables (schema 17), 0.3.2 the files' (schema 18), 0.3.3 the components' (schema 19), 0.3.4 a component's region (schema 20) and makes the header and footer components, 0.3.5 a component's page (schema 21); 0.3.6 and 0.3.7 change no table. Back up `var/files/` from 0.3.2 on (step 1). CI upgrades every 0.3.x to the current code on every push, 0.3.7 with everything of 0.3.2–0.3.7 in use (restricted files, components in regions, a layout with a sidebar, a page of components as the front page, a colour scheme), in Hungarian and as an English site. |
 | 0.2.0 – 0.2.9 | This guide. Supported and tested: CI upgrades 0.2.0 and 0.2.9 to the current code on every push, the latter with a content model made in the admin (`tests/upgrade/run.sh`). |
 | 0.1.0 – 0.1.5 | This guide, and also [From 0.1.x](#from-01x) below. Tested too: CI upgrades 0.1.0 and 0.1.5. |
 | 0.0.6, 0.0.7 | The upgrade runs (their schema version, 6, is accepted), but it is not tested. Also read the [0.1.0 section of the CHANGELOG](../CHANGELOG.md#010--2026-10-08). |
-| Older than 0.0.6 | Upgrade to 0.0.7 first, then follow this guide. 0.4.0 refuses to upgrade the database and changes nothing. |
+| Older than 0.0.6 | Upgrade to 0.0.7 first, then follow this guide. 0.4.x refuses to upgrade the database and changes nothing. |
 
 Your version is shown on the System page (`/admin/system`), and by
 `php bin/campanella status`.
@@ -69,7 +70,7 @@ on); what behaves differently in [What behaves differently](#what-behaves-differ
 
    Copy them off the server.
 
-2. **Upload the new version.** Use the release package (`campanella-0.4.0.zip`
+2. **Upload the new version.** Use the release package (`campanella-0.4.1.zip`
    from the GitHub release); it includes the `vendor/` folder. With git:
    `git pull`, then `composer install --no-dev`.
 
@@ -154,6 +155,7 @@ used only when an administrator starts using it.
 | 0.3.5 | Pages assembled from components (their own layout and components, edited by editors too), a page as the front page | A page's form: *The page's components*; System → Site settings: *Front page* |
 | 0.3.6 | Colour schemes (light and dark, checked for readability), the colour mode, the visitor's colour mode switch | Appearance → Colour schemes; the *Colour mode switch* display of *The visitor* |
 | 0.3.7 | Sample content in the site's language (English too), the news and categories paths in the language of a new site | `seed --locale`; `resources/seed/` |
+| 0.4.1 | The news' and the categories' paths changed in the admin, the old ones leading on | System → Site settings: *The content's paths* |
 
 New settings: `paths.search` (0.2.7, default `/search`), the search page's
 address, like the other `paths`; `paths.files` (0.3.2, default `/files`), the
@@ -417,7 +419,7 @@ in the [CHANGELOG](../CHANGELOG.md) list every change of the
 
 ## Checklist after the upgrade
 
-- [ ] The System page (*System → Status*) shows 0.4.0, no error and no warning
+- [ ] The System page (*System → Status*) shows 0.4.1, no error and no warning
       about PHP's JIT, the tables match the definitions, and no page is missing
       from the search; under *Images and files* the files' folder is writable.
 - [ ] The site's header shows its name, the main menu, the search and the

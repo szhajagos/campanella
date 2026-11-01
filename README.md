@@ -1,4 +1,4 @@
-# Campanella 0.4.0
+# Campanella 0.4.1
 
 [![CI](https://github.com/szhajagos/campanella/actions/workflows/ci.yml/badge.svg)](https://github.com/szhajagos/campanella/actions/workflows/ci.yml)
 
@@ -17,7 +17,14 @@ with a light and a dark mode, sample content in the site's language; and what
 0.4.x keeps is promised (see the [compatibility promise](docs/compatibility.md)).
 Plans are in the [ROADMAP](ROADMAP.md), changes in the [CHANGELOG](CHANGELOG.md).
 
-## What is new in 0.4.0
+## What is new in 0.4.1
+
+**The content's paths in the admin** (System → Site settings): the news' and
+the categories' addresses can be changed, e.g. `/hirek` → `/news`, checked to be
+free; the old address leads on to the new one, and the menu follows
+([guide](docs/guide/en/02-first-steps.md), [PHP API](docs/php-api/20-site.md#the-content-paths-contentpaths)).
+
+## What was new in 0.4.0
 
 The fourth milestone brings no new feature: it releases what 0.3.2–0.3.7 built
 (below) as one whole, reviewed, tested and documented.

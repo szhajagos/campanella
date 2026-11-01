@@ -549,6 +549,7 @@ def pages(page):
 
     page.goto(BASE + "/admin/system/settings")
     shot(page, "settings-front-page", element="#settings-front_page >> xpath=ancestor::section[1]")
+    shot(page, "settings-content-paths", element="#settings-content-paths")
     # The front page, as a visitor sees it.
     view = page.context.browser.new_context(viewport={"width": 1280, "height": 800}, locale=page.context.pages[0].evaluate("navigator.language"), color_scheme="light")
     visitor = view.new_page()

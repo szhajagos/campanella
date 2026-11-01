@@ -8,9 +8,13 @@ Sections: **Added**, **Changed**, **Deprecated**, **Removed**, **Fixed**,
 **Security**. In 0.x versions, items under **Changed** and **Removed** may be
 backward-incompatible.
 
-## [Unreleased]
+## [0.4.1] – 2026-11-01
 
-**The content paths in the admin, part 1.** The first step after 0.4.0.
+**The content paths in the admin.** The first step after 0.4.0.
+
+**Upgrading from 0.4.0 (or 0.3.x):** upload the new files and run the upgrade as
+usual; no table changes. The paths stay as they are until you change them under
+*System → Site settings*. From older versions: see [docs/upgrading.md](docs/upgrading.md).
 
 ### Added
 
@@ -27,6 +31,13 @@ backward-incompatible.
 - A query limited to some Blueprints (a list's) joins only their tables for a
   field they have, not every Blueprint's with a field of that name (seen in
   0.4.0's performance check; the results are the same).
+
+### Documentation and tests
+
+- The guide's chapter 2 (hu, en): the content's paths, with a screenshot.
+- Reviewed ([the review](docs/security.md#review-of-the-content-paths-in-the-admin-041-2026-11-01)):
+  nothing needed fixing. Tests: the paths refused and saved, the redirect, the
+  menu items; a browser test. CI: the upgrade from 0.4.0 (MySQL 8.4).
 
 ## [0.4.0] – 2026-10-31
 

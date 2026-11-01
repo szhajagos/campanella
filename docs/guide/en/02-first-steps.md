@@ -87,6 +87,20 @@ page titles, to search engines, and when shared.
 - **Privacy notice:** the page that says how you handle visitors' personal
   data; the contact form links to it. See chapter 7.
 
+**The content's paths** (since 0.4.1)
+
+![The content's paths](../images/en/settings-content-paths.png)
+
+- **The news** and **The categories:** the addresses of the two lists' pages.
+  The installation gives them in the site's language (`/news` and
+  `/categories` in English, `/hirek` and `/kategoriak` in Hungarian); change
+  them here. They have small letters, digits, hyphens and underscores only,
+  and cannot be an address something else has (the admin, a system page, a
+  list or some content).
+- If you change one, **the old address leads on to the new one**, so old links
+  and bookmarks keep working; the menu items that pointed to the old one point
+  to the new one by themselves. A message says what changed.
+
 Finally, click **Save**.
 
 ## The System page

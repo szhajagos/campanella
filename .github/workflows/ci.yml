@@ -154,6 +154,7 @@ jobs:
     # Since 0.3.7 also from 0.3.6; an upgraded site keeps its content paths (/hirek).
     # Since 0.4.0 from 0.3.7, the last 0.3.x, with everything of 0.3.2–0.3.7 (old-fixture.php),
     # in Hungarian and as an English site (its own paths, /news).
+    # Since 0.4.1 also from 0.4.0.
     name: Upgrade from ${{ matrix.from }} – ${{ matrix.db }}${{ matrix.locale && format(' – {0}', matrix.locale) || '' }}
     if: inputs.tag == ''
     runs-on: ubuntu-latest
@@ -176,6 +177,7 @@ jobs:
           - { from: 'v0.3.6', db: 'mariadb:10.6' }
           - { from: 'v0.3.7', db: 'mariadb:11.4' }
           - { from: 'v0.3.7', db: 'mysql:8.0', locale: 'en' }
+          - { from: 'v0.4.0', db: 'mysql:8.4' }
 
     services:
       db:
