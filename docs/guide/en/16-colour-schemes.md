@@ -57,6 +57,33 @@ The sample content's front page in dark mode:
 
 ![The front page in dark mode](../images/en/site-dark.png)
 
+## A colour scheme of your own
+
+If none of the schemes suits the site (e.g. your club's colours), make one. The
+easiest is to start from one there is: on the **Appearance → Colour schemes**
+page, **Make a copy** next to a scheme, or **New colour scheme** at the top.
+
+![Making a colour scheme of your own](../images/en/color-scheme-form.png)
+
+1. **Name:** what you see in the list (e.g. *Club green*).
+2. **Machine name:** small letters, digits and underscores, starting with a
+   letter (*club_green*); it cannot be changed later.
+3. **The colours:** eight colours, separately for the light and the dark
+   variant. Choose each with the colour picker, or type its code (`#2f6b3a`).
+   The preview shows at once how it looks.
+4. **Save the colour scheme.** If a colour is hard to read (the text, the muted
+   text, the links or the buttons' labels have a contrast below 4.5:1 to their
+   background), Campanella says which one and does not save it: make it darker
+   or lighter.
+
+Your own schemes have the *own* badge in the list. With **Edit** you can change
+their name and colours later, with **Delete** remove them, except the one the
+site is using (choose another first). The schemes of Campanella and of the theme
+cannot be edited or deleted, but you can make a copy of them.
+
+Your own schemes are in the export of **Structure → Content model** too
+(chapter 11): so a scheme made on a test site can be carried to the live one.
+
 ## If something does not show as expected
 
 | What you see | Why, and what to do |

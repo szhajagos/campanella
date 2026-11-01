@@ -51,7 +51,7 @@ final class ModelFile
     /**
      * The file's contents, its frame checked (the items are checked by the import).
      *
-     * @return array{blueprints: array<string, array<string, mixed>>, lists: array<string, array<string, mixed>>, campanella: string, exported_at: string}
+     * @return array{blueprints: array<string, array<string, mixed>>, lists: array<string, array<string, mixed>>, color_schemes: array<string, array<string, mixed>>, campanella: string, exported_at: string}
      * @throws InvalidArgumentException for a file that is not a content model
      */
     public static function decode(string $json): array
@@ -81,13 +81,15 @@ final class ModelFile
         return [
             'blueprints' => self::items($data['blueprints'] ?? [], 'blueprints'),
             'lists' => self::items($data['lists'] ?? [], 'lists'),
+            // Since 0.4.2 (format 1, an optional key; an older version ignores it).
+            'color_schemes' => self::items($data['color_schemes'] ?? [], 'color_schemes'),
             'campanella' => is_string($data['campanella'] ?? null) ? mb_substr($data['campanella'], 0, 40) : '',
             'exported_at' => is_string($data['exported_at'] ?? null) ? mb_substr($data['exported_at'], 0, 40) : '',
         ];
     }
 
     /**
-     * @param array{blueprints: array<string, array<string, mixed>>, lists: array<string, array<string, mixed>>, campanella: string, exported_at: string} $model
+     * @param array{blueprints: array<string, array<string, mixed>>, lists: array<string, array<string, mixed>>, color_schemes?: array<string, array<string, mixed>>, campanella: string, exported_at: string} $model
      */
     public static function encode(array $model): string
     {
@@ -99,7 +101,7 @@ final class ModelFile
                 'exported_at' => $model['exported_at'],
                 'blueprints' => $model['blueprints'] === [] ? new \stdClass() : $model['blueprints'],
                 'lists' => $model['lists'] === [] ? new \stdClass() : $model['lists'],
-            ],
+            ] + (($model['color_schemes'] ?? []) === [] ? [] : ['color_schemes' => $model['color_schemes']]),
             JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES,
         ) . "\n";
     }

@@ -15,6 +15,9 @@ final readonly class ImportItem
     public const string BLUEPRINT = 'blueprint';
     public const string LIST = 'list';
 
+    /** A colour scheme made in the admin (since 0.4.2). */
+    public const string COLOR_SCHEME = 'color_scheme';
+
     /** New on this site. */
     public const string CREATE = 'create';
     /** On this site, changed by the file. */

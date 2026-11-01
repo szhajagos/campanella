@@ -25,7 +25,7 @@
                     {% for scheme in schemes %}
                         <div class="form-check mb-3 admin-scheme">
                             <input class="form-check-input" type="radio" name="scheme" id="appearance-scheme-{{ scheme.name }}" value="{{ scheme.name }}"{{ form.scheme == scheme.name ? ' checked' }}>
-                            <label class="form-check-label fw-semibold" for="appearance-scheme-{{ scheme.name }}">{{ t(scheme.label) }}</label>
+                            <label class="form-check-label fw-semibold" for="appearance-scheme-{{ scheme.name }}">{{ scheme.origin == 'admin' ? scheme.label : t(scheme.label) }}</label>
                             {% if scheme.origin == 'theme' %}<span class="badge text-bg-secondary ms-1">{{ t('layouts.from_theme') }}</span>{% endif %}
                             {% if scheme.origin == 'admin' %}<span class="badge text-bg-info ms-1">{{ t('appearance.own') }}</span>{% endif %}
                             <span class="ms-2 small">

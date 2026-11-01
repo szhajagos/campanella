@@ -232,7 +232,8 @@ to set it all up again on the live one. On the **Structure → Content model** p
 
 1. On the test site, **Download** in the **Export** box gives a file
    (`campanella-model.json`): the settings of every Blueprint and list made in
-   the admin. **No content (activities, articles) is in it.**
+   the admin, and the colour schemes made there (chapter 16). **No content
+   (activities, articles) is in it.**
 2. On the live site, choose the file in the **Import** box, and click
    **Check**. Campanella only shows what it would do first:
 

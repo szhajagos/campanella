@@ -236,7 +236,8 @@ Ha a tartalomtípust és a listát egy tesztoldalon készítetted el, nem kell a
 
 1. A tesztoldalon az **Export** dobozban a **Letöltés** gomb egy fájlt ad
    (`campanella-model.json`): benne az adminban készült összes Blueprint és
-   lista beállításai. **Tartalom (programok, cikkek) nincs benne.**
+   lista beállításai, és az adminban készült színsémák (16. fejezet).
+   **Tartalom (programok, cikkek) nincs benne.**
 2. Az éles oldalon az **Import** dobozban válaszd ki a fájlt, és kattints az
    **Ellenőrzés** gombra. A Campanella előbb csak megmutatja, mit tenne:
 

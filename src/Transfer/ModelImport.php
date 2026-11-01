@@ -68,13 +68,15 @@ final class ModelImport
         private readonly DatabaseBackup $backup,
         private readonly ListPathCheck $paths,
         private readonly ObjectReferences $references,
+        private readonly ?\Campanella\Appearance\ColorSchemeRegistry $schemeRegistry = null,
+        private readonly ?\Campanella\Appearance\ColorSchemeStore $schemeStore = null,
     ) {
     }
 
     /**
      * What importing the file's model would do.
      *
-     * @param array{blueprints: array<string, array<string, mixed>>, lists: array<string, array<string, mixed>>} $model ModelFile::decode()
+     * @param array{blueprints: array<string, array<string, mixed>>, lists: array<string, array<string, mixed>>, color_schemes?: array<string, array<string, mixed>>} $model ModelFile::decode()
      */
     public function plan(array $model): ImportPlan
     {
@@ -176,9 +178,13 @@ final class ModelImport
             $items['list:' . $name] = new ImportItem(ImportItem::LIST, (string) $name, is_string($definition['title'] ?? null) ? $definition['title'] : (string) $name, ImportItem::KEPT, warnings: $warnings);
         }
 
-        $fingerprint = hash('sha256', json_encode([$storedBlueprints, $storedLists, $save, $lists], JSON_THROW_ON_ERROR));
+        // The colour schemes (since 0.4.2): checked as a scheme's file, never under a file's name.
+        [$schemeItems, $schemes, $storedSchemes] = $this->schemes($model['color_schemes'] ?? []);
+        $items += $schemeItems;
 
-        return new ImportPlan(array_values($items), $errors, $database, $backup, $save, $lists, $fingerprint, $sync);
+        $fingerprint = hash('sha256', json_encode([$storedBlueprints, $storedLists, $save, $lists, $storedSchemes, array_keys($schemes)], JSON_THROW_ON_ERROR));
+
+        return new ImportPlan(array_values($items), $errors, $database, $backup, $save, $lists, $fingerprint, $sync, $schemes);
     }
 
     /**
@@ -222,8 +228,61 @@ final class ModelImport
         foreach ($plan->lists as $name => $definition) {
             $this->listStore->save($name, $definition);
         }
+        foreach ($plan->schemes as $scheme) {
+            $this->schemeStore?->save($scheme);
+        }
+        if ($plan->schemes !== []) {
+            $this->schemeRegistry?->reset();
+        }
 
         return $file;
+    }
+
+    /**
+     * The file's colour schemes (since 0.4.2): their lines, those to save, and the site's stored ones.
+     *
+     * @param array<string, array<string, mixed>> $incoming
+     * @return array{0: array<string, ImportItem>, 1: array<string, \Campanella\Appearance\ColorScheme>, 2: array<string, string>}
+     */
+    private function schemes(array $incoming): array
+    {
+        if ($this->schemeStore === null || $this->schemeRegistry === null) {
+            return [[], [], []];
+        }
+        $stored = $this->schemeStore->load();
+        $items = [];
+        $save = [];
+        foreach ($incoming as $name => $definition) {
+            $name = (string) $name;
+            $label = is_string($definition['label'] ?? null) ? $definition['label'] : $name;
+            if ($this->schemeRegistry->isFromFile($name)) {
+                $items['color_scheme:' . $name] = new ImportItem(ImportItem::COLOR_SCHEME, $name, $label, ImportItem::ERROR, error: new Message('transfer.error.scheme_file_name'));
+                continue;
+            }
+            try {
+                $scheme = \Campanella\Appearance\ColorScheme::fromJson($name, (string) json_encode($definition), 'admin');
+            } catch (InvalidArgumentException $e) {
+                $items['color_scheme:' . $name] = new ImportItem(ImportItem::COLOR_SCHEME, $name, $label, ImportItem::ERROR, error: new Message('transfer.error.invalid', ['reason' => $e->getMessage()]));
+                continue;
+            }
+            $before = isset($stored[$name]) ? json_decode($stored[$name], true) : null;
+            $now = ['version' => \Campanella\Appearance\ColorScheme::VERSION, 'label' => $scheme->label, 'light' => $scheme->light, 'dark' => $scheme->dark];
+            // Compared without the keys' order (MySQL's JSON column sorts them).
+            if (is_array($before) && $before == $now) {
+                $items['color_scheme:' . $name] = new ImportItem(ImportItem::COLOR_SCHEME, $name, $scheme->label, ImportItem::UNCHANGED);
+                continue;
+            }
+            $items['color_scheme:' . $name] = new ImportItem(ImportItem::COLOR_SCHEME, $name, $scheme->label, $before === null ? ImportItem::CREATE : ImportItem::UPDATE, [new Message($before === null ? 'transfer.change.scheme_created' : 'transfer.change.scheme_changed')]);
+            $save[$name] = $scheme;
+        }
+        foreach ($stored as $name => $json) {
+            if (!isset($incoming[$name])) {
+                $definition = json_decode($json, true);
+                $items['color_scheme:' . $name] = new ImportItem(ImportItem::COLOR_SCHEME, (string) $name, is_array($definition) && is_string($definition['label'] ?? null) ? $definition['label'] : (string) $name, ImportItem::KEPT);
+            }
+        }
+
+        return [$items, $save, $stored];
     }
 
     /**

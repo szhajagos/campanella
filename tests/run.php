@@ -6320,6 +6320,75 @@ test('Kernel: colour schemes made in the admin (0.4.2): from a copy, checked as 
     putenv('CAMPANELLA_DB_PREFIX');
 });
 
+test('Security review (0.4.2): the colour schemes made in the admin', function () use ($newUser): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $container = $kernel->container();
+    if ($container->get(Connection::class)->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $db = $container->get(Connection::class);
+    $db->execute('DELETE FROM {color_schemes}');
+    $storage = new ArraySessionStorage();
+    $container->set(Session::class, static fn () => new Session($storage));
+    $auth = $container->get(AuthService::class);
+    $send = function (string $method, string $path, array $post = []) use ($kernel, $storage, $container) {
+        $storage->endRequest();
+        $container->get(\Campanella\Appearance\ColorSchemeRegistry::class)->reset();
+
+        return $kernel->handle(new Request($method, $path, post: $post));
+    };
+    $count = static fn (): int => (int) $db->fetchValue('SELECT COUNT(*) FROM {color_schemes}');
+    $csrfOf = static fn ($response): string => preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $response->body, $m) === 1 ? $m[1] : '';
+    $sea = json_decode((string) file_get_contents(dirname(__DIR__) . '/templates/scheme/sea.json'), true);
+
+    // Who: the system roles only, for every page and every POST.
+    $auth->login(new Request('GET', '/'), $newUser('szinbiztonsag-szerk@example.hu', 'szinbiztonsag-jelszo-1', ['editor']));
+    $form = ['name' => 'szerk_sema', 'label' => 'Szerk', 'light' => $sea['light'], 'dark' => $sea['dark']];
+    check($send('POST', '/admin/system/color-schemes/new', $form)->status === 403 && $count() === 0, 'not an editor');
+    $auth->logout(new Request('GET', '/'));
+    check(in_array($send('GET', '/admin/system/color-schemes/new')->status, [302, 303], true), 'not without logging in');
+
+    $auth->login(new Request('GET', '/'), $newUser('szinbiztonsag@example.hu', 'szinbiztonsag-jelszo-1', ['administrator']));
+    $new = $send('GET', '/admin/system/color-schemes/new');
+    check($send('POST', '/admin/system/color-schemes/new', $form)->status === 400 && $count() === 0, 'not without the CSRF token');
+
+    // What reaches the CSS: #rrggbb only.
+    foreach (['red; } body { display: none', 'url(//x.example/a.png)', 'expression(alert(1))', '#12345', '#1234567'] as $value) {
+        $light = ['accent' => $value] + $sea['light'];
+        check($send('POST', '/admin/system/color-schemes/new', ['_csrf' => $csrfOf($new), 'light' => $light] + $form)->status === 422 && $count() === 0, 'a colour: ' . $value);
+    }
+    foreach (['*/x', '../x', 'X', '1a', str_repeat('a', 65)] as $name) {
+        check($send('POST', '/admin/system/color-schemes/new', ['_csrf' => $csrfOf($new), 'name' => $name] + $form)->status === 422, 'a name: ' . $name);
+    }
+
+    // The label is text: escaped, never a translation key, never in the CSS.
+    $label = '<script>alert(1)</script> admin.delete.link';
+    check($send('POST', '/admin/system/color-schemes/new', ['_csrf' => $csrfOf($new), 'label' => $label] + $form)->status === 303, 'saved');
+    $list = $send('GET', '/admin/system/color-schemes');
+    check(!str_contains($list->body, '<script>alert(1)') && str_contains($list->body, '&lt;script&gt;alert(1)&lt;/script&gt; admin.delete.link'), 'escaped, as written');
+    $db->update('color_schemes', ['definition' => (string) json_encode(['label' => 'admin.delete.link'] + $sea)], ['name' => 'szerk_sema']);
+    check(str_contains($send('GET', '/admin/system/color-schemes')->body, '>admin.delete.link</label>'), 'not translated');
+    $container->get(\Campanella\Settings\Settings::class)->set(['appearance.scheme' => 'szerk_sema']);
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $css = (new \Campanella\Core\Kernel(dirname(__DIR__)))->handle(new Request('GET', '/color-scheme.css'));
+    check(str_contains($css->body, 'colour scheme: szerk_sema') && !str_contains($css->body, 'admin.delete') && $css->headers['Content-Type'] === 'text/css; charset=utf-8', 'the CSS: the name only');
+    $container->get(\Campanella\Settings\Settings::class)->set(['appearance.scheme' => null]);
+
+    // A file's scheme is never changed through the admin, nor through the store.
+    check($send('POST', '/admin/system/color-schemes/forest', ['_csrf' => $csrfOf($new)] + $form)->status === 404 && $send('POST', '/admin/system/color-schemes/forest/delete', ['_csrf' => $csrfOf($new)])->status === 404, 'not a file\'s');
+    $db->insert('color_schemes', ['name' => 'forest', 'definition' => (string) json_encode(['label' => 'Ál', 'light' => ['accent' => '#000000'] + $sea['light']] + $sea), 'created_at' => gmdate('Y-m-d H:i:s'), 'updated_at' => gmdate('Y-m-d H:i:s')]);
+    $container->get(\Campanella\Appearance\ColorSchemeRegistry::class)->reset();
+    check($container->get(\Campanella\Appearance\ColorSchemeRegistry::class)->get('forest')?->origin === 'core', 'a stored one under a file\'s name is left out');
+    $send('POST', '/admin/system/color-schemes/szerk_sema/delete', []);
+    check($count() === 2, 'no deleting without the token');
+
+    $db->execute('DELETE FROM {color_schemes}');
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
 test('ColorSchemeRegistry (0.4.2): the schemes made in the admin after the files\'; never under a file\'s name; a broken one left out', function () use ($displayKernel): void {
     $kernel = $displayKernel();
     if ($kernel === null) {
@@ -8636,6 +8705,70 @@ test('Kernel: lists made in the admin (the editor)', function () use ($newUser, 
 
 echo "\nThe content model's export and import (0.2.6)\n";
 
+test('Kernel: the colour schemes made in the admin in the content model (0.4.2)', function (): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $boot = static fn () => (new \Campanella\Core\Kernel(dirname(__DIR__)))->container();
+    $container = $boot();
+    if ($container->get(Connection::class)->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $db = $container->get(Connection::class);
+    $db->execute('DELETE FROM {color_schemes}');
+    $forest = $container->get(\Campanella\Appearance\ColorSchemeRegistry::class)->get('forest');
+    check($forest !== null, 'the core has Forest');
+    $definition = ['version' => 1, 'label' => 'Egyleti', 'light' => $forest->light, 'dark' => $forest->dark];
+    $model = static fn (array $schemes): array => ['blueprints' => [], 'lists' => [], 'color_schemes' => $schemes, 'campanella' => '0.4.2', 'exported_at' => ''];
+    $line = static function (\Campanella\Transfer\ImportPlan $plan, string $name): ?\Campanella\Transfer\ImportItem {
+        foreach ($plan->items as $item) {
+            if ($item->kind === 'color_scheme' && $item->name === $name) {
+                return $item;
+            }
+        }
+
+        return null;
+    };
+    $import = static fn () => $boot()->get(\Campanella\Transfer\ModelImport::class);
+
+    // An older file, without the key, is read; the key is only written when there are schemes.
+    $old = \Campanella\Transfer\ModelFile::decode('{"format":"campanella.content-model","version":1,"blueprints":{},"lists":{}}');
+    check($old['color_schemes'] === [], 'an older file');
+    check(!str_contains(\Campanella\Transfer\ModelFile::encode($model([])), 'color_schemes'), 'no key without schemes');
+
+    $bad = $definition;
+    $bad['light']['primary'] = 'red; }';
+    $plan = $import()->plan($model(['egyleti' => $definition, 'forest' => $definition, 'rossz' => $bad, 'Nagy-Betu' => $definition]));
+    check($line($plan, 'egyleti')?->action === 'create' && $line($plan, 'egyleti')?->changes[0]->key === 'transfer.change.scheme_created', 'new');
+    check($line($plan, 'forest')?->error?->key === 'transfer.error.scheme_file_name', 'not under a file\'s name');
+    check($line($plan, 'rossz')?->error?->key === 'transfer.error.invalid' && $line($plan, 'Nagy-Betu')?->action === 'error' && $plan->hasErrors(), 'checked as a file\'s');
+    $threw = false;
+    try {
+        $import()->apply($plan);
+    } catch (\RuntimeException) {
+        $threw = true;
+    }
+    check($threw && $boot()->get(\Campanella\Appearance\ColorSchemeStore::class)->load() === [], 'with an error, nothing is saved');
+
+    $plan = $import()->plan($model(['egyleti' => $definition]));
+    check(!$plan->hasErrors() && $plan->hasChanges() && !$plan->backup, 'a plan without a backup');
+    $import()->apply($plan);
+    $registry = $boot()->get(\Campanella\Appearance\ColorSchemeRegistry::class);
+    check($registry->get('egyleti')?->origin === 'admin' && $registry->get('egyleti')?->label === 'Egyleti', 'saved, made in the admin');
+
+    $export = $boot()->get(\Campanella\Transfer\ModelExport::class)->model();
+    check(($export['color_schemes']['egyleti']['light'] ?? null) === $forest->light && !isset($export['color_schemes']['forest']), 'exported: only the admin\'s');
+    $again = $import()->plan(\Campanella\Transfer\ModelFile::decode(\Campanella\Transfer\ModelFile::encode($export)));
+    check(!$again->hasErrors() && !$again->hasChanges() && $line($again, 'egyleti')?->action === 'unchanged', 'its own export changes nothing');
+    $renamed = $definition;
+    $renamed['label'] = 'Egyleti zöld';
+    check($line($import()->plan($model(['egyleti' => $renamed])), 'egyleti')?->action === 'update', 'a change');
+    check($line($import()->plan($model([])), 'egyleti')?->action === 'kept', 'what the file does not have stays');
+
+    $db->execute('DELETE FROM {color_schemes}');
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
 test('ModelFile: only a content model file of a known version is read', function (): void {
     $bad = static function (string $json): bool {
         try {
@@ -8879,7 +9012,7 @@ test('Kernel: the content model page in the admin: download, plan, confirm', fun
     $done = $send('POST', '/admin/system/model/apply', ['_csrf' => $token, 'model' => $mm[1] ?? '', 'fingerprint' => $fm[1] ?? '']);
     check($done->status === 303 && ($done->headers['Location'] ?? '') === '/admin/system/model', (string) $done->status);
     check($boot()->get(BlueprintRegistry::class)->isEditable('hirlevel') && (new \Campanella\Database\Schema\SchemaReader($db))->tableExists('bp_hirlevel'), 'imported');
-    check(str_contains($send('GET', '/admin/system/model')->body, 'Importálva: 1 Blueprint'), 'said so');
+    check(str_contains($send('GET', '/admin/system/model')->body, 'Importálva: 1 Blueprint,'), 'said so');
     $again = $send('POST', '/admin/system/model/import', ['_csrf' => $token], $upload($model(['hirlevel' => $hirlevel])));
     check($again->status === 200 && str_contains($again->body, 'nincs mit változtatni') && !str_contains($again->body, 'system/model/apply'), 'again: nothing to do');
 

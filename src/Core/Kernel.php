@@ -802,6 +802,7 @@ final class Kernel
             $c->get(BlueprintStore::class),
             $c->get(ListStore::class),
             $c->get(ObjectReferences::class),
+            $c->get(ColorSchemeStore::class),
         ));
         $c->set(ModelImport::class, static fn (Container $c): ModelImport => new ModelImport(
             $c->get(CapabilityRegistry::class),
@@ -815,6 +816,8 @@ final class Kernel
             $c->get(DatabaseBackup::class),
             $c->get(ListPathCheck::class),
             $c->get(ObjectReferences::class),
+            $c->get(ColorSchemeRegistry::class),
+            $c->get(ColorSchemeStore::class),
         ));
         $c->set(SchemaSync::class, static fn (Container $c): SchemaSync => new SchemaSync(
             $c->get(Connection::class),

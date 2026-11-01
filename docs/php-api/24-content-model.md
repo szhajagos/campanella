@@ -2,7 +2,8 @@
 
 *Since 0.2.6.* The content model of a site is what was made in the admin: its
 Blueprints ([chapter 13](13-admin.md)) and lists ([chapter 23](23-lists.md)).
-It can be saved into one JSON file and imported into another site, e.g. from a
+Since 0.4.2 the colour schemes made in the admin are in it too
+([chapter 31](31-appearance.md#made-in-the-admin)). It can be saved into one JSON file and imported into another site, e.g. from a
 development site to the live one. The Blueprints of `config/blueprints.php`
 are not in the file: they come with the code.
 
@@ -25,7 +26,7 @@ plan says so). Deleting is done by hand, in the admin.
 
 | Page | What it does |
 |---|---|
-| `/admin/system/model` | How many Blueprints and lists the site has made in the admin; the download; the form to upload a file |
+| `/admin/system/model` | How many Blueprints, lists and colour schemes the site has made in the admin; the download; the form to upload a file |
 | `/admin/system/model/export` | The file, `campanella-model.json` (`Content-Disposition: attachment`, `Cache-Control: no-store`) |
 | `/admin/system/model/import` | POST, with the file (`file`; at most 1 MB): its plan. Changes nothing. With errors, it says why and offers no confirming (422) |
 | `/admin/system/model/apply` | POST: the confirmed import. The file comes back from the plan's page (base64, in a hidden field) and is checked again in full; the plan's `fingerprint` must still be the same, otherwise the new plan is shown (409). Then `ModelImport::apply()`, and back to the page with what was done (and the backup, if one was made) |
@@ -49,9 +50,19 @@ The uploaded file is never stored on the server.
     "esemenyek": {"version": 1, "title": "Események", "blueprint": "esemeny",
       "conditions": [{"relation": "kategoria", "targets": [{"blueprint": "category", "path": "/rendezvenyek", "title": "Rendezvények"}]}],
       "sort": [], "per_page": 10, "display": "teaser", "columns": [], "path": "/esemenyek", "filters": []}
+  },
+  "color_schemes": {
+    "egyesuleti_zold": {"version": 1, "label": "Egyesületi zöld",
+      "light": {"body_bg": "#ffffff", "...": "..."}, "dark": {"body_bg": "#14191a", "...": "..."}}
   }
 }
 ```
+
+`color_schemes` (since 0.4.2) is optional and only written when the site has
+schemes made in the admin; a scheme is in the form of a scheme's file
+(`ColorScheme::VERSION`, the label, the eight colours of each variant). The file
+stays of version 1: an older Campanella ignores the key, a file without it
+imports no schemes.
 
 A Blueprint is in its stored form (`BlueprintDefinition`, chapter 13), a list
 too (`ListDefinition`), but **a relation condition names its objects by
@@ -66,7 +77,7 @@ relation condition is not imported.
 | `const FORMAT`, `const VERSION` | `campanella.content-model`, `1`; a file of a newer version is not read |
 | `const MAX_BYTES`, `const MAX_ITEMS` | At most 1 MB, and at most 200 Blueprints and 200 lists |
 | `const FILE_NAME` | `campanella-model.json`, the suggested name |
-| `static decode(string $json): array` | The file's `blueprints`, `lists`, `campanella` and `exported_at`, its frame checked (the format, the version, objects of names, at most 16 levels deep, a byte order mark allowed); `InvalidArgumentException` otherwise. The items themselves are checked by the import |
+| `static decode(string $json): array` | The file's `blueprints`, `lists`, `color_schemes` (an empty array if missing), `campanella` and `exported_at`, its frame checked (the format, the version, objects of names, at most 16 levels deep, a byte order mark allowed); `InvalidArgumentException` otherwise. The items themselves are checked by the import |
 | `static encode(array $model): string` | The file's contents, as JSON with indentation |
 
 ## ModelExport
@@ -75,7 +86,7 @@ relation condition is not imported.
 
 | Member | Description |
 |---|---|
-| `model(?DateTimeImmutable $now = null): array` | The site's model: every stored Blueprint and list (`BlueprintStore`, `ListStore`), the relation conditions' objects as references |
+| `model(?DateTimeImmutable $now = null): array` | The site's model: every stored Blueprint and list (`BlueprintStore`, `ListStore`), the relation conditions' objects as references; and every stored colour scheme (`ColorSchemeStore`, since 0.4.2) |
 | `json(?DateTimeImmutable $now = null): string` | The same as the file's contents |
 
 ## ModelImport
@@ -112,6 +123,11 @@ relation condition is not imported.
   file's other lists. A reference not found is a warning; a relation condition
   with none found is an error. A list of the site that the import would break
   (e.g. its field stops being queryable) is a warning.
+- A colour scheme (since 0.4.2) is made or replaced, checked as a scheme's file
+  (`ColorScheme::fromJson()`: the name, the colours, the contrast). The name of
+  a scheme of the core or the theme is an error (`transfer.error.scheme_file_name`):
+  a file's scheme is never replaced. A scheme the site has and the file does
+  not stays.
 - **A backup** is made first if the database changes and the changed
   Blueprints have objects, or values move or change (`SyncPlan::changesData()`).
 
@@ -121,17 +137,18 @@ relation condition is not imported.
 
 | Member | Description |
 |---|---|
-| `$items` | `list<ImportItem>`: the file's Blueprints and lists, then the site's not in the file |
+| `$items` | `list<ImportItem>`: the file's Blueprints and lists, then the site's not in the file, then the colour schemes |
 | `$errors` | Errors of the whole import (`list<Message>`, e.g. the database needs an upgrade) |
 | `$database` | The database's changes, in order (`list<Message>`) |
 | `$backup` | Whether a backup is made first |
 | `$blueprints`, `$lists` | The definitions that would be saved, by name |
+| `$schemes` | The colour schemes that would be saved (`array<string, ColorScheme>`, since 0.4.2) |
 | `$fingerprint` | A hash of the site's model and the changes: the admin applies a confirmed import only if it is still the same |
 | `hasErrors(): bool`, `hasChanges(): bool` | Whether anything is an error; whether anything would change |
 | `counts(): array` | How many items per action |
 
 `Campanella\Transfer\ImportItem` · **Public** · `final readonly class`:
-`$kind` (`blueprint`, `list`), `$name`, `$label`, `$action` (`create`,
+`$kind` (`blueprint`, `list`, `color_scheme` since 0.4.2), `$name`, `$label`, `$action` (`create`,
 `update`, `unchanged`, `kept`: on the site, not in the file; `error`),
 `$changes` and `$warnings` (`list<Message>`), `$error` (`?Message`).
 

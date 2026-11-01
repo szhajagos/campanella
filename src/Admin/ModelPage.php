@@ -67,6 +67,7 @@ final class ModelPage
             'title' => 'model.title',
             'blueprints' => count($model['blueprints']),
             'lists' => count($model['lists']),
+            'schemes' => count($model['color_schemes']),
             'max_bytes' => ModelFile::MAX_BYTES,
             'alert_text' => $alert,
         ]);
@@ -141,7 +142,7 @@ final class ModelPage
         if ($backup !== null) {
             $this->flash->add(Flash::INFO, new Message('blueprints.backup_made', ['file' => basename($backup)]));
         }
-        $this->flash->add(Flash::SUCCESS, new Message('transfer.done', ['blueprints' => count($plan->blueprints), 'lists' => count($plan->lists)]));
+        $this->flash->add(Flash::SUCCESS, new Message('transfer.done', ['blueprints' => count($plan->blueprints), 'lists' => count($plan->lists), 'schemes' => count($plan->schemes)]));
 
         return Response::redirect($request->basePath . $this->access->path('system/model'), 303);
     }

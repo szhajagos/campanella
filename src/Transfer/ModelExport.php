@@ -12,7 +12,7 @@ use DateTimeZone;
 
 /**
  * The content model's export (since 0.2.6): the Blueprints and lists made in the
- * admin, as stored, into a ModelFile. A list's relation condition names its
+ * admin, as stored, into a ModelFile; since 0.4.2 the colour schemes made there too. A list's relation condition names its
  * objects by reference (ObjectReferences), not by ID.
  */
 final class ModelExport
@@ -21,11 +21,12 @@ final class ModelExport
         private readonly BlueprintStore $blueprints,
         private readonly ListStore $lists,
         private readonly ObjectReferences $references,
+        private readonly ?\Campanella\Appearance\ColorSchemeStore $schemes = null,
     ) {
     }
 
     /**
-     * @return array{blueprints: array<string, array<string, mixed>>, lists: array<string, array<string, mixed>>, campanella: string, exported_at: string}
+     * @return array{blueprints: array<string, array<string, mixed>>, lists: array<string, array<string, mixed>>, color_schemes: array<string, array<string, mixed>>, campanella: string, exported_at: string}
      */
     public function model(?DateTimeImmutable $now = null): array
     {
@@ -47,6 +48,8 @@ final class ModelExport
         return [
             'blueprints' => $this->blueprints->load(),
             'lists' => $lists,
+            // The colour schemes made in the admin (since 0.4.2), as a scheme's file has them.
+            'color_schemes' => array_map(self::scheme(...), $this->schemes?->load() ?? []),
             'campanella' => Version::CAMPANELLA,
             'exported_at' => $now->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d\TH:i:s\Z'),
         ];
@@ -56,5 +59,27 @@ final class ModelExport
     public function json(?DateTimeImmutable $now = null): string
     {
         return ModelFile::encode($this->model($now));
+    }
+
+    /**
+     * A stored colour scheme in a file's order: version, label, light, dark, the colours as
+     * ColorScheme::COLORS has them (MySQL's JSON column sorts the keys).
+     *
+     * @return array<string, mixed>
+     */
+    private static function scheme(string $json): array
+    {
+        $data = json_decode($json, true);
+        if (!is_array($data)) {
+            return [];
+        }
+        $ordered = array_intersect_key(['version' => null, 'label' => null, 'light' => null, 'dark' => null], $data);
+        foreach (['light', 'dark'] as $variant) {
+            if (isset($data[$variant]) && is_array($data[$variant])) {
+                $data[$variant] = array_replace(array_intersect_key(\Campanella\Appearance\ColorScheme::COLORS, $data[$variant]), $data[$variant]);
+            }
+        }
+
+        return array_replace($ordered, $data);
     }
 }

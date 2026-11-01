@@ -95,7 +95,7 @@ final class ModelImportCommand implements Command
         if ($backup !== null) {
             $output->line($t->translate('cli.model_import.backup', ['file' => $backup]));
         }
-        $output->success($t->translate('transfer.done', ['blueprints' => count($plan->blueprints), 'lists' => count($plan->lists)]));
+        $output->success($t->translate('transfer.done', ['blueprints' => count($plan->blueprints), 'lists' => count($plan->lists), 'schemes' => count($plan->schemes)]));
 
         return 0;
     }

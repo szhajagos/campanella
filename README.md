@@ -1,4 +1,4 @@
-# Campanella 0.4.1
+# Campanella 0.4.2
 
 [![CI](https://github.com/szhajagos/campanella/actions/workflows/ci.yml/badge.svg)](https://github.com/szhajagos/campanella/actions/workflows/ci.yml)
 
@@ -17,7 +17,16 @@ with a light and a dark mode, sample content in the site's language; and what
 0.4.x keeps is promised (see the [compatibility promise](docs/compatibility.md)).
 Plans are in the [ROADMAP](ROADMAP.md), changes in the [CHANGELOG](CHANGELOG.md).
 
-## What is new in 0.4.1
+## What is new in 0.4.2
+
+**Colour schemes of your own** (Appearance → Colour schemes): the eight colours
+of both variants chosen with colour pickers, from scratch or from a copy of any
+scheme, with a live preview and the same readability check as the core's;
+carried to another site with the content model's file
+([guide](docs/guide/en/16-colour-schemes.md#a-colour-scheme-of-your-own),
+[PHP API](docs/php-api/31-appearance.md#made-in-the-admin)).
+
+## What was new in 0.4.1
 
 **The content's paths in the admin** (System → Site settings): the news' and
 the categories' addresses can be changed, e.g. `/hirek` → `/news`, checked to be

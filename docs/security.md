@@ -126,6 +126,35 @@ version: upgrade it to 0.3.x ([Upgrading](upgrading.md)).
   may see, and puts an apostrophe before a text a spreadsheet would run as a
   formula (`=`, `+`, `-`, `@`).
 
+## Review of the colour schemes made in the admin, 0.4.2 (2026-11-01)
+
+What 0.4.2 added, reviewed with tests for each point (`Security review (0.4.2)`
+and the part tests):
+
+- **Who:** making, changing and deleting a scheme is for the system roles only
+  (editors get 403, a visitor is sent to log in); every POST needs its CSRF
+  token (400 without it, and nothing is saved or deleted).
+- **What reaches the CSS:** a scheme made in the admin is checked as a scheme's
+  file (`ColorScheme::fromJson()`, 0.3.6): every colour `#rrggbb`, so no closing
+  brace, `url()` or `expression()` gets in; the machine name `[a-z][a-z0-9_]*`,
+  at most 64 characters, so it cannot leave the CSS comment; the contrast too.
+  The CSS has only the name and the colours, never the label.
+- **The label** is text of at most 100 characters, escaped wherever it is
+  shown. *Found and fixed in the review:* the list of schemes translated every
+  label, so a label that happened to be a translation key (e.g.
+  `admin.delete.link`) was shown as that key's text. Not a risk (the output was
+  escaped, and only an administrator writes labels), but misleading: a label
+  made in the admin is now shown as written; only the core's and the themes'
+  are translated.
+- **A file's scheme is never replaced:** the admin edits and deletes only the
+  schemes made there (404 for the others), refuses a file's name for a new one,
+  and a row stored under a file's name is left out by the registry, so not even
+  the database can override the core's or a theme's scheme. The site's own
+  scheme cannot be deleted.
+- **The content model's import** checks a file's schemes exactly as the form
+  does, refuses a file's name, and imports nothing if anything has an error; it
+  only makes and replaces, never deletes.
+
 ## Review of the content paths in the admin, 0.4.1 (2026-11-01)
 
 What 0.4.1 added, reviewed with tests for each point (the settings page's and

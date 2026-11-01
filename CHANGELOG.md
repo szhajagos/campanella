@@ -10,7 +10,14 @@ backward-incompatible.
 
 ## [Unreleased]
 
-**Colour schemes made in the admin, part 1.** The second step after 0.4.0.
+## [0.4.2] – 2026-11-01
+
+**Colour schemes made in the admin.** The second step after 0.4.0.
+
+**Upgrading from 0.4.1 or 0.4.0 (or 0.3.x):** upload the new files and run the
+upgrade as usual; it adds the `color_schemes` table (schema version 22). The
+site's colours stay as they are. From older versions: see
+[docs/upgrading.md](docs/upgrading.md).
 
 ### Added
 
@@ -22,6 +29,25 @@ backward-incompatible.
   changed and deleted there, never the site's own while it is chosen. Stored in
   the new `color_schemes` table (`ColorSchemeStore`; schema version 22); read by
   `ColorSchemeRegistry` after the files', never under a file's name.
+- **The colour schemes in the content model's file**
+  ([PHP API, chapter 24](docs/php-api/24-content-model.md#the-file-modelfile)):
+  the schemes made in the admin are exported (an optional `color_schemes` key;
+  the file stays of version 1, an older file is read as before) and imported
+  with the same checks as the form, never under the name of a file's scheme,
+  and never deleting one. The content model's page and import count them.
+
+### Fixed
+
+- A colour scheme's label made in the admin is shown as written in the list of
+  schemes, not as a translation (found in the review).
+
+### Documentation and tests
+
+- The guide's chapter 16 (hu, en): a colour scheme of one's own, with a
+  screenshot; chapter 11: the schemes in the content model's file.
+- Reviewed ([the review](docs/security.md#review-of-the-colour-schemes-made-in-the-admin-042-2026-11-01)).
+  Tests: the form, the registry, the content model's import and export, the
+  review's points; a browser test. CI: the upgrade from 0.4.1 (MariaDB 10.6).
 
 ## [0.4.1] – 2026-11-01
 

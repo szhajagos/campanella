@@ -23,6 +23,7 @@ final readonly class ImportPlan
      * @param array<string, array<string, mixed>> $lists The list definitions to save
      * @param string $fingerprint Of the site's model and the changes: an import confirmed later applies only if it is the same
      * @internal $sync The SchemaSync with the new definitions
+     * @param array<string, \Campanella\Appearance\ColorScheme> $schemes The colour schemes to save (since 0.4.2)
      */
     public function __construct(
         public array $items,
@@ -33,6 +34,7 @@ final readonly class ImportPlan
         public array $lists,
         public string $fingerprint,
         public ?SchemaSync $sync = null,
+        public array $schemes = [],
     ) {
     }
 
@@ -53,7 +55,7 @@ final readonly class ImportPlan
     /** Whether applying it would change anything. */
     public function hasChanges(): bool
     {
-        return $this->blueprints !== [] || $this->lists !== [];
+        return $this->blueprints !== [] || $this->lists !== [] || $this->schemes !== [];
     }
 
     /**

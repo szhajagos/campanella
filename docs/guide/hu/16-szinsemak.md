@@ -56,6 +56,33 @@ A példatartalom címlapja sötét módban:
 
 ![A címlap sötét módban](../images/hu/site-dark.png)
 
+## Saját színséma
+
+Ha egyik séma sem illik a webhelyhez (például az egyesület színeihez), készíts
+egyet. A legegyszerűbb egy meglévőből kiindulni: a **Megjelenés → Színsémák**
+oldalon egy séma mellett a **Másolat készítése**, vagy fent az **Új színséma**.
+
+![Egy saját színséma készítése](../images/hu/color-scheme-form.png)
+
+1. **Neve:** ezt látod a listában (például *Egyesületi zöld*).
+2. **Gépi neve:** kisbetűk, számok és aláhúzás, betűvel kezdve
+   (*egyesuleti_zold*); később nem változtatható.
+3. **A színek:** nyolc szín, a világos és a sötét változatban külön. Mindegyiket
+   választhatod a színválasztóval, vagy beírhatod a kódját (`#2f6b3a`). Az előnézet
+   azonnal mutatja, hogyan fest.
+4. **A színséma mentése.** Ha egy szín nehezen olvasható (a szöveg, a halvány
+   szöveg, a hivatkozások vagy a gombok felirata 4,5:1-nél kisebb kontrasztú a
+   hátteréhez képest), a Campanella megmondja, melyik, és nem menti: sötétíts
+   vagy világosíts rajta.
+
+A saját sémákat *saját* jelzés mutatja a listában. **Szerkesztés**sel később
+módosíthatod a nevét és a színeit, **Törlés**sel eltávolíthatod, kivéve azt,
+amelyiket a webhely éppen használ (előbb válassz másikat). A Campanella és a
+téma sémái nem szerkeszthetők és nem törölhetők, de másolatot készíthetsz róluk.
+
+A saját sémák a **Szerkezet → Tartalommodell** exportjában is benne vannak
+(11. fejezet): így egy tesztoldalon készült séma átvihető az élesre.
+
 ## Ha valami nem úgy jelenik meg
 
 | Jelenség | Ok és teendő |
@@ -63,6 +90,8 @@ A példatartalom címlapja sötét módban:
 | A webhely sötét, pedig a színmód *Világos* | A látogató saját választása (a váltó) előbbre való: kattints a nap vagy a félig telt kör gombjára. |
 | Egy téma sémája nincs a listában, és figyelmeztetés van fölötte | A séma kimaradt, a figyelmeztetés megmondja, miért (például nehezen olvasható). A téma készítője javíthatja. |
 | *A mentett színséma már nincs meg* | Például megváltozott a téma: a webhely addig az alapsémát használja. Válassz egyet, és mentsd. |
+| *Nehezen olvasható: … a kontraszt …:1* a mentéskor | A jelzett szín túl közel van a háttérhez: válassz sötétebbet vagy világosabbat, amíg a hiba el nem tűnik. |
+| Egy saját séma nem törölhető | A webhely ezt használja: előbb válassz és ments egy másikat. |
 | A színek nem változnak a sémával | A téma a saját alapsablonját használja: a téma készítője a [PHP API 31. fejezete](../../php-api/31-appearance.md#existing-themes) szerint kapcsolhatja be. |
 
 A témák készítőinek szóló leírás:
