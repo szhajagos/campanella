@@ -899,12 +899,13 @@ def test_dragging(browser):
     context.close()
 
 
-def drag_into(page, source, target, below=True):
+def drag_into(page, source, target, below=True, at=None):
     """Drags a component by its handle with the mouse to just below (or above) the target, an item or
     an empty list (SortableJS), and returns the save's answer."""
     handle = source.locator("[data-drag-handle]").bounding_box()
     box = target.bounding_box()
-    x, y = box["x"] + box["width"] / 2, box["y"] + (box["height"] * 0.8 if below else box["height"] * 0.2)
+    share = at if at is not None else (0.8 if below else 0.2)
+    x, y = box["x"] + box["width"] / 2, box["y"] + box["height"] * share
     with page.expect_response(lambda r: r.url.endswith("/arrange")) as answer:
         page.mouse.move(handle["x"] + handle["width"] / 2, handle["y"] + handle["height"] / 2)
         page.mouse.down()
@@ -912,11 +913,60 @@ def drag_into(page, source, target, below=True):
         page.mouse.move(x, y, steps=15)
         # The lists move when the item leaves its own: aim again where the target is now.
         box = target.bounding_box()
-        x, y = box["x"] + box["width"] / 2, box["y"] + (box["height"] * 0.8 if below else box["height"] * 0.2)
+        x, y = box["x"] + box["width"] / 2, box["y"] + box["height"] * share
         page.mouse.move(x, y, steps=5)
         page.mouse.move(x, y + 2, steps=2)
         page.mouse.up()
     return answer.value
+
+
+def tree_shape(page):
+    """The tree on the arranging page: (title, parent's title or None), in order."""
+    return page.evaluate("""() => Array.from(document.querySelectorAll('[data-sortable-group] [data-id]')).map((li) => {
+        const parent = li.parentElement.closest('[data-id]');
+        return [li.querySelector('.admin-tree__title').textContent.trim(), parent ? parent.querySelector('.admin-tree__title').textContent.trim() : null];
+    })""")
+
+
+def test_tree_dragging(browser):
+    """The main menu's items arranged by dragging: one put under another, kept after reloading, then back out (since 0.4.4)."""
+    context = new_context(browser)
+    page = context.new_page()
+    page.set_viewport_size({"width": 1280, "height": 1600})
+    login(page, EDITOR)
+    page.goto(BASE + "/admin/menu")
+    with page.expect_navigation():
+        page.locator("main table a", has_text="Főmenü").first.click()
+    with page.expect_navigation():
+        page.locator("main a", has_text="Átrendezés húzással").click()
+    before = tree_shape(page)
+    roots = [title for title, parent in before if parent is None]
+    check(len(roots) >= 2, "fewer than two top items: " + str(before))
+    first = page.locator("[data-sortable-group] > ol > li").nth(0)
+    second = page.locator("[data-sortable-group] > ol > li").nth(1)
+    # The second under the first: into the strip of its children (above it, so the strip stays in place).
+    check(drag_into(page, second, first.locator(":scope > ol")).ok, "not saved")
+    page.locator("[data-sortable-status]", has_text="A sorrend mentve.").wait_for(timeout=5000)
+    page.reload()
+    after = tree_shape(page)
+    check([roots[1], roots[0]] in [list(pair) for pair in after], "not under the first: " + str(after))
+    # Back out, onto the next top item: a top item again.
+    moved = page.locator("[data-sortable-group] li", has_text=roots[1]).last
+    check(drag_into(page, moved, page.locator("[data-sortable-group] > ol > li").nth(1).locator(":scope > .admin-tree__row"), at=0.5).ok, "not saved back")
+    page.reload()
+    check([roots[1], None] in [list(pair) for pair in tree_shape(page)], "not a top item again: " + str(tree_shape(page)))
+    # Its old place with the list's buttons (the keyboard's way).
+    page.goto(BASE + "/admin/menu_item?menu=" + page.url.split("menu=")[1])
+    while True:
+        titles = [t.strip() for t in page.locator("main table tbody tr td:first-child a.fw-semibold").all_inner_texts()]
+        tops = [title for title in titles if title in roots]
+        if tops.index(roots[1]) <= 1:
+            break
+        with page.expect_navigation():
+            page.locator("main table tbody tr", has_text=roots[1]).first.locator("button[title='Feljebb']").click()
+    page.goto(BASE + "/admin/menu_item/arrange?menu=" + page.url.split("menu=")[1].split("#")[0])
+    check([list(pair) for pair in tree_shape(page)] == [list(pair) for pair in before], "not put back: " + str(tree_shape(page)))
+    context.close()
 
 
 def test_page_components(browser):
@@ -969,6 +1019,7 @@ TESTS = [
     test_components,
     test_regions,
     test_dragging,
+    test_tree_dragging,
     test_layouts,
     test_page_components,
     test_color_schemes,

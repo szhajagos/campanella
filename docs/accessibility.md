@@ -5,6 +5,16 @@ assistive technologies, is planned for 1.0 ([ROADMAP](../ROADMAP.md)); until
 then each milestone checks what it added, by hand. No automatic checker is used:
 the common ones are not under an MIT-compatible licence.
 
+## Dragging, 0.4.4 (2026-11-02)
+
+Dragging (the components of the regions and of a page, a menu's items) is an
+addition, never the only way: the **Up** and **Down** buttons stay beside each
+component, and a menu's items keep their ↑ ↓ buttons in the list and the
+*Parent* field in their form. The drag handles are hidden from screen readers
+and the keyboard's order (`aria-hidden`, `tabindex="-1"`); after a drop the
+page says *The order is saved.* in a status region (`role="status"`), which a
+screen reader reads. It works with a mouse, a pen or a finger.
+
 ## The admin's fields without placeholders, 0.4.3 (2026-11-02)
 
 An empty field with a placeholder looked filled in, only a little paler (seen

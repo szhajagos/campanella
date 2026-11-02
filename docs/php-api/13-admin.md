@@ -208,6 +208,20 @@ and `Weighted`:
   tree below the form, with a button for a new item
   ([chapter 19](19-menus.md#in-the-admin)).
 
+### Arranging a tree by dragging: TreeArrangePages
+
+`Campanella\Admin\TreeArrangePages` · **Internal**, since 0.4.4
+
+| Path | |
+|---|---|
+| `/admin/<blueprint>/arrange` | For a Blueprint that is `Hierarchical` and `Weighted`, with a `tree_scope` for one scope (`?menu=3`, an object the scope's relation may point to; else 404): the tree as nested lists, each item with a drag handle (`admin-sortable.js`, SortableJS). The list links it (*Arrange by dragging*) when it shows one tree in its own order, and so does the scope object's page. A tree with an item the user may not change is shown, not offered for dragging |
+| `POST /admin/<blueprint>/arrange` | Each drop: `scope`, `tree` (`id:parent` pairs in tree order, 0 for a root) and `_csrf`; `TreeArrangement::arrange()` (chapter 18). JSON `{"ok": true}`; on an error nothing changes, the reason is flashed (400 without the token, 403, 422) and the page is reloaded |
+
+`handle(Request $request, Actor $actor, Blueprint $blueprint, Closure $render): Response`;
+`path(Blueprint $blueprint, ?CampanellaObject $scope = null): ?string`, its
+address (null if the Blueprint's trees cannot be arranged, or a scope is needed).
+The ↑ ↓ buttons of the list stay, for the keyboard and screen readers.
+
 ## Forms
 
 The editing form is generated from the object's field and relation

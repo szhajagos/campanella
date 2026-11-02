@@ -416,6 +416,13 @@ def menus(page):
     page.wait_for_load_state("load")
     page.goto(BASE + "/")
     shot(page, "site-menu")
+    # Arranging a menu by dragging (since 0.4.4): the main menu's page links it.
+    page.goto(BASE + "/admin/menu")
+    page.locator("main table a.fw-semibold").first.click()
+    page.wait_for_load_state("load")
+    page.locator("main a[href*='/admin/menu_item/arrange']").first.click()
+    page.wait_for_load_state("load")
+    shot(page, "menu-arrange", full_page=True)
 
 
 # Chapter 13, components (since 0.3.3): a snippet in an info box, and the visitor's card.

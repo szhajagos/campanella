@@ -6299,6 +6299,104 @@ test('Kernel: dragging components (0.4.4): the Regions page and a page\'s own, a
     $objects->delete($system, $pageObject);
 });
 
+test('Kernel: a tree arranged by dragging (0.4.4): a menu\'s items under one another, out, all or nothing', function () use ($newUser): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $c = $kernel->container();
+    if ($c->get(Connection::class)->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $system = Actor::system();
+    $objects = $c->get(ObjectService::class);
+    $repository = $c->get(\Campanella\Model\ObjectRepository::class);
+    $storage = new ArraySessionStorage();
+    $c->set(Session::class, static fn () => new Session($storage));
+    $auth = $c->get(AuthService::class);
+    $send = function (string $method, string $path, array $post = []) use ($kernel, $storage) {
+        $storage->endRequest();
+        [$path, $query] = explode('?', $path, 2) + [1 => ''];
+        parse_str($query, $params);
+
+        return $kernel->handle(new Request($method, $path, query: $params, post: $post, headers: ['accept' => 'application/json']));
+    };
+    $csrfOf = static fn ($response): string => preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $response->body, $m) === 1 ? $m[1] : '';
+    $menu = $objects->create($system, 'menu', ['title' => 'Húzós menü', 'machine_name' => 'huzos_menu']);
+    $other = $objects->create($system, 'menu', ['title' => 'Másik húzós', 'machine_name' => 'masik_huzos']);
+    $make = static fn (string $title, array $more = []) => $objects->create($system, 'menu_item', ['title' => $title, 'url' => '/' . $title], relations: ['menu' => [$menu]] + $more);
+    $a = $make('a');
+    $b = $make('b');
+    $cc = $make('c');
+    $a1 = $make('a1', ['parent' => [$a]]);
+    $stranger = $objects->create($system, 'menu_item', ['title' => 'idegen', 'url' => '/idegen'], relations: ['menu' => [$other]]);
+    $shape = static function () use ($repository, $a, $b, $cc, $a1): array {
+        $out = [];
+        foreach (['a' => $a, 'b' => $b, 'c' => $cc, 'a1' => $a1] as $name => $item) {
+            $fresh = $repository->find((int) $item->id());
+            $out[$name] = [(int) $fresh->as(\Campanella\Capability\Hierarchical::class)->parentId(), (int) $fresh->get('weight'), (int) $fresh->get('depth')];
+        }
+
+        return $out;
+    };
+    $pairs = static fn (array $list): string => implode(',', array_map(static fn (array $p): string => $p[0]->id() . ':' . ($p[1] === null ? 0 : $p[1]->id()), $list));
+
+    $auth->login(new Request('GET', '/'), $newUser('fa-szerk@example.hu', 'fa-jelszo-1', ['editor']));
+    $list = $send('GET', '/admin/menu_item?menu=' . $menu->id());
+    check(str_contains($list->body, 'href="/admin/menu_item/arrange?menu=' . $menu->id() . '"'), 'the list links it for one menu');
+    check(!str_contains($send('GET', '/admin/menu_item')->body, '/admin/menu_item/arrange'), 'not for all menus at once');
+    check(str_contains($send('GET', '/admin/menu/' . $menu->id())->body, 'href="/admin/menu_item/arrange?menu=' . $menu->id() . '"'), 'the menu\'s page links it');
+    $page = $send('GET', '/admin/menu_item/arrange?menu=' . $menu->id());
+    check($page->status === 200 && str_contains($page->body, 'Húzós menü: átrendezés') && str_contains($page->body, 'data-sortable-mode="tree"') && str_contains($page->body, 'data-sortable-scope="' . $menu->id() . '"'), 'the page, for an editor');
+    check(preg_match('#data-id="' . $a->id() . '".*?data-id="' . $a1->id() . '".*?</ol>\s*</li>\s*<li class="admin-tree__item" data-id="' . $b->id() . '"#s', $page->body) === 1, 'nested: a1 under a, then b');
+    check(!str_contains($page->body, 'idegen') && str_contains($page->body, 'admin-sortable.js'), 'only this menu\'s');
+    check($send('GET', '/admin/menu_item/arrange')->status === 404 && $send('GET', '/admin/menu_item/arrange?menu=' . $a->id())->status === 404, 'a menu is needed, not another object');
+    check($send('GET', '/admin/article/arrange')->status === 404, 'only a weighted tree');
+    $csrf = $csrfOf($page);
+    $post = static fn (string $tree, string $token = '') => $send('POST', '/admin/menu_item/arrange', ['_csrf' => $token ?: $csrf, 'scope' => (string) $menu->id(), 'tree' => $tree]);
+
+    // Under another item, and its own child above it.
+    $done = $post($pairs([[$a1, null], [$a, $a1], [$cc, $a1], [$b, null]]));
+    check($done->status === 200 && json_decode($done->body, true) === ['ok' => true], $done->status . ' ' . $done->body);
+    check($shape() === ['a' => [(int) $a1->id(), 0, 1], 'b' => [0, 10, 0], 'c' => [(int) $a1->id(), 10, 1], 'a1' => [0, 0, 0]], json_encode($shape()));
+    $post($pairs([[$a, null], [$a1, $a], [$b, null], [$cc, null]]));
+    check($shape() === ['a' => [0, 0, 0], 'b' => [0, 10, 0], 'c' => [0, 20, 0], 'a1' => [(int) $a->id(), 0, 1]], 'and back: ' . json_encode($shape()));
+    $before = $shape();
+
+    // Refused: nothing changes.
+    check($post($pairs([[$a, null], [$a1, $a], [$b, null], [$cc, null]]), 'x')->status === 400, 'not without the CSRF token');
+    check($post($pairs([[$a, null], [$a1, $a], [$b, null]]))->status === 422, 'one missing: out of date');
+    check($post($pairs([[$a, null], [$a1, $a], [$b, null], [$cc, null], [$stranger, null]]))->status === 422, 'not another menu\'s');
+    check($post($pairs([[$a1, $a], [$a, null], [$b, null], [$cc, null]]))->status === 422 && str_contains($send('GET', '/admin/menu_item')->body, 'egy elem a saját szülője előtt'), 'a child before its parent');
+    check($post($pairs([[$a, null], [$a1, $a], [$a, null], [$b, null], [$cc, null]]))->status === 422, 'one twice');
+    check($post('a:0')->status === 422 && $post('')->status === 422, 'not pairs of IDs');
+    check($send('POST', '/admin/menu_item/arrange', ['_csrf' => $csrf, 'scope' => (string) $other->id(), 'tree' => $pairs([[$a, null], [$a1, $a], [$b, null], [$cc, null]])])->status === 422, 'not under another menu');
+    check($shape() === $before, 'nothing changed: ' . json_encode($shape()));
+
+    // At most MAX_DEPTH levels.
+    $deep = [$make('m0')];
+    for ($i = 1; $i < \Campanella\Capability\Hierarchical::MAX_DEPTH; ++$i) {
+        $deep[] = $make('m' . $i, ['parent' => [$deep[$i - 1]]]);
+    }
+    $chain = [[$a, null], [$a1, $a], [$b, null], [$cc, null]];
+    foreach ($deep as $i => $node) {
+        $chain[] = [$node, $i === 0 ? null : $deep[$i - 1]];
+    }
+    check($post($pairs($chain))->status === 200, 'ten levels: ' . $post($pairs($chain))->status);
+    $tooDeep = $chain;
+    $tooDeep[4] = [$deep[0], $cc];
+    check($post($pairs($tooDeep))->status === 422 && str_contains($send('GET', '/admin/menu_item')->body, '10'), 'not eleven');
+
+    // Someone who may not change the items.
+    $auth->login(new Request('GET', '/'), $newUser('fa-tag@example.hu', 'fa-jelszo-1', []));
+    check(in_array($send('POST', '/admin/menu_item/arrange', ['_csrf' => $csrf, 'scope' => (string) $menu->id(), 'tree' => $pairs($chain)])->status, [400, 403], true) && $shape() === $before, 'not without the right');
+
+    foreach ([...array_reverse($deep), $a1, $a, $b, $cc, $stranger, $menu, $other] as $object) {
+        $objects->delete($system, $repository->find((int) $object->id()));
+    }
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
 test('Kernel: the colour schemes page (Appearance → Colour schemes), for administrators', function () use ($newUser): void {
     putenv('CAMPANELLA_DB_PREFIX=test_');
     $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
@@ -6428,6 +6526,67 @@ test('Kernel: colour schemes made in the admin (0.4.2): from a copy, checked as 
     check($gone->status === 303 && (int) $container->get(Connection::class)->fetchValue('SELECT COUNT(*) FROM {color_schemes}') === 0, 'deleted');
 
     $settings->set(['appearance.scheme' => null, 'appearance.color_mode' => null]);
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('Security review (0.4.4): dragging: who, what is sent, the headers', function () use ($newUser): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $c = $kernel->container();
+    if ($c->get(Connection::class)->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $system = Actor::system();
+    $objects = $c->get(ObjectService::class);
+    $repository = $c->get(\Campanella\Model\ObjectRepository::class);
+    $storage = new ArraySessionStorage();
+    $c->set(Session::class, static fn () => new Session($storage));
+    $auth = $c->get(AuthService::class);
+    $send = function (string $method, string $path, array $post = []) use ($kernel, $storage) {
+        $storage->endRequest();
+        [$path, $query] = explode('?', $path, 2) + [1 => ''];
+        parse_str($query, $params);
+
+        return $kernel->handle(new Request($method, $path, query: $params, post: $post, headers: ['accept' => 'application/json']));
+    };
+    $csrfOf = static fn ($response): string => preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $response->body, $m) === 1 ? $m[1] : '';
+    $menu = $objects->create($system, 'menu', ['title' => 'Biztonsági menü', 'machine_name' => 'biztonsagi_menu']);
+    $item = $objects->create($system, 'menu_item', ['title' => 'Pont', 'url' => '/pont'], relations: ['menu' => [$menu]]);
+    $tree = $item->id() . ':0';
+
+    // Not logged in: nothing reaches the pages.
+    foreach (['/admin/component/regions/arrange', '/admin/menu_item/arrange'] as $path) {
+        $answer = $send('POST', $path, ['layout' => 'sidebar', 'scope' => (string) $menu->id(), 'tree' => $tree, 'order' => ['sidebar' => '']]);
+        check(in_array($answer->status, [302, 303, 401, 403], true) && !str_contains($answer->body, '"ok":true'), 'logged out: ' . $path . ' ' . $answer->status);
+    }
+
+    $auth->login(new Request('GET', '/'), $newUser('huzas-biztonsag@example.hu', 'huzas-biztonsag-1', ['administrator']));
+    $page = $send('GET', '/admin/menu_item/arrange?menu=' . $menu->id());
+    $csp = (string) ($page->headers['Content-Security-Policy'] ?? '');
+    $scripts = preg_match("/script-src ([^;]*)/", $csp, $m) === 1 ? $m[1] : '';
+    check($scripts === "'self'" && preg_match('#<script(?![^>]*\ssrc=)[^>]*>#', $page->body) === 0, 'the CSP\'s scripts unchanged, no inline script: ' . $csp);
+    check(str_contains($page->body, '<script src="/assets/vendor/sortablejs/Sortable.min.js?v=') && is_file(dirname(__DIR__) . '/public/assets/vendor/sortablejs/LICENSE'), 'SortableJS served from the site, with its licence');
+    check(str_starts_with((string) file_get_contents(dirname(__DIR__) . '/public/assets/vendor/sortablejs/Sortable.min.js'), '/*! Sortable 1.15.7 - MIT'), 'its pinned version');
+    $csrf = $csrfOf($page);
+
+    // What is sent: a strict form, or nothing changes.
+    foreach (["{$tree},", "{$tree};DROP", ' ' . $tree, $tree . ',0x1:0', str_repeat('1:0,', 500) . '1:0'] as $bad) {
+        $answer = $send('POST', '/admin/menu_item/arrange', ['_csrf' => $csrf, 'scope' => (string) $menu->id(), 'tree' => $bad]);
+        check($answer->status === 422 && $answer->body === '{"ok":false}', 'refused: ' . substr($bad, 0, 20));
+    }
+    $order = \Campanella\Admin\ComponentPages::arrangement(new Request('POST', '/', post: ['order' => ['a' => '1,2', 'b' => '1;2', 'c' => '', 'd' => ['1'], 'e' => str_repeat('1,', 200) . '1']]));
+    check($order === ['a' => [1, 2], 'c' => []], 'the regions\' order: only IDs and commas, at most 200: ' . json_encode(array_keys($order)));
+    $many = [];
+    for ($i = 0; $i < 60; ++$i) {
+        $many['r' . $i] = '';
+    }
+    check(count(\Campanella\Admin\ComponentPages::arrangement(new Request('POST', '/', post: ['order' => $many]))) === 50, 'at most 50 regions');
+    check($send('POST', '/admin/menu_item/arrange', ['_csrf' => $csrf, 'scope' => (string) $menu->id(), 'tree' => $tree])->body === '{"ok":true}', 'the answer says nothing else');
+
+    $objects->delete($system, $repository->find((int) $item->id()));
+    $objects->delete($system, $repository->find((int) $menu->id()));
     putenv('CAMPANELLA_DB_PREFIX');
 });
 

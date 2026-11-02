@@ -10,7 +10,13 @@ backward-incompatible.
 
 ## [Unreleased]
 
-**Dragging, part 1.** The fourth step after 0.4.0.
+## [0.4.4] – 2026-11-02
+
+**Dragging.** The fourth step after 0.4.0.
+
+**Upgrading from 0.4.x (or 0.3.x):** upload the new files (`public/assets/vendor/sortablejs/`
+is new) and run the upgrade as usual; no table changes. From older versions: see
+[docs/upgrading.md](docs/upgrading.md).
 
 ### Added
 
@@ -22,8 +28,25 @@ backward-incompatible.
   `ComponentService::arrange()`, all or nothing, checked as a placement). With
   the mouse, a pen or a finger. The Up and Down buttons stay, for the keyboard,
   screen readers and without JavaScript.
+- **A menu's items arranged by dragging** ([PHP API, chapter 18](docs/php-api/18-trees.md#treearrangement)):
+  *Arrange by dragging* on a menu's page (and in the list of one menu's items)
+  shows them nested; an item is dragged up, down, under another item or out of
+  it, at most ten levels, and saved at once (`POST /admin/<blueprint>/arrange`;
+  `TreeArrangement`, all or nothing, through the same checks as the form). For
+  any tree that is Hierarchical and Weighted (the categories too). The ↑ ↓
+  buttons and the *Parent* field stay.
 - **SortableJS 1.15.7** (MIT) in `public/assets/vendor/sortablejs/`, loaded
   only on those pages (`admin-sortable.js`).
+
+### Documentation and tests
+
+- The guide's chapters 4, 14 and 15 (hu, en): dragging, with a screenshot of a
+  menu arranged. [docs/accessibility.md](docs/accessibility.md#dragging-044-2026-11-02):
+  dragging is never the only way.
+- Reviewed ([the review](docs/security.md#review-of-dragging-044-2026-11-02)):
+  nothing needed fixing. Tests: the regions', a page's and a tree's arranging
+  and what they refuse; browser tests dragging components and menu items. CI:
+  the upgrade from 0.4.3 (MariaDB 11.4).
 
 ## [0.4.3] – 2026-11-02
 

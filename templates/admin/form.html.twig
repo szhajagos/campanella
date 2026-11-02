@@ -73,6 +73,7 @@
                 <section class="card mt-4 admin-scoped" aria-labelledby="scoped-{{ tree.blueprint.name }}">
                     <div class="card-header d-flex flex-wrap align-items-center gap-2">
                         <h2 class="h6 mb-0 me-auto" id="scoped-{{ tree.blueprint.name }}">{{ t('admin.scoped.title', {type: t(tree.blueprint.label)|lower}) }}</h2>
+                        {% if tree.arrange_url ?? null %}<a class="btn btn-sm btn-outline-secondary" href="{{ url(tree.arrange_url) }}">{{ t('tree.arrange_link') }}</a>{% endif %}
                         <a class="btn btn-sm btn-outline-secondary" href="{{ url(tree.list_url) }}">{{ t('admin.scoped.manage') }}</a>
                         {% if tree.can_create %}
                             <a class="btn btn-sm btn-primary" href="{{ url(tree.new_url) }}">{{ t('admin.form.new', {type: t(tree.blueprint.label)|lower}) }}</a>

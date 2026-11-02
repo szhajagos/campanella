@@ -44,9 +44,18 @@ After **Create** the item appears on the site at once:
 
 ## Order and moving
 
+- **By dragging:** on the menu's page (or in the Menu item list, filtered to one
+  menu) **Arrange by dragging** shows the menu's items nested. Take an item by
+  its handle (⠿) and drag it up or down, under another item (into the narrow
+  strip below it), or out of it; when you let go, it is saved ("The order is
+  saved.").
+
+  ![Arranging a menu by dragging](../images/en/menu-arrange.png)
+
 - In the list, the **↑** and **↓** arrows move an item one place up or down
-  among its siblings.
-- To put an item under another parent, use **Parent** on its edit page.
+  among its siblings (with the keyboard too).
+- To put an item under another parent, you can also use **Parent** on its edit
+  page.
 - Deleting a menu item only takes the link out of the menu: the article or
   page it led to stays. An item with items under it cannot be deleted: its
   delete page lists them; delete or move them first.

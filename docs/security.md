@@ -126,6 +126,40 @@ version: upgrade it to 0.3.x ([Upgrading](upgrading.md)).
   may see, and puts an apostrophe before a text a spreadsheet would run as a
   formula (`=`, `+`, `-`, `@`).
 
+## Review of dragging, 0.4.4 (2026-11-02)
+
+What 0.4.4 added, reviewed with tests for each point (`Security review (0.4.4)`
+and the part tests):
+
+- **Who:** the Regions page's arranging is for the system roles only; a page's
+  own components for those who may change the page (editors too), and only its
+  own; a tree for those who may change every node that moves (403 otherwise, and
+  a tree with a node the user may not change is not offered for dragging). Every
+  POST needs the CSRF token (400 without it, nothing changed).
+- **What is sent** is checked whole before anything changes: a strict form
+  (IDs and commas, `id:parent` pairs; at most 50 regions, 200 components a
+  region, 500 nodes); only the components of that layout's regions (not a
+  page's own through the Regions page, nor the site's through a page), only the
+  nodes of that tree (not another menu's); exactly the tree as it is now (else
+  *out of date*), a parent before its children (so no circle can be written
+  down), at most `Hierarchical::MAX_DEPTH` levels. A component moved into
+  another region is checked as a placement (a page's own only into a region
+  meant for a page). All of it in one transaction, or nothing; the answer is
+  `{"ok": …}` only, the reason flashed.
+- **A tree's parents** change through `ObjectService::update()`, so the
+  repository's own checks (the same Blueprint, no circle, the depth) and the
+  events apply as when the parent is chosen in the form; a node is made a root
+  first, so no step on the way makes a circle or a tree too deep. The weights
+  are written directly, as the ↑ ↓ buttons do (`SiblingOrder`), after the same
+  permission check.
+- **SortableJS 1.15.7** (MIT) is served from `public/assets/vendor/`, its
+  version pinned, loaded only on the pages that drag; the admin's
+  Content-Security-Policy is unchanged (`script-src 'self'`, no inline code).
+  `composer audit` does not cover it, so its release notes are read when it is
+  updated.
+
+Nothing needed fixing.
+
 ## Review of the colour schemes made in the admin, 0.4.2 (2026-11-01)
 
 What 0.4.2 added, reviewed with tests for each point (`Security review (0.4.2)`

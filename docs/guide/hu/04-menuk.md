@@ -46,9 +46,18 @@ A **Létrehozás** után a menüpont azonnal megjelenik a webhelyen:
 
 ## Sorrend és áthelyezés
 
+- **Húzással:** a menü oldalán (vagy a Menüpont listában, egy menüre szűrve) az
+  **Átrendezés húzással** gomb a menü pontjait egymásba ágyazva mutatja. Egy
+  pontot a fogantyújánál (⠿) megfogva feljebb vagy lejjebb húzhatsz, egy másik
+  pont alá (az alatta lévő keskeny sávba), vagy onnan ki; elengedve azonnal
+  mentődik („A sorrend mentve.”).
+
+  ![Egy menü átrendezése húzással](../images/hu/menu-arrange.png)
+
 - A listában a **↑** és **↓** nyilakkal egy pontot a testvérei között mozgatsz
-  egyet feljebb vagy lejjebb.
-- Egy pontot másik szülő alá a szerkesztő oldalán, a **Szülő** mezővel teszel.
+  egyet feljebb vagy lejjebb (billentyűzettel is).
+- Egy pontot másik szülő alá a szerkesztő oldalán, a **Szülő** mezővel is
+  tehetsz.
 - Egy menüpont törlése csak a menüből veszi ki a hivatkozást: a cikk vagy oldal,
   amire mutatott, megmarad. Egy pontot, amely alatt alpontok vannak, nem lehet
   törölni: a törlés oldala felsorolja őket, ezeket előbb töröld vagy helyezd át.

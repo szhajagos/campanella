@@ -1218,6 +1218,14 @@ final class Kernel
                 $c->get(AdminAccess::class),
             ) : null,
             new ColorSchemePages($c->get(Appearance::class), $c->get(Csrf::class), $c->get(Flash::class), $c->get(AdminAccess::class), $c->get(ColorSchemeStore::class)),
+            new \Campanella\Admin\TreeArrangePages(
+                new \Campanella\Tree\TreeArrangement($c->get(Connection::class), $c->get(QueryEngine::class), $c->get(ObjectService::class), $c->get(AccessPolicy::class), $c->get(BlueprintRegistry::class)),
+                $c->get(QueryEngine::class),
+                $c->get(AccessPolicy::class),
+                $c->get(Csrf::class),
+                $c->get(Flash::class),
+                $c->get(AdminAccess::class),
+            ),
         ));
 
         $c->set(ObjectForm::class, static fn (Container $c): ObjectForm => new ObjectForm(

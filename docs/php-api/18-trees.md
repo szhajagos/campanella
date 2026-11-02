@@ -119,6 +119,31 @@ new order; only the weights change.
 | `move(CampanellaObject $object, int $direction): bool` | `-1`: up, `1`: down; false at the first or last place |
 | `siblings(CampanellaObject $object): list<int>` | The siblings' IDs (the object too), in their order |
 
+## TreeArrangement
+
+`Campanella\Tree\TreeArrangement` · **Public** · `final class`, since 0.4.4
+
+A whole tree arranged at once, as it was dragged in the admin: every node's
+parent and its place among its siblings, for a Blueprint that is `Hierarchical`
+and `Weighted` (with a `tree_scope`, one scope's tree, e.g. one menu's items).
+The nodes come in tree order (a parent before its children) with their parents
+(0: a root). They must be the tree's nodes as they are now (else the page was
+out of date), each one that changes must be one the actor may change, and the
+new tree fits in `Hierarchical::MAX_DEPTH` levels; a circle cannot be written
+down in that order. It is done in one transaction, or not at all: the nodes
+that get another parent are made roots first, then put under their new parents
+in tree order (both through `ObjectService::update()`, so the repository's
+checks and the events apply, and no step on the way makes a circle or a tree too
+deep), then the siblings are numbered `SiblingOrder::STEP` apart.
+
+| Member | Description |
+|---|---|
+| `const MAX_NODES` | 500: the most nodes arranged at once |
+| `__construct(Connection $db, QueryEngine $queries, ObjectService $objects, AccessPolicy $policy, BlueprintRegistry $blueprints)` | |
+| `supports(string $blueprint): bool` | Whether the Blueprint is Hierarchical and Weighted |
+| `tree(Actor $actor, string $blueprint, ?int $scope = null): ?array` | The tree as the actor sees it now, its roots (`list<TreeNode>`); null over `MAX_NODES` |
+| `arrange(Actor $actor, string $blueprint, array $nodes, ?int $scope = null): int` | `$nodes`: `[ID, parent ID or 0]` pairs in tree order; how many nodes changed. `ValidationException` (`tree`: `tree.arrange_outdated`, `tree.arrange_invalid`, `tree.too_deep`, `tree.arrange_too_many`), `AccessDeniedException` for a node the actor may not change |
+
 ## On the public site
 
 - **The page of a tree node** (e.g. a category) shows breadcrumbs above it
@@ -187,7 +212,8 @@ single relation of the Blueprint:
 A tree is listed as a tree, the parent is chosen from an indented list
 without the object's own descendants, ↑ ↓ buttons change the order, and the
 delete page lists a node's children
-([chapter 13](13-admin.md#trees-and-hand-set-order)).
+([chapter 13](13-admin.md#trees-and-hand-set-order)). Since 0.4.4 a tree can
+also be arranged by dragging (TreeArrangePages, there).
 
 ## Adding `Hierarchical` to an existing Blueprint
 

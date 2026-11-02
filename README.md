@@ -1,4 +1,4 @@
-# Campanella 0.4.3
+# Campanella 0.4.4
 
 [![CI](https://github.com/szhajagos/campanella/actions/workflows/ci.yml/badge.svg)](https://github.com/szhajagos/campanella/actions/workflows/ci.yml)
 
@@ -17,7 +17,14 @@ with a light and a dark mode, sample content in the site's language; and what
 0.4.x keeps is promised (see the [compatibility promise](docs/compatibility.md)).
 Plans are in the [ROADMAP](ROADMAP.md), changes in the [CHANGELOG](CHANGELOG.md).
 
-## What is new in 0.4.3
+## What is new in 0.4.4
+
+**Dragging** in the admin: the components on *Appearance → Regions* and on a
+page, also from one region to another, and a menu's items, also under one
+another; saved at once, the buttons kept for the keyboard
+([guide](docs/guide/en/04-menus.md#order-and-moving), with SortableJS).
+
+## What was new in 0.4.3
 
 **The admin's fields without placeholders:** an empty field looks empty; the
 examples are in the help text under the fields, the search boxes have visible

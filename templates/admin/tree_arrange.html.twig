@@ -1,0 +1,51 @@
+{% extends '@core/admin/base.html.twig' %}
+
+{# A tree arranged by dragging (since 0.4.4): nested lists, each item with a handle. #}
+{% macro nodes(nodes, level) %}
+    <ol class="admin-tree" data-sortable-region data-level="{{ level }}">
+        {%- for node in nodes %}
+            <li class="admin-tree__item" data-id="{{ node.id }}">
+                <div class="admin-tree__row d-flex align-items-center gap-2">
+                    <button type="button" class="btn btn-sm btn-link text-body-secondary px-1 admin-drag-handle" data-drag-handle hidden tabindex="-1" aria-hidden="true" title="{{ t('regions.drag') }}"><svg width="12" height="18" viewBox="0 0 12 18" fill="currentColor" aria-hidden="true" focusable="false"><circle cx="3" cy="3" r="1.6"/><circle cx="9" cy="3" r="1.6"/><circle cx="3" cy="9" r="1.6"/><circle cx="9" cy="9" r="1.6"/><circle cx="3" cy="15" r="1.6"/><circle cx="9" cy="15" r="1.6"/></svg></button>
+                    <span class="admin-tree__title">{{ node.title }}</span>
+                </div>
+                {{ _self.nodes(node.children, level + 1) }}
+            </li>
+        {%- endfor %}
+    </ol>
+{% endmacro %}
+
+{% block content %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb small mb-2">
+            <li class="breadcrumb-item"><a href="{{ url(back) }}">{{ t(blueprint.label) }}</a></li>
+            {% if scope %}<li class="breadcrumb-item"><a href="{{ url(scope.edit) }}">{{ scope.title }}</a></li>{% endif %}
+            <li class="breadcrumb-item active" aria-current="page">{{ t('tree.arrange_title') }}</li>
+        </ol>
+    </nav>
+    <h1 class="h3 mb-2">{{ scope ? t('tree.arrange_heading_scope', {title: scope.title}) : t('tree.arrange_heading', {type: t(blueprint.label)}) }}</h1>
+    <p class="text-body-secondary mb-3" id="tree-arrange-help">{{ t('tree.arrange_intro', {max: max_depth}) }}</p>
+
+    {% if too_many %}
+        <div class="alert alert-warning" role="alert">{{ t('tree.arrange_too_many', {max: 500}) }}</div>
+    {% elseif locked %}
+        <div class="alert alert-warning" role="alert" id="tree-locked">{{ t('tree.arrange_locked') }}</div>
+    {% elseif roots is empty %}
+        <p class="text-body-secondary">{{ t('admin.scoped.empty') }}</p>
+    {% else %}
+        <form class="d-none" aria-hidden="true">{{ csrf_field() }}</form>
+        <div class="card card-body mb-3" data-sortable-group="tree" data-sortable-mode="tree" data-sortable-url="{{ admin_url(blueprint.name ~ '/arrange') }}"
+            {%- if scope %} data-sortable-scope="{{ scope.id }}"{% endif %} data-sortable-max-depth="{{ max_depth }}"
+            data-sortable-saving="{{ t('regions.drag_saving') }}" data-sortable-saved="{{ t('regions.drag_saved') }}" data-sortable-failed="{{ t('regions.drag_failed') }}" aria-describedby="tree-arrange-help">
+            <p class="small mb-2" role="status" data-sortable-status></p>
+            {{ _self.nodes(roots, 0) }}
+        </div>
+    {% endif %}
+
+    <p><a class="btn btn-outline-secondary" href="{{ url(back) }}">{{ t('tree.arrange_back') }}</a></p>
+{% endblock %}
+
+{% block scripts %}
+    <script src="{{ asset('vendor/sortablejs/Sortable.min.js') }}" defer></script>
+    <script src="{{ asset('admin-sortable.js') }}" defer></script>
+{% endblock %}

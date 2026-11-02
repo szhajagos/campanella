@@ -103,7 +103,10 @@
     </form>
 
     {% if is_tree and not result.isEmpty %}
-        <p class="small text-body-secondary mb-2">{{ t('admin.list.tree_hint') }}</p>
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+            <p class="small text-body-secondary mb-0 me-auto">{{ t('admin.list.tree_hint') }}</p>
+            {% if arrange_url ?? null %}<a class="btn btn-sm btn-outline-secondary" href="{{ url(arrange_url) }}">{{ t('tree.arrange_link') }}</a>{% endif %}
+        </div>
     {% endif %}
 
     {% if result.isEmpty %}

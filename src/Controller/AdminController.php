@@ -157,6 +157,7 @@ final class AdminController implements Controller
         private readonly ?LayoutPages $layoutPages = null,
         private readonly ?PageComponentPages $pageComponents = null,
         private readonly ?ColorSchemePages $colorSchemes = null,
+        private readonly ?\Campanella\Admin\TreeArrangePages $treeArrange = null,
     ) {
     }
 
@@ -240,6 +241,10 @@ final class AdminController implements Controller
             2 => match ($segments[1]) {
                 'new' => $this->create($request, $actor, $this->contentBlueprint($segments[0])),
                 'export' => $this->export($request, $actor, $this->contentBlueprint($segments[0])),
+                // A tree arranged by dragging (since 0.4.4).
+                'arrange' => $this->treeArrange !== null
+                    ? $this->treeArrange->handle($request, $actor, $this->contentBlueprint($segments[0]), fn (string $template, string $active, array $context): Response => $this->render($template, $active, $context))
+                    : throw HttpException::notFound(),
                 default => $this->edit($request, $actor, $this->find($this->contentBlueprint($segments[0]), $segments[1], $actor)),
             },
             3 => $this->action($request, $actor, $this->find($this->contentBlueprint($segments[0]), $segments[1], $actor), $segments[2]),
@@ -736,6 +741,10 @@ final class AdminController implements Controller
             'has_weight' => $weighted,
             'levels' => $levels,
             'is_tree' => $tree !== null,
+            // Dragging (since 0.4.4): one tree at a time (one menu's items), for those who may change it.
+            'arrange_url' => $tree !== null && $weighted && ($scope === null || $scope['selected'] > 0)
+                ? $this->treeArrange?->path($blueprint, $scope !== null ? $this->repository->find($scope['selected']) : null)
+                : null,
             'max_depth' => Hierarchical::MAX_DEPTH,
             'moves' => $moves,
             'path' => $this->access->path($blueprint->name),
@@ -1058,6 +1067,7 @@ final class AdminController implements Controller
                 'items' => $rows[0],
                 'levels' => $rows[1],
                 'list_url' => $this->access->path($name) . $filter,
+                'arrange_url' => isset($blueprint->capabilities['weighted']) && $rows[1] !== [] ? $this->treeArrange?->path($blueprint, $object) : null,
                 'new_url' => $this->access->path($name . '/new') . $filter,
                 'can_create' => $this->policy->allows($actor, Operation::Create, $this->repository->create($name)),
                 'editable' => $editable,
