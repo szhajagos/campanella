@@ -23,10 +23,10 @@
                 {% endfor %}
             </ul>
         {% endif %}
-        <form method="get" action="{{ admin_url('media') }}" class="d-flex gap-2 ms-auto" role="search">
+        <form method="get" action="{{ admin_url('media') }}" class="d-flex align-items-center gap-2 ms-auto" role="search">
             {% if kind %}<input type="hidden" name="kind" value="{{ kind }}">{% endif %}
-            <label class="visually-hidden" for="library-q">{{ t('admin.list.search') }}</label>
-            <input type="search" class="form-control form-control-sm" id="library-q" name="q" value="{{ q }}" placeholder="{{ t('admin.list.search') }}">
+            <label class="small text-nowrap" for="library-q">{{ t('admin.list.search') }}</label>
+            <input type="search" class="form-control form-control-sm" id="library-q" name="q" value="{{ q }}">
             <button type="submit" class="btn btn-sm btn-outline-secondary">{{ t('admin.list.filter') }}</button>
         </form>
     </div>

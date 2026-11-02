@@ -54,7 +54,7 @@
                 </div>
                 <div class="mb-3">
                     <label for="place-paths" class="form-label">{{ t('components.place_paths') }}</label>
-                    <textarea class="form-control font-monospace{{ (pe.paths ?? null) ? ' is-invalid' }}" id="place-paths" name="place[paths]" rows="2" placeholder="/hirek/*" aria-describedby="place-paths-help">{{ place.paths }}</textarea>
+                    <textarea class="form-control font-monospace{{ (pe.paths ?? null) ? ' is-invalid' }}" id="place-paths" name="place[paths]" rows="2" aria-describedby="place-paths-help">{{ place.paths }}</textarea>
                     <div class="form-text" id="place-paths-help">{{ t('components.place_paths_help') }}</div>
                     {% if pe.paths ?? null %}<div class="invalid-feedback d-block">{{ t(pe.paths.key, pe.paths.params) }}</div>{% endif %}
                 </div>
@@ -72,7 +72,7 @@
                 {% endif %}
                 <div class="mb-0">
                     <label for="place-except" class="form-label">{{ t('components.place_except') }}</label>
-                    <textarea class="form-control font-monospace{{ (pe.except ?? null) ? ' is-invalid' }}" id="place-except" name="place[except]" rows="2" placeholder="/belepes" aria-describedby="place-except-help">{{ place.except }}</textarea>
+                    <textarea class="form-control font-monospace{{ (pe.except ?? null) ? ' is-invalid' }}" id="place-except" name="place[except]" rows="2" aria-describedby="place-except-help">{{ place.except }}</textarea>
                     <div class="form-text" id="place-except-help">{{ t('components.place_except_help') }}</div>
                     {% if pe.except ?? null %}<div class="invalid-feedback d-block">{{ t(pe.except.key, pe.except.params) }}</div>{% endif %}
                 </div>

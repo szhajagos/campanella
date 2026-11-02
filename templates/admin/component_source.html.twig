@@ -33,17 +33,17 @@
             <h2 class="h5" id="source-object">{{ t('components.sources.object') }}</h2>
             <form method="get" action="{{ admin_url(base ~ '/source') }}" class="row g-2 mb-3">
                 <div class="col-sm-4">
-                    <label class="visually-hidden" for="source-blueprint">{{ t('components.sources.blueprint') }}</label>
+                    <label class="form-label small mb-1" for="source-blueprint">{{ t('components.sources.blueprint') }}</label>
                     <select class="form-select" id="source-blueprint" name="blueprint">
                         {% for name, label in blueprints %}<option value="{{ name }}"{{ name == chosen ? ' selected' }}>{{ t(label) }}</option>{% endfor %}
                     </select>
                 </div>
                 <div class="col-sm">
-                    <label class="visually-hidden" for="source-q">{{ t('components.sources.search') }}</label>
-                    <input type="search" class="form-control" id="source-q" name="q" value="{{ search }}" maxlength="100" placeholder="{{ t('components.sources.search') }}">
+                    <label class="form-label small mb-1" for="source-q">{{ t('components.sources.search') }}</label>
+                    <input type="search" class="form-control" id="source-q" name="q" value="{{ search }}" maxlength="100">
                 </div>
                 {% if region ?? null %}<input type="hidden" name="region" value="{{ region }}">{% endif %}
-                <div class="col-sm-auto"><button type="submit" class="btn btn-outline-primary w-100">{{ t('components.sources.find') }}</button></div>
+                <div class="col-sm-auto align-self-end"><button type="submit" class="btn btn-outline-primary w-100">{{ t('components.sources.find') }}</button></div>
             </form>
             {% if chosen %}
                 {% if found %}

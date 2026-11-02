@@ -38,8 +38,8 @@
                 </div>
                 <div class="col-md-6">
                     <label for="imp-key" class="form-label fw-semibold">{{ t('importers.key') }} <span class="text-danger" aria-hidden="true">*</span></label>
-                    <input type="text" class="form-control" id="imp-key" name="key" value="{{ form.key }}" required maxlength="200" placeholder="id">
-                    <div class="form-text">{{ t('importers.key_help') }}</div>
+                    <input type="text" class="form-control" id="imp-key" name="key" value="{{ form.key }}" required maxlength="200" aria-describedby="imp-key-help">
+                    <div class="form-text" id="imp-key-help">{{ t('importers.key_help') }}</div>
                 </div>
                 <div class="col-md-6">
                     <label for="imp-title" class="form-label fw-semibold">{{ t('importers.title_source') }} <span class="text-danger" aria-hidden="true">*</span></label>

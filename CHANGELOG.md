@@ -10,6 +10,29 @@ backward-incompatible.
 
 ## [Unreleased]
 
+## [0.4.3] – 2026-11-02
+
+**The admin's fields without placeholders.** A small step after 0.4.2.
+
+**Upgrading from 0.4.x (or 0.3.x):** upload the new files and run the upgrade as
+usual; no table changes. From older versions: see [docs/upgrading.md](docs/upgrading.md).
+
+### Changed
+
+- **No placeholders in the admin** ([docs/accessibility.md](docs/accessibility.md#the-admins-fields-without-placeholders-043-2026-11-02)):
+  an empty field with a pale example in it looked filled in. The examples are
+  in the help text under the fields now, named by `aria-describedby`
+  (a redirect's paths, a list's path, the site's address, the privacy page, a
+  component's paths, an importer's key and items); a field of the `url` type
+  says *A full address, e.g. https://example.com.* under it; the search boxes
+  of the media library, of a component's source and of the editor's picker
+  have a visible label. The site's own search box is unchanged.
+
+### Documentation and tests
+
+- A test fails if a placeholder gets into the admin again. The guide's
+  screenshots taken again. CI: the upgrade from 0.4.2 (MySQL 8.0).
+
 ## [0.4.2] – 2026-11-01
 
 **Colour schemes made in the admin.** The second step after 0.4.0.

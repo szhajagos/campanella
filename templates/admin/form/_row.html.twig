@@ -23,6 +23,7 @@
         {% include widget with {field: field, value: field.value, input_id: field.inputId, invalid: invalid} only %}
     {% endif %}
 
+    {% if field.widget == 'url' %}<div class="form-text" id="{{ field.inputId }}-hint">{{ t('admin.form.url_hint') }}</div>{% endif %}
     {% if field.help %}<div class="form-text">{{ t(field.help) }}</div>{% endif %}
     {% if field.kind == 'relation' and field.max %}<div class="form-text">{{ t('admin.form.max_values', {max: field.max}) }}</div>{% endif %}
     {% if field.error %}<div class="invalid-feedback d-block">{{ field.error }}</div>{% endif %}

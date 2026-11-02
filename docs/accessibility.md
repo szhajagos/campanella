@@ -5,6 +5,25 @@ assistive technologies, is planned for 1.0 ([ROADMAP](../ROADMAP.md)); until
 then each milestone checks what it added, by hand. No automatic checker is used:
 the common ones are not under an MIT-compatible licence.
 
+## The admin's fields without placeholders, 0.4.3 (2026-11-02)
+
+An empty field with a placeholder looked filled in, only a little paler (seen
+in use). The admin has no placeholders any more:
+
+- **An example** is in the help text under the field (*e.g. /hirek/\**), which
+  the field names with `aria-describedby`, so a screen reader reads it too and
+  it does not go when typing starts. A field of the `url` type says *A full
+  address, e.g. https://example.com.* under it.
+- **A search box** (the media library, a component's source, the editor's image
+  and file picker) has a visible label instead of a hidden one and a
+  placeholder.
+
+A test fails if a placeholder gets into the admin's templates or scripts again
+(`The admin has no placeholders`). The site's own search box keeps its
+placeholder: it is a visitor's familiar search field, labelled, with its
+button beside it (the `search_box` display's `placeholder` setting stays, as
+the 0.4.x promise has it).
+
 ## Review of the site's new parts, 0.4.0 (2026-10-31)
 
 What 0.3.2–0.3.7 added to the site's pages (the layouts and their regions, the

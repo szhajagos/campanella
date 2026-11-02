@@ -22,8 +22,8 @@
                 </div>
                 <div class="col-md-6">
                     <label for="list-path" class="form-label fw-semibold">{{ t('lists.path') }}</label>
-                    <input type="text" class="form-control{{ m.invalid(errors, 'path') }}" id="list-path" name="path" value="{{ form.path }}" placeholder="/esemenyek" maxlength="200">
-                    <div class="form-text">{{ t('lists.path_help') }}</div>
+                    <input type="text" class="form-control{{ m.invalid(errors, 'path') }}" id="list-path" name="path" value="{{ form.path }}" maxlength="200" aria-describedby="list-path-help">
+                    <div class="form-text" id="list-path-help">{{ t('lists.path_help') }}</div>
                     {{ m.error(errors, 'path') }}
                 </div>
                 <div class="col-md-3">

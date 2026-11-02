@@ -1,4 +1,4 @@
-# Campanella 0.4.2
+# Campanella 0.4.3
 
 [![CI](https://github.com/szhajagos/campanella/actions/workflows/ci.yml/badge.svg)](https://github.com/szhajagos/campanella/actions/workflows/ci.yml)
 
@@ -17,7 +17,13 @@ with a light and a dark mode, sample content in the site's language; and what
 0.4.x keeps is promised (see the [compatibility promise](docs/compatibility.md)).
 Plans are in the [ROADMAP](ROADMAP.md), changes in the [CHANGELOG](CHANGELOG.md).
 
-## What is new in 0.4.2
+## What is new in 0.4.3
+
+**The admin's fields without placeholders:** an empty field looks empty; the
+examples are in the help text under the fields, the search boxes have visible
+labels ([docs/accessibility.md](docs/accessibility.md#the-admins-fields-without-placeholders-043-2026-11-02)).
+
+## What was new in 0.4.2
 
 **Colour schemes of your own** (Appearance → Colour schemes): the eight colours
 of both variants chosen with colour pickers, from scratch or from a copy of any

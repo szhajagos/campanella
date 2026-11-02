@@ -1,14 +1,14 @@
 # Upgrading to 0.4.0
 
 This guide takes a site from **any 0.4.x, 0.3.x, 0.2.x or 0.1.x version** to
-the newest 0.4.x (now **0.4.2**), in one go. You do not need to install
+the newest 0.4.x (now **0.4.3**), in one go. You do not need to install
 the versions in between: one upgrade runs every change since your version. The
 CHANGELOG has the same steps version by version; this page puts them
 together, and adds what to check and how to go back.
 
 | Your version | What to do |
 |---|---|
-| 0.4.0 – 0.4.1 | Upload the new files and run the upgrade (steps 1–3); 0.4.1 changes no table, 0.4.2 adds the colour schemes' (schema 22). CI upgrades 0.4.0 and 0.4.1 to the current code on every push. |
+| 0.4.0 – 0.4.2 | Upload the new files and run the upgrade (steps 1–3); 0.4.1 and 0.4.3 change no table, 0.4.2 adds the colour schemes' (schema 22). CI upgrades 0.4.0, 0.4.1 and 0.4.2 to the current code on every push. |
 | 0.3.0 – 0.3.7 | Upload the new files and run the upgrade (steps 1–3); read [From 0.3.x](#from-03x) for what 0.4.0 changes. 0.3.1 adds the importers' tables (schema 17), 0.3.2 the files' (schema 18), 0.3.3 the components' (schema 19), 0.3.4 a component's region (schema 20) and makes the header and footer components, 0.3.5 a component's page (schema 21); 0.3.6 and 0.3.7 change no table. Back up `var/files/` from 0.3.2 on (step 1). CI upgrades every 0.3.x to the current code on every push, 0.3.7 with everything of 0.3.2–0.3.7 in use (restricted files, components in regions, a layout with a sidebar, a page of components as the front page, a colour scheme), in Hungarian and as an English site. |
 | 0.2.0 – 0.2.9 | This guide. Supported and tested: CI upgrades 0.2.0 and 0.2.9 to the current code on every push, the latter with a content model made in the admin (`tests/upgrade/run.sh`). |
 | 0.1.0 – 0.1.5 | This guide, and also [From 0.1.x](#from-01x) below. Tested too: CI upgrades 0.1.0 and 0.1.5. |
@@ -70,7 +70,7 @@ on); what behaves differently in [What behaves differently](#what-behaves-differ
 
    Copy them off the server.
 
-2. **Upload the new version.** Use the release package (`campanella-0.4.2.zip`
+2. **Upload the new version.** Use the release package (`campanella-0.4.3.zip`
    from the GitHub release); it includes the `vendor/` folder. With git:
    `git pull`, then `composer install --no-dev`.
 
@@ -421,7 +421,7 @@ in the [CHANGELOG](../CHANGELOG.md) list every change of the
 
 ## Checklist after the upgrade
 
-- [ ] The System page (*System → Status*) shows 0.4.2, no error and no warning
+- [ ] The System page (*System → Status*) shows 0.4.3, no error and no warning
       about PHP's JIT, the tables match the definitions, and no page is missing
       from the search; under *Images and files* the files' folder is writable.
 - [ ] The site's header shows its name, the main menu, the search and the

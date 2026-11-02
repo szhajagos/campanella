@@ -44,8 +44,8 @@
                     </div>
                     <div class="col-md-6">
                         <label for="imp-items" class="form-label fw-semibold">{{ t('importers.items') }}</label>
-                        <input type="text" class="form-control font-monospace" id="imp-items" name="items" value="{{ form.items }}" maxlength="200" placeholder="data.items">
-                        <div class="form-text">{{ t('importers.items_help') }}</div>
+                        <input type="text" class="form-control font-monospace" id="imp-items" name="items" value="{{ form.items }}" maxlength="200" aria-describedby="imp-items-help">
+                        <div class="form-text" id="imp-items-help">{{ t('importers.items_help') }}</div>
                     </div>
                 </div>
             </section>

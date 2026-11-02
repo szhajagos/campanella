@@ -174,10 +174,12 @@
         editor.s.save();
         const dialog = editor.dlg({ closeOnClickOverlay: true, closeOnEsc: true });
         const box = el('div', 'campanella-picker');
+        // A visible label, no placeholder (since 0.4.3): an empty field looks empty.
+        const searchLabel = el('label', 'form-label small mb-1', labels.search || 'Search');
         const search = el('input', 'form-control form-control-sm mb-3');
         search.type = 'search';
-        search.placeholder = labels.search || 'Search';
-        search.setAttribute('aria-label', labels.search || 'Search');
+        search.id = 'campanella-picker-search';
+        searchLabel.htmlFor = search.id;
         const grid = el('div', 'campanella-picker__grid');
         grid.setAttribute('role', 'list');
         const status = el('p', 'campanella-picker__status text-body-secondary small mb-0');
@@ -189,7 +191,7 @@
         previous.type = 'button';
         next.type = 'button';
         pager.append(previous, where, next);
-        box.append(search, grid, status, pager);
+        box.append(searchLabel, search, grid, status, pager);
 
         let page = 1;
         let pages = 1;

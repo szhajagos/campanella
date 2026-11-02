@@ -11,19 +11,19 @@
         <div class="row g-3 align-items-start">
             <div class="col-md-5">
                 <label for="redirect-source" class="form-label fw-semibold">{{ t('redirects.source') }}</label>
-                <input type="text" class="form-control font-monospace{{ (errors.source ?? null) ? ' is-invalid' }}" id="redirect-source" name="source" value="{{ form.source }}" placeholder="/regi-oldal" maxlength="255" required autocomplete="off">
+                <input type="text" class="form-control font-monospace{{ (errors.source ?? null) ? ' is-invalid' }}" id="redirect-source" name="source" value="{{ form.source }}" maxlength="255" required autocomplete="off" aria-describedby="redirect-new-help">
                 {% if errors.source ?? null %}<div class="invalid-feedback">{{ t(errors.source.key, errors.source.params) }}</div>{% endif %}
             </div>
             <div class="col-md-5">
                 <label for="redirect-target" class="form-label fw-semibold">{{ t('redirects.target') }}</label>
-                <input type="text" class="form-control font-monospace{{ (errors.target ?? null) ? ' is-invalid' }}" id="redirect-target" name="target" value="{{ form.target }}" placeholder="/uj-oldal" maxlength="255" required autocomplete="off">
+                <input type="text" class="form-control font-monospace{{ (errors.target ?? null) ? ' is-invalid' }}" id="redirect-target" name="target" value="{{ form.target }}" maxlength="255" required autocomplete="off" aria-describedby="redirect-new-help">
                 {% if errors.target ?? null %}<div class="invalid-feedback">{{ t(errors.target.key, errors.target.params) }}</div>{% endif %}
             </div>
             <div class="col-md-2 align-self-end">
                 <button type="submit" class="btn btn-primary w-100">{{ t('redirects.add') }}</button>
             </div>
         </div>
-        <div class="form-text mt-2">{{ t('redirects.new_help') }}</div>
+        <div class="form-text mt-2" id="redirect-new-help">{{ t('redirects.new_help') }}</div>
     </form>
 
     {% if redirects %}

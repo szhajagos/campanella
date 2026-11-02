@@ -2484,6 +2484,28 @@ test('Teaser (0.4.0): an object without a page of its own: a file\'s title leads
     $c->get(ObjectService::class)->delete($system, $snippet);
 });
 
+test('The admin has no placeholders (0.4.3): an example is help text under the field, an empty field looks empty', function (): void {
+    $root = dirname(__DIR__);
+    $found = [];
+    $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root . '/templates/admin', FilesystemIterator::SKIP_DOTS));
+    foreach ($files as $file) {
+        if (str_ends_with((string) $file, '.twig') && preg_match('/\splaceholder\s*=/i', (string) file_get_contents((string) $file)) === 1) {
+            $found[] = substr((string) $file, strlen($root) + 1);
+        }
+    }
+    foreach ([...(glob($root . '/public/assets/admin*.js') ?: []), $root . '/public/assets/color-scheme-editor.js'] as $file) {
+        if (preg_match('/\.placeholder\s*=|[\'"]placeholder[\'"]/', (string) file_get_contents($file)) === 1) {
+            $found[] = substr($file, strlen($root) + 1);
+        }
+    }
+    foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root . '/src/Admin', FilesystemIterator::SKIP_DOTS)) as $file) {
+        if (preg_match('/placeholder=/i', (string) file_get_contents((string) $file)) === 1) {
+            $found[] = substr((string) $file, strlen($root) + 1);
+        }
+    }
+    check($found === [], 'placeholders in: ' . implode(', ', $found));
+});
+
 test('Security review (0.4.0): the parts of 0.3.2–0.3.7 together: a page\'s components, lists in them, the visitor\'s rights all the way down; the accessibility fixes', function () use ($displayKernel): void {
     $kernel = $displayKernel();
     if ($kernel === null) {
@@ -5987,7 +6009,7 @@ test('Kernel: the site settings page, for administrators', function () use ($new
     $auth->login(new Request('GET', '/'), $newUser('beallito@example.hu', 'beallito-jelszo-1', ['administrator']));
 
     $page = $send('GET', '/admin/system/settings');
-    check($page->status === 200 && str_contains($page->body, 'value="Campanella"') && str_contains($page->body, 'placeholder="https://example.hu"') && str_contains($page->body, 'Még nincs megadva.') && str_contains($page->body, 'a(z) http://pelda.hu címen') && str_contains($page->body, 'href="/admin/system/settings" aria-current="page">Webhely-beállítások</a>'), 'the form, with the address it was opened at');
+    check($page->status === 200 && str_contains($page->body, 'value="Campanella"') && str_contains($page->body, 'például https://example.hu.') && !str_contains($page->body, 'placeholder=') && str_contains($page->body, 'Még nincs megadva.') && str_contains($page->body, 'a(z) http://pelda.hu címen') && str_contains($page->body, 'href="/admin/system/settings" aria-current="page">Webhely-beállítások</a>'), 'the form, with the address it was opened at');
     $form = ['_csrf' => $csrfOf($page), 'name' => '', 'slogan' => 'Új szlogen', 'description' => 'Leírás', 'url' => 'pelda.hu', 'share_image' => '', 'indexing' => '1'];
     check($send('POST', '/admin/system/settings', ['_csrf' => 'x'] + $form)->status === 400);
     $bad = $send('POST', '/admin/system/settings', $form);

@@ -30,7 +30,7 @@
                     </div>
                     <div class="mb-0">
                         <label for="settings-url" class="form-label fw-semibold">{{ t('settings.url') }}</label>
-                        <input type="url" class="form-control{{ _self.invalid(errors, 'url') }}" id="settings-url" name="url" value="{{ form.url }}" maxlength="{{ max.url }}" placeholder="https://example.hu" inputmode="url" autocomplete="off"{{ _self.described(errors, 'url') }}>
+                        <input type="url" class="form-control{{ _self.invalid(errors, 'url') }}" id="settings-url" name="url" value="{{ form.url }}" maxlength="{{ max.url }}" inputmode="url" autocomplete="off"{{ _self.described(errors, 'url') }}>
                         <div class="form-text" id="settings-url-help">
                             {% if form.url == '' and not (errors.url ?? null) %}<span class="d-block text-warning-emphasis fw-semibold">{{ t('settings.url_missing') }}</span>{% endif %}
                             {{ t('settings.url_help') }}
@@ -112,7 +112,7 @@
                 <section class="card card-body mb-4">
                     <h2 class="h6 mb-3">{{ t('settings.group.privacy') }}</h2>
                     <label for="settings-privacy_url" class="form-label fw-semibold">{{ t('settings.privacy_url') }}</label>
-                    <input type="text" class="form-control{{ _self.invalid(errors, 'privacy_url') }}" id="settings-privacy_url" name="privacy_url" value="{{ form.privacy_url ?? '' }}" maxlength="{{ max.privacy_url }}" placeholder="/adatkezeles" autocomplete="off"{{ _self.described(errors, 'privacy_url') }}>
+                    <input type="text" class="form-control{{ _self.invalid(errors, 'privacy_url') }}" id="settings-privacy_url" name="privacy_url" value="{{ form.privacy_url ?? '' }}" maxlength="{{ max.privacy_url }}" autocomplete="off"{{ _self.described(errors, 'privacy_url') }}>
                     <div class="form-text" id="settings-privacy_url-help">{{ t('settings.privacy_url_help') }}</div>
                     {{ _self.error(errors, 'privacy_url') }}
                 </section>
