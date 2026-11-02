@@ -10,6 +10,21 @@ backward-incompatible.
 
 ## [Unreleased]
 
+**Dragging, part 1.** The fourth step after 0.4.0.
+
+### Added
+
+- **Dragging the components** ([PHP API, chapter 29](docs/php-api/29-layouts.md)):
+  on *Appearance → Regions* and on a page's components, a component is taken by
+  its handle (⠿) and dragged within its region or into another one (a page's
+  own: among its regions meant for a page); the order is saved at once
+  (`POST …/regions/arrange`, `POST …/components/arrange`, with the CSRF token;
+  `ComponentService::arrange()`, all or nothing, checked as a placement). With
+  the mouse, a pen or a finger. The Up and Down buttons stay, for the keyboard,
+  screen readers and without JavaScript.
+- **SortableJS 1.15.7** (MIT) in `public/assets/vendor/sortablejs/`, loaded
+  only on those pages (`admin-sortable.js`).
+
 ## [0.4.3] – 2026-11-02
 
 **The admin's fields without placeholders.** A small step after 0.4.2.

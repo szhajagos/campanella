@@ -402,7 +402,11 @@ shown with its default.
 | `/admin/component/new?source=…&display=…` | 3. **The form:** the title, the machine name, who sees it, and the display's settings, a form built from its fields (`ObjectForm::settings()`); POST saves |
 | `/admin/component/<id>` | Editing one; *Another source or display* goes through the steps again (`/admin/component/<id>/source`, `/display`) |
 | `/admin/component/<id>/delete` | Deleting one (what it showed stays) |
-| `/admin/component/regions?layout=…` | *Appearance → Regions* (since 0.3.4): the regions of a layout (the site's by default; the others as tabs), each with its components in their order, their conditions in words; **Up**, **Down**, **Take out** (`POST /admin/component/<id>/move-up`, `/move-down`, `/unplace`) and **Add** a component to the region's end (`POST /admin/component/regions/add`: `component`, `region`; one in another region leaves that one) |
+| `/admin/component/regions?layout=…` | *Appearance → Regions* (since 0.3.4): the regions of a layout (the site's by default; the others as tabs), each with its components in their order, their conditions in words; **Up**, **Down**, **Take out** (`POST /admin/component/<id>/move-up`, `/move-down`, `/unplace`) and **Add** a component to the region's end (`POST /admin/component/regions/add`: `component`, `region`; one in another region leaves that one). Since 0.4.4 the components are also **dragged** by their handle, within a region and from one to another (`admin-sortable.js` with SortableJS): each drop sends `POST /admin/component/regions/arrange` (`layout`, `order[<region>]` = the IDs in order, comma-separated, `_csrf`), answered with JSON `{"ok": true}`; on an error nothing changes, the reason is flashed and the page is reloaded (`ComponentService::arrange()`) |
+
+`static arrangement(Request $request): array` (since 0.4.4) reads that
+`order[…]`: region => IDs, at most 50 regions and 200 IDs each; a value of any
+other form is left out. PageComponentPages reads a page's the same way.
 
 Since 0.3.4 the form (3.) also says **where the component shows**: its region
 (or none: only `component()` shows it) and its conditions (the front page, paths,

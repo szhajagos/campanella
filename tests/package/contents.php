@@ -45,7 +45,7 @@ foreach ([
     'LICENSE', 'README.md', 'CHANGELOG.md', 'docs/upgrading.md', 'docs/security.md', 'docs/deployment.md',
     '.htaccess', 'public/.htaccess', 'var/.htaccess', 'public/media/.htaccess',
     'public/assets/vendor/bootstrap/css/bootstrap.min.css', 'public/assets/vendor/bootstrap/js/bootstrap.bundle.min.js',
-    'public/assets/vendor/jodit/jodit.min.js', 'vendor/twig/twig', 'vendor/symfony/mailer', 'vendor/symfony/html-sanitizer',
+    'public/assets/vendor/jodit/jodit.min.js', 'public/assets/vendor/sortablejs/Sortable.min.js', 'public/assets/vendor/sortablejs/LICENSE', 'vendor/twig/twig', 'vendor/symfony/mailer', 'vendor/symfony/html-sanitizer',
 ] as $needed) {
     $check(file_exists($dir . '/' . $needed), "missing: {$needed}");
 }

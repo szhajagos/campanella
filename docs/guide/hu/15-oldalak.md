@@ -29,8 +29,9 @@ oldala:
 - **Az oldal elrendezése:** *a tartalomtípusáé* (a **Megjelenés →
   Elrendezések** oldalon beállított, 14. fejezet), vagy egy saját. Az
   **Oldalsávval** elrendezésben az oldalnak **Oldalsáv** régiója is van.
-- **A régiók:** mindegyikben az oldal komponensei, a sorrendjükben. **Fel**,
-  **Le:** a sorrendjük; **Törlés:** a komponens törlése (amit mutatott, például
+- **A régiók:** mindegyikben az oldal komponensei, a sorrendjükben. A
+  fogantyújuknál (⠿) húzva átrendezheted őket, akár a tartalomból az
+  oldalsávba is (14. fejezet); **Fel**, **Le:** ugyanez gombokkal; **Törlés:** a komponens törlése (amit mutatott, például
   egy szövegrészlet, megmarad).
 - A címére kattintva egy komponens űrlapja nyílik meg: itt a címét, ki
   láthatja, a megjelenítés beállításait (például hány kártya, hány oszlopban)

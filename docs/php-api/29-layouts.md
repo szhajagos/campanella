@@ -266,6 +266,7 @@ the `component` Blueprint has `Weighted` (the order within the region):
 | `forRegions(array $regions, DisplayContext $context): array<string, list<CampanellaObject>>` | The components of these regions that show here, for this visitor, in their order: one query (at most `MAX_PLACED`, 200), the conditions checked in PHP. Since 0.3.5 with the page's own (a `Composed` page object's), first in each region, whatever their conditions, and only in the regions meant for a page (`pageRegionNames()`), however they were saved |
 | `inRegion(string $region, Actor $actor, ?int $page = null): list<CampanellaObject>` | The components placed in a region, in their order, whatever their conditions (for the admin): those the actor may see, at most `MAX_PLACED`; the whole site's, or (since 0.3.5) a page's own |
 | `nextWeight(string $region, Actor $actor, ?int $page = null): int` | The order after the region's last component: where one added goes; among the site's, or a page's own |
+| `arrange(Actor $actor, array $regions, array $order, ?int $page = null): int` | Since 0.4.4, for dragging: each region of `$order` (region => IDs) gets those components in that order (numbered 0, 1, 2 …); one listed under another region moves there, its conditions kept and checked as a placement. Only the components of `$regions` (a layout's, or a page's regions meant for a page) take part, the whole site's or (`$page`) a page's own; one not listed keeps its place after the listed ones. `ValidationException` (`order`) for a region not in `$regions`, a component not in them or listed twice (the page was out of date), or a placement not valid: then nothing changes. How many changed |
 | `move(Actor $actor, CampanellaObject $component, int $by): void` | Up (`-1`) or down (`1`) within its region: the region's components (the site's, or its page's own) are numbered 0, 1, 2 … in their order, it is swapped with its neighbour; nothing at the top, the bottom, or outside a region |
 
 ## A page's own components
@@ -312,6 +313,7 @@ address, for those who may change it (editors too); its form links to them
 | `POST …/components/layout` | Its own layout (`layout`; empty: its Blueprint's or the site's) |
 | `…/components/new/source`, `/display`, `/new` | A new component of the page ([chapter 28](28-displays.md#in-the-admin-componentpages)) |
 | `POST …/components/<component>/move-up`, `/move-down` | One of its own up or down (404 for another) |
+| `POST …/components/arrange` | Since 0.4.4: its own components as dragged, also from one of its regions meant for a page to another (`order[<region>]`, as on the Regions page; JSON) |
 
 `isFor(CampanellaObject $object): bool` (it is `Composed`, and there are
 components), `count(CampanellaObject $page, Actor $actor): int`.

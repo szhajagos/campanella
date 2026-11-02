@@ -48,7 +48,9 @@ use Closure;
  *   /admin/component/regions          the regions of a layout with their components (since 0.3.4,
  *                                     ?layout=…): POST …/regions/add adds one, and POST
  *                                     /admin/component/<id>/move-up, /move-down, /unplace
- *                                     order one or take it out of its region
+ *                                     order one or take it out of its region; POST
+ *                                     …/regions/arrange the layout's regions at once, as
+ *                                     dragged (since 0.4.4, admin-sortable.js; JSON)
  *
  * The form (3.) also says where the component shows (since 0.3.4): its region, and its
  * conditions (ComponentService::place()).
@@ -124,6 +126,7 @@ final class ComponentPages
             return match ($segments[1] ?? null) {
                 null => $this->regionsPage($request, $actor, $render),
                 'add' => $this->addToRegion($request, $actor),
+                'arrange' => $this->arrange($request, $actor),
                 default => throw HttpException::notFound(),
             };
         }
@@ -437,6 +440,59 @@ final class ComponentPages
         }
 
         return Response::redirect($back, 303);
+    }
+
+    /**
+     * POST, by admin-sortable.js (since 0.4.4): the components of a layout's regions as they
+     * were dragged (`order[<region>]` = their IDs, comma-separated). JSON `{"ok": …}`; on an
+     * error nothing changes, the reason is flashed and the script reloads the page.
+     */
+    private function arrange(Request $request, Actor $actor): Response
+    {
+        if (!$request->isPost()) {
+            throw new HttpException(405, 'error.method_not_allowed');
+        }
+        if (!$this->csrf->isValid($request)) {
+            $this->flash->add(Flash::DANGER, 'auth.form_expired');
+
+            return Response::json(['ok' => false], 400);
+        }
+        $layouts = $this->layouts ?? throw HttpException::notFound();
+        $name = $request->postString('layout');
+        if (!$layouts->registry()->has($name)) {
+            $this->flash->add(Flash::DANGER, 'layouts.unknown');
+
+            return Response::json(['ok' => false], 422);
+        }
+        try {
+            $this->components->arrange($actor, array_keys($layouts->registry()->get($name)->regions), self::arrangement($request));
+        } catch (ValidationException $e) {
+            $this->flash->add(Flash::DANGER, array_values($e->errors)[0] ?? 'admin.form.invalid');
+
+            return Response::json(['ok' => false], 422);
+        }
+
+        return Response::json(['ok' => true]);
+    }
+
+    /**
+     * The order sent by admin-sortable.js (since 0.4.4): `order[<region>]` = component IDs,
+     * comma-separated (an empty region: ''). At most 50 regions; anything else is left out.
+     *
+     * @return array<string, list<int>>
+     */
+    public static function arrangement(Request $request): array
+    {
+        $sent = is_array($request->post['order'] ?? null) ? $request->post['order'] : [];
+        $order = [];
+        foreach (array_slice($sent, 0, 50, true) as $region => $ids) {
+            if (!is_string($ids) || preg_match('/^(\d{1,10}(,\d{1,10}){0,199})?$/D', $ids) !== 1) {
+                continue;
+            }
+            $order[(string) $region] = $ids === '' ? [] : array_map('intval', explode(',', $ids));
+        }
+
+        return $order;
     }
 
     /** POST: moves a component up or down in its region, or takes it out. */

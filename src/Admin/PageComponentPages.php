@@ -29,6 +29,7 @@ use Closure;
  *   POST …/components/layout                            its own layout
  *   …/components/new/source, /display, /new             a new component of the page (ComponentPages)
  *   POST …/components/<component>/move-up, /move-down   its order within the region
+ *   POST …/components/arrange   its regions at once, as dragged (since 0.4.4; JSON)
  *
  * A component is changed and deleted at its own address (`/admin/component/<id>`), which
  * leads back here.
@@ -78,6 +79,7 @@ final class PageComponentPages
         return match (true) {
             $segments === [] => $this->overview($request, $actor, $page, $render),
             $segments === ['layout'] => $this->saveLayout($request, $actor, $page),
+            $segments === ['arrange'] => $this->arrange($request, $actor, $page),
             count($segments) === 2 && ctype_digit($segments[0]) && in_array($segments[1], ['move-up', 'move-down'], true)
                 => $this->move($request, $actor, $page, (int) $segments[0], $segments[1] === 'move-up' ? -1 : 1),
             default => throw HttpException::notFound(),
@@ -155,6 +157,38 @@ final class PageComponentPages
         }
 
         return $back;
+    }
+
+    /**
+     * POST, by admin-sortable.js (since 0.4.4): the page's own components in its regions meant
+     * for a page, as dragged (ComponentPages::arrangement()). JSON `{"ok": …}`; on an error
+     * nothing changes and the reason is flashed.
+     */
+    private function arrange(Request $request, Actor $actor, CampanellaObject $page): Response
+    {
+        if (!$request->isPost()) {
+            throw new HttpException(405, 'error.method_not_allowed');
+        }
+        if (!$this->csrf->isValid($request)) {
+            $this->flash->add(Flash::DANGER, 'auth.form_expired');
+
+            return Response::json(['ok' => false], 400);
+        }
+        $regions = [];
+        foreach ($this->layouts->forPage($page)->regions as $name => $region) {
+            if ($region->page) {
+                $regions[] = $name;
+            }
+        }
+        try {
+            $this->components->arrange($actor, $regions, ComponentPages::arrangement($request), (int) $page->id());
+        } catch (ValidationException $e) {
+            $this->flash->add(Flash::DANGER, array_values($e->errors)[0] ?? 'admin.form.invalid');
+
+            return Response::json(['ok' => false], 422);
+        }
+
+        return Response::json(['ok' => true]);
     }
 
     /** POST: one of the page's own up or down within its region. */

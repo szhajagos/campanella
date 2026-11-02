@@ -69,8 +69,12 @@ components, in their order. The tabs switch between the layouts.
 
 ![The regions page](../images/en/regions.png)
 
-- **Up**, **Down:** the component's place in the region. In the navigation, for
-  example, the menu comes first, then the search, then the buttons.
+- **Dragging:** take a component by its handle (⠿) on the left and drag it up
+  or down, even into another region; when you let go, the order is saved at
+  once ("The order is saved."). It works on a touch screen too.
+- **Up**, **Down:** the same with buttons, one place at a time (with the
+  keyboard too). In the navigation, for example, the menu comes first, then
+  the search, then the buttons.
 - **Take out:** the component leaves the region, but it is kept (in the
   Components list).
 - **Add:** at the bottom of a region, choose a component; it goes to the

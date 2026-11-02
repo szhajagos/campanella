@@ -93,3 +93,11 @@
 .admin-scheme-preview__muted { color: var(--sp-muted); }
 .admin-scheme-preview__button { background: var(--sp-accent); color: var(--sp-on-accent); }
 .admin-scheme-preview__box { background: var(--sp-surface); }
+
+/* Dragging (since 0.4.4, admin-sortable.js): the handle, the item being dragged, and an empty
+   region that still takes a drop. */
+.admin-drag-handle { cursor: grab; line-height: 1; touch-action: none; }
+.admin-drag-handle:active { cursor: grabbing; }
+.admin-sortable { min-height: .75rem; }
+.admin-sortable-ghost { opacity: .45; background-color: var(--bs-secondary-bg); }
+.admin-sortable-chosen { box-shadow: 0 .25rem .75rem rgba(0, 0, 0, .15); }

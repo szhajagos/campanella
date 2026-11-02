@@ -27,8 +27,9 @@ Its **The page's components** button opens the page's own components:
 - **The page's layout:** *as its content type's* (set on **Appearance →
   Layouts**, chapter 14), or one of its own. In the **With a sidebar** layout
   the page has a **Sidebar** region too.
-- **The regions:** each with the page's components, in their order. **Up**,
-  **Down:** their order; **Delete:** deletes the component (what it showed,
+- **The regions:** each with the page's components, in their order. Drag
+  them by their handle (⠿) to reorder them, even from the content into the
+  sidebar (chapter 14); **Up**, **Down:** the same with buttons; **Delete:** deletes the component (what it showed,
   e.g. a snippet, stays).
 - Click a component's title to open its form: its title, who sees it, and its
   display's settings (e.g. how many cards, in how many columns).

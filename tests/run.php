@@ -6210,6 +6210,95 @@ test('Kernel: the regions page (Appearance → Regions): adding, ordering, takin
     }
 });
 
+test('Kernel: dragging components (0.4.4): the Regions page and a page\'s own, also into another region; all or nothing', function () use ($displayKernel, $newUser): void {
+    $kernel = $displayKernel();
+    if ($kernel === null) {
+        return;
+    }
+    $c = $kernel->container();
+    $system = Actor::system();
+    $objects = $c->get(ObjectService::class);
+    $components = $c->get(\Campanella\Display\ComponentService::class);
+    $storage = new ArraySessionStorage();
+    $c->set(Session::class, static fn () => new Session($storage));
+    $auth = $c->get(AuthService::class);
+    $send = function (string $method, string $path, array $post = [], array $headers = []) use ($kernel, $storage) {
+        $storage->endRequest();
+        [$path, $query] = explode('?', $path, 2) + [1 => ''];
+        parse_str($query, $params);
+
+        return $kernel->handle(new Request($method, $path, query: $params, post: $post, headers: $headers));
+    };
+    $csrfOf = static fn ($response): string => preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $response->body, $m) === 1 ? $m[1] : '';
+    $make = static function (string $key, string $region) use ($components, $system) {
+        $made = $components->create($system, ['title' => 'Húzás ' . $key, 'machine_name' => 'huzas_' . $key], 'system:site', 'branding');
+        $components->place($system, $made, $region, null, $components->nextWeight($region, $system));
+
+        return $components->find('huzas_' . $key, $system);
+    };
+    [$a, $b, $d, $e] = [$make('a', 'sidebar'), $make('b', 'sidebar'), $make('d', 'sidebar'), $make('e', 'header')];
+    $names = static fn (string $region, ?int $page = null): array => array_values(array_filter(array_map(static fn ($x): string => (string) $x->get('machine_name'), $components->inRegion($region, $system, $page)), static fn (string $n): bool => str_starts_with($n, 'huzas_')));
+    $ids = static fn (array $list): string => implode(',', array_map(static fn ($x): string => (string) $x->id(), $list));
+    $others = static fn (string $region): array => array_values(array_filter($components->inRegion($region, $system), static fn ($x): bool => !str_starts_with((string) $x->get('machine_name'), 'huzas_')));
+    $json = ['accept' => 'application/json'];
+
+    $auth->login(new Request('GET', '/'), $newUser('huzas-szerk@example.hu', 'huzas-jelszo-1', ['editor']));
+    check($send('POST', '/admin/component/regions/arrange', ['layout' => 'sidebar'])->status === 403, 'not for editors');
+    $auth->login(new Request('GET', '/'), $newUser('huzas-admin@example.hu', 'huzas-jelszo-1', ['administrator']));
+    $page = $send('GET', '/admin/component/regions?layout=sidebar');
+    $csrf = $csrfOf($page);
+    check(str_contains($page->body, 'data-sortable-url="/admin/component/regions/arrange" data-sortable-layout="sidebar"') && str_contains($page->body, 'data-sortable-region="sidebar"') && str_contains($page->body, 'data-id="' . $a->id() . '"'), 'the lists, for the script');
+    check(str_contains($page->body, 'vendor/sortablejs/Sortable.min.js') && str_contains($page->body, 'admin-sortable.js') && str_contains($page->body, 'data-drag-handle hidden'), 'the scripts; the handles hidden without them');
+    check(str_contains($page->body, 'data-move="up" disabled') && str_contains($page->body, 'Fel</button>'), 'the buttons stay');
+
+    // Within a region, and from one region to another.
+    $arrange = static fn (array $order, string $csrfToken = '', string $layout = 'sidebar') => $send('POST', '/admin/component/regions/arrange', ['_csrf' => $csrfToken ?: $csrf, 'layout' => $layout, 'order' => $order], $json);
+    $done = $arrange(['sidebar' => $ids([...$others('sidebar'), $d, $a]), 'header' => $ids([...$others('header'), $e, $b])]);
+    check($done->status === 200 && json_decode($done->body, true) === ['ok' => true], $done->status . ' ' . $done->body);
+    check($names('sidebar') === ['huzas_d', 'huzas_a'] && $names('header') === ['huzas_e', 'huzas_b'], 'arranged: ' . json_encode([$names('sidebar'), $names('header')]));
+    check($components->find('huzas_b', $system)?->as(\Campanella\Capability\Component::class)->conditions()->isEverywhere() === true, 'its conditions kept');
+    // Out of date: one not listed keeps its place after the listed ones.
+    $arrange(['sidebar' => $ids([$a])]);
+    check($names('sidebar') === ['huzas_a', 'huzas_d'] && $names('header') === ['huzas_e', 'huzas_b'], 'not listed: after them; another region untouched: ' . json_encode($names('sidebar')));
+
+    // Refused, nothing changed, the reason said.
+    $before = [$names('sidebar'), $names('header')];
+    check($arrange(['sidebar' => $ids([$d, $a])], 'x')->status === 400, 'not without the CSRF token');
+    check($arrange(['nincs_ilyen' => $ids([$a])])->status === 422 && str_contains($send('GET', '/admin/component/regions')->body, 'Ez a régió itt nem rendezhető: nincs_ilyen.'), 'a region not of the layout');
+    check($arrange(['sidebar' => $ids([$d, $a]), 'header' => $ids([$a])])->status === 422 && str_contains($send('GET', '/admin/component/regions')->body, 'Az oldal közben megváltozott'), 'one listed twice');
+    check($arrange(['sidebar' => $ids([$d, $a]) . ',999999'])->status === 422, 'one not there');
+    check($arrange(['sidebar' => $ids([$d, $a])], '', 'nincs_layout')->status === 422, 'a layout that is not');
+    check($arrange(['sidebar' => 'd,a'])->status === 200 && $names('sidebar') === $before[0], 'not IDs: left out');
+    check($send('GET', '/admin/component/regions/arrange')->status === 405, 'POST only');
+    check([$names('sidebar'), $names('header')] === $before, 'nothing changed: ' . json_encode([$names('sidebar'), $names('header')]));
+
+    // A page's own: its regions meant for a page, by an editor too.
+    $editorUser = $newUser('huzas-oldal@example.hu', 'huzas-jelszo-1', ['editor']);
+    $editor = \Campanella\Auth\AuthService::actorFor($editorUser);
+    $pageObject = $objects->create($system, 'page', ['title' => 'Húzós oldal', 'path' => '/huzos-oldal', 'body' => '<p>x</p>', 'page_layout' => 'sidebar'], publish: true);
+    $own = [];
+    foreach (['p1' => 'sidebar', 'p2' => 'sidebar', 'p3' => 'content'] as $key => $region) {
+        $own[$key] = $components->create($editor, ['title' => 'Húzás ' . $key, 'machine_name' => 'huzas_' . $key], 'system:search', 'search_box', [], $pageObject);
+        $components->place($editor, $own[$key], $region, null, $components->nextWeight($region, $editor, (int) $pageObject->id()));
+    }
+    $auth->login(new Request('GET', '/'), $editorUser);
+    $base = '/admin/page/' . $pageObject->id() . '/components';
+    $view = $send('GET', $base);
+    check(str_contains($view->body, 'data-sortable-url="' . $base . '/arrange"') && str_contains($view->body, 'data-sortable-region="content"') && str_contains($view->body, 'admin-sortable.js'), 'the page\'s lists');
+    $pageId = (int) $pageObject->id();
+    $send2 = static fn (array $order) => $send('POST', $base . '/arrange', ['_csrf' => $csrfOf($view), 'order' => $order], $json);
+    check($send2(['sidebar' => $ids([$own['p2']]), 'content' => $ids([$own['p1'], $own['p3']])])->status === 200, 'arranged by an editor');
+    check($names('sidebar', $pageId) === ['huzas_p2'] && $names('content', $pageId) === ['huzas_p1', 'huzas_p3'], 'into its other region: ' . json_encode([$names('sidebar', $pageId), $names('content', $pageId)]));
+    check($send2(['header' => $ids([$own['p2']])])->status === 422, 'not into a region not meant for a page');
+    check($send2(['sidebar' => $ids([$own['p2'], $a])])->status === 422 && $names('sidebar') === $before[0], 'not the site\'s through a page');
+    check($send('POST', '/admin/component/regions/arrange', ['_csrf' => $csrfOf($view), 'layout' => 'sidebar', 'order' => ['sidebar' => $ids([$own['p2']])]], $json)->status === 403, 'nor a page\'s through the Regions page');
+
+    foreach ([...$own, $a, $b, $d, $e] as $component) {
+        $objects->delete($system, $components->find((string) $component->get('machine_name'), $system));
+    }
+    $objects->delete($system, $pageObject);
+});
+
 test('Kernel: the colour schemes page (Appearance → Colour schemes), for administrators', function () use ($newUser): void {
     putenv('CAMPANELLA_DB_PREFIX=test_');
     $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));

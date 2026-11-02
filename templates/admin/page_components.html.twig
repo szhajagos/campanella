@@ -28,16 +28,19 @@
         <div class="form-text" id="page-layout-help">{{ t('page_components.layout_help') }}</div>
     </form>
 
+    <div data-sortable-group="page-regions" data-sortable-url="{{ admin_url(base ~ '/arrange') }}"
+        data-sortable-saving="{{ t('regions.drag_saving') }}" data-sortable-saved="{{ t('regions.drag_saved') }}" data-sortable-failed="{{ t('regions.drag_failed') }}">
+    {% if regions %}<p class="small text-body-secondary mb-3">{{ t('regions.drag_help') }} <span role="status" data-sortable-status></span></p>{% endif %}
     {% for region in regions %}
-        <section class="card mb-4 admin-region" id="region-{{ region.name }}">
+        <section class="card mb-4 admin-region" id="region-{{ region.name }}" data-sortable-section>
             <div class="card-header d-flex align-items-center gap-2">
                 <h2 class="h6 mb-0 me-auto">{{ t(region.label) }}</h2>
                 <a class="btn btn-sm btn-primary" href="{{ admin_url(base ~ '/new/source') }}?region={{ region.name|url_encode }}">{{ t('page_components.new') }}</a>
             </div>
-            {% if region.components %}
-                <ol class="list-group list-group-flush list-group-numbered">
+                <ol class="list-group list-group-flush list-group-numbered admin-sortable" data-sortable-region="{{ region.name }}">
                     {% for item in region.components %}
-                        <li class="list-group-item d-flex flex-wrap align-items-center gap-2 admin-region-item">
+                        <li class="list-group-item d-flex flex-wrap align-items-center gap-2 admin-region-item" data-id="{{ item.object.id }}">
+                            <button type="button" class="btn btn-sm btn-link text-body-secondary px-1 admin-drag-handle" data-drag-handle hidden tabindex="-1" aria-hidden="true" title="{{ t('regions.drag') }}"><svg width="12" height="18" viewBox="0 0 12 18" fill="currentColor" aria-hidden="true" focusable="false"><circle cx="3" cy="3" r="1.6"/><circle cx="9" cy="3" r="1.6"/><circle cx="3" cy="9" r="1.6"/><circle cx="9" cy="9" r="1.6"/><circle cx="3" cy="15" r="1.6"/><circle cx="9" cy="15" r="1.6"/></svg></button>
                             <div class="me-auto">
                                 <a href="{{ admin_url('component/' ~ item.object.id) }}" class="fw-semibold">{{ item.object.title }}</a>
                                 <span class="small text-body-secondary">· {{ t(item.display) }}</span>
@@ -48,7 +51,7 @@
                                 {% for action in ['move-up', 'move-down'] %}
                                     <form method="post" action="{{ admin_url(base ~ '/' ~ item.object.id ~ '/' ~ action) }}">
                                         {{ csrf_field() }}
-                                        <button type="submit" class="btn btn-sm btn-outline-secondary"{{ (action == 'move-up' and first) or (action == 'move-down' and last) ? ' disabled' }} aria-label="{{ t('regions.' ~ action ~ '_label', {title: item.object.title}) }}">{{ t('regions.' ~ action) }}</button>
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary" data-move="{{ action == 'move-up' ? 'up' : 'down' }}"{{ (action == 'move-up' and first) or (action == 'move-down' and last) ? ' disabled' }} aria-label="{{ t('regions.' ~ action ~ '_label', {title: item.object.title}) }}">{{ t('regions.' ~ action) }}</button>
                                     </form>
                                 {% endfor %}
                                 <a class="btn btn-sm btn-outline-danger" href="{{ admin_url('component/' ~ item.object.id ~ '/delete') }}" aria-label="{{ t('page_components.delete_label', {title: item.object.title}) }}">{{ t('admin.delete.link') }}</a>
@@ -56,11 +59,10 @@
                         </li>
                     {% endfor %}
                 </ol>
-            {% else %}
-                <div class="card-body py-2 small text-body-secondary">{{ t('regions.empty') }}</div>
-            {% endif %}
+                <div class="card-body py-2 small text-body-secondary" data-sortable-empty{{ region.components ? ' hidden' }}>{{ t('regions.empty') }}</div>
         </section>
     {% endfor %}
+    </div>
 
     {% if elsewhere %}
         <div class="alert alert-warning" role="alert" id="page-components-elsewhere">
@@ -74,4 +76,9 @@
     {% endif %}
 
     <p><a class="btn btn-outline-secondary" href="{{ admin_url(edit_path) }}">{{ t('page_components.back') }}</a></p>
+{% endblock %}
+
+{% block scripts %}
+    <script src="{{ asset('vendor/sortablejs/Sortable.min.js') }}" defer></script>
+    <script src="{{ asset('admin-sortable.js') }}" defer></script>
 {% endblock %}

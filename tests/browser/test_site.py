@@ -852,6 +852,73 @@ def test_regions(browser):
 
 
 
+def items_of(page, region):
+    """The titles of a region's components on the Regions page, in their order."""
+    return [t.strip() for t in page.locator(f"#region-{region} .admin-region-item a.fw-semibold").all_inner_texts()]
+
+
+
+def test_dragging(browser):
+    """Components dragged on the Regions page: within a region, into another, back; kept after reloading (since 0.4.4)."""
+    context = new_context(browser)
+    page = context.new_page()
+    page.set_viewport_size({"width": 1280, "height": 2400})  # every region in view: the mouse drags only within it
+    login(page, ADMIN)
+    page.goto(BASE + "/admin/component/regions")
+    check(page.locator("#region-navigation [data-drag-handle]").first.is_visible(), "no drag handle")
+    header = items_of(page, "navigation")
+    footer = items_of(page, "footer")
+    check(len(header) >= 2, "the navigation has fewer than two components: " + str(header))
+    # Within the navigation: the first one below the second.
+    first = page.locator("#region-navigation .admin-region-item").nth(0)
+    second = page.locator("#region-navigation .admin-region-item").nth(1)
+    answer = drag_into(page, first, second)
+    check(answer.ok, "not saved: " + str(answer.status))
+    page.locator("[data-sortable-status]", has_text="A sorrend mentve.").wait_for(timeout=5000)
+    page.reload()
+    check(items_of(page, "navigation")[:2] == [header[1], header[0]], "the order not kept: " + str(items_of(page, "navigation")))
+    check(page.locator("#region-navigation .admin-region-item").nth(0).locator("[data-move=up]").is_disabled(), "the top one can move up")
+    # Into the footer, at its end.
+    moved = page.locator("#region-navigation .admin-region-item", has_text=header[0])
+    target = page.locator("#region-footer .admin-region-item").last if footer else page.locator("#region-footer [data-sortable-region]")
+    check(drag_into(page, moved, target).ok, "not saved into the footer")
+    check(page.locator("#region-footer .admin-region-item", has_text=header[0]).count() == 1, "not moved on the page")
+    page.reload()
+    check(items_of(page, "footer") == footer + [header[0]], "not in the footer: " + str(items_of(page, "footer")))
+    check(header[0] not in items_of(page, "navigation"), "still in the navigation")
+    # Back with the buttons: the footer's Take out, then Add to the navigation (moves it to the end), then Up.
+    with page.expect_navigation():
+        page.locator("#region-footer .admin-region-item", has_text=header[0]).locator("button", has_text="Kivesz").click()
+    page.locator("#region-navigation select[name=component]").select_option(label=header[0])
+    with page.expect_navigation():
+        page.locator("#region-navigation button[type=submit]", has_text="Hozzáad").click()
+    while items_of(page, "navigation").index(header[0]) > 0:
+        with page.expect_navigation():
+            page.locator("#region-navigation .admin-region-item", has_text=header[0]).locator("[data-move=up]").click()
+    check(items_of(page, "navigation") == header and items_of(page, "footer") == footer, "not put back: " + str(items_of(page, "navigation")))
+    context.close()
+
+
+def drag_into(page, source, target, below=True):
+    """Drags a component by its handle with the mouse to just below (or above) the target, an item or
+    an empty list (SortableJS), and returns the save's answer."""
+    handle = source.locator("[data-drag-handle]").bounding_box()
+    box = target.bounding_box()
+    x, y = box["x"] + box["width"] / 2, box["y"] + (box["height"] * 0.8 if below else box["height"] * 0.2)
+    with page.expect_response(lambda r: r.url.endswith("/arrange")) as answer:
+        page.mouse.move(handle["x"] + handle["width"] / 2, handle["y"] + handle["height"] / 2)
+        page.mouse.down()
+        page.mouse.move(handle["x"] + handle["width"] / 2, handle["y"] + handle["height"] / 2 + 5, steps=3)
+        page.mouse.move(x, y, steps=15)
+        # The lists move when the item leaves its own: aim again where the target is now.
+        box = target.bounding_box()
+        x, y = box["x"] + box["width"] / 2, box["y"] + (box["height"] * 0.8 if below else box["height"] * 0.2)
+        page.mouse.move(x, y, steps=5)
+        page.mouse.move(x, y + 2, steps=2)
+        page.mouse.up()
+    return answer.value
+
+
 def test_page_components(browser):
     """An editor gives the About us page a component of its own in the three steps, sees it there, deletes it (since 0.3.5)."""
     context = new_context(browser)
@@ -901,6 +968,7 @@ TESTS = [
     test_files,
     test_components,
     test_regions,
+    test_dragging,
     test_layouts,
     test_page_components,
     test_color_schemes,

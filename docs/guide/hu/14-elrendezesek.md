@@ -72,8 +72,11 @@ komponenseit, a sorrendjükben. A fülekkel válthatsz az elrendezések között
 
 ![A régiók oldala](../images/hu/regions.png)
 
-- **Fel**, **Le:** a komponens helye a régión belül. A navigációban például a
-  menü után jön a kereső, aztán a gombok.
+- **Húzás:** egy komponenst a bal szélén lévő fogantyújánál (⠿) megfogva
+  feljebb vagy lejjebb húzhatsz, akár egy másik régióba is; elengedve a sorrend
+  azonnal mentődik („A sorrend mentve.”). Érintőképernyőn is működik.
+- **Fel**, **Le:** ugyanez gombokkal, egy hellyel (billentyűzettel is). A
+  navigációban például a menü után jön a kereső, aztán a gombok.
 - **Kivesz:** a komponens kikerül a régióból, de megmarad (a Komponensek
   listában).
 - **Hozzáad:** a régió alján választhatsz egy komponenst; a régió végére kerül.

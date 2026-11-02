@@ -336,6 +336,82 @@ final class ComponentService
     }
 
     /**
+     * Arranges components by dragging (since 0.4.4): each region of `$order` gets the components
+     * listed for it, in that order (numbered 0, 1, 2 …); one listed under another region than its
+     * own moves there, its conditions kept and checked as a placement. Only the components of
+     * `$regions` take part: the whole site's (`$page` null) or a page's own. One placed in a
+     * region but not listed (the page was out of date) keeps its place after the listed ones.
+     * Nothing is changed if anything is wrong.
+     *
+     * @param list<string> $regions The regions that may be arranged (a layout's, or a page's)
+     * @param array<string, list<int>> $order region => component IDs
+     * @return int How many components changed
+     * @throws ValidationException (`order`) for a region not in `$regions`, a component not in
+     *         them or listed twice, or a placement that is not valid
+     */
+    public function arrange(Actor $actor, array $regions, array $order, ?int $page = null): int
+    {
+        $placed = [];
+        $byId = [];
+        foreach ($regions as $region) {
+            $placed[$region] = $this->inRegion($region, $actor, $page);
+            foreach ($placed[$region] as $component) {
+                $byId[(int) $component->id()] = $component;
+            }
+        }
+        $listed = [];
+        foreach ($order as $region => $ids) {
+            if (!in_array($region, $regions, true)) {
+                throw new ValidationException(['order' => new Message('regions.arrange_region', ['region' => mb_substr((string) $region, 0, 64, 'UTF-8')])]);
+            }
+            foreach ($ids as $id) {
+                if (!isset($byId[$id]) || isset($listed[$id])) {
+                    throw new ValidationException(['order' => new Message('regions.arrange_outdated')]);
+                }
+                $listed[$id] = $region;
+            }
+        }
+        // The new order of each region: the listed ones, then those not listed that stay there.
+        $plan = [];
+        foreach ($regions as $region) {
+            $ids = $order[$region] ?? [];
+            foreach ($placed[$region] as $component) {
+                if (!isset($listed[(int) $component->id()])) {
+                    $ids[] = (int) $component->id();
+                }
+            }
+            $plan[$region] = $ids;
+        }
+        foreach ($plan as $region => $ids) {
+            foreach ($ids as $id) {
+                $definition = $byId[$id]->as(Component::class);
+                if ($definition->region() !== $region) {
+                    $problems = $this->placementProblems($region, $definition->conditions(), $definition->page() !== null);
+                    if ($problems !== []) {
+                        throw new ValidationException(['order' => array_values($problems)[0]]);
+                    }
+                }
+            }
+        }
+        $changed = 0;
+        foreach ($plan as $region => $ids) {
+            foreach ($ids as $weight => $id) {
+                $component = $byId[$id];
+                $definition = $component->as(Component::class);
+                if ($definition->region() !== $region) {
+                    $this->place($actor, $component, $region, $definition->conditions(), $weight);
+                    ++$changed;
+                } elseif ((int) $component->get('weight') !== $weight) {
+                    $this->objects->update($actor, $component, ['weight' => $weight]);
+                    ++$changed;
+                }
+            }
+        }
+
+        return $changed;
+    }
+
+    /**
      * Moves a component up (-1) or down (+1) within its region (since 0.3.4): the region's
      * components are numbered 0, 1, 2 … in their order, the component swapped with its
      * neighbour. Nothing happens at the top, the bottom, or outside a region.

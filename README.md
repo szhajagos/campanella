@@ -582,4 +582,5 @@ MIT. See [LICENSE](LICENSE).
 
 Bundled third-party code: Bootstrap 5.3.8 (MIT,
 [public/assets/vendor/bootstrap/LICENSE](public/assets/vendor/bootstrap/LICENSE)),
-Jodit 4.17.1 (MIT, [public/assets/vendor/jodit/LICENSE.txt](public/assets/vendor/jodit/LICENSE.txt)).
+Jodit 4.17.1 (MIT, [public/assets/vendor/jodit/LICENSE.txt](public/assets/vendor/jodit/LICENSE.txt)),
+SortableJS 1.15.7 (MIT, [public/assets/vendor/sortablejs/LICENSE](public/assets/vendor/sortablejs/LICENSE); since 0.4.4).
