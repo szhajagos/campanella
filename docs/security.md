@@ -126,6 +126,57 @@ version: upgrade it to 0.3.x ([Upgrading](upgrading.md)).
   may see, and puts an apostrophe before a text a spreadsheet would run as a
   formula (`=`, `+`, `-`, `@`).
 
+## Review of the modules, 0.4.7 (2026-11-03)
+
+A module is program code with every right: turned on, it can do anything
+Campanella can, and nothing sandboxes it. The review therefore looked at who can
+bring a module, what happens before it runs, and how far a module that is wrong
+(not one that is malicious) can reach. Tests for each point (`Security review
+(0.4.7)` and the module tests):
+
+- **No code through the browser.** A module is a folder put into `modules/` by
+  hand (FTP, git, Composer); the admin only turns on what is already there. An
+  account taken over cannot add code to the server. `modules/` is outside the
+  web root (like `src/`), so its files are never served.
+- **Who:** *System → Modules*, turning a module on or off and removing its data
+  are for the system roles only, each POST with its CSRF token; removing data
+  also needs the module's name typed, and a backup is made first (as before its
+  tables are made).
+- **Before anything of it runs**, its folder and `module.json` are checked: a
+  module's name of small letters (the core's names and command prefixes
+  reserved), no folder or source folder leading out of the modules folder (links
+  included), its own namespace and never `Campanella\`. Its autoloader loads only
+  class names of letters, digits and `\` from its source folder.
+- **The trial** runs its code before it is turned on (the confirmation page, a
+  GET, runs it too, but makes no tables and saves nothing): a PHP warning, an
+  exception or a page answering 500 keeps it off; a fatal error ends only that
+  request. Its trial pages start no session, so the administrator's own is not
+  touched.
+- **What it registers** must be its own classes, of the right kind: it cannot
+  replace a service of the core, take a core command's name, put a page on a
+  system folder's path (`/assets`, `/media`, `/modules`, `/files`, `/install` …)
+  or anywhere already routed or taken by a content item (its routes come last,
+  and the trial refuses a taken path). Its templates are `@<name>/…` only (a
+  layout `layout/<name>_…` is found only where no other template has the name),
+  so only a theme overrides the core's templates; its translations are its own
+  keys only, the core's win.
+- **Its admin page** is opened only by those it is for (the system roles, or the
+  editors when it says so), and a POST to it is refused without the CSRF token
+  before the module's code is called. Its public pages get the site's security
+  headers (the Content-Security-Policy included) like any page.
+- **Its files** are copied to `public/modules/<name>/` when it is turned on: never
+  a PHP file, a hidden file or a link; `public/modules/.htaccess` runs no code
+  there, serves no HTML, and an SVG opened by itself is sandboxed.
+  `module_asset()` leaves `..` out of a path.
+- **A module that fails on a request** is left out with the modules that need it,
+  and the site goes on; one that stops the site is turned off by
+  `config/local.php` (`modules.disabled`), which always wins, or `module:disable`,
+  which loads no module.
+
+Accepted: a module's own code is trusted as the core is (it can read the
+database and the configuration); the guide and the admin say so before one is
+turned on. Nothing needed fixing.
+
 ## A fix in the configuration, 0.4.5 (2026-11-03)
 
 Found while describing every setting in `config/local.php.dist`: `config/local.php`

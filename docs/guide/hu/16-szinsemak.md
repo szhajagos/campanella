@@ -100,4 +100,5 @@ A témák készítőinek szóló leírás:
 ---
 
 Előző: [15. Oldalak komponensekből](15-oldalak.md) ·
+Következő: [17. Modulok](17-modulok.md) ·
 [Tartalomjegyzék](README.md)

@@ -56,6 +56,15 @@ final class ModuleContext
     /** @var list<\Campanella\Database\Migration\Migration> */
     private array $migrations = [];
 
+    /** @var list<array{path: string, controller: string, prefix: bool}> */
+    private array $routes = [];
+
+    /** @var array{class: string, label: string, group: string, editors: bool}|null */
+    private ?array $adminPage = null;
+
+    /** Paths a module's route can never have (the system's folders). */
+    private const array RESERVED_PATHS = ['/assets', '/themes', '/media', '/modules', '/files', '/install'];
+
     public function __construct(public readonly ModuleManifest $manifest)
     {
     }
@@ -168,9 +177,54 @@ final class ModuleContext
     }
 
     /**
+     * A public page of the module (since 0.4.7): its Controller (made by the container, so a
+     * service() of it can have its own services) at the path, or under it with `$prefix`. It
+     * is routed after the system's routes and only where nothing else is routed (never the
+     * admin's, a system page's or another module's place); the controller checks who may see
+     * what (an Actor is given), and a POST's CSRF token (Csrf).
+     *
+     * @param string $controller A Controller class of the module
+     */
+    public function route(string $path, string $controller, bool $prefix = false): self
+    {
+        if (preg_match('#^/[a-z0-9][a-z0-9_-]*(/[a-z0-9][a-z0-9_-]*){0,5}$#D', $path) !== 1) {
+            throw new ModuleException("Not a path for a module's page: {$path}");
+        }
+        foreach (self::RESERVED_PATHS as $reserved) {
+            if ($path === $reserved || str_starts_with($path, $reserved . '/')) {
+                throw new ModuleException("A module's page cannot be under {$reserved}: {$path}");
+            }
+        }
+        $this->routes[] = ['path' => $path, 'controller' => $this->own($controller, \Campanella\Controller\Controller::class), 'prefix' => $prefix];
+
+        return $this;
+    }
+
+    /**
+     * The module's page in the admin (since 0.4.7): /admin/module/<name>/…, an AdminPage of
+     * the module, with an item in the admin's menu (its label: a key of its translations, in
+     * a group of AdminMenu, by default System). For the system roles, or (`$editors`) for
+     * everyone who may enter the admin.
+     *
+     * @param string $class An AdminPage class of the module
+     */
+    public function adminPage(string $class, string $label, string $group = 'system', bool $editors = false): self
+    {
+        if ($this->adminPage !== null) {
+            throw new ModuleException('A module has one admin page (with its own paths under it).');
+        }
+        if (!in_array($group, ['content', 'media', 'audience', 'appearance', 'structure', 'system'], true)) {
+            throw new ModuleException("Not a group of the admin's menu: {$group}");
+        }
+        $this->adminPage = ['class' => $this->own($class, AdminPage::class), 'label' => $label, 'group' => $group, 'editors' => $editors];
+
+        return $this;
+    }
+
+    /**
      * Everything registered.
      *
-     * @return array{capabilities: list<class-string<Capability>>, displays: list<class-string<Display>>, sources: list<class-string<SystemSource>>, tokens: list<class-string<TokenProvider>>, actions: array<class-string<Event>, list<class-string<Action>>>, listeners: list<array{0: class-string<Event>, 1: Closure}>, commands: list<Command>, services: array<class-string, Closure>, migrations: list<\Campanella\Database\Migration\Migration>}
+     * @return array{capabilities: list<class-string<Capability>>, displays: list<class-string<Display>>, sources: list<class-string<SystemSource>>, tokens: list<class-string<TokenProvider>>, actions: array<class-string<Event>, list<class-string<Action>>>, listeners: list<array{0: class-string<Event>, 1: Closure}>, commands: list<Command>, services: array<class-string, Closure>, migrations: list<\Campanella\Database\Migration\Migration>, routes: list<array{path: string, controller: string, prefix: bool}>, admin: array{class: string, label: string, group: string, editors: bool}|null}
      */
     public function registered(): array
     {
@@ -184,6 +238,8 @@ final class ModuleContext
             'commands' => $this->commands,
             'services' => $this->services,
             'migrations' => $this->migrations,
+            'routes' => $this->routes,
+            'admin' => $this->adminPage,
         ];
     }
 

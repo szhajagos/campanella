@@ -1219,6 +1219,19 @@ final class Kernel
                     $router->add($list->path, 'list', ['list' => $list->name]);
                 }
             }
+            // The modules' pages (since 0.4.7), last: only where nothing else is routed.
+            foreach ($c->get(\Campanella\Module\ModuleLoader::class)->loaded() as $module => $registered) {
+                foreach ((array) $registered['routes'] as $i => $route) {
+                    $handler = 'module.' . $module . '.' . $i;
+                    if ($router->isRouted($route['path'])) {
+                        error_log("Campanella: the module {$module}'s page {$route['path']} is not routed: something else is there.");
+                        continue;
+                    }
+                    $class = $route['controller'];
+                    $c->set('controller.' . $handler, static fn (Container $c): Controller => $c->has($class) ? $c->get($class) : new $class());
+                    $route['prefix'] ? $router->prefix($route['path'], $handler) : $router->add($route['path'], $handler);
+                }
+            }
 
             return $router;
         });
@@ -1367,6 +1380,8 @@ final class Kernel
                 $c->get(Flash::class),
                 $c->get(AdminAccess::class),
             ),
+            $c->get(\Campanella\Module\ModuleLoader::class),
+            static fn (string $class): object => $c->has($class) ? $c->get($class) : new $class(),
         ));
 
         $c->set(ObjectForm::class, static fn (Container $c): ObjectForm => new ObjectForm(
@@ -1405,6 +1420,17 @@ final class Kernel
                 null,
                 static fn (): bool => $c->get(ComponentService::class)->isAvailable(),
             );
+
+            // The modules' admin pages (since 0.4.7), in the groups they asked for.
+            $access = $c->get(AdminAccess::class);
+            foreach ($c->get(\Campanella\Module\ModuleLoader::class)->loaded() as $module => $registered) {
+                $page = $registered['admin'] ?? null;
+                if (is_array($page)) {
+                    $menu->add($page['group'], static fn (Actor $actor): array => ($page['editors'] ? $access->allows($actor) : $access->allowsSystem($actor))
+                        ? [new \Campanella\Admin\AdminMenuItem('module_' . $module, $page['label'], 'module/' . $module)]
+                        : []);
+                }
+            }
 
             return $menu;
         });

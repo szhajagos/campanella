@@ -97,4 +97,5 @@ For theme makers: [PHP API, chapter 31](../../php-api/31-appearance.md).
 
 ---
 
-Previous: [15. Pages assembled from components](15-pages.md) · [Contents](README.md)
+Previous: [15. Pages assembled from components](15-pages.md) ·
+Next: [17. Modules](17-modules.md) · [Contents](README.md)

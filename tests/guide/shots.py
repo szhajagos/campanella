@@ -505,6 +505,22 @@ def color_schemes(page):
     view.close()
 
 
+def modules(page):
+    """Chapter 17 (since 0.4.7): the Modules page with a module put into the modules folder, and
+    its trial before it is turned on (not turned on: the site stays as it was)."""
+    import shutil
+    source = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "fixtures", "modules-on", "hirlevel")
+    target = os.path.join(SITE, "modules", "hirlevel")
+    shutil.copytree(source, target, ignore=shutil.ignore_patterns("nem.php", ".rejtett"))
+    try:
+        page.goto(BASE + "/admin/system/modules")
+        shot(page, "modules", full_page=True)
+        page.goto(BASE + "/admin/system/modules/hirlevel/enable")
+        shot(page, "module-enable", full_page=True)
+    finally:
+        shutil.rmtree(target, ignore_errors=True)
+
+
 def layouts(page, article_url):
     """Chapter 14 (since 0.3.4): the layouts, a region's components, the contact box beside an article."""
     page.goto(BASE + "/admin/system/layouts")
@@ -929,6 +945,7 @@ def main():
         layouts(page, article_url)
         pages(page)
         color_schemes(page)
+        modules(page)
         own_types(page, browser, article_url)
         importing(page)
         users(page, browser)

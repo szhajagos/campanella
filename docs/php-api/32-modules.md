@@ -159,6 +159,8 @@ method returns the context.
 | `listen(string $event, Closure $listener)` | A listener on an event |
 | `command(Command $command)` | A command of `bin/campanella`; its name starts with `<module>:` |
 | `service(string $class, Closure $factory)` | A service of the module's own class, for the container (e.g. a display that needs other services); never over the core's |
+| `route(string $path, string $controller, bool $prefix = false)` | Since 0.4.7: a public page, a `Controller` of the module (made by the container) at the path, or under it; routed last, only where nothing else is (the trial refuses a path a route or a content item has); not under `/assets`, `/themes`, `/media`, `/modules`, `/files`, `/install`. The controller checks who may see what, and a POST's CSRF token |
+| `adminPage(string $class, string $label, string $group = 'system', bool $editors = false)` | Since 0.4.7: its one admin page, an `AdminPage` of the module, at `/admin/module/<name>/…`, with an item (`$label`, a key of its translations) in a group of the admin's menu (`content`, `media`, `audience`, `appearance`, `structure`, `system`); for the system roles, or with `$editors` for everyone who may enter the admin |
 | `migration(string $class)` | Since 0.4.7: a `Migration` of its own tables ([chapter 17](17-migrations.md)'s rules), its ID starting with `<module>:` (e.g. `newsletter:0001_subscribers`, a table `{newsletter_subscribers}`) |
 | `registered(): array` | Everything registered (for ModuleLoader) |
 
@@ -169,6 +171,26 @@ whose keys start with `<module>.` (the core's keys win), and the files of
 `public/` (never a PHP file, a hidden file or a link), copied to
 `public/modules/<module>/` when it is turned on (`module_asset()`, chapter 7).
 `public/modules/.htaccess` runs nothing there and serves no HTML.
+
+## A module's admin page: AdminPage
+
+`Campanella\Module\AdminPage` · **Public** · `interface`, since 0.4.7:
+`handle(Request $request, Actor $actor, array $segments, Closure $render): Response`.
+The admin calls it for `/admin/module/<name>/…` (`$segments`: what comes after)
+once it checked who may open it and, for a POST, the CSRF token (400 without
+it). `$render('page.html.twig', [...])` renders the module's
+`@<name>/page.html.twig` in the admin's frame (it extends
+`@core/admin/base.html.twig`; `csrf_field()` for its forms):
+
+```php
+final class Admin implements AdminPage
+{
+    public function handle(Request $request, Actor $actor, array $segments, Closure $render): Response
+    {
+        return $render('admin.html.twig', ['title' => 'newsletter.admin']);
+    }
+}
+```
 
 ## A module's tables
 

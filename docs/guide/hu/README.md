@@ -42,5 +42,7 @@ felületet mutatják, a Campanella saját példatartalmával.
     elrendezése (a szerkesztőknek is), új komponens egy oldalnak, a címlap.
 16. [Színsémák és színmód](16-szinsemak.md): a webhely színei világos és sötét
     változatban, a színmód, a látogató színmód-váltója.
+17. [Modulok](17-modulok.md): egy modul feltöltése, kipróbálása, be- és
+    kikapcsolása, ha miatta nem indul el a webhely, az adatai törlése.
 
 [English version](../en/README.md)

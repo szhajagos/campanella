@@ -43,5 +43,7 @@ interface, with Campanella's own sample content in English.
     layout (for editors too), a new component for a page, the front page.
 16. [Colour schemes and the colour mode](16-colour-schemes.md): the site's colours
     in a light and a dark variant, the colour mode, the visitor's colour mode switch.
+17. [Modules](17-modules.md): adding a module, trying it, turning it on and
+    off, when the site does not start because of one, removing its data.
 
 [Magyar változat](../hu/README.md)

@@ -1,4 +1,4 @@
-# Campanella 0.4.5
+# Campanella 0.4.7
 
 [![CI](https://github.com/szhajagos/campanella/actions/workflows/ci.yml/badge.svg)](https://github.com/szhajagos/campanella/actions/workflows/ci.yml)
 
@@ -17,7 +17,14 @@ with a light and a dark mode, sample content in the site's language; and what
 0.4.x keeps is promised (see the [compatibility promise](docs/compatibility.md)).
 Plans are in the [ROADMAP](ROADMAP.md), changes in the [CHANGELOG](CHANGELOG.md).
 
-## What is new in 0.4.5
+## What is new in 0.4.7
+
+**Modules** (System → Modules): a folder in `modules/` brings capabilities,
+displays, pages, tables and more; never uploaded through the browser, tried
+before it is turned on, turned off without the admin when it stops the site
+([guide](docs/guide/en/17-modules.md), [PHP API](docs/php-api/32-modules.md)).
+
+## What was new in 0.4.5
 
 **A security fix:** a list in `config/local.php` (e.g. `admin.roles`) replaces
 the default list whole; before, a shorter one left the default's later items in

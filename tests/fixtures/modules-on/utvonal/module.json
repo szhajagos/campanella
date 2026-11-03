@@ -1,0 +1,1 @@
+{"name": "utvonal", "label": "Útvonal", "version": "1.0.0", "campanella": "*", "autoload": {"Utvonal\\": "src/"}}

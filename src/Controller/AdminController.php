@@ -159,6 +159,8 @@ final class AdminController implements Controller
         private readonly ?ColorSchemePages $colorSchemes = null,
         private readonly ?\Campanella\Admin\TreeArrangePages $treeArrange = null,
         private readonly ?\Campanella\Admin\ModulePages $modulePages = null,
+        private readonly ?\Campanella\Module\ModuleLoader $modules = null,
+        private readonly ?\Closure $makeModulePage = null,
     ) {
     }
 
@@ -214,6 +216,10 @@ final class AdminController implements Controller
     {
         // Users (since 0.1.0): their own pages, not the generic object forms.
         $render = fn (string $template, string $active, array $context): Response => $this->render($template, $active, $context);
+        // A module's page (since 0.4.7): /admin/module/<name>/….
+        if (($segments[0] ?? null) === 'module' && $this->modules !== null) {
+            return $this->modulePage($request, $actor, array_slice($segments, 1));
+        }
         if (($segments[0] ?? null) === UserService::BLUEPRINT) {
             return $this->userPages->users($request, $actor, array_slice($segments, 1), $render);
         }
@@ -1513,11 +1519,44 @@ final class AdminController implements Controller
     }
 
     /**
+     * A module's admin page (since 0.4.7): who may open it (the system roles, or with
+     * `editors` everyone who may enter the admin) and a POST's CSRF token checked here first.
+     *
+     * @param list<string> $segments The path after /admin/module
+     */
+    private function modulePage(Request $request, Actor $actor, array $segments): Response
+    {
+        $name = $segments[0] ?? '';
+        $page = ($this->modules?->loaded()[$name] ?? [])['admin'] ?? null;
+        if (!is_array($page) || $this->makeModulePage === null) {
+            throw HttpException::notFound();
+        }
+        if (!($page['editors'] ? $this->access->allows($actor) : $this->access->allowsSystem($actor))) {
+            throw new HttpException(403, 'error.forbidden');
+        }
+        if ($request->isPost() && !$this->csrf->isValid($request)) {
+            throw new HttpException(400, 'auth.form_expired');
+        }
+        $handler = ($this->makeModulePage)((string) $page['class']);
+        if (!$handler instanceof \Campanella\Module\AdminPage) {
+            throw HttpException::notFound();
+        }
+
+        return $handler->handle($request, $actor, array_slice($segments, 1), fn (string $template, array $context): Response => $this->render(
+            '@' . $name . '/' . $template,
+            'module_' . $name,
+            $context,
+        ));
+    }
+
+    /**
      * @param array<string, mixed> $context
      */
     private function render(string $template, string $active, array $context): Response
     {
-        return Response::html($this->presentation->render("@core/admin/{$template}.html.twig", $context + [
+        $template = str_starts_with($template, '@') ? $template : "@core/admin/{$template}.html.twig";
+
+        return Response::html($this->presentation->render($template, $context + [
             'active' => $active,
             // The menu in groups (since 0.3.3), for the actor.
             'admin_menu' => $this->actor !== null && $this->menu !== null ? $this->menu->build($this->actor) : [],

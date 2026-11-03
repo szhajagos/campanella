@@ -6,4 +6,5 @@ return [
     'hirlevel.box' => 'Subscribe to our newsletter!',
     'hirlevel.token' => 'The number of subscribers',
     'hirlevel.command' => 'Says hello',
+    'hirlevel.admin' => 'Newsletter',
 ];

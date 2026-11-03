@@ -6,4 +6,5 @@ return [
     'hirlevel.box' => 'Iratkozz fel a hírlevelünkre!',
     'hirlevel.token' => 'A feliratkozók száma',
     'hirlevel.command' => 'Köszön',
+    'hirlevel.admin' => 'Hírlevél',
 ];

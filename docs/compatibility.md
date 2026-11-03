@@ -76,6 +76,10 @@ copy with the new one when upgrading. The CHANGELOG lists such changes under
   0.4.x, and says so in the CHANGELOG (as 0.3.0 limited the searches a minute
   and made the content model's import stricter, and 0.3.7 routed the content
   paths after the system's own).
+- The modules' PHP API (chapter 32: `module.json`, `ModuleContext`, `Module`,
+  `AdminPage`, `Uninstallable` …) is new in 0.4.7 and grows with 0.5.0's steps;
+  what a module registers is promised from 0.5.0 on. A module says which
+  Campanella versions it works with (`campanella` in its `module.json`).
 - The accessibility of the core's pages may be improved in a 0.4.x (its
   markup, see above), as 0.4.0 did ([accessibility](accessibility.md)).
 

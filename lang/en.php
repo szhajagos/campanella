@@ -957,6 +957,9 @@ return [
     'media.picker.error' => 'The images could not be loaded.',
     // The redirects (0.2.7)
     'modules.title' => 'Modules',
+    'modules.trial.route_taken' => 'Something is at {path} already (a system page, a list, another module or a content item): the module\'s page cannot be there.',
+    'modules.brings.routes' => 'Pages',
+    'modules.brings.admin' => 'Admin page',
     'modules.usage.blueprint' => 'The Blueprint {blueprint} uses its capabilities: {capabilities}.',
     'modules.usage.components' => 'These components use its displays or sources: {components}.',
     'modules.usage.layout' => 'Its layout {layout} is the site\'s or a content type\'s.',

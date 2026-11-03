@@ -10,7 +10,16 @@ backward-incompatible.
 
 ## [Unreleased]
 
-**Modules, part 1.** The first step of 0.5.0's extensibility.
+## [0.4.7] – 2026-11-03
+
+**Modules.** The first step of 0.5.0's extensibility: what was planned as 0.4.6
+and 0.4.7, released together (0.4.6 has no release of its own).
+
+**Upgrading from 0.4.x (or 0.3.x):** upload the new files and run the upgrade as
+usual; no table changes. The new folders `modules/` (with a README) and
+`public/modules/` (with its `.htaccess`) come with the files; the web server must
+be able to write into `public/modules/` for a module with files of its own. From
+older versions: see [docs/upgrading.md](docs/upgrading.md).
 
 ### Added
 
@@ -49,6 +58,23 @@ backward-incompatible.
 - **Removing a module's data for good** (`Uninstallable`; *Remove its data…*
   with its name typed, `module:uninstall <name> --yes`): only while it is off,
   after a backup; turned on again, its tables are made anew.
+- **A module's pages** (`ModuleContext::route()`, `adminPage()`): public pages
+  routed last, only where nothing else is (the trial refuses a path taken by a
+  route or a content item); one admin page at `/admin/module/<name>/…`
+  (`AdminPage`) with an item in a group of the admin's menu, for the system
+  roles or the editors too, the CSRF token of a POST checked before the module's
+  code runs.
+
+### Documentation and tests
+
+- The guide's new chapter 17 (hu, en): adding a module, trying it, turning it on
+  and off, when the site does not start because of one, removing its data, with
+  screenshots. The PHP API's new chapter 32 for module makers.
+- Reviewed ([the review](docs/security.md#review-of-the-modules-047-2026-11-03)).
+  Tests: twelve test modules, one bringing one of everything and the others
+  each wrong in one way; the trial, turning on and off, a module failing on a
+  request, the tables, a newer version, the admin and the command line; a module
+  costs the front page no query.
 
 ## [0.4.5] – 2026-11-03
 

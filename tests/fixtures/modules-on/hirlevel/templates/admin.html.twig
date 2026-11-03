@@ -1,0 +1,7 @@
+{% extends '@core/admin/base.html.twig' %}
+
+{% block content %}
+    <h1 class="h3" id="hirlevel-admin">{{ t('hirlevel.admin') }}</h1>
+    <p>{{ segments|join('/') }}</p>
+    <form method="post">{{ csrf_field() }}<button type="submit">OK</button></form>
+{% endblock %}

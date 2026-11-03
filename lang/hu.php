@@ -955,6 +955,9 @@ return [
     'media.picker.error' => 'A képeket nem sikerült betölteni.',
     // The redirects (0.2.7)
     'modules.title' => 'Modulok',
+    'modules.trial.route_taken' => 'A(z) {path} útvonalon már van valami (egy rendszeroldal, lista, másik modul vagy egy tartalom): a modul oldala nem lehet ott.',
+    'modules.brings.routes' => 'Oldalak',
+    'modules.brings.admin' => 'Admin-oldal',
     'modules.usage.blueprint' => 'A(z) {blueprint} Blueprint használja a képességeit: {capabilities}.',
     'modules.usage.components' => 'Ezek a komponensek használják a megjelenítéseit vagy forrásait: {components}.',
     'modules.usage.layout' => 'A(z) {layout} elrendezése a webhelyé vagy egy tartalomtípusé.',

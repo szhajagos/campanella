@@ -6753,6 +6753,20 @@ test('Modules turned on (0.4.6): the trial, what a module brings, turning off, a
     check(\Hirlevel\Ertesites::$handled === $before + 1, 'its action on an event');
     check(str_starts_with($on->get(\Twig\Environment::class)->createTemplate("{{ module_asset('hirlevel', '../x/../hirlevel.css') }}")->render(), '/modules/hirlevel/x/hirlevel.css?v=1.2.0-'), 'module_asset(), without ..');
     check($boot()->handle(new Request('GET', '/'))->status === 200, 'the site with it');
+    // What it costs (0.4.7): the front page's queries with it on and with it off (each warmed up).
+    $queries = static function (array $more) use ($boot): array {
+        $boot($more)->handle(new Request('GET', '/'));
+        $k = $boot($more);
+        $db = $k->container()->get(Connection::class);
+        $count = static fn (): int => (int) ($db->fetchAll("SHOW SESSION STATUS LIKE 'Questions'")[0]['Value'] ?? 0);
+        $before = $count();
+        $status = $k->handle(new Request('GET', '/'))->status;
+
+        return [$status, $count() - $before - 1];
+    };
+    [$offStatus, $off] = $queries(['modules' => ['enabled' => []]]);
+    [$onStatus, $on2] = $queries(['modules' => ['enabled' => ['hirlevel']]]);
+    check($offStatus === 200 && $onStatus === 200 && $off > 5 && $on2 <= $off, "no query more for a module on: {$off} off, {$on2} on");
 
     // One that needs it; turning off.
     check($manager()->enable('ra_epul') === [] && $enabledNow() === 'hirlevel,ra_epul', 'one that needs it, after it');
@@ -6844,6 +6858,29 @@ test('Modules (0.4.7): a module\'s own tables, its newer version, not off while 
 
     // Not off while the site uses it: a Blueprint, a component, the colour scheme.
     check($manager()->enable('hirlevel') === [], 'hirlevel on');
+    // Its public page and its admin page (0.4.7).
+    $page = $boot()->handle(new Request('GET', '/hirlevel'));
+    check($page->status === 200 && str_contains($page->body, 'A hírlevél oldala'), 'its page: ' . $page->status);
+    $taken = $boot()->container()->get(\Campanella\Module\ModuleTrial::class)->run('utvonal')['problems'];
+    check(in_array('modules.trial.route_taken', $keys($taken), true) && $boot()->handle(new Request('GET', '/search'))->status === 200, 'not where the search is');
+    $edStorage = new ArraySessionStorage();
+    $edSend = function (string $method, string $path, array $post = []) use ($boot, $edStorage) {
+        $edStorage->endRequest();
+        $k = $boot();
+        $k->container()->set(Session::class, static fn () => new Session($edStorage));
+
+        return $k->handle(new Request($method, $path, post: $post));
+    };
+    $edLogin = $boot();
+    $edLogin->container()->set(Session::class, static fn () => new Session($edStorage));
+    $edLogin->container()->get(AuthService::class)->login(new Request('GET', '/'), $newUser('modul-szerk2@example.hu', 'modul-szerk2-jelszo-1', ['editor']));
+    $adminPage = $edSend('GET', '/admin/module/hirlevel/lista/2');
+    check($adminPage->status === 200 && str_contains($adminPage->body, 'id="hirlevel-admin">Hírlevél</h1>') && str_contains($adminPage->body, '<p>lista/2</p>') && str_contains($adminPage->body, 'href="/admin/module/hirlevel" aria-current="page">Hírlevél</a>'), 'its admin page, in the menu, for editors: ' . $adminPage->status);
+    $edCsrf = preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $adminPage->body, $m) === 1 ? $m[1] : '';
+    check($edSend('POST', '/admin/module/hirlevel', [])->status === 400 && $edSend('POST', '/admin/module/hirlevel', ['_csrf' => $edCsrf])->status === 303, 'a POST only with the CSRF token');
+    check($edSend('GET', '/admin/module/tablas')->status === 404 && $edSend('GET', '/admin/module/nincs')->status === 404, 'only a module\'s that has one');
+    $edStorage->endRequest();
+    check($boot()->handle(new Request('GET', '/admin/module/hirlevel'))->status !== 200, 'not without logging in');
     $store = $c->get(\Campanella\Model\BlueprintStore::class);
     $store->save('hirlevel_lista', ['version' => 1, 'label' => 'Lista', 'capabilities' => ['titled', 'hirlevel_feliratkozhato'], 'fields' => [], 'relations' => []]);
     $uses = $manager()->disable('hirlevel');
@@ -6898,6 +6935,52 @@ test('Modules (0.4.7): a module\'s own tables, its newer version, not off while 
     }
     $settings->set(['modules.enabled' => null]);
     putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('Security review (0.4.7): the modules: what they may register, their files, their pages', function (): void {
+    $fixtures = __DIR__ . '/fixtures/modules-on';
+    $manifest = \Campanella\Module\ModuleManifest::read(realpath($fixtures . '/hirlevel'));
+    check($manifest instanceof \Campanella\Module\ModuleManifest);
+    $context = new \Campanella\Module\ModuleContext($manifest);
+    $refused = static function (callable $do): bool {
+        try {
+            $do();
+        } catch (\Campanella\Module\ModuleException) {
+            return true;
+        }
+
+        return false;
+    };
+    \Campanella\Module\ModuleLoader::autoload($manifest);
+    check($refused(fn () => $context->capability(\Campanella\Capability\Titled::class)) && $refused(fn () => $context->display(\Hirlevel\Feliratkozhato::class)), 'only its own classes, of the right kind');
+    check($refused(fn () => $context->service(\Campanella\Settings\Settings::class, static fn () => new \stdClass())), 'never a core service');
+    foreach (['/admin2', '/assets/x', '/modules/hirlevel/x', '/media', '/files/1', '/install', 'hirlevel', '/../x', '/Hirlevel', '//x'] as $path) {
+        $bad = $refused(fn () => $context->route($path, \Hirlevel\Oldal::class));
+        check($path === '/admin2' ? !$bad : $bad, 'a route: ' . $path);
+    }
+    check($refused(fn () => $context->command(new class implements \Campanella\Cli\Command {
+        public function name(): string { return 'user:create'; }
+        public function description(): string { return ''; }
+        public function run(\Campanella\Core\Container $container, array $args, \Campanella\Cli\Output $output): int { return 0; }
+    })), 'a command only of its own name (and a class of its own)');
+    check($refused(fn () => $context->adminPage(\Hirlevel\Admin::class, 'x', 'nincs')), 'an admin page only in a group of the menu');
+    check(\Campanella\Module\ModuleRegistry::RESERVED !== [] && in_array('core', \Campanella\Module\ModuleRegistry::RESERVED, true) && in_array('user', \Campanella\Module\ModuleRegistry::RESERVED, true), 'the names of the core reserved');
+
+    // The autoloader stays in its source folder.
+    $before = get_included_files();
+    check(!class_exists('Hirlevel\\..\\..\\..\\config\\app') && get_included_files() === $before, 'no path out of the source folder');
+
+    // A module's templates never take a core template's place.
+    $loader = new \Campanella\View\TemplateLoader([dirname(__DIR__) . '/templates']);
+    $loader->addPath($fixtures . '/hirlevel/templates', 'hirlevel');
+    $loader->addModuleLayouts('hirlevel', $fixtures . '/hirlevel/templates');
+    check($loader->exists('layout/hirlevel_kampany.html.twig') && $loader->exists('@hirlevel/doboz.html.twig') && !$loader->exists('doboz.html.twig'), 'its own, under its name');
+    check(str_starts_with((string) $loader->getSourceContext('layout/one_column.html.twig')->getPath(), dirname(__DIR__) . '/templates/'), 'the core\'s layout stays the core\'s');
+
+    // Its files: never a PHP file, a hidden file or a link; the folder runs nothing.
+    check(\Campanella\Module\ModuleManager::publicFiles($manifest) === ['hirlevel.css', 'img/ikon.gif'], 'only plain files');
+    $htaccess = (string) file_get_contents(dirname(__DIR__) . '/public/modules/.htaccess');
+    check(str_contains($htaccess, 'php_flag engine off') && str_contains($htaccess, 'html?)$') && str_contains($htaccess, 'sandbox'), 'public/modules/.htaccess');
 });
 
 test('Security review (0.4.2): the colour schemes made in the admin', function () use ($newUser): void {

@@ -165,6 +165,23 @@ final class ModuleTrial
             $names[$command->name()] = true;
         }
         $brings['commands'] = array_map(static fn ($command): string => $command->name(), (array) $registered['commands']);
+
+        // Its pages (since 0.4.7): at their paths, not where something else is (a route, an object).
+        $router = $c->get(\Campanella\Http\Router::class);
+        $brings['routes'] = [];
+        foreach ((array) $registered['routes'] as $i => $route) {
+            $match = $router->match(new Request('GET', $route['path']));
+            $taken = $match->handler !== 'module.' . $manifest->name . '.' . $i;
+            if (!$taken) {
+                $found = $c->get(\Campanella\Query\QueryEngine::class)->execute(\Campanella\Query\Query::objects()->where('path', '=', $route['path'])->limit(1), \Campanella\Access\Actor::system());
+                $taken = count($found) > 0;
+            }
+            if ($taken) {
+                $problems[] = new Message('modules.trial.route_taken', ['path' => $route['path']]);
+            }
+            $brings['routes'][] = $route['path'];
+        }
+        $brings['admin'] = is_array($registered['admin']) ? ['/' . trim($c->get(\Campanella\Admin\AdminAccess::class)->path('module/' . $manifest->name), '/')] : [];
         $brings['tokens'] = array_map(static fn (string $class): string => substr($class, strrpos($class, '\\') + 1), (array) $registered['tokens']);
         $brings['events'] = array_keys((array) $registered['actions']);
 
