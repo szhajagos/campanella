@@ -158,6 +158,7 @@ final class AdminController implements Controller
         private readonly ?PageComponentPages $pageComponents = null,
         private readonly ?ColorSchemePages $colorSchemes = null,
         private readonly ?\Campanella\Admin\TreeArrangePages $treeArrange = null,
+        private readonly ?\Campanella\Admin\ModulePages $modulePages = null,
     ) {
     }
 
@@ -296,6 +297,10 @@ final class AdminController implements Controller
         // The colour schemes (since 0.3.6).
         if (($segments[0] ?? null) === 'color-schemes' && $this->colorSchemes !== null) {
             return $this->colorSchemes->handle($request, array_slice($segments, 1), fn (string $template, string $active, array $context): Response => $this->render($template, $active, $context));
+        }
+        // The modules (since 0.4.6).
+        if (($segments[0] ?? null) === 'modules' && $this->modulePages !== null) {
+            return $this->modulePages->handle($request, array_slice($segments, 1), fn (string $template, string $active, array $context): Response => $this->render($template, $active, $context));
         }
         // The redirects (since 0.2.7).
         if (($segments[0] ?? null) === 'redirects' && $this->redirectPages !== null) {

@@ -6,3 +6,5 @@
 !/public/media/.htaccess
 /var/backups/
 /var/files/
+/modules/*
+!/modules/README.md

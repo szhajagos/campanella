@@ -1,0 +1,1 @@
+{"name": "sajat_nevter", "label": "Mag névtere", "version": "1.0.0", "campanella": "*", "autoload": {"Campanella\\Hack\\": "src/"}}

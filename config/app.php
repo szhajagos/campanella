@@ -79,6 +79,14 @@ return [
         'prefix' => getenv('CAMPANELLA_DB_PREFIX') ?: 'cc_',
     ],
 
+    // Modules (since 0.4.6): folders in this folder, each with a module.json. They are turned on
+    // in the admin (System → Modules); `disabled` turns one off whatever the admin says, e.g. one
+    // that stops the site: ['newsletter']. See docs/php-api/32-modules.md.
+    'modules' => [
+        'directory' => 'modules',   // relative to the project's folder
+        'disabled' => [],
+    ],
+
     // The site's own migrations (class names), run after Campanella's own.
     // See docs/php-api/17-migrations.md.
     'migrations' => [],

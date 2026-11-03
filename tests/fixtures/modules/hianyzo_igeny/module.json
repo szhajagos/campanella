@@ -1,0 +1,1 @@
+{"name": "hianyzo_igeny", "label": "Hiányzó igény", "version": "1.0.0", "campanella": "*", "requires": {"nincs_ilyen": "^1"}, "autoload": {"HianyzoIgeny\\": "src/"}}

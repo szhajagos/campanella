@@ -35,6 +35,7 @@ final class Console
             new ImportRunCommand(),
             new ImportUndoCommand(),
             new SubmissionsPruneCommand(),
+            new ModuleListCommand(),
         ];
         foreach ($commands as $command) {
             $this->commands[$command->name()] = $command;

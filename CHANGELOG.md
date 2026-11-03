@@ -10,6 +10,21 @@ backward-incompatible.
 
 ## [Unreleased]
 
+**Modules, part 1 (a).** The first step of 0.5.0's extensibility.
+
+### Added
+
+- **The modules found and checked** ([PHP API, chapter 32](docs/php-api/32-modules.md)):
+  each folder of `modules/` with its `module.json` (its name, label, version,
+  the Campanella versions it works with, the modules it needs, its namespace;
+  `ModuleManifest`, versions and constraints by `Semver`), checked before
+  anything of it is loaded: a folder linking out, a `module.json` that is not
+  valid, another Campanella version, a module missing, of another version or in
+  a circle, a namespace twice (`ModuleRegistry`, `ModuleState`). *System →
+  Modules* and `module:list` list them, with the reasons. `modules.disabled` in
+  `config/local.php` turns a module off whatever the admin says, and the modules
+  that need it. Turning them on comes with part (b).
+
 ## [0.4.5] – 2026-11-03
 
 **A security fix in the configuration, and every setting described.** A small

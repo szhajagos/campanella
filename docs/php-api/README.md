@@ -36,6 +36,7 @@ namespace, in the `src/` folder (PSR-4).
 29. [Layouts and regions](29-layouts.md): layouts from JSON and a template (`LayoutDefinition`, `RegionDefinition`, `LayoutRegistry`), the page's layout (`LayoutService`), `region()`, where components show (`Conditions`), placing them (since 0.3.4)
 30. [Tokens](30-tokens.md): `[site:name]`, `[date:year]` … in the snippets' texts (`TokenRegistry`, `TokenProvider`), the `tokens` filter (since 0.3.4)
 31. [Appearance](31-appearance.md): colour schemes from JSON, readable by their contrast (`ColorScheme`, `ColorSchemeRegistry`), the colour mode and the visitor's own (`Appearance`), `color_mode()`, `color_scheme_url()` (since 0.3.6)
+32. [Modules](32-modules.md): a module's folder and `module.json` (`ModuleManifest`), versions and constraints (`Semver`), the modules found, checked and where each stands (`ModuleRegistry`, `ModuleState`), *System → Modules*, `module:list` (since 0.4.6)
 
 ## Namespaces
 

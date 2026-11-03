@@ -138,6 +138,7 @@ New controller: a `controller.<name>` entry in the container, and a route in
 | `timezone` | `'Europe/Budapest'` | |
 | `locale` | `'hu'` | `CAMPANELLA_LOCALE` ([chapter 12](12-translation.md#choosing-the-language)) |
 | `theme` | `''` (no theme) | `CAMPANELLA_THEME` ([chapter 7](07-http-and-view.md#theme)) |
+| `modules.directory`, `modules.disabled` | `'modules'`, `[]` | Since 0.4.6: the modules' folder, and the modules not loaded whatever the admin says ([chapter 32](32-modules.md)) |
 | `admin.path`, `admin.roles` | `'/admin'`, `['administrator', 'editor']` | ([chapter 13](13-admin.md#access)) |
 | `media.*` | see [chapter 16](16-media.md#settings-configappphp-media) | Uploaded images |
 | `admin.system_roles` | `['administrator']` | Who may open the System page ([chapter 14](14-system-check.md)) |
@@ -192,6 +193,7 @@ from ([chapter 17](17-migrations.md#the-oldest-version-that-can-be-upgraded)).
 | `import:undo` | Deletes the objects a run of an importer made, after a backup; without `--yes` it only says how many (since 0.3.1; [chapter 26](26-importers.md)) |
 | `media:variants` | Makes the smaller copies of the images that have none yet; `--all`: of every image again (since 0.1.2; [chapter 16](16-media.md#smaller-copies-variants)) |
 | `seed [--locale=en]` | Sample content, in the site's language (since 0.3.7; `--locale` asks for another; [below](#the-sample-content)). Can be run repeatedly: whatever already exists by path is not created again. Since 0.3.0 also a content model as the admin makes it: the Blueprint `esemeny` (*Esemény*: a start, a kind, a venue, a ticket price; 3 admin columns), the list `esemenyek` of the upcoming ones at `/esemenyek` (a table, with 3 visitors' filters), and seven events (one in the past); imported as System → Content model does, only if the site has neither of these names |
+| `module:list` | The modules of the modules folder, their versions and where each stands, with the reasons when one cannot be used; exits with `1` if one is broken (since 0.4.6; [chapter 32](32-modules.md)) |
 | `status` | Version, the system check ([chapter 14](14-system-check.md)), capabilities, Blueprints, object count; reports if the database needs an upgrade. Exits with `1` if a check reports an error |
 | `schema:check` | Compares the table definitions with the database and lists the differences (exits with `1` if there is one; a table no definition has is only reported); `--sql`: prints the statements of the additive ones, and those that would lose data as comments. Changes nothing ([chapter 8](08-database.md#comparing-schemacomparator)) |
 | `html:sanitize` | Filters the stored HTML texts with the allowlist; `--dry-run`: only lists them ([chapter 15](15-html.md#texts-stored-earlier-htmlsanitize)) |
@@ -233,7 +235,7 @@ module system it will become registrable.
 |---|---|
 | `Console` · **Internal** | `__construct(Kernel $kernel, Output $output = new Output())`, `run(array $argv): int` |
 | `Output` · **Public** | `__construct($stream = STDOUT, $errors = STDERR)`; `line(string $text = '')`, `success(string $text)` (with a ✔ mark), `error(string $text)` (with a ✘ mark, to the error stream), `raw(string $text)` (as it is, without a line break; since 0.2.6) |
-| `InstallCommand`, `SeedCommand`, `StatusCommand`, `HtmlSanitizeCommand`, `SchemaCheckCommand`, `MigrateCommand`, `DbBackupCommand`, `ModelExportCommand`, `ModelImportCommand`, `SearchIndexCommand`, `ImportRunCommand`, `ImportUndoCommand`, `SubmissionsPruneCommand`, `MigrationRunner` · **Internal** | The built-in commands |
+| `InstallCommand`, `SeedCommand`, `StatusCommand`, `HtmlSanitizeCommand`, `SchemaCheckCommand`, `MigrateCommand`, `DbBackupCommand`, `ModelExportCommand`, `ModelImportCommand`, `SearchIndexCommand`, `ImportRunCommand`, `ImportUndoCommand`, `SubmissionsPruneCommand`, `ModuleListCommand`, `MigrationRunner` · **Internal** | The built-in commands |
 | `InstallCommand::layoutSetup(Container $container, Output $output): void` · **Internal** | Since 0.3.4: after `install` and `migrate`, the header and footer as components, once (`LayoutSetup`, [chapter 29](29-layouts.md#the-header-and-footer-layoutsetup)); says which were made |
 | `SeedContent`, `SeedReader` · **Internal** | Since 0.3.7: a sample content file, read and checked ([below](#the-sample-content)) |
 

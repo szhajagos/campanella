@@ -1,0 +1,1 @@
+{"name": "kor_a", "label": "Kör A", "version": "1.0.0", "campanella": "*", "requires": {"kor_b": "*"}, "autoload": {"KorA\\": "src/"}}

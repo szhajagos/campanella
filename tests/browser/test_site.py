@@ -467,7 +467,7 @@ ADMIN_PAGES = [
     "/admin/system/importers", "/admin/system/importers/new",
     "/admin/component", "/admin/component/new/source", "/admin/snippet/new",
 ]
-ADMINISTRATORS_ONLY = ["/admin/component", "/admin/component/new/source", "/admin/user", "/admin/user/new", "/admin/submission", "/admin/system", "/admin/system/settings", "/admin/system/mail", "/admin/system/color-schemes",
+ADMINISTRATORS_ONLY = ["/admin/component", "/admin/system/modules", "/admin/component/new/source", "/admin/user", "/admin/user/new", "/admin/submission", "/admin/system", "/admin/system/settings", "/admin/system/mail", "/admin/system/color-schemes",
                        "/admin/system/blueprints", "/admin/system/lists", "/admin/system/model", "/admin/system/redirects",
                        "/admin/system/importers", "/admin/system/importers/new"]
 
@@ -884,7 +884,8 @@ def test_dragging(browser):
     check(drag_into(page, moved, target).ok, "not saved into the footer")
     check(page.locator("#region-footer .admin-region-item", has_text=header[0]).count() == 1, "not moved on the page")
     page.reload()
-    check(items_of(page, "footer") == footer + [header[0]], "not in the footer: " + str(items_of(page, "footer")))
+    # Into the footer (just before or after its last one: where the pointer lands is not exact).
+    check(sorted(items_of(page, "footer")) == sorted(footer + [header[0]]), "not in the footer: " + str(items_of(page, "footer")))
     check(header[0] not in items_of(page, "navigation"), "still in the navigation")
     # Back with the buttons: the footer's Take out, then Add to the navigation (moves it to the end), then Up.
     with page.expect_navigation():

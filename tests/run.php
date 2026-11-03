@@ -279,6 +279,73 @@ echo "Campanella tests (PHP " . PHP_VERSION . ", " . $db->serverVersion() . ")\n
 echo "Support\n";
 
 
+test('Semver (0.4.6): versions and constraints as a module.json writes them', function (): void {
+    $S = \Campanella\Module\Semver::class;
+    foreach ([['0.4.6', '^0.4.6', true], ['0.4.9', '^0.4.6', true], ['0.5.0', '^0.4.6', false], ['0.4.5', '^0.4.6', false], ['0.0.3', '^0.0.3', true], ['0.0.4', '^0.0.3', false],
+        ['1.9.0', '^1.2', true], ['2.0.0', '^1.2', false], ['0.9.0', '^0', true], ['1.2.9', '~1.2.3', true], ['1.3.0', '~1.2.3', false], ['1.2.0', '~1.2', true],
+        ['1.2.3', '1.2.3', true], ['1.2.4', '1.2', true], ['1.3.0', '1.2', false], ['5.0.0', '*', true], ['0.4.7', '>=0.4.6 <0.5', true], ['0.3.1', '>=0.4.6 || ^0.3', true],
+        ['0.5.0-alpha', '^0.4.6', false], ['1.2.0-beta', '>=1.2.0-alpha', true], ['1.2.0', '<=1.2.0', true], ['1.2.1', '>1.2.0 <1.2.1', false]] as [$version, $constraint, $expected]) {
+        check($S::satisfies($version, $constraint) === $expected, "{$version} {$constraint}");
+    }
+    foreach (['', '>>1', '1.2.3.4', '^', 'x', '1.2 ||', '01.2.3', '1.x', str_repeat('1 ', 120)] as $bad) {
+        check(!$S::isConstraint($bad), 'not a constraint: ' . substr($bad, 0, 12));
+    }
+    check($S::isVersion('1.0.0-rc.1') && !$S::isVersion('1.0') && !$S::isVersion('v1.0.0') && !$S::isVersion('1.0.0+build'), 'versions');
+    check($S::compare('1.0.0-alpha', '1.0.0') === -1 && $S::compare('1.0.0-alpha.2', '1.0.0-alpha.10') === -1 && $S::compare('1.0.0-beta', '1.0.0-alpha') === 1 && $S::compare('2.0.0', '1.9.9') === 1 && $S::compare('1.2.3', '1.2.3') === 0, 'their order');
+    check(!$S::satisfies('nem', '*') && !$S::satisfies('1.0.0', 'nem'), 'what cannot be read satisfies nothing');
+});
+
+test('ModuleRegistry (0.4.6): the modules found and checked; on, off, not loaded; the order to load them', function (): void {
+    $fixtures = __DIR__ . '/fixtures/modules';
+    $registry = new \Campanella\Module\ModuleRegistry($fixtures, '0.4.6');
+    $all = $registry->all();
+    $status = static fn (\Campanella\Module\ModuleRegistry $r, string $name): string => $r->get($name)->status ?? '-';
+    $keys = static fn (\Campanella\Module\ModuleRegistry $r, string $name): array => array_map(static fn ($m): string => $m->key, $r->get($name)->problems ?? []);
+    check(array_keys($all) === ['Nagy', 'belepes_nelkul', 'hianyzo_igeny', 'hirlevel', 'hirlevel_extra', 'kor_a', 'kor_b', 'regi_mag', 'rossz_json', 'sajat_nevter'], json_encode(array_keys($all)));
+    $hirlevel = $registry->get('hirlevel')?->manifest;
+    check($status($registry, 'hirlevel') === 'off' && $hirlevel?->label === 'Hírlevél' && $hirlevel->version === '1.2.0' && $hirlevel->namespace === 'Hirlevel\\' && $hirlevel->entryClass() === 'Hirlevel\\Module' && $hirlevel->sourceDir === realpath($fixtures . '/hirlevel/src'), 'a good one, off');
+    foreach (['Nagy' => 'modules.problem.folder', 'rossz_json' => 'modules.problem.manifest_json', 'regi_mag' => 'modules.problem.core_version', 'hianyzo_igeny' => 'modules.problem.requires_missing',
+        'kor_a' => 'modules.problem.circle', 'kor_b' => 'modules.problem.circle', 'belepes_nelkul' => 'modules.problem.entry', 'sajat_nevter' => 'modules.problem.namespace'] as $name => $key) {
+        check($status($registry, $name) === 'broken' && in_array($key, $keys($registry, $name), true), $name . ': ' . json_encode($keys($registry, $name)));
+    }
+    check($registry->loadOrder() === [], 'nothing on: nothing loaded');
+
+    // On: in the order they need; turned off locally, and what needs it.
+    $on = new \Campanella\Module\ModuleRegistry($fixtures, '0.4.6', ['hirlevel_extra', 'hirlevel', 'kor_a', 'regi_mag']);
+    check(array_map(static fn ($m): string => $m->name, $on->loadOrder()) === ['hirlevel', 'hirlevel_extra'], 'what it needs first: ' . json_encode(array_map(static fn ($m): string => $m->name, $on->loadOrder())));
+    check($status($on, 'kor_a') === 'broken' && $on->get('kor_a')->enabled && $status($on, 'regi_mag') === 'broken', 'a broken one is never loaded, even if on');
+    $local = new \Campanella\Module\ModuleRegistry($fixtures, '0.4.6', ['hirlevel', 'hirlevel_extra'], ['hirlevel']);
+    check($status($local, 'hirlevel') === 'not_loaded' && $keys($local, 'hirlevel') === ['modules.problem.disabled_locally'], 'config/local.php wins');
+    check($status($local, 'hirlevel_extra') === 'not_loaded' && $keys($local, 'hirlevel_extra') === ['modules.problem.requires_off'] && $local->loadOrder() === [], 'and what needs it is not loaded either');
+    check($status(new \Campanella\Module\ModuleRegistry($fixtures, '0.4.6', ['hirlevel_extra']), 'hirlevel_extra') === 'not_loaded', 'not without the module it needs on');
+    check($status(new \Campanella\Module\ModuleRegistry($fixtures, '0.6.0', ['hirlevel']), 'hirlevel') === 'broken', 'another Campanella version');
+
+    // In a folder of its own: a link out of it, a version it does not accept, one namespace twice.
+    $dir = sys_get_temp_dir() . '/campanella-modules-' . bin2hex(random_bytes(4));
+    mkdir($dir);
+    mkdir($dir . '/kint/src', 0777, true);
+    file_put_contents($dir . '/kint/module.json', '{"name": "kint", "label": "Kint", "version": "1.0.0", "campanella": "*", "autoload": {"Kint\\\\": "src/"}}');
+    touch($dir . '/kint/src/Module.php');
+    $folder = $dir . '/modules';
+    mkdir($folder);
+    symlink($dir . '/kint', $folder . '/kint');
+    mkdir($folder . '/regi/src', 0777, true);
+    file_put_contents($folder . '/regi/module.json', '{"name": "regi", "label": "Régi", "version": "1.0.0", "campanella": "*", "autoload": {"Hirlevel\\\\": "src/"}}');
+    touch($folder . '/regi/src/Module.php');
+    mkdir($folder . '/uj/src', 0777, true);
+    file_put_contents($folder . '/uj/module.json', '{"name": "uj", "label": "Új", "version": "1.0.0", "campanella": "*", "requires": {"regi": "^2.0"}, "autoload": {"HIRLEVEL\\\\": "src/"}}');
+    touch($folder . '/uj/src/Module.php');
+    mkdir($folder . '/kifele/src', 0777, true);
+    file_put_contents($folder . '/kifele/module.json', '{"name": "kifele", "label": "Kifelé", "version": "1.0.0", "campanella": "*", "autoload": {"Kifele\\\\": "../../kint/src/"}}');
+    $own = new \Campanella\Module\ModuleRegistry($folder, '0.4.6');
+    check($status($own, 'kint') === 'broken' && $keys($own, 'kint') === ['modules.problem.link'], 'a link out: ' . json_encode($keys($own, 'kint')));
+    check($status($own, 'kifele') === 'broken' && $keys($own, 'kifele') === ['modules.problem.autoload'], 'a source out of it');
+    check($keys($own, 'regi') === ['modules.problem.namespace_taken'] && in_array('modules.problem.namespace_taken', $keys($own, 'uj'), true) && in_array('modules.problem.requires_version', $keys($own, 'uj'), true), 'one namespace twice; a version it does not accept: ' . json_encode([$keys($own, 'regi'), $keys($own, 'uj')]));
+    check((new \Campanella\Module\ModuleRegistry($dir . '/nincs', '0.4.6'))->all() === [], 'no folder: no modules');
+    exec('rm -rf ' . escapeshellarg($dir));
+    check(\Campanella\Module\ModuleRegistry::namesOf(' hirlevel, ,Rossz,hirlevel,uj_modul') === ['hirlevel', 'uj_modul'], 'the setting\'s names');
+});
+
 test('Config::merge() (0.4.5): local.php over app.php key by key; a list replaced whole', function (): void {
     $base = ['debug' => false, 'admin' => ['path' => '/admin', 'roles' => ['administrator', 'editor']], 'files' => ['types' => ['pdf', 'docx', 'txt']], 'mail' => ['dsn' => '', 'from' => '']];
     $merged = Config::merge($base, ['debug' => true, 'admin' => ['roles' => ['administrator']], 'files' => ['types' => ['pdf']], 'mail' => ['dsn' => 'smtp://x:25'], 'new' => ['a' => 1]]);
@@ -1774,7 +1841,7 @@ test('AdminMenu: the groups and their links, by who looks; a module\'s links', f
     check(in_array('article', $content, true) && in_array('snippet', $content, true) && !array_intersect(['user', 'submission', 'component', 'image', 'file'], $content), implode(',', $content));
     check($items($full, 'media') === ['media', 'image', 'file'] && $items($full, 'audience') === ['submission', 'user']);
     check($items($full, 'appearance') === ['component', 'regions', 'layouts', 'color_schemes'] && $items($full, 'structure') === ['blueprints', 'capabilities', 'lists', 'model']);
-    check($items($full, 'system') === ['system', 'settings', 'mail', 'importers', 'redirects']);
+    check($items($full, 'system') === ['system', 'settings', 'mail', 'importers', 'redirects', 'modules']);
     check($names($menu->build($editor)) === ['content', 'media'], 'an editor sees the system groups: ' . implode(',', $names($menu->build($editor))));
 
     $menu->add(\Campanella\Admin\AdminMenu::SYSTEM, static fn (Actor $actor): array => [new \Campanella\Admin\AdminMenuItem('backup', 'Mentések', 'system/backup')]);
@@ -6596,6 +6663,43 @@ test('Security review (0.4.4): dragging: who, what is sent, the headers', functi
 
     $objects->delete($system, $repository->find((int) $item->id()));
     $objects->delete($system, $repository->find((int) $menu->id()));
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('Kernel: the modules page (System → Modules) and module:list (0.4.6)', function () use ($newUser): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $c = $kernel->container();
+    if ($c->get(Connection::class)->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $c->set(\Campanella\Module\ModuleRegistry::class, static fn () => new \Campanella\Module\ModuleRegistry(__DIR__ . '/fixtures/modules', '0.4.6', ['hirlevel']));
+    $storage = new ArraySessionStorage();
+    $c->set(Session::class, static fn () => new Session($storage));
+    $auth = $c->get(AuthService::class);
+    $send = function (string $method, string $path) use ($kernel, $storage) {
+        $storage->endRequest();
+
+        return $kernel->handle(new Request($method, $path));
+    };
+    $auth->login(new Request('GET', '/'), $newUser('modul-szerk@example.hu', 'modul-jelszo-1', ['editor']));
+    check($send('GET', '/admin/system/modules')->status === 403, 'not for editors');
+    $auth->login(new Request('GET', '/'), $newUser('modul-admin@example.hu', 'modul-jelszo-1', ['administrator']));
+    $page = $send('GET', '/admin/system/modules');
+    check($page->status === 200 && str_contains($page->body, 'href="/admin/system/modules" aria-current="page">Modulok</a>'), 'in the System group');
+    check(preg_match('#id="module-hirlevel".*?Hírlevél.*?1\.2\.0.*?\^0\.4\.6.*?Bekapcsolva#s', $page->body) === 1, 'a module on, its version and what it needs');
+    check(preg_match('#id="module-hirlevel_extra".*?hirlevel <code>\^1\.1</code>.*?Kikapcsolva#s', $page->body) === 1, 'one off, with the module it needs');
+    check(preg_match('#id="module-regi_mag".*?Nem használható.*?Ehhez a Campanella-verzióhoz nem való: \^0\.3 kell, ez a 0\.4\.6\.#s', $page->body) === 1, 'a broken one, with the reason');
+    check(str_contains($page->body, 'teljes jogú programkód'), 'the warning about trust');
+    check($send('POST', '/admin/system/modules')->status !== 200 && $send('GET', '/admin/system/modules/hirlevel')->status === 404, 'nothing else yet');
+
+    $stream = fopen('php://memory', 'w+');
+    $code = (new \Campanella\Cli\ModuleListCommand())->run($c, [], new \Campanella\Cli\Output($stream, $stream));
+    rewind($stream);
+    $text = (string) stream_get_contents($stream);
+    check($code === 1 && preg_match('/^hirlevel\s+1\.2\.0\s+Bekapcsolva$/m', $text) === 1 && str_contains($text, '    Igényli a(z) nincs_ilyen modult (^1), de az nincs meg.'), 'module:list; 1 for a broken one: ' . $text);
     putenv('CAMPANELLA_DB_PREFIX');
 });
 

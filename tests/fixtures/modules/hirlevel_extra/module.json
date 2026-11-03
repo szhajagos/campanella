@@ -1,0 +1,1 @@
+{"name": "hirlevel_extra", "label": "Hírlevél extra", "version": "0.1.0", "campanella": ">=0.4.6 <0.6", "requires": {"hirlevel": "^1.1"}, "autoload": {"HirlevelExtra\\": "src/"}}

@@ -81,6 +81,16 @@ return [
     // ],
 
     // ------------------------------------------------------------------------------
+    // Modules: folders in modules/, each with a module.json, turned on in the admin
+    // (System → Modules). A module listed here is not loaded, whatever the admin says,
+    // nor the modules that need it, until it is taken out of the list: the way to turn
+    // off one that stops the site. (Or: php bin/campanella module:disable <name>.)
+    // 'modules' => [
+    //     'directory' => 'modules',
+    //     'disabled' => [],                 // e.g. ['newsletter']
+    // ],
+
+    // ------------------------------------------------------------------------------
     // The admin: its address, the roles that may enter it, and the roles that may open
     // its System pages (settings, e-mail, upgrades, colour schemes, modules …).
     // 'admin' => [

@@ -443,6 +443,25 @@ final class Kernel
             $c->get(Config::class)->get('database'),
         ));
 
+        // The modules (since 0.4.6): found and checked; those turned on are in the settings,
+        // config/local.php's `modules.disabled` turns one off whatever the settings say.
+        $c->set(\Campanella\Module\ModuleRegistry::class, static function (Container $c) use ($root): \Campanella\Module\ModuleRegistry {
+            $directory = (string) $c->get(Config::class)->get('modules.directory', 'modules');
+            try {
+                $enabled = \Campanella\Module\ModuleRegistry::namesOf($c->get(Settings::class)->get('modules.enabled'));
+            } catch (\PDOException) {
+                $enabled = [];
+            }
+            $disabled = $c->get(Config::class)->get('modules.disabled', []);
+
+            return new \Campanella\Module\ModuleRegistry(
+                str_starts_with($directory, '/') ? $directory : $root . '/' . $directory,
+                Version::CAMPANELLA,
+                $enabled,
+                is_array($disabled) ? array_values(array_filter($disabled, is_string(...))) : [],
+            );
+        });
+
         $c->set(CapabilityRegistry::class, static fn (Container $c): CapabilityRegistry => new CapabilityRegistry(
             $c->get(Config::class)->get('capabilities', []),
         ));
@@ -1226,6 +1245,7 @@ final class Kernel
                 $c->get(Flash::class),
                 $c->get(AdminAccess::class),
             ),
+            new \Campanella\Admin\ModulePages($c->get(\Campanella\Module\ModuleRegistry::class)),
         ));
 
         $c->set(ObjectForm::class, static fn (Container $c): ObjectForm => new ObjectForm(

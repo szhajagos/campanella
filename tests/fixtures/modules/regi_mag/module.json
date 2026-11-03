@@ -1,0 +1,1 @@
+{"name": "regi_mag", "label": "Régi", "version": "1.0.0", "campanella": "^0.3", "autoload": {"RegiMag\\": "src/"}}

@@ -1,0 +1,1 @@
+{"name": "belepes_nelkul", "label": "Belépés nélkül", "version": "1.0.0", "campanella": "*", "autoload": {"BelepesNelkul\\": "src/"}}
