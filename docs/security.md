@@ -126,6 +126,18 @@ version: upgrade it to 0.3.x ([Upgrading](upgrading.md)).
   may see, and puts an apostrophe before a text a spreadsheet would run as a
   formula (`=`, `+`, `-`, `@`).
 
+## A fix in the configuration, 0.4.5 (2026-11-03)
+
+Found while describing every setting in `config/local.php.dist`: `config/local.php`
+was merged over `config/app.php` with PHP's `array_replace_recursive()`, which
+replaces a list item by item. A shorter list in `local.php` left the default's
+later items in place, so a site that narrowed `admin.roles` to
+`['administrator']` still let editors into the admin, and a shorter
+`files.types` still accepted the types after it. Since 0.4.5 `Config::merge()`
+merges the keyed parts key by key and replaces a list whole (a test for each
+case). Only sites that shortened such a list in `local.php` were affected; the
+upgrade guide says what to check.
+
 ## Review of dragging, 0.4.4 (2026-11-02)
 
 What 0.4.4 added, reviewed with tests for each point (`Security review (0.4.4)`

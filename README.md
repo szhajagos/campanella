@@ -1,4 +1,4 @@
-# Campanella 0.4.4
+# Campanella 0.4.5
 
 [![CI](https://github.com/szhajagos/campanella/actions/workflows/ci.yml/badge.svg)](https://github.com/szhajagos/campanella/actions/workflows/ci.yml)
 
@@ -17,7 +17,14 @@ with a light and a dark mode, sample content in the site's language; and what
 0.4.x keeps is promised (see the [compatibility promise](docs/compatibility.md)).
 Plans are in the [ROADMAP](ROADMAP.md), changes in the [CHANGELOG](CHANGELOG.md).
 
-## What is new in 0.4.4
+## What is new in 0.4.5
+
+**A security fix:** a list in `config/local.php` (e.g. `admin.roles`) replaces
+the default list whole; before, a shorter one left the default's later items in
+place (e.g. editors could still enter the admin). And `config/local.php.dist`
+now describes every setting ([CHANGELOG](CHANGELOG.md)).
+
+## What was new in 0.4.4
 
 **Dragging** in the admin: the components on *Appearance → Regions* and on a
 page, also from one region to another, and a menu's items, also under one

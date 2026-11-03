@@ -1,14 +1,14 @@
 # Upgrading to 0.4.0
 
 This guide takes a site from **any 0.4.x, 0.3.x, 0.2.x or 0.1.x version** to
-the newest 0.4.x (now **0.4.4**), in one go. You do not need to install
+the newest 0.4.x (now **0.4.5**), in one go. You do not need to install
 the versions in between: one upgrade runs every change since your version. The
 CHANGELOG has the same steps version by version; this page puts them
 together, and adds what to check and how to go back.
 
 | Your version | What to do |
 |---|---|
-| 0.4.0 – 0.4.3 | Upload the new files and run the upgrade (steps 1–3); 0.4.1, 0.4.3 and 0.4.4 change no table, 0.4.2 adds the colour schemes' (schema 22). CI upgrades every 0.4.x to the current code on every push. |
+| 0.4.0 – 0.4.4 | Upload the new files and run the upgrade (steps 1–3); 0.4.1, 0.4.3, 0.4.4 and 0.4.5 change no table, 0.4.2 adds the colour schemes' (schema 22). Since 0.4.5 a list in `config/local.php` replaces the default whole: check the lists you changed there (below). CI upgrades every 0.4.x to the current code on every push. |
 | 0.3.0 – 0.3.7 | Upload the new files and run the upgrade (steps 1–3); read [From 0.3.x](#from-03x) for what 0.4.0 changes. 0.3.1 adds the importers' tables (schema 17), 0.3.2 the files' (schema 18), 0.3.3 the components' (schema 19), 0.3.4 a component's region (schema 20) and makes the header and footer components, 0.3.5 a component's page (schema 21); 0.3.6 and 0.3.7 change no table. Back up `var/files/` from 0.3.2 on (step 1). CI upgrades every 0.3.x to the current code on every push, 0.3.7 with everything of 0.3.2–0.3.7 in use (restricted files, components in regions, a layout with a sidebar, a page of components as the front page, a colour scheme), in Hungarian and as an English site. |
 | 0.2.0 – 0.2.9 | This guide. Supported and tested: CI upgrades 0.2.0 and 0.2.9 to the current code on every push, the latter with a content model made in the admin (`tests/upgrade/run.sh`). |
 | 0.1.0 – 0.1.5 | This guide, and also [From 0.1.x](#from-01x) below. Tested too: CI upgrades 0.1.0 and 0.1.5. |
@@ -70,7 +70,7 @@ on); what behaves differently in [What behaves differently](#what-behaves-differ
 
    Copy them off the server.
 
-2. **Upload the new version.** Use the release package (`campanella-0.4.4.zip`
+2. **Upload the new version.** Use the release package (`campanella-0.4.5.zip`
    from the GitHub release); it includes the `vendor/` folder. With git:
    `git pull`, then `composer install --no-dev`.
 
@@ -172,6 +172,15 @@ without it, the core's own and `snippet`; [chapter 30](php-api/30-tokens.md)).
 
 ## What behaves differently
 
+- **A list in `config/local.php` replaces the default whole** (0.4.5, a
+  security fix). Before, a shorter list replaced only the first items: e.g.
+  `'admin' => ['roles' => ['administrator']]` still let editors in, because the
+  default `['administrator', 'editor']` kept its second item. Now the list means
+  what it says. Look through the lists you set there (`admin.roles`,
+  `admin.system_roles`, `users.roles`, `files.types`, `media.variants`,
+  `contact.notify_to`, `trusted_proxies`, the guards): if you meant to keep an
+  item of the default, write it in. `config/local.php.dist` describes every
+  setting.
 - **The search's page is at `/search`** (0.2.7). If an object of your site
   had that path, the search answers there now: give the search another
   address (`'paths' => ['search' => '/kereses']`) or the object another path.
@@ -422,7 +431,9 @@ in the [CHANGELOG](../CHANGELOG.md) list every change of the
 
 ## Checklist after the upgrade
 
-- [ ] The System page (*System → Status*) shows 0.4.4, no error and no warning
+- [ ] The System page (*System → Status*) shows 0.4.5, no error and no warning
+- [ ] The lists you set in `config/local.php` (if any) are complete (0.4.5): e.g. the
+      editors can or cannot enter the admin, as you meant
       about PHP's JIT, the tables match the definitions, and no page is missing
       from the search; under *Images and files* the files' folder is writable.
 - [ ] The site's header shows its name, the main menu, the search and the

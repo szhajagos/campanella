@@ -10,6 +10,18 @@ backward-incompatible.
 
 ## [Unreleased]
 
+## [0.4.5] – 2026-11-03
+
+**A security fix in the configuration, and every setting described.** A small
+step after 0.4.4, released at once for the fix.
+
+**Upgrading from 0.4.x (or 0.3.x):** upload the new files and run the upgrade as
+usual; no table changes. **Check your `config/local.php`:** a list in it (e.g.
+`admin.roles`, `files.types`, `contact.notify_to`) now means exactly what it says.
+If you shortened a list there, the items the default had after it no longer
+apply (that is the fix); if you meant to keep them, write them in. From older
+versions: see [docs/upgrading.md](docs/upgrading.md).
+
 ### Changed
 
 - **`config/local.php.dist` describes every setting**: what each one does, its
