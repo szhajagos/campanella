@@ -3,24 +3,191 @@
 declare(strict_types=1);
 
 /*
- * Copy this file to local.php and fill in your hosting details.
- * local.php is not under version control.
+ * The settings of this installation. Copy this file to config/local.php and fill in
+ * your hosting details; local.php is not under version control, and it is never
+ * overwritten by an upgrade.
+ *
+ * How it works: config/app.php has every setting with its default; what you write
+ * here replaces it, key by key (you only write what you change). A list, e.g.
+ * 'roles' => ['administrator'], replaces the default list whole.
+ *
+ * Only `database` (and `debug`) are active below; everything else is commented out
+ * with its default value: remove the // in front of the lines you need. Some values
+ * can also come from environment variables (e.g. in Docker): those are named; a
+ * value written here wins over them.
+ *
+ * Many things are not set here but in the admin: the site's name, address and
+ * front page (System → Site settings), the layouts, regions and colour schemes
+ * (Appearance). The documentation: docs/deployment.md (a public server),
+ * docs/php-api/09-system.md (every key).
  */
 return [
-    // Debug mode shows error details to every visitor: only on your own machine,
+    // ------------------------------------------------------------------------------
+    // Debug mode. true shows error details to EVERY visitor: only on your own machine,
     // never on a public server (the admin's System page warns while it is on).
+    // Environment variable: CAMPANELLA_DEBUG.
     'debug' => false,
 
-    // Installing from the browser (/install) needs a key of at least 20 characters,
-    // e.g. the output of: php -r "echo bin2hex(random_bytes(20));". Remove it once
-    // installed.
-    // 'install' => ['key' => ''],
-
+    // ------------------------------------------------------------------------------
+    // The database (MariaDB 10.6+ or MySQL 8.0+). `prefix` is put before every table's
+    // name, so several sites can share one database (each with its own prefix).
+    // Environment variables: CAMPANELLA_DB_HOST, _PORT, _NAME, _USER, _PASSWORD, _PREFIX.
     'database' => [
         'host' => 'localhost',
+        'port' => 3306,
         'name' => 'campanella',
         'user' => 'campanella',
         'password' => 'secret-password',
         'prefix' => 'cc_',
     ],
+
+    // ------------------------------------------------------------------------------
+    // Installing from the browser (/install) needs a key of at least 20 characters,
+    // e.g. the output of:  php -r "echo bin2hex(random_bytes(20));"
+    // Remove it once the site is installed. (On the command line: php bin/campanella install.)
+    // 'install' => ['key' => ''],
+
+    // Upgrading from the browser (/admin/upgrade) works for a logged-in administrator.
+    // If logging in does not work until the upgrade has run, set a key of at least 20
+    // characters, open /admin/upgrade with it, then remove it. See docs/upgrading.md.
+    // 'upgrade' => ['key' => ''],
+
+    // ------------------------------------------------------------------------------
+    // The site's language (a file in lang/: 'hu' or 'en') and time zone (for the dates
+    // shown and entered). Environment variable: CAMPANELLA_LOCALE.
+    // 'locale' => 'hu',
+    // 'timezone' => 'Europe/Budapest',
+
+    // The theme: a folder in themes/ whose templates override the core's ('': none,
+    // the core's Bootstrap templates). Environment variable: CAMPANELLA_THEME.
+    // 'theme' => '',
+
+    // ------------------------------------------------------------------------------
+    // E-mail: the forgotten password, the contact form's notices, the test mail of
+    // System → E-mail. Without both `dsn` and `from`, nothing is sent (the site works,
+    // only these do not). Environment variables: CAMPANELLA_MAIL_DSN, CAMPANELLA_MAIL_FROM.
+    //   'dsn' => 'smtp://user:password@smtp.example.hu:587'   an SMTP server, with STARTTLS
+    //   'dsn' => 'smtps://user:password@smtp.example.hu:465'  SMTP over TLS
+    //   'dsn' => 'native://default'                            PHP's own (sendmail_path), like mail()
+    //   'dsn' => 'smtp://mailpit:1025'                          a local test catcher (e.g. in Docker)
+    // A user name or password with special characters (@ : / ?) must be URL-encoded,
+    // e.g. rawurlencode() in PHP: 'p@ss' is 'p%40ss'.
+    // 'mail' => [
+    //     'dsn' => '',
+    //     'from' => '',              // the sender's address, e.g. noreply@example.hu
+    //     'from_name' => '',         // the sender's name; '': the site's name
+    //     'log_days' => 90,          // the mail log (System → E-mail) keeps this many days
+    //     'timeout' => 10,           // seconds to wait for the mail server
+    // ],
+
+    // ------------------------------------------------------------------------------
+    // The admin: its address, the roles that may enter it, and the roles that may open
+    // its System pages (settings, e-mail, upgrades, colour schemes, modules …).
+    // 'admin' => [
+    //     'path' => '/admin',
+    //     'roles' => ['administrator', 'editor'],
+    //     'system_roles' => ['administrator'],
+    // ],
+
+    // The site's own roles besides administrator and editor, e.g. ['member']: they can
+    // be given to users, and a file can be limited to them; they do not let anyone into
+    // the admin. Small letters, digits and _.
+    // 'users' => ['roles' => []],
+
+    // The addresses of the system's own pages. English by default; any can be changed,
+    // e.g. to the site's language (only what you change):
+    // 'paths' => [
+    //     'login' => '/login',              // e.g. '/belepes'
+    //     'logout' => '/logout',
+    //     'password_reset' => '/password-reset',
+    //     'contact' => '/contact',          // the contact form
+    //     'search' => '/search',
+    //     'files' => '/files',              // the downloads: /files/<id>/<name>
+    // ],
+
+    // ------------------------------------------------------------------------------
+    // Logging in.
+    // 'auth' => [
+    //     'max_attempts' => 5,              // failed attempts per e-mail address and IP address
+    //     'max_attempts_per_ip' => 20,      // per IP address (IPv6: per /64 network)
+    //     'max_attempts_per_account' => 30, // per account, from any address
+    //     'decay_seconds' => 900,           // within this time (15 minutes)
+    //     'password_reset_minutes' => 60,   // how long a forgotten password's link is valid
+    // ],
+
+    // The session of a logged-in user (visitors who do not log in get no cookie).
+    // 'session' => [
+    //     'name' => 'campanella_session',   // the cookie's name
+    //     'idle_timeout' => 7200,           // logged out after this many seconds without activity
+    //     'absolute_timeout' => 43200,      // and this many seconds after logging in (12 hours)
+    //     'secure' => 'auto',               // 'auto': the cookie only over HTTPS when the site is on HTTPS; true / false: forced
+    // ],
+
+    // ------------------------------------------------------------------------------
+    // The contact form (its messages are under Submissions in the admin).
+    // 'contact' => [
+    //     'enabled' => true,
+    //     'min_seconds' => 3,               // a form sent sooner after it was shown is taken for a bot's
+    //     'notify' => true,                 // an e-mail about each new message (needs e-mail)
+    //     'notify_to' => [],                // to these addresses, e.g. ['info@example.hu']; []: the active administrators
+    //     'notify_per_hour' => 50,          // at most this many such e-mails an hour (every message is kept)
+    //     'keep_days' => 180,               // messages are deleted after this many days (personal data); 0: never
+    // ],
+
+    // ------------------------------------------------------------------------------
+    // Uploaded images. The folder is under public/, served directly by the web server.
+    // 'media' => [
+    //     'directory' => 'public/media',    // relative to the project's folder
+    //     'url' => '/media',                // the folder's address on the site
+    //     'max_bytes' => 10485760,          // the largest file accepted, 10 MB (php.ini's upload_max_filesize limits it too)
+    //     'max_pixels' => 25000000,         // the largest image, width × height
+    //     'max_dimension' => 2560,          // larger images are scaled down to this width or height
+    //     'quality' => 85,                  // JPEG and WebP quality, 1–100
+    //     'memory_limit' => '320M',         // raised to this while an image is processed, if the host allows
+    //     'store_unprocessed' => false,     // true: a type the server cannot re-encode is stored as uploaded (with its metadata, e.g. GPS)
+    //     'variants' => [320, 640, 1024, 1600], // smaller copies for srcset, these widths; []: none
+    //     'sizes' => '(max-width: 800px) 100vw, 800px', // the images' sizes attribute (the text column's width)
+    // ],
+
+    // Files to download. Stored outside the web root, always served by Campanella after
+    // checking who may see them. Back the folder up with the database.
+    // 'files' => [
+    //     'directory' => 'var/files',
+    //     'max_bytes' => 20971520,          // the largest file accepted, 20 MB
+    //     // The types accepted, checked by the file's content: pdf, docx, xlsx, pptx, odt,
+    //     // ods, odp, txt, csv, zip. zip only if you trust everyone who uploads: what is
+    //     // inside cannot be checked. Macro-enabled Office files, HTML, SVG and programs
+    //     // are never accepted.
+    //     'types' => ['pdf', 'docx', 'xlsx', 'pptx', 'odt', 'ods', 'odp', 'txt', 'csv'],
+    // ],
+
+    // ------------------------------------------------------------------------------
+    // Behind a reverse proxy (a load balancer, a CDN, a Docker host's web server): the
+    // proxies whose X-Forwarded-For and X-Forwarded-Proto headers are believed, as IP
+    // addresses or CIDR ranges, e.g. ['127.0.0.1', '10.0.0.0/8']. []: none; then the
+    // headers are ignored, because anyone could send them. See docs/deployment.md.
+    // 'trusted_proxies' => [],
+
+    // Security headers. See docs/deployment.md.
+    // 'security' => [
+    //     // null: the built-in Content-Security-Policy of the public site (only the site's
+    //     // own scripts, styles and images). A text replaces it, e.g. to allow a theme's
+    //     // font service; whatever you add is trusted with the visitors' pages.
+    //     'content_security_policy' => null,
+    //     // HSTS: browsers use only HTTPS for this many seconds (31536000: a year); 0: off.
+    //     // Turn it on only once HTTPS works everywhere: it cannot be taken back for the
+    //     // visitors who already got it.
+    //     'hsts' => 0,
+    //     'hsts_subdomains' => false,
+    // ],
+
+    // ------------------------------------------------------------------------------
+    // For developers (see docs/php-api): the site's own migrations (class names, run
+    // after Campanella's own), events and the actions bound to them, the capabilities,
+    // displays and token providers. These are lists: one given here replaces the
+    // default whole, so copy the defaults from config/app.php before adding to them.
+    // 'migrations' => [],
+    // 'events' => [
+    //     \Campanella\Event\ObjectPublished::class => [\Campanella\Event\Action\MailAdministrators::class],
+    // ],
 ];

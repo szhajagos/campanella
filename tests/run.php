@@ -278,6 +278,15 @@ echo "Campanella tests (PHP " . PHP_VERSION . ", " . $db->serverVersion() . ")\n
 
 echo "Support\n";
 
+
+test('Config::merge() (0.4.5): local.php over app.php key by key; a list replaced whole', function (): void {
+    $base = ['debug' => false, 'admin' => ['path' => '/admin', 'roles' => ['administrator', 'editor']], 'files' => ['types' => ['pdf', 'docx', 'txt']], 'mail' => ['dsn' => '', 'from' => '']];
+    $merged = Config::merge($base, ['debug' => true, 'admin' => ['roles' => ['administrator']], 'files' => ['types' => ['pdf']], 'mail' => ['dsn' => 'smtp://x:25'], 'new' => ['a' => 1]]);
+    check($merged['admin'] === ['path' => '/admin', 'roles' => ['administrator']], 'a shorter list replaces the whole: ' . json_encode($merged['admin']));
+    check($merged['files']['types'] === ['pdf'] && $merged['mail'] === ['dsn' => 'smtp://x:25', 'from' => ''] && $merged['debug'] === true && $merged['new'] === ['a' => 1], 'key by key');
+    check(Config::merge(['x' => ['a' => 1]], ['x' => 'off'])['x'] === 'off' && Config::merge(['x' => 'off'], ['x' => ['a' => 1]])['x'] === ['a' => 1], 'a value of another kind replaces');
+    check(Config::merge(['paths' => ['login' => '/login', 'search' => '/search']], ['paths' => ['login' => '/belepes']])['paths'] === ['login' => '/belepes', 'search' => '/search'], 'one path changed, the others kept');
+});
 test('Slugger: Hungarian accented letters', function (): void {
     check(Slugger::slugify('Árvíztűrő tükörfúrógép') === 'arvizturo-tukorfurogep');
     check(Slugger::slugify('  Megjelent a 0.0.1!  ') === 'megjelent-a-0-0-1');

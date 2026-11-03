@@ -114,7 +114,8 @@ New controller: a `controller.<name>` entry in the container, and a route in
 | Method | Description |
 |---|---|
 | `__construct(array $values)` | |
-| `static load(string $configDir): self` | `config/app.php` and, if it exists, `config/local.php` (which overrides it) |
+| `static load(string $configDir): self` | `config/app.php` and, if it exists, `config/local.php` (which overrides it, `merge()`) |
+| `static merge(array $base, array $over): array` | Since 0.4.5: `$over`'s values over `$base`'s, key by key at any depth; a list (e.g. `admin.roles`) or a value that is not an array replaces the one before whole (before 0.4.5 a shorter list left `$base`'s later items in place) |
 | `get(string $key, mixed $default = null): mixed` | Dotted key: `get('database.host')` |
 | `all(): array` | |
 
@@ -123,7 +124,7 @@ New controller: a `controller.<name>` entry in the container, and a route in
 | File | Contents |
 |---|---|
 | `config/app.php` | Default settings, capability list |
-| `config/local.php` | Machine-specific settings; not under version control. Template: `local.php.dist` |
+| `config/local.php` | Machine-specific settings; not under version control. Template: `local.php.dist`, which describes every setting (since 0.4.5) |
 | `config/blueprints.php` | Blueprints |
 | `config/html.php` | The HTML allowlist ([chapter 15](15-html.md#configuration-confightmlphp)) |
 | `config/routes.php` | Static routes |

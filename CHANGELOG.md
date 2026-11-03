@@ -10,6 +10,24 @@ backward-incompatible.
 
 ## [Unreleased]
 
+### Changed
+
+- **`config/local.php.dist` describes every setting**: what each one does, its
+  default and its environment variable, in sections (the database, installing
+  and upgrading, the language and the theme, e-mail with examples of the server's
+  address, the admin and the roles, the paths, logging in, the session, the
+  contact form, images and files, proxies and security headers); only the
+  database is active, the rest is there to be uncommented.
+
+### Security
+
+- A list in `config/local.php` (e.g. `admin.roles`, `files.types`) replaces the
+  default list whole (`Config::merge()`); before, a shorter list replaced only
+  the first items, and the default's later ones stayed: `'roles' =>
+  ['administrator']` still let editors into the admin, and a shorter
+  `files.types` still accepted the types after it. Found while documenting
+  `local.php.dist`.
+
 ## [0.4.4] – 2026-11-02
 
 **Dragging.** The fourth step after 0.4.0.
