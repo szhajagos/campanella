@@ -37,9 +37,11 @@ final class ModuleDisableCommand implements Command
 
             return 1;
         }
-        $problem = $container->get(ModuleManager::class)->disable($name);
-        if ($problem !== null) {
-            $output->error($t->translate($problem->key, $problem->params));
+        $problems = $container->get(ModuleManager::class)->disable($name);
+        if ($problems !== []) {
+            foreach ($problems as $i => $problem) {
+                $i === 0 ? $output->error($t->translate($problem->key, $problem->params)) : $output->line('  ' . $t->translate($problem->key, $problem->params));
+            }
 
             return 1;
         }

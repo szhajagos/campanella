@@ -40,6 +40,15 @@ backward-incompatible.
   (`module_asset()`). It never replaces the core's services or templates. A
   module that fails on a request is left out, the site goes on, *System →
   Modules* says why. The `module:*` commands load no module.
+- **A module's own tables** (`ModuleContext::migration()`, IDs `<module>:…`):
+  made when it is turned on, after a backup, before its pages are tried; a newer
+  version's new migration runs with the site's upgrade, as the core's.
+- **Not off while the site uses it** (`ModuleUsage`): a Blueprint with its
+  capability, a component with its display or source, its layout or colour
+  scheme as the site's; the reasons are listed.
+- **Removing a module's data for good** (`Uninstallable`; *Remove its data…*
+  with its name typed, `module:uninstall <name> --yes`): only while it is off,
+  after a backup; turned on again, its tables are made anew.
 
 ## [0.4.5] – 2026-11-03
 

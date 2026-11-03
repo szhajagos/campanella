@@ -159,6 +159,7 @@ method returns the context.
 | `listen(string $event, Closure $listener)` | A listener on an event |
 | `command(Command $command)` | A command of `bin/campanella`; its name starts with `<module>:` |
 | `service(string $class, Closure $factory)` | A service of the module's own class, for the container (e.g. a display that needs other services); never over the core's |
+| `migration(string $class)` | Since 0.4.7: a `Migration` of its own tables ([chapter 17](17-migrations.md)'s rules), its ID starting with `<module>:` (e.g. `newsletter:0001_subscribers`, a table `{newsletter_subscribers}`) |
 | `registered(): array` | Everything registered (for ModuleLoader) |
 
 What comes from the folder by itself: the templates as `@<module>/…` (they
@@ -168,6 +169,43 @@ whose keys start with `<module>.` (the core's keys win), and the files of
 `public/` (never a PHP file, a hidden file or a link), copied to
 `public/modules/<module>/` when it is turned on (`module_asset()`, chapter 7).
 `public/modules/.htaccess` runs nothing there and serves no HTML.
+
+## A module's tables
+
+*Since 0.4.7.* A module makes its tables with migrations (`migration()` above;
+`MigrationContext`: `createTable()`, `addColumn()`, `sql()` …), named with its
+own prefix. They run:
+
+- **when it is turned on**, after the trial's checks and a backup
+  (`var/backups/`), before the trial tries the site's pages with them; if a
+  migration fails, the module stays off (a migration must be repeatable, so
+  turning it on again goes on from there);
+- **when a newer version brings a new one** (the folder replaced): the site
+  waits for its upgrade as for the core's (503 to visitors), and `install`,
+  `migrate` or `/admin/upgrade` runs it, after a backup.
+
+Turned off, its tables stay. Its data is removed only for good, and only if
+its entry point is `Uninstallable`:
+
+`Campanella\Module\Uninstallable` · **Public** · `interface`:
+`uninstall(MigrationContext $m): void`, which drops its tables and deletes what
+else it wrote. It runs only while the module is off, after a backup, when an
+administrator asks (*Remove its data…*, the module's name typed to confirm;
+`module:uninstall <name> --yes`); then its migrations count as not run, so
+turning it on again makes its tables anew. The module's folder is left for the
+site to delete.
+
+## What uses a module: ModuleUsage
+
+`Campanella\Module\ModuleUsage` · **Public** · `final class`
+
+`of(string $name): list<Message>`: what of the site uses a module that is on —
+a Blueprint with one of its capabilities, a component with one of its displays
+or system sources, its layout as the site's or a Blueprint's, its colour scheme
+as the site's. A module is not turned off while anything uses it
+(`ModuleManager::disable()` says what). A page's own layout of the module's
+(stored with the page) is not checked: while the module is off, the page shows
+its Blueprint's layout, as for any layout that is gone.
 
 ## Loading: ModuleLoader
 
@@ -193,12 +231,13 @@ has), the registry is made without the modules' and the error is logged.
 | `actions(): array`, `translations(array $core): array`, `templateDirs(): array`, `layoutDirs(): list<string>` | For the Kernel |
 | `registry(): ModuleRegistry` | |
 | `static folderProblems(ModuleManifest $manifest): list<Message>` | Its layouts' and schemes' names, its translations' files and keys |
+| `static autoload(ModuleManifest $manifest): void` | Its namespace given to PHP's autoloader (also to remove the data of a module that is off) |
 
 ## Before it is turned on: ModuleTrial
 
 `Campanella\Module\ModuleTrial` · **Public** · `final class`, a service
 
-`run(string $name): array{problems: list<Message>, brings: array<string, list<string>>}`.
+`run(string $name, ?Closure $prepare = null): array{problems: list<Message>, brings: array<string, list<string>>}`.
 A module is turned on only if this finds nothing wrong:
 
 1. it is there, not broken, every module it needs on;
@@ -208,7 +247,11 @@ A module is turned on only if this finds nothing wrong:
    too): it is loaded, what it registered is checked as the registries check it,
    all together (a name used twice, a display not valid, a command twice), its
    templates compiled, its layouts and colour schemes read;
-5. that site's front page, search and a page that is not there are made; none may
+5. its tables (since 0.4.7): with `$prepare` (ModuleManager's, when it is turned
+   on) a backup is made and its migrations run, and that site is made again;
+   without it (the confirmation) they are only listed (`brings.migrations`), and
+   the pages are tried when it is turned on;
+6. that site's front page, search and a page that is not there are made; none may
    answer 500.
 
 A PHP warning or notice on the way is a problem too. `brings` says what it
@@ -222,8 +265,10 @@ templates, translations, files). The trial saves nothing; a fatal error in it
 
 | Method | |
 |---|---|
-| `enable(string $name): list<Message>` | The trial, then its files copied (a fresh copy beside the old one until complete), then the setting `modules.enabled`; the problems, or `[]` |
-| `disable(string $name): ?Message` | Not while a module that is on needs it (`modules.needed_by`); out of the setting, its copied files removed; its data stays |
+| `enable(string $name): list<Message>` | The trial (its tables made on the way, after a backup, since 0.4.7), then its files copied (a fresh copy beside the old one until complete), then the setting `modules.enabled`; the problems, or `[]` |
+| `disable(string $name): list<Message>` | Not while a module that is on needs it (`modules.needed_by`), nor while the site uses it (`modules.in_use`, then ModuleUsage's lines); out of the setting, its copied files removed; its data stays. `[]` once off |
+| `uninstall(string $name): ?Message` | Since 0.4.7: its data removed for good (above); why not, or null |
+| `canUninstall(ModuleManifest $manifest): bool` | Whether its entry point is `Uninstallable` |
 | `static publicFiles(ModuleManifest $manifest): list<string>` | Its `public/` files that are copied |
 
 ## In the admin: ModulePages
@@ -234,11 +279,12 @@ templates, translations, files). The trial saves nothing; a fatal error in it
 |---|---|
 | `/admin/system/modules` | *System → Modules*: every module, its version, the Campanella versions and the modules it needs, where it stands and why, a module that failed to load; *Turn on…*, *Turn off* |
 | `/admin/system/modules/<name>/enable` | The trial's result, what it brings and the warning that a module is code with every right; POST (CSRF) tries it again and turns it on (422 with the problems) |
-| `POST /admin/system/modules/<name>/disable` | Turns it off (CSRF) |
+| `POST /admin/system/modules/<name>/disable` | Turns it off (CSRF), or says what needs or uses it |
+| `/admin/system/modules/<name>/uninstall` | Since 0.4.7, for a module that is off and `Uninstallable`: the warning; POST (CSRF, `confirm` = its name) removes its data |
 
 On the command line (`ModuleListCommand`, `ModuleEnableCommand`,
-`ModuleDisableCommand`, **Internal**): `module:list` (exit code 1 if a module is
+`ModuleDisableCommand`, `ModuleUninstallCommand`, **Internal**): `module:list` (exit code 1 if a module is
 broken), `module:enable <name>` (the trial, then on; 1 with the problems),
-`module:disable <name>`. The `module:*` commands load no module, so a module
+`module:disable <name>`, `module:uninstall <name> --yes` (since 0.4.7). The `module:*` commands load no module, so a module
 that stops the site cannot stop them; the modules' own commands are listed by
 `bin/campanella` too.

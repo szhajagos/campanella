@@ -238,8 +238,8 @@ final class ModuleLoader
         return $registered + ['templates' => $templates, 'layouts' => $layoutProblems === [], 'translations' => $translations];
     }
 
-    /** The module's namespace for PHP's autoloader: its source folder, PSR-4. */
-    private static function autoload(ModuleManifest $manifest): void
+    /** The module's namespace for PHP's autoloader: its source folder, PSR-4 (since 0.4.7 also for removing its data). */
+    public static function autoload(ModuleManifest $manifest): void
     {
         $prefix = $manifest->namespace;
         if (isset(self::$autoloaded[$prefix])) {

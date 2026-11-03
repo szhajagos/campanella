@@ -53,6 +53,9 @@ final class ModuleContext
     /** @var array<class-string, Closure> */
     private array $services = [];
 
+    /** @var list<\Campanella\Database\Migration\Migration> */
+    private array $migrations = [];
+
     public function __construct(public readonly ModuleManifest $manifest)
     {
     }
@@ -147,9 +150,27 @@ final class ModuleContext
     }
 
     /**
+     * A migration of the module's own tables (since 0.4.7; chapter 17's rules): its ID starts
+     * with `<module>:`. Run, after a backup, when the module is turned on, and when a newer
+     * version of the module brings a new one (the site's upgrade, as the core's).
+     *
+     * @param string $class A Migration class of the module
+     */
+    public function migration(string $class): self
+    {
+        $migration = new ($this->own($class, \Campanella\Database\Migration\Migration::class))();
+        if (!str_starts_with($migration->id(), $this->manifest->name . ':')) {
+            throw new ModuleException("A migration's ID must start with {$this->manifest->name}: ({$migration->id()})");
+        }
+        $this->migrations[] = $migration;
+
+        return $this;
+    }
+
+    /**
      * Everything registered.
      *
-     * @return array{capabilities: list<class-string<Capability>>, displays: list<class-string<Display>>, sources: list<class-string<SystemSource>>, tokens: list<class-string<TokenProvider>>, actions: array<class-string<Event>, list<class-string<Action>>>, listeners: list<array{0: class-string<Event>, 1: Closure}>, commands: list<Command>, services: array<class-string, Closure>}
+     * @return array{capabilities: list<class-string<Capability>>, displays: list<class-string<Display>>, sources: list<class-string<SystemSource>>, tokens: list<class-string<TokenProvider>>, actions: array<class-string<Event>, list<class-string<Action>>>, listeners: list<array{0: class-string<Event>, 1: Closure}>, commands: list<Command>, services: array<class-string, Closure>, migrations: list<\Campanella\Database\Migration\Migration>}
      */
     public function registered(): array
     {
@@ -162,6 +183,7 @@ final class ModuleContext
             'listeners' => $this->listeners,
             'commands' => $this->commands,
             'services' => $this->services,
+            'migrations' => $this->migrations,
         ];
     }
 

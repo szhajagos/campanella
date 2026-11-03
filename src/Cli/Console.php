@@ -38,6 +38,7 @@ final class Console
             new ModuleListCommand(),
             new ModuleEnableCommand(),
             new ModuleDisableCommand(),
+            new ModuleUninstallCommand(),
         ];
         foreach ($commands as $command) {
             $this->commands[$command->name()] = $command;

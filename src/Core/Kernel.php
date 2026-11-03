@@ -487,6 +487,16 @@ final class Kernel
             $c->get(\Campanella\Module\ModuleTrial::class),
             $c->get(Settings::class),
             $root . '/public/modules',
+            $c->get(Connection::class),
+            $c->get(DatabaseBackup::class),
+            new \Campanella\Module\ModuleUsage(
+                $c->get(\Campanella\Module\ModuleLoader::class),
+                $c->get(BlueprintRegistry::class),
+                $c->get(CapabilityRegistry::class),
+                $c->get(DisplayRegistry::class),
+                $c->get(QueryEngine::class),
+                $c->get(Settings::class),
+            ),
         ));
 
         // What the modules that are on bring (since 0.4.6): their services too, never over the core's.
@@ -846,10 +856,22 @@ final class Kernel
             (string) $c->get(Config::class)->get('media.sizes', ResponsiveImages::DEFAULT_SIZES),
         ));
 
-        $c->set(MigrationRegistry::class, static fn (Container $c): MigrationRegistry => MigrationRegistry::fromClasses([
-            ...CoreMigrations::classes(),
-            ...array_values((array) $c->get(Config::class)->get('migrations', [])),
-        ]));
+        $c->set(MigrationRegistry::class, static function (Container $c): MigrationRegistry {
+            $registry = MigrationRegistry::fromClasses([
+                ...CoreMigrations::classes(),
+                ...array_values((array) $c->get(Config::class)->get('migrations', [])),
+            ]);
+            // The modules' that are on (since 0.4.7), after the core's and the site's.
+            foreach ($c->get(\Campanella\Module\ModuleLoader::class)->all('migrations') as $migration) {
+                try {
+                    $registry->add($migration);
+                } catch (\InvalidArgumentException $e) {
+                    error_log('Campanella: a module\'s migration is left out: ' . $e->getMessage());
+                }
+            }
+
+            return $registry;
+        });
         $c->set(Migrator::class, static fn (Container $c): Migrator => new Migrator(
             $c->get(Connection::class),
             $c->get(MigrationRegistry::class),

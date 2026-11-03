@@ -48,6 +48,9 @@
                                     {% elseif module.status == 'off' %}
                                         <a class="btn btn-sm btn-primary" href="{{ admin_url('system/modules/' ~ module.name ~ '/enable') }}" aria-label="{{ t('modules.enable_label', {label: module.label}) }}">{{ t('modules.enable') }}</a>
                                     {% endif %}
+                                    {% if module.can_uninstall %}
+                                        <a class="btn btn-sm btn-outline-danger" href="{{ admin_url('system/modules/' ~ module.name ~ '/uninstall') }}" aria-label="{{ t('modules.uninstall_label', {label: module.label}) }}">{{ t('modules.uninstall') }}</a>
+                                    {% endif %}
                                 </td>
                             {% endif %}
                         </tr>

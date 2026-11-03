@@ -24,7 +24,9 @@ use Twig\Environment;
  *      module is loaded, what it registered is checked as the registries check it (a name
  *      used twice, a display that is not valid), its templates are compiled, its layouts and
  *      colour schemes read;
- *   5. pages of that site are made with it: the front page, the search, a page that is not
+ *   5. its tables (since 0.4.7): when it is turned on, `$prepare` makes them (a backup, then
+ *      its migrations), and that site is made again; the confirmation only lists them;
+ *   6. pages of that site are made with it: the front page, the search, a page that is not
  *      there; none may fail (pages that start no session, beside the admin's own).
  *
  * A PHP warning or notice on the way counts as a problem too. Nothing is saved by the
@@ -46,7 +48,7 @@ final class ModuleTrial
      *
      * @return array{problems: list<Message>, brings: array<string, list<string>>}
      */
-    public function run(string $name): array
+    public function run(string $name, ?\Closure $prepare = null): array
     {
         $state = $this->registry->get($name);
         if ($state === null || $state->manifest === null || $state->status === ModuleState::BROKEN) {
@@ -76,7 +78,7 @@ final class ModuleTrial
             return true;
         });
         try {
-            [$problems, $brings] = $this->onASite($manifest);
+            [$problems, $brings] = $this->onASite($manifest, $prepare);
         } catch (\Throwable $e) {
             [$problems, $brings] = [[new Message('modules.trial.error', ['error' => mb_substr($e->getMessage(), 0, 300)])], []];
         } finally {
@@ -118,7 +120,7 @@ final class ModuleTrial
     /**
      * @return array{0: list<Message>, 1: array<string, list<string>>}
      */
-    private function onASite(ModuleManifest $manifest): array
+    private function onASite(ModuleManifest $manifest, ?\Closure $prepare): array
     {
         $on = array_map(static fn (ModuleManifest $m): string => $m->name, $this->registry->loadOrder());
         $kernel = new Kernel($this->rootDir, ['modules' => ['directory' => $this->registry->directory(), 'enabled' => [...$on, $manifest->name], 'load' => true], 'debug' => false]);
@@ -204,8 +206,34 @@ final class ModuleTrial
         $brings['translations'] = array_keys((array) $registered['translations']);
         $brings['files'] = ModuleManager::publicFiles($manifest);
 
+        // Its tables (since 0.4.7): made before the pages are tried, only when it is turned on
+        // ($prepare: a backup, then its migrations); the confirmation only lists them.
+        $pending = array_values(array_filter(
+            $c->get(\Campanella\Database\Migration\Migrator::class)->pending(),
+            static fn ($migration): bool => str_starts_with($migration->id(), $manifest->name . ':'),
+        ));
+        $brings['migrations'] = array_map(static fn ($migration): string => $migration->id(), $pending);
+        $pagesLater = false;
+        if ($problems === [] && $pending !== []) {
+            if ($prepare === null) {
+                $pagesLater = true;
+            } else {
+                $failed = $prepare($pending);
+                if ($failed instanceof Message) {
+                    $problems[] = $failed;
+                } else {
+                    // A site made again, with its tables.
+                    $kernel = new Kernel($this->rootDir, ['modules' => ['directory' => $this->registry->directory(), 'enabled' => [...$on, $manifest->name], 'load' => true], 'debug' => false]);
+                    $c = $kernel->container();
+                }
+            }
+        }
+        if ($pagesLater) {
+            $brings['pages_later'] = ['1'];
+        }
+
         // Pages of that site: none may fail.
-        if ($problems === []) {
+        if ($problems === [] && !$pagesLater && !$c->get(\Campanella\Database\Installer::class)->needsUpgrade()) {
             // Pages that start no session (the admin's request has its own).
             foreach ([['/', []], [$c->get(\Campanella\Http\SitePaths::class)->get('search'), ['q' => 'campanella']], ['/campanella-module-trial-' . bin2hex(random_bytes(4)), []]] as [$path, $query]) {
                 $response = $kernel->handle(new Request('GET', $path, query: $query));

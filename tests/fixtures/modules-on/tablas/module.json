@@ -1,0 +1,1 @@
+{"name": "tablas", "label": "Táblás", "version": "1.0.0", "campanella": "*", "autoload": {"Tablas\\": "src/"}}

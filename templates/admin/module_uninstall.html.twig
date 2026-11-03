@@ -1,0 +1,25 @@
+{% extends '@core/admin/base.html.twig' %}
+
+{# Removing a module's data for good (since 0.4.7): the warning, its name typed to confirm. #}
+{% block content %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb small mb-2">
+            <li class="breadcrumb-item"><a href="{{ admin_url('system/modules') }}">{{ t('modules.title') }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ module.label }}</li>
+        </ol>
+    </nav>
+    <h1 class="h3 mb-3">{{ t('modules.uninstall_heading', {label: module.label}) }}</h1>
+    {% if problem %}<div class="alert alert-danger" role="alert" id="module-uninstall-problem">{{ t(problem.key, problem.params) }}</div>{% endif %}
+    <div class="alert alert-warning" role="alert">{{ t('modules.uninstall_warning') }}</div>
+    {% if not module.enabled %}
+        <form method="post" action="{{ admin_url('system/modules/' ~ module.name ~ '/uninstall') }}" class="card card-body admin-form">
+            {{ csrf_field() }}
+            <label class="form-label fw-semibold" for="module-confirm">{{ t('modules.uninstall_type', {name: module.name}) }}</label>
+            <input type="text" class="form-control font-monospace mb-3" id="module-confirm" name="confirm" autocomplete="off" required>
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-danger">{{ t('modules.uninstall_confirm') }}</button>
+                <a class="btn btn-outline-secondary" href="{{ admin_url('system/modules') }}">{{ t('admin.form.cancel') }}</a>
+            </div>
+        </form>
+    {% endif %}
+{% endblock %}

@@ -22,13 +22,14 @@
             <section class="card card-body mb-3" id="module-brings">
                 <h2 class="h6">{{ t('modules.brings') }}</h2>
                 <dl class="row small mb-0">
-                    {% for kind, names in brings %}
+                    {% for kind, names in brings|filter((v, k) => k != 'pages_later') %}
                         <dt class="col-sm-3">{{ t('modules.brings.' ~ kind) }}</dt>
                         <dd class="col-sm-9">{% for name in names|slice(0, 20) %}<code>{{ name }}</code>{{ not loop.last ? ', ' }}{% endfor %}{% if names|length > 20 %} {{ t('modules.brings_more', {count: names|length - 20}) }}{% endif %}</dd>
                     {% endfor %}
                 </dl>
             </section>
         {% endif %}
+        {% if brings.pages_later is defined %}<p class="small text-body-secondary" id="module-pages-later">{{ t('modules.pages_later') }}</p>{% endif %}
         <div class="alert alert-warning" role="alert">{{ t('modules.trust') }}</div>
         <form method="post" action="{{ admin_url('system/modules/' ~ module.name ~ '/enable') }}" class="d-flex gap-2">
             {{ csrf_field() }}

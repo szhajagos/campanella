@@ -27,7 +27,9 @@ use Closure;
  *   /admin/system/modules/<name>/enable  the trial (ModuleTrial) and what it brings, the
  *                                        warning that a module is code with every right; POST
  *                                        tries it again and turns it on (ModuleManager)
- *   POST /admin/system/modules/<name>/disable   turns it off
+ *   POST /admin/system/modules/<name>/disable   turns it off (not while it is needed or used)
+ *   /admin/system/modules/<name>/uninstall      removes its data for good (since 0.4.7): only
+ *                                        while it is off, its name typed to confirm, after a backup
  */
 final class ModulePages
 {
@@ -61,6 +63,7 @@ final class ModulePages
         return match ($segments[1]) {
             'enable' => $this->enable($request, $state, $render),
             'disable' => $this->disable($request, $state),
+            'uninstall' => $this->uninstall($request, $state, $render),
             default => throw HttpException::notFound(),
         };
     }
@@ -74,6 +77,7 @@ final class ModulePages
             'title' => 'modules.title',
             'modules' => array_values(array_map(fn (ModuleState $state): array => $this->view($state) + [
                 'failure' => $failures[$state->name] ?? null,
+                'can_uninstall' => !$state->enabled && $state->manifest !== null && $this->manager !== null && $this->manager->canUninstall($state->manifest),
             ], $this->modules->all())),
             'directory' => basename($this->modules->directory()),
             'can_change' => $this->manager !== null,
@@ -121,11 +125,47 @@ final class ModulePages
         if (!$this->csrf?->isValid($request)) {
             $this->flash?->add(Flash::DANGER, 'auth.form_expired');
         } else {
-            $problem = $this->manager->disable($state->name);
-            $this->flash?->add($problem === null ? Flash::SUCCESS : Flash::DANGER, $problem ?? new Message('modules.disabled', ['label' => $state->manifest->label ?? $state->name]));
+            $problems = $this->manager->disable($state->name);
+            if ($problems === []) {
+                $this->flash?->add(Flash::SUCCESS, new Message('modules.disabled', ['label' => $state->manifest->label ?? $state->name]));
+            }
+            foreach ($problems as $problem) {
+                $this->flash?->add(Flash::DANGER, $problem);
+            }
         }
 
         return $this->back($request);
+    }
+
+    /** @param Closure(string, string, array<string, mixed>): Response $render */
+    private function uninstall(Request $request, ModuleState $state, Closure $render): Response
+    {
+        \assert($this->manager !== null);
+        $problem = null;
+        if ($state->manifest === null || !$this->manager->canUninstall($state->manifest)) {
+            throw HttpException::notFound();
+        }
+        if ($request->isPost()) {
+            if (!$this->csrf?->isValid($request)) {
+                $problem = new Message('auth.form_expired');
+            } elseif (trim($request->postString('confirm')) !== $state->name) {
+                $problem = new Message('modules.uninstall_confirm_wrong', ['name' => $state->name]);
+            } else {
+                $problem = $this->manager->uninstall($state->name);
+                if ($problem === null) {
+                    $this->flash?->add(Flash::SUCCESS, new Message('modules.uninstalled', ['label' => $state->manifest->label]));
+
+                    return $this->back($request);
+                }
+            }
+        }
+        $response = $render('module_uninstall', 'modules', [
+            'title' => 'modules.uninstall_title',
+            'module' => $this->view($state),
+            'problem' => $problem ?? ($state->enabled ? new Message('modules.uninstall_on') : null),
+        ]);
+
+        return $problem === null ? $response : new Response($response->body, 422, $response->headers);
     }
 
     private function back(Request $request): Response

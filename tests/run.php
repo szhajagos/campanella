@@ -6756,10 +6756,10 @@ test('Modules turned on (0.4.6): the trial, what a module brings, turning off, a
 
     // One that needs it; turning off.
     check($manager()->enable('ra_epul') === [] && $enabledNow() === 'hirlevel,ra_epul', 'one that needs it, after it');
-    check($manager()->disable('hirlevel')?->key === 'modules.needed_by', 'not while another needs it');
+    check(($manager()->disable('hirlevel')[0]->key ?? '') === 'modules.needed_by', 'not while another needs it');
     $local = $boot(['modules' => ['disabled' => ['hirlevel']]])->container();
     check($local->get(\Campanella\Module\ModuleLoader::class)->loaded() === [] && $local->get(\Campanella\Module\ModuleRegistry::class)->get('ra_epul')?->status === 'not_loaded', 'config/local.php turns it off, and what needs it');
-    check($manager()->disable('ra_epul') === null && $manager()->disable('hirlevel') === null && $enabledNow() === null && !is_dir($published), 'turned off, its files removed');
+    check($manager()->disable('ra_epul') === [] && $manager()->disable('hirlevel') === [] && $enabledNow() === null && !is_dir($published), 'turned off, its files removed');
 
     // A module that fails after it was turned on: left out, the site goes on, the admin says it.
     $settings->set(['modules.enabled' => 'hibas_regisztracio']);
@@ -6802,6 +6802,100 @@ test('Modules turned on (0.4.6): the trial, what a module brings, turning off, a
     $console->run(['campanella', 'module:disable', 'hirlevel']);
     check(!is_dir($published), 'its files removed');
 
+    $settings->set(['modules.enabled' => null]);
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('Modules (0.4.7): a module\'s own tables, its newer version, not off while used, its data removed', function () use ($newUser): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $root = dirname(__DIR__);
+    $fixtures = __DIR__ . '/fixtures/modules-on';
+    $boot = static fn (array $more = []) => new \Campanella\Core\Kernel($root, \Campanella\Core\Config::merge(['modules' => ['directory' => $fixtures]], $more));
+    $c = $boot()->container();
+    $db = $c->get(Connection::class);
+    if ($db->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $settings = $c->get(\Campanella\Settings\Settings::class);
+    $settings->set(['modules.enabled' => null, 'appearance.scheme' => null]);
+    $db->execute('DROP TABLE IF EXISTS ' . $db->table('tablas_sor'));
+    $db->execute("DELETE FROM {migrations} WHERE id LIKE 'tablas:%'");
+    exec('rm -rf ' . escapeshellarg($root . '/public/modules/hirlevel'));
+    $backups = glob($root . '/var/backups/campanella-*') ?: [];
+    $manager = static fn () => $boot()->container()->get(\Campanella\Module\ModuleManager::class);
+    $keys = static fn (array $problems): array => array_map(static fn ($m): string => $m->key, $problems);
+    $applied = static fn (): array => array_map(strval(...), $db->fetchColumn("SELECT id FROM {migrations} WHERE id LIKE 'tablas:%' ORDER BY id"));
+
+    // Its tables: listed on the confirmation, made when it is turned on, after a backup.
+    $trial = $boot()->container()->get(\Campanella\Module\ModuleTrial::class)->run('tablas');
+    check($trial['problems'] === [] && ($trial['brings']['migrations'] ?? null) === ['tablas:0001_sorok'] && isset($trial['brings']['pages_later']) && !$db->tableExists('tablas_sor'), 'listed, not made by the trial: ' . json_encode($trial));
+    check($manager()->enable('tablas') === [] && $db->tableExists('tablas_sor') && $applied() === ['tablas:0001_sorok'], 'made, recorded');
+    check(count(glob($root . '/var/backups/campanella-*') ?: []) > count($backups), 'a backup first');
+    check(!$boot()->container()->get(\Campanella\Database\Installer::class)->needsUpgrade() && $boot()->handle(new Request('GET', '/'))->status === 200, 'the site needs no upgrade');
+
+    // A newer version brings a migration: the site's upgrade runs it, as the core's.
+    \Tablas\Module::$migrations[] = \Tablas\Oszlop::class;
+    $newer = $boot();
+    check($newer->container()->get(\Campanella\Database\Installer::class)->needsUpgrade() && $newer->handle(new Request('GET', '/'))->status === 503, 'the site waits for the upgrade');
+    $newer->container()->get(\Campanella\Database\Migration\Migrator::class)->run();
+    check($applied() === ['tablas:0001_sorok', 'tablas:0002_oszlop'] && (new \Campanella\Database\Schema\SchemaReader($db))->read('tablas_sor')?->column('megjegyzes') !== null, 'its new migration run');
+
+    // Not off while the site uses it: a Blueprint, a component, the colour scheme.
+    check($manager()->enable('hirlevel') === [], 'hirlevel on');
+    $store = $c->get(\Campanella\Model\BlueprintStore::class);
+    $store->save('hirlevel_lista', ['version' => 1, 'label' => 'Lista', 'capabilities' => ['titled', 'hirlevel_feliratkozhato'], 'fields' => [], 'relations' => []]);
+    $uses = $manager()->disable('hirlevel');
+    check(($uses[0]->key ?? '') === 'modules.in_use' && in_array('modules.usage.blueprint', $keys($uses), true), 'a Blueprint: ' . json_encode($keys($uses)));
+    $store->delete('hirlevel_lista');
+    $on = $boot()->container();
+    $component = $on->get(\Campanella\Display\ComponentService::class)->create(Actor::system(), ['title' => 'Hírlevél doboz', 'machine_name' => 'hirlevel_doboz_teszt'], 'system:site', 'hirlevel_doboz');
+    $settings->set(['appearance.scheme' => 'hirlevel_zold']);
+    $uses = $manager()->disable('hirlevel');
+    check(in_array('modules.usage.components', $keys($uses), true) && in_array('modules.usage.scheme', $keys($uses), true) && str_contains((string) ($uses[1]->params['components'] ?? $uses[2]->params['components'] ?? ''), 'Hírlevél doboz'), 'a component, the scheme: ' . json_encode(array_map(static fn ($m) => [$m->key, $m->params], $uses), JSON_UNESCAPED_UNICODE));
+    $on->get(ObjectService::class)->delete(Actor::system(), $on->get(\Campanella\Model\ObjectRepository::class)->find((int) $component->id()));
+    $settings->set(['appearance.scheme' => null]);
+    check($manager()->disable('hirlevel') === [], 'off once nothing uses it');
+
+    // Its data removed: only while it is off, its name typed, after a backup.
+    check(($manager()->uninstall('tablas')?->key ?? '') === 'modules.uninstall_on', 'not while it is on');
+    check(($manager()->uninstall('hirlevel')?->key ?? '') === 'modules.uninstall_none', 'not one without uninstall()');
+    $storage = new ArraySessionStorage();
+    // A Kernel for each request, as on a site (the modules' state is read once a request).
+    $send = function (string $method, string $path, array $post = []) use ($boot, $storage) {
+        $storage->endRequest();
+        $admin = $boot();
+        $admin->container()->set(Session::class, static fn () => new Session($storage));
+
+        return $admin->handle(new Request($method, $path, post: $post));
+    };
+    $login = $boot();
+    $login->container()->set(Session::class, static fn () => new Session($storage));
+    $login->container()->get(AuthService::class)->login(new Request('GET', '/'), $newUser('modul-tabla@example.hu', 'modul-tabla-jelszo-1', ['administrator']));
+    $list = $send('GET', '/admin/system/modules');
+    $csrf = preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $list->body, $m) === 1 ? $m[1] : '';
+    check(!str_contains($list->body, 'system/modules/tablas/uninstall') && !str_contains($list->body, 'system/modules/hirlevel/uninstall'), 'not offered while on, nor without uninstall()');
+    $send('POST', '/admin/system/modules/tablas/disable', ['_csrf' => $csrf]);
+    check(str_contains($send('GET', '/admin/system/modules')->body, 'href="/admin/system/modules/tablas/uninstall"'), 'offered once off');
+    check($send('GET', '/admin/system/modules/hirlevel/uninstall')->status === 404, 'not for one without uninstall()');
+    check($send('POST', '/admin/system/modules/tablas/uninstall', ['_csrf' => $csrf, 'confirm' => 'tabla'])->status === 422 && $db->tableExists('tablas_sor'), 'not without its name typed');
+    $before = count(glob($root . '/var/backups/campanella-*') ?: []);
+    check($send('POST', '/admin/system/modules/tablas/uninstall', ['_csrf' => $csrf, 'confirm' => 'tablas'])->status === 303 && !$db->tableExists('tablas_sor') && $applied() === [], 'removed, its migrations not run any more');
+    check(count(glob($root . '/var/backups/campanella-*') ?: []) > $before, 'a backup first');
+    check($manager()->enable('tablas') === [] && $db->tableExists('tablas_sor') && $applied() === ['tablas:0001_sorok', 'tablas:0002_oszlop'], 'on again: made anew');
+
+    // The command line.
+    $stream = fopen('php://memory', 'w+');
+    $console = new \Campanella\Cli\Console($boot(), new \Campanella\Cli\Output($stream, $stream));
+    check($console->run(['campanella', 'module:uninstall', 'tablas', '--yes']) === 1 && $db->tableExists('tablas_sor'), 'module:uninstall: not while on');
+    check($console->run(['campanella', 'module:disable', 'tablas']) === 0 && $console->run(['campanella', 'module:uninstall', 'tablas']) === 1 && $db->tableExists('tablas_sor'), 'without --yes it only says');
+    check($console->run(['campanella', 'module:uninstall', 'tablas', '--yes']) === 0 && !$db->tableExists('tablas_sor'), 'module:uninstall');
+
+    \Tablas\Module::$migrations = [\Tablas\Sorok::class];
+    foreach (array_diff(glob($root . '/var/backups/campanella-*') ?: [], $backups) as $made) {
+        @unlink($made);
+    }
     $settings->set(['modules.enabled' => null]);
     putenv('CAMPANELLA_DB_PREFIX');
 });
