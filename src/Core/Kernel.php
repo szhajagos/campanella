@@ -178,7 +178,11 @@ final class Kernel
     private ?CurrentPage $currentPage = null;
     private ?Regions $regions = null;
 
-    public function __construct(private readonly string $rootDir)
+    /**
+     * @param array<string, mixed> $overrides Settings over config/ (since 0.4.6), e.g. a module's
+     *        trial: `['modules' => ['enabled' => [...]]]`
+     */
+    public function __construct(private readonly string $rootDir, private readonly array $overrides = [])
     {
     }
 
@@ -201,6 +205,12 @@ final class Kernel
     public function rootDir(): string
     {
         return $this->rootDir;
+    }
+
+    /** @return array<string, mixed> The settings given over config/ (since 0.4.6) */
+    public function overrides(): array
+    {
+        return $this->overrides;
     }
 
     public function container(): Container
@@ -434,7 +444,8 @@ final class Kernel
         $c = new Container();
         $root = $this->rootDir;
 
-        $c->set(Config::class, static fn (): Config => Config::load($root . '/config'));
+        $overrides = $this->overrides;
+        $c->set(Config::class, static fn (): Config => $overrides === [] ? Config::load($root . '/config') : new Config(Config::merge(Config::load($root . '/config')->all(), $overrides)));
 
         // Work after the response (since 0.1.4): see terminate().
         $c->set(Deferred::class, static fn (): Deferred => new Deferred());
@@ -447,8 +458,12 @@ final class Kernel
         // config/local.php's `modules.disabled` turns one off whatever the settings say.
         $c->set(\Campanella\Module\ModuleRegistry::class, static function (Container $c) use ($root): \Campanella\Module\ModuleRegistry {
             $directory = (string) $c->get(Config::class)->get('modules.directory', 'modules');
+            // The modules turned on: the settings', or (a trial, the command line's module:*) given.
+            $given = $c->get(Config::class)->get('modules.enabled');
             try {
-                $enabled = \Campanella\Module\ModuleRegistry::namesOf($c->get(Settings::class)->get('modules.enabled'));
+                $enabled = is_array($given)
+                    ? array_values(array_filter($given, is_string(...)))
+                    : \Campanella\Module\ModuleRegistry::namesOf($c->get(Settings::class)->get('modules.enabled'));
             } catch (\PDOException) {
                 $enabled = [];
             }
@@ -462,9 +477,49 @@ final class Kernel
             );
         });
 
-        $c->set(CapabilityRegistry::class, static fn (Container $c): CapabilityRegistry => new CapabilityRegistry(
-            $c->get(Config::class)->get('capabilities', []),
+        // Turning a module on, after its trial, and off (since 0.4.6).
+        $c->set(\Campanella\Module\ModuleTrial::class, static fn (Container $c): \Campanella\Module\ModuleTrial => new \Campanella\Module\ModuleTrial(
+            $c->get(\Campanella\Module\ModuleRegistry::class),
+            $root,
         ));
+        $c->set(\Campanella\Module\ModuleManager::class, static fn (Container $c): \Campanella\Module\ModuleManager => new \Campanella\Module\ModuleManager(
+            $c->get(\Campanella\Module\ModuleRegistry::class),
+            $c->get(\Campanella\Module\ModuleTrial::class),
+            $c->get(Settings::class),
+            $root . '/public/modules',
+        ));
+
+        // What the modules that are on bring (since 0.4.6): their services too, never over the core's.
+        $c->set(\Campanella\Module\ModuleLoader::class, static function (Container $c): \Campanella\Module\ModuleLoader {
+            $loader = new \Campanella\Module\ModuleLoader($c->get(\Campanella\Module\ModuleRegistry::class), $c->get(Config::class)->get('modules.load', true) !== false);
+            foreach ($loader->loaded() as $registered) {
+                foreach ((array) $registered['services'] as $class => $factory) {
+                    if (!$c->has($class)) {
+                        $c->set($class, $factory);
+                    }
+                }
+            }
+
+            return $loader;
+        });
+
+        $c->set(CapabilityRegistry::class, static function (Container $c): CapabilityRegistry {
+            /** @var list<class-string<\Campanella\Capability\Capability>> $core */
+            $core = array_values((array) $c->get(Config::class)->get('capabilities', []));
+            /** @var list<class-string<\Campanella\Capability\Capability>> $modules */
+            $modules = $c->get(\Campanella\Module\ModuleLoader::class)->all('capabilities');
+            if ($modules === []) {
+                return new CapabilityRegistry($core);
+            }
+            try {
+                return new CapabilityRegistry([...$core, ...$modules]);
+            } catch (\Throwable $e) {
+                // A module's capability that is not valid (the trial would have refused it): without them.
+                error_log('Campanella: the modules\' capabilities are left out: ' . $e->getMessage());
+
+                return new CapabilityRegistry($core);
+            }
+        });
 
         $c->set(BlueprintRegistry::class, static function (Container $c) use ($root): BlueprintRegistry {
             $registry = new BlueprintRegistry($c->get(CapabilityRegistry::class), require $root . '/config/blueprints.php');
@@ -627,8 +682,9 @@ final class Kernel
             return $system;
         });
 
-        $c->set(Translator::class, static fn (Container $c): Translator => Translator::fromDirectory(
-            $root . '/lang',
+        // The core's translations, and the modules' (their own keys, since 0.4.6).
+        $c->set(Translator::class, static fn (Container $c): Translator => new Translator(
+            $c->get(\Campanella\Module\ModuleLoader::class)->translations(Translator::loadCatalogs($root . '/lang')),
             (string) $c->get(Config::class)->get('locale', Translator::BASE_LOCALE),
         ));
 
@@ -701,6 +757,12 @@ final class Kernel
                 (array) $c->get(Config::class)->get('events', []),
                 static fn (string $action): Action => $action::create($c),
             );
+            // The modules' actions and listeners (since 0.4.6).
+            $modules = $c->get(\Campanella\Module\ModuleLoader::class);
+            $events->bind($modules->actions(), static fn (string $action): Action => $action::create($c));
+            foreach ($modules->all('listeners') as [$event, $listener]) {
+                $events->listen($event, $listener);
+            }
 
             return $events;
         });
@@ -873,6 +935,14 @@ final class Kernel
             }
             $loader->addPath($root . '/templates');
             $loader->addPath($root . '/templates', 'core');
+            // A module's templates as @<name>/…, and its layouts' (layout/<name>_…) after the core's (since 0.4.6).
+            $moduleLoader = $c->get(\Campanella\Module\ModuleLoader::class);
+            foreach ($moduleLoader->templateDirs() as $name => $dir) {
+                $loader->addPath($dir, $name);
+            }
+            foreach ($moduleLoader->layoutDirs() as $dir) {
+                $loader->addModuleLayouts(basename(dirname($dir)), $dir);
+            }
 
             $twig = new Environment($loader, [
                 'cache' => $cache,
@@ -965,6 +1035,7 @@ final class Kernel
                 static fn (): LayoutService => $c->get(LayoutService::class),
                 static fn (): Regions => $c->get(Regions::class),
                 static fn (): TokenRegistry => $c->get(TokenRegistry::class),
+                static fn (): array => array_map(static fn (\Campanella\Module\ModuleManifest $m): string => $m->version, array_column(array_map(static fn ($m): array => ['n' => $m->name, 'm' => $m], $c->get(\Campanella\Module\ModuleRegistry::class)->loadOrder()), 'm', 'n')),
             ));
 
             return $twig;
@@ -985,11 +1056,26 @@ final class Kernel
         $c->set(DisplayRegistry::class, static function (Container $c): DisplayRegistry {
             $config = $c->get(Config::class);
 
-            return new DisplayRegistry(
-                $config->get('displays', DisplayRegistry::BUILTIN),
-                $config->get('display_sources', DisplayRegistry::BUILTIN_SOURCES),
-                static fn (string $class): object => $c->has($class) ? $c->get($class) : new $class(),
-            );
+            $make = static fn (string $class): object => $c->has($class) ? $c->get($class) : new $class();
+            /** @var list<class-string<\Campanella\Display\Display>> $displays */
+            $displays = array_values((array) $config->get('displays', DisplayRegistry::BUILTIN));
+            /** @var list<class-string<\Campanella\Display\SystemSource>> $sources */
+            $sources = array_values((array) $config->get('display_sources', DisplayRegistry::BUILTIN_SOURCES));
+            // The modules' (since 0.4.6); if one is not valid, without them.
+            $modules = $c->get(\Campanella\Module\ModuleLoader::class);
+            /** @var list<class-string<\Campanella\Display\Display>> $moduleDisplays */
+            $moduleDisplays = $modules->all('displays');
+            /** @var list<class-string<\Campanella\Display\SystemSource>> $moduleSources */
+            $moduleSources = $modules->all('sources');
+            if ($moduleDisplays !== [] || $moduleSources !== []) {
+                try {
+                    return new DisplayRegistry([...$displays, ...$moduleDisplays], [...$sources, ...$moduleSources], $make);
+                } catch (\Throwable $e) {
+                    error_log('Campanella: the modules\' displays are left out: ' . $e->getMessage());
+                }
+            }
+
+            return new DisplayRegistry($displays, $sources, $make);
         });
         $c->set(NavigationDisplay::class, static fn (Container $c): NavigationDisplay => new NavigationDisplay($c->get(MenuBuilder::class)));
         $c->set(TableDisplay::class, static fn (Container $c): TableDisplay => new TableDisplay($c->get(BlueprintRegistry::class)));
@@ -1013,7 +1099,7 @@ final class Kernel
             $config = $c->get(Config::class);
 
             return new TokenRegistry(
-                array_values((array) $config->get('tokens.providers', TokenRegistry::BUILTIN)),
+                [...array_values((array) $config->get('tokens.providers', TokenRegistry::BUILTIN)), ...$c->get(\Campanella\Module\ModuleLoader::class)->all('tokens')],
                 array_values(array_map(strval(...), (array) $config->get('tokens.blueprints', ['snippet']))),
                 static fn (string $class): object => match ($class) {
                     SiteTokens::class => new SiteTokens($c->get(SiteValues::class)),
@@ -1027,7 +1113,10 @@ final class Kernel
         $c->set(ColorSchemeRegistry::class, static function (Container $c) use ($root): ColorSchemeRegistry {
             $theme = $c->get(Theme::class);
 
-            return new ColorSchemeRegistry($theme->templateDir === null ? [$root . '/templates'] : [$root . '/templates', $theme->templateDir], $c->get(ColorSchemeStore::class));
+            // The core's, the modules' (their own names, since 0.4.6), the theme's.
+            $dirs = [$root . '/templates', ...$c->get(\Campanella\Module\ModuleLoader::class)->layoutDirs()];
+
+            return new ColorSchemeRegistry($theme->templateDir === null ? $dirs : [...$dirs, $theme->templateDir], $c->get(ColorSchemeStore::class));
         });
         $c->set(Appearance::class, static fn (Container $c): Appearance => new Appearance($c->get(Settings::class), $c->get(ColorSchemeRegistry::class)));
         // The colour schemes made in the admin (since 0.4.2).
@@ -1036,7 +1125,9 @@ final class Kernel
         $c->set(LayoutRegistry::class, static function (Container $c) use ($root): LayoutRegistry {
             $theme = $c->get(Theme::class);
 
-            return new LayoutRegistry($theme->templateDir === null ? [$root . '/templates'] : [$root . '/templates', $theme->templateDir]);
+            $dirs = [$root . '/templates', ...$c->get(\Campanella\Module\ModuleLoader::class)->layoutDirs()];
+
+            return new LayoutRegistry($theme->templateDir === null ? $dirs : [...$dirs, $theme->templateDir]);
         });
         $c->set(LayoutService::class, static fn (Container $c): LayoutService => new LayoutService(
             $c->get(LayoutRegistry::class),
@@ -1245,7 +1336,15 @@ final class Kernel
                 $c->get(Flash::class),
                 $c->get(AdminAccess::class),
             ),
-            new \Campanella\Admin\ModulePages($c->get(\Campanella\Module\ModuleRegistry::class)),
+            new \Campanella\Admin\ModulePages(
+                $c->get(\Campanella\Module\ModuleRegistry::class),
+                $c->get(\Campanella\Module\ModuleLoader::class),
+                $c->get(\Campanella\Module\ModuleTrial::class),
+                $c->get(\Campanella\Module\ModuleManager::class),
+                $c->get(Csrf::class),
+                $c->get(Flash::class),
+                $c->get(AdminAccess::class),
+            ),
         ));
 
         $c->set(ObjectForm::class, static fn (Container $c): ObjectForm => new ObjectForm(

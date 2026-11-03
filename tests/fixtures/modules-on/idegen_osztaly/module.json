@@ -1,0 +1,1 @@
+{"name": "idegen_osztaly", "label": "Idegen osztály", "version": "1.0.0", "campanella": "*", "autoload": {"IdegenOsztaly\\": "src/"}}

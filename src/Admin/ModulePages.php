@@ -4,24 +4,44 @@ declare(strict_types=1);
 
 namespace Campanella\Admin;
 
+use Campanella\Http\Flash;
 use Campanella\Http\HttpException;
 use Campanella\Http\Request;
 use Campanella\Http\Response;
+use Campanella\I18n\Message;
+use Campanella\Module\ModuleLoader;
+use Campanella\Module\ModuleManager;
+use Campanella\Module\ModuleManifest;
 use Campanella\Module\ModuleRegistry;
 use Campanella\Module\ModuleState;
+use Campanella\Module\ModuleTrial;
+use Campanella\Security\Csrf;
 use Closure;
 
 /**
  * The modules in the admin (since 0.4.6), under /admin/system/modules, for the system roles:
- * every module of the modules folder, its version, the Campanella versions and the modules it
- * needs, and where it stands (ModuleState), with the reasons when it cannot be used.
+ *
+ *   /admin/system/modules                every module of the modules folder, its version, the
+ *                                        Campanella versions and the modules it needs, where
+ *                                        it stands (ModuleState) and why
+ *   /admin/system/modules/<name>/enable  the trial (ModuleTrial) and what it brings, the
+ *                                        warning that a module is code with every right; POST
+ *                                        tries it again and turns it on (ModuleManager)
+ *   POST /admin/system/modules/<name>/disable   turns it off
  */
 final class ModulePages
 {
     public const string PATH = 'system/modules';
 
-    public function __construct(private readonly ModuleRegistry $modules)
-    {
+    public function __construct(
+        private readonly ModuleRegistry $modules,
+        private readonly ?ModuleLoader $loader = null,
+        private readonly ?ModuleTrial $trial = null,
+        private readonly ?ModuleManager $manager = null,
+        private readonly ?Csrf $csrf = null,
+        private readonly ?Flash $flash = null,
+        private readonly ?AdminAccess $access = null,
+    ) {
     }
 
     /**
@@ -30,23 +50,102 @@ final class ModulePages
      */
     public function handle(Request $request, array $segments, Closure $render): Response
     {
-        if ($segments !== [] || $request->isPost()) {
+        if ($segments === [] && !$request->isPost()) {
+            return $this->listing($render);
+        }
+        $state = count($segments) === 2 && preg_match(ModuleManifest::NAME_PATTERN, $segments[0]) === 1 ? $this->modules->get($segments[0]) : null;
+        if ($state === null || $this->manager === null) {
             throw HttpException::notFound();
         }
 
+        return match ($segments[1]) {
+            'enable' => $this->enable($request, $state, $render),
+            'disable' => $this->disable($request, $state),
+            default => throw HttpException::notFound(),
+        };
+    }
+
+    /** @param Closure(string, string, array<string, mixed>): Response $render */
+    private function listing(Closure $render): Response
+    {
+        $failures = $this->loader?->failures() ?? [];
+
         return $render('modules', 'modules', [
             'title' => 'modules.title',
-            'modules' => array_values(array_map(static fn (ModuleState $state): array => [
-                'name' => $state->name,
-                'label' => $state->manifest->label ?? $state->name,
-                'description' => $state->manifest->description ?? '',
-                'version' => $state->manifest?->version,
-                'campanella' => $state->manifest?->campanella,
-                'requires' => $state->manifest->requires ?? [],
-                'status' => $state->status,
-                'problems' => $state->problems,
+            'modules' => array_values(array_map(fn (ModuleState $state): array => $this->view($state) + [
+                'failure' => $failures[$state->name] ?? null,
             ], $this->modules->all())),
             'directory' => basename($this->modules->directory()),
+            'can_change' => $this->manager !== null,
         ]);
+    }
+
+    /** @param Closure(string, string, array<string, mixed>): Response $render */
+    private function enable(Request $request, ModuleState $state, Closure $render): Response
+    {
+        \assert($this->manager !== null && $this->trial !== null);
+        if ($request->isPost()) {
+            if (!$this->csrf?->isValid($request)) {
+                $this->flash?->add(Flash::DANGER, 'auth.form_expired');
+
+                return $this->back($request);
+            }
+            $problems = $this->manager->enable($state->name);
+            if ($problems === []) {
+                $this->flash?->add(Flash::SUCCESS, new Message('modules.enabled', ['label' => $state->manifest->label ?? $state->name]));
+
+                return $this->back($request);
+            }
+            $trial = ['problems' => $problems, 'brings' => []];
+        } else {
+            $trial = $state->enabled && $state->status !== ModuleState::BROKEN
+                ? ['problems' => [new Message('modules.already_on')], 'brings' => []]
+                : $this->trial->run($state->name);
+        }
+        $response = $render('module_enable', 'modules', [
+            'title' => 'modules.enable_title',
+            'module' => $this->view($state),
+            'problems' => $trial['problems'],
+            'brings' => $trial['brings'],
+        ]);
+
+        return $trial['problems'] === [] ? $response : new Response($response->body, 422, $response->headers);
+    }
+
+    private function disable(Request $request, ModuleState $state): Response
+    {
+        \assert($this->manager !== null);
+        if (!$request->isPost()) {
+            throw new HttpException(405, 'error.method_not_allowed');
+        }
+        if (!$this->csrf?->isValid($request)) {
+            $this->flash?->add(Flash::DANGER, 'auth.form_expired');
+        } else {
+            $problem = $this->manager->disable($state->name);
+            $this->flash?->add($problem === null ? Flash::SUCCESS : Flash::DANGER, $problem ?? new Message('modules.disabled', ['label' => $state->manifest->label ?? $state->name]));
+        }
+
+        return $this->back($request);
+    }
+
+    private function back(Request $request): Response
+    {
+        return Response::redirect($request->basePath . ($this->access?->path(self::PATH) ?? '/admin/' . self::PATH), 303);
+    }
+
+    /** @return array<string, mixed> */
+    private function view(ModuleState $state): array
+    {
+        return [
+            'name' => $state->name,
+            'label' => $state->manifest->label ?? $state->name,
+            'description' => $state->manifest->description ?? '',
+            'version' => $state->manifest?->version,
+            'campanella' => $state->manifest?->campanella,
+            'requires' => $state->manifest->requires ?? [],
+            'status' => $state->status,
+            'enabled' => $state->enabled,
+            'problems' => $state->problems,
+        ];
     }
 }

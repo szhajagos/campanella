@@ -303,7 +303,7 @@ test('ModuleRegistry (0.4.6): the modules found and checked; on, off, not loaded
     $keys = static fn (\Campanella\Module\ModuleRegistry $r, string $name): array => array_map(static fn ($m): string => $m->key, $r->get($name)->problems ?? []);
     check(array_keys($all) === ['Nagy', 'belepes_nelkul', 'hianyzo_igeny', 'hirlevel', 'hirlevel_extra', 'kor_a', 'kor_b', 'regi_mag', 'rossz_json', 'sajat_nevter'], json_encode(array_keys($all)));
     $hirlevel = $registry->get('hirlevel')?->manifest;
-    check($status($registry, 'hirlevel') === 'off' && $hirlevel?->label === 'Hírlevél' && $hirlevel->version === '1.2.0' && $hirlevel->namespace === 'Hirlevel\\' && $hirlevel->entryClass() === 'Hirlevel\\Module' && $hirlevel->sourceDir === realpath($fixtures . '/hirlevel/src'), 'a good one, off');
+    check($status($registry, 'hirlevel') === 'off' && $hirlevel?->label === 'Hírlevél' && $hirlevel->version === '1.2.0' && $hirlevel->namespace === 'HirlevelMinta\\' && $hirlevel->entryClass() === 'HirlevelMinta\\Module' && $hirlevel->sourceDir === realpath($fixtures . '/hirlevel/src'), 'a good one, off');
     foreach (['Nagy' => 'modules.problem.folder', 'rossz_json' => 'modules.problem.manifest_json', 'regi_mag' => 'modules.problem.core_version', 'hianyzo_igeny' => 'modules.problem.requires_missing',
         'kor_a' => 'modules.problem.circle', 'kor_b' => 'modules.problem.circle', 'belepes_nelkul' => 'modules.problem.entry', 'sajat_nevter' => 'modules.problem.namespace'] as $name => $key) {
         check($status($registry, $name) === 'broken' && in_array($key, $keys($registry, $name), true), $name . ': ' . json_encode($keys($registry, $name)));
@@ -6700,6 +6700,109 @@ test('Kernel: the modules page (System → Modules) and module:list (0.4.6)', fu
     rewind($stream);
     $text = (string) stream_get_contents($stream);
     check($code === 1 && preg_match('/^hirlevel\s+1\.2\.0\s+Bekapcsolva$/m', $text) === 1 && str_contains($text, '    Igényli a(z) nincs_ilyen modult (^1), de az nincs meg.'), 'module:list; 1 for a broken one: ' . $text);
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('Modules turned on (0.4.6): the trial, what a module brings, turning off, a module that fails, the admin and the command line', function () use ($newUser): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $root = dirname(__DIR__);
+    $fixtures = __DIR__ . '/fixtures/modules-on';
+    $boot = static fn (array $more = []) => new \Campanella\Core\Kernel($root, \Campanella\Core\Config::merge(['modules' => ['directory' => $fixtures]], $more));
+    $c = $boot()->container();
+    if ($c->get(Connection::class)->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $settings = $c->get(\Campanella\Settings\Settings::class);
+    $settings->set(['modules.enabled' => null]);
+    $enabledNow = static fn (): ?string => $c->get(Connection::class)->fetchValue("SELECT value FROM {settings} WHERE name = 'modules.enabled'") ?: null;
+    $published = $root . '/public/modules/hirlevel';
+    exec('rm -rf ' . escapeshellarg($published)); // left by a run that failed
+    $keys = static fn (array $problems): array => array_map(static fn ($m): string => $m->key, $problems);
+    $trial = static fn (string $name) => $boot()->container()->get(\Campanella\Module\ModuleTrial::class)->run($name);
+
+    // The trial finds what is wrong; nothing is turned on.
+    foreach (['hibas_regisztracio' => 'modules.problem.load', 'hibas_szintaxis' => 'modules.trial.syntax', 'hibas_sablon' => 'modules.trial.template', 'utkozo' => 'modules.trial.capabilities',
+        'figyelmeztet' => 'modules.trial.warning', 'idegen_osztaly' => 'modules.problem.load', 'rossz_sema' => 'modules.problem.scheme_name', 'rossz_kulcs' => 'modules.problem.lang_key',
+        'nem_modul' => 'modules.problem.load', 'ra_epul' => 'modules.trial.requires_off'] as $name => $key) {
+        $result = $trial($name);
+        check(in_array($key, $keys($result['problems']), true) && $result['brings'] === [], $name . ': ' . json_encode($keys($result['problems'])));
+    }
+    check(str_contains((string) ($trial('hibas_szintaxis')['problems'][0]->params['file'] ?? ''), 'src/Rossz.php') && str_contains((string) ($trial('idegen_osztaly')['problems'][0]->params['error'] ?? ''), 'Not a class of the module'), 'the file; the reason');
+    check($enabledNow() === null && !is_dir($published), 'nothing turned on by a trial');
+
+    // A module that brings one of everything.
+    $result = $trial('hirlevel');
+    check($result['problems'] === [], json_encode(array_map(static fn ($m): array => [$m->key, $m->params], $result['problems']), JSON_UNESCAPED_UNICODE));
+    $brings = $result['brings'];
+    check(($brings['capabilities'] ?? null) === ['hirlevel_feliratkozhato'] && ($brings['displays'] ?? null) === ['hirlevel_doboz'] && ($brings['commands'] ?? null) === ['hirlevel:hello'] && ($brings['tokens'] ?? null) === ['Tokenek'], json_encode($brings));
+    check(($brings['layouts'] ?? null) === ['hirlevel_kampany'] && ($brings['schemes'] ?? null) === ['hirlevel_zold'] && ($brings['translations'] ?? null) === ['en', 'hu'] && ($brings['files'] ?? null) === ['hirlevel.css', 'img/ikon.gif'], 'its folder; no PHP or hidden file copied: ' . json_encode($brings));
+    $manager = static fn () => $boot()->container()->get(\Campanella\Module\ModuleManager::class);
+    check($manager()->enable('hirlevel') === [] && $enabledNow() === 'hirlevel', 'turned on: ' . $enabledNow());
+    check(is_file($published . '/hirlevel.css') && is_file($published . '/img/ikon.gif') && !file_exists($published . '/nem.php') && !file_exists($published . '/.rejtett'), 'its files copied');
+
+    $on = $boot()->container();
+    check($on->get(\Campanella\Capability\CapabilityRegistry::class)->has('hirlevel_feliratkozhato') && $on->get(\Campanella\Display\DisplayRegistry::class)->has('hirlevel_doboz'), 'its capability and display');
+    check($on->get(\Campanella\I18n\Translator::class)->translate('hirlevel.box') === 'Iratkozz fel a hírlevelünkre!' && $on->get(\Campanella\I18n\Translator::class)->translate('admin.form.cancel') === 'Mégse', 'its translations, the core\'s kept');
+    check(trim($on->get(\Twig\Environment::class)->render('@hirlevel/doboz.html.twig')) === '<div class="hirlevel-doboz">Iratkozz fel a hírlevelünkre!</div>', 'its template as @hirlevel');
+    check($on->get(\Campanella\Token\TokenRegistry::class)->value('hirlevel', 'feliratkozok') === '42', 'its tokens');
+    check(isset($on->get(\Campanella\Layout\LayoutRegistry::class)->all()['hirlevel_kampany'], $on->get(\Campanella\Appearance\ColorSchemeRegistry::class)->all()['hirlevel_zold']) && isset($on->get(\Campanella\Layout\LayoutRegistry::class)->all()['one_column']), 'its layout and colour scheme, the core\'s kept');
+    $before = \Hirlevel\Ertesites::$handled;
+    $on->get(\Campanella\Event\EventDispatcher::class)->dispatch(new \Campanella\Event\ObjectPublished($on->get(\Campanella\Model\ObjectRepository::class)->create('article', ['title' => 'x'])));
+    check(\Hirlevel\Ertesites::$handled === $before + 1, 'its action on an event');
+    check(str_starts_with($on->get(\Twig\Environment::class)->createTemplate("{{ module_asset('hirlevel', '../x/../hirlevel.css') }}")->render(), '/modules/hirlevel/x/hirlevel.css?v=1.2.0-'), 'module_asset(), without ..');
+    check($boot()->handle(new Request('GET', '/'))->status === 200, 'the site with it');
+
+    // One that needs it; turning off.
+    check($manager()->enable('ra_epul') === [] && $enabledNow() === 'hirlevel,ra_epul', 'one that needs it, after it');
+    check($manager()->disable('hirlevel')?->key === 'modules.needed_by', 'not while another needs it');
+    $local = $boot(['modules' => ['disabled' => ['hirlevel']]])->container();
+    check($local->get(\Campanella\Module\ModuleLoader::class)->loaded() === [] && $local->get(\Campanella\Module\ModuleRegistry::class)->get('ra_epul')?->status === 'not_loaded', 'config/local.php turns it off, and what needs it');
+    check($manager()->disable('ra_epul') === null && $manager()->disable('hirlevel') === null && $enabledNow() === null && !is_dir($published), 'turned off, its files removed');
+
+    // A module that fails after it was turned on: left out, the site goes on, the admin says it.
+    $settings->set(['modules.enabled' => 'hibas_regisztracio']);
+    $failing = $boot();
+    check($failing->handle(new Request('GET', '/'))->status === 200 && isset($failing->container()->get(\Campanella\Module\ModuleLoader::class)->failures()['hibas_regisztracio']), 'left out, the site goes on');
+
+    // The admin.
+    $storage = new ArraySessionStorage();
+    $admin = $boot();
+    $admin->container()->set(Session::class, static fn () => new Session($storage));
+    $send = function (string $method, string $path, array $post = []) use ($admin, $storage) {
+        $storage->endRequest();
+
+        return $admin->handle(new Request($method, $path, post: $post));
+    };
+    $admin->container()->get(AuthService::class)->login(new Request('GET', '/'), $newUser('modul-be@example.hu', 'modul-be-jelszo-1', ['administrator']));
+    $list = $send('GET', '/admin/system/modules');
+    check(str_contains($list->body, 'id="module-hibas_regisztracio-failure">Nem töltődött be: Nem sikerült.') && str_contains($list->body, 'href="/admin/system/modules/hirlevel/enable"'), 'the failure; a link to turn one on');
+    $csrf = preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $list->body, $m) === 1 ? $m[1] : '';
+    $send('POST', '/admin/system/modules/hibas_regisztracio/disable', ['_csrf' => $csrf]);
+    check($enabledNow() === null, 'turned off in the admin');
+    $confirm = $send('GET', '/admin/system/modules/hirlevel/enable');
+    check($confirm->status === 200 && str_contains($confirm->body, 'id="module-trial-ok"') && str_contains($confirm->body, '<code>hirlevel_feliratkozhato</code>') && str_contains($confirm->body, 'teljes jogú programkód'), 'the trial and what it brings, the warning');
+    check($send('GET', '/admin/system/modules/hibas_sablon/enable')->status === 422, 'a module that fails the trial is not offered');
+    $send('POST', '/admin/system/modules/hirlevel/enable', []);
+    check($enabledNow() === null, 'not without the CSRF token');
+    check($send('POST', '/admin/system/modules/hirlevel/enable', ['_csrf' => $csrf])->status === 303 && $enabledNow() === 'hirlevel', 'turned on in the admin');
+    check($send('POST', '/admin/system/modules/hibas_sablon/enable', ['_csrf' => $csrf])->status === 422 && $enabledNow() === 'hirlevel', 'not one that fails, even by POST');
+    check($send('GET', '/admin/system/modules/nincs/enable')->status === 404 && $send('GET', '/admin/system/modules/hirlevel/disable')->status === 405, 'only a module that is there; off by POST');
+
+    // The command line: its command; module:disable and module:enable load no module.
+    $stream = fopen('php://memory', 'w+');
+    $console = new \Campanella\Cli\Console($boot(), new \Campanella\Cli\Output($stream, $stream));
+    check($console->run(['campanella', 'hirlevel:hello']) === 0, 'a module\'s command');
+    check($console->run(['campanella', 'module:disable', 'hirlevel']) === 0 && $enabledNow() === null, 'module:disable');
+    check($console->run(['campanella', 'module:enable', 'hibas_sablon']) === 1 && $console->run(['campanella', 'module:enable', 'hirlevel']) === 0 && $enabledNow() === 'hirlevel', 'module:enable, with the trial');
+    rewind($stream);
+    $text = (string) stream_get_contents($stream);
+    check(str_contains($text, 'Szia a hírlevélből') && str_contains($text, 'A modul nem kapcsolható be') && str_contains($text, 'rossz.html.twig'), $text);
+    $console->run(['campanella', 'module:disable', 'hirlevel']);
+    check(!is_dir($published), 'its files removed');
+
+    $settings->set(['modules.enabled' => null]);
     putenv('CAMPANELLA_DB_PREFIX');
 });
 

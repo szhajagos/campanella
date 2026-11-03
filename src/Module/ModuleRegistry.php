@@ -28,6 +28,12 @@ final class ModuleRegistry
     /** The most modules read from the folder. */
     public const int MAX_MODULES = 100;
 
+    /**
+     * Names a module cannot have (since 0.4.6): the templates' `@core`, and the core's own
+     * commands' prefixes (a module's commands are `<name>:…`).
+     */
+    public const array RESERVED = ['core', 'campanella', 'module', 'modules', 'user', 'db', 'model', 'media', 'search', 'import', 'submissions', 'html', 'schema', 'theme', 'admin', 'system'];
+
     /** @var array<string, ModuleState>|null */
     private ?array $states = null;
 
@@ -118,6 +124,10 @@ final class ModuleRegistry
         foreach (array_slice(array_values(array_filter($folders, static fn (string $f): bool => $f[0] !== '.' && is_dir($root . '/' . $f))), 0, self::MAX_MODULES) as $folder) {
             if (preg_match(ModuleManifest::NAME_PATTERN, $folder) !== 1) {
                 $problems[$folder] = [new Message('modules.problem.folder')];
+                continue;
+            }
+            if (in_array($folder, self::RESERVED, true)) {
+                $problems[$folder] = [new Message('modules.problem.reserved')];
                 continue;
             }
             $path = realpath($root . '/' . $folder);

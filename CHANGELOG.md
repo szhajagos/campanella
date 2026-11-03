@@ -10,7 +10,7 @@ backward-incompatible.
 
 ## [Unreleased]
 
-**Modules, part 1 (a).** The first step of 0.5.0's extensibility.
+**Modules, part 1.** The first step of 0.5.0's extensibility.
 
 ### Added
 
@@ -23,7 +23,23 @@ backward-incompatible.
   a circle, a namespace twice (`ModuleRegistry`, `ModuleState`). *System →
   Modules* and `module:list` list them, with the reasons. `modules.disabled` in
   `config/local.php` turns a module off whatever the admin says, and the modules
-  that need it. Turning them on comes with part (b).
+  that need it.
+- **Turning a module on and off** (*System → Modules*, `module:enable`,
+  `module:disable`): only after a trial (`ModuleTrial`) finds nothing wrong:
+  every PHP file readable, its folder's names, a site made with it on (it is
+  loaded, what it registers checked with the core's, its templates compiled, its
+  layouts and colour schemes read, the front page, the search and a missing page
+  made), no PHP warning on the way; the confirmation lists what it brings, with
+  the warning that a module is code with every right. Not off while another
+  module needs it; its data stays.
+- **What a module brings** (`Module`, `ModuleContext`, `ModuleLoader`):
+  capabilities, displays and their sources, token providers, actions and
+  listeners on events, commands (`<module>:…`), services of its own classes; its
+  templates as `@<module>/…`, its layouts and colour schemes (`<module>_…`), its
+  translations (`<module>.…`), its files copied to `public/modules/<module>/`
+  (`module_asset()`). It never replaces the core's services or templates. A
+  module that fails on a request is left out, the site goes on, *System →
+  Modules* says why. The `module:*` commands load no module.
 
 ## [0.4.5] – 2026-11-03
 

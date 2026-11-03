@@ -24,6 +24,36 @@ final class TemplateLoader extends FilesystemLoader
     /** @var array<string, string> */
     private array $keys = [];
 
+    /** @var array<string, string> module => its templates' folder (since 0.4.6) */
+    private array $moduleLayouts = [];
+
+    /**
+     * A module's layouts (since 0.4.6): `layout/<module>_….html.twig` found in its templates'
+     * folder, only when no other path has that name; a module never replaces another template.
+     */
+    public function addModuleLayouts(string $module, string $dir): void
+    {
+        $this->moduleLayouts[$module] = rtrim($dir, '/');
+    }
+
+    #[\Override]
+    protected function findTemplate(string $name, bool $throw = true): ?string
+    {
+        $found = parent::findTemplate($name, false);
+        if ($found !== null || $this->moduleLayouts === []) {
+            return $found ?? parent::findTemplate($name, $throw);
+        }
+        if (preg_match('#^layout/[a-z][a-z0-9_]*\.html\.twig$#D', $name) === 1) {
+            foreach ($this->moduleLayouts as $module => $dir) {
+                if (str_starts_with($name, 'layout/' . $module . '_') && is_file($dir . '/' . $name)) {
+                    return $dir . '/' . $name;
+                }
+            }
+        }
+
+        return parent::findTemplate($name, $throw);
+    }
+
     #[\Override]
     public function getCacheKey(string $name): string
     {

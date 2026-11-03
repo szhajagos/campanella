@@ -1,0 +1,40 @@
+{% extends '@core/admin/base.html.twig' %}
+
+{# Turning a module on (since 0.4.6): the trial's result, what it brings, the warning. #}
+{% block content %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb small mb-2">
+            <li class="breadcrumb-item"><a href="{{ admin_url('system/modules') }}">{{ t('modules.title') }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ module.label }}</li>
+        </ol>
+    </nav>
+    <h1 class="h3 mb-2">{{ t('modules.enable_heading', {label: module.label}) }}</h1>
+    <p class="text-body-secondary mb-3"><code>{{ module.name }}</code> {{ module.version }}{% if module.description %} · {{ module.description }}{% endif %}</p>
+
+    {% if problems %}
+        <div class="alert alert-danger" role="alert" id="module-problems">
+            <p class="mb-2">{{ t('modules.trial_failed') }}</p>
+            <ul class="mb-0">{% for problem in problems %}<li>{{ t(problem.key, problem.params) }}</li>{% endfor %}</ul>
+        </div>
+    {% else %}
+        <div class="alert alert-success" role="status" id="module-trial-ok">{{ t('modules.trial_ok') }}</div>
+        {% if brings %}
+            <section class="card card-body mb-3" id="module-brings">
+                <h2 class="h6">{{ t('modules.brings') }}</h2>
+                <dl class="row small mb-0">
+                    {% for kind, names in brings %}
+                        <dt class="col-sm-3">{{ t('modules.brings.' ~ kind) }}</dt>
+                        <dd class="col-sm-9">{% for name in names|slice(0, 20) %}<code>{{ name }}</code>{{ not loop.last ? ', ' }}{% endfor %}{% if names|length > 20 %} {{ t('modules.brings_more', {count: names|length - 20}) }}{% endif %}</dd>
+                    {% endfor %}
+                </dl>
+            </section>
+        {% endif %}
+        <div class="alert alert-warning" role="alert">{{ t('modules.trust') }}</div>
+        <form method="post" action="{{ admin_url('system/modules/' ~ module.name ~ '/enable') }}" class="d-flex gap-2">
+            {{ csrf_field() }}
+            <button type="submit" class="btn btn-primary">{{ t('modules.enable_confirm') }}</button>
+            <a class="btn btn-outline-secondary" href="{{ admin_url('system/modules') }}">{{ t('admin.form.cancel') }}</a>
+        </form>
+    {% endif %}
+    {% if problems %}<p><a class="btn btn-outline-secondary" href="{{ admin_url('system/modules') }}">{{ t('tree.arrange_back') }}</a></p>{% endif %}
+{% endblock %}

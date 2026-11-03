@@ -1,0 +1,1 @@
+{"name": "utkozo", "label": "Ütköző", "version": "1.0.0", "campanella": "*", "autoload": {"Utkozo\\": "src/"}}

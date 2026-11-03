@@ -119,6 +119,7 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
         private readonly ?Closure $layouts = null,
         private readonly ?Closure $regions = null,
         private readonly ?Closure $tokens = null,
+        private readonly ?Closure $modules = null,
     ) {
     }
 
@@ -139,6 +140,7 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
             new TwigFunction('csrf_field', $this->csrfField(...), ['is_safe' => ['html']]),
             new TwigFunction('contact_form', $this->contactForm(...), ['is_safe' => ['html']]),
             new TwigFunction('theme_asset', $this->themeAsset(...)),
+            new TwigFunction('module_asset', $this->moduleAsset(...)),
             new TwigFunction('t', $this->translate(...)),
             new TwigFunction('admin_url', $this->adminUrl(...)),
             new TwigFunction('admin_access', $this->adminAccess(...)),
@@ -207,6 +209,21 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
         $theme = $this->theme ?? Theme::none();
 
         return $this->url('/' . $theme->assetPath($path)) . '?v=' . rawurlencode(Version::CAMPANELLA);
+    }
+
+    /**
+     * A file of a module (since 0.4.6): public/modules/<name>/…, copied there when the module
+     * was turned on, with the module's version as its cache buster.
+     */
+    public function moduleAsset(string $module, string $path): string
+    {
+        $versions = $this->modules !== null ? ($this->modules)() : [];
+        if (preg_match('/^[a-z][a-z0-9_]{1,40}$/D', $module) !== 1) {
+            return '';
+        }
+        $path = implode('/', array_filter(explode('/', $path), static fn (string $part): bool => $part !== '' && $part !== '.' && $part !== '..'));
+
+        return $this->url('/modules/' . $module . '/' . $path) . '?v=' . rawurlencode(($versions[$module] ?? '') . '-' . Version::CAMPANELLA);
     }
 
     /**

@@ -1,0 +1,1 @@
+{"name": "rossz_sema", "label": "Rossz séma", "version": "1.0.0", "campanella": "*", "autoload": {"RosszSema\\": "src/"}}

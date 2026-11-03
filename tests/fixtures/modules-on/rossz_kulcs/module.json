@@ -1,0 +1,1 @@
+{"name": "rossz_kulcs", "label": "Rossz kulcs", "version": "1.0.0", "campanella": "*", "autoload": {"RosszKulcs\\": "src/"}}

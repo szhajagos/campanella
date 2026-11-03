@@ -17,6 +17,7 @@
                         <th scope="col">{{ t('modules.column.version') }}</th>
                         <th scope="col">{{ t('modules.column.needs') }}</th>
                         <th scope="col">{{ t('modules.column.status') }}</th>
+                        {% if can_change %}<th scope="col"><span class="visually-hidden">{{ t('modules.column.actions') }}</span></th>{% endif %}
                     </tr>
                 </thead>
                 <tbody>
@@ -35,7 +36,20 @@
                                 {% set badge = {broken: 'text-bg-danger', off: 'text-bg-light border', on: 'text-bg-success', not_loaded: 'text-bg-warning'}[module.status] %}
                                 <span class="badge {{ badge }} fw-normal">{{ t('modules.status.' ~ module.status) }}</span>
                                 {% for problem in module.problems %}<div class="small {{ module.status == 'broken' ? 'text-danger' : 'text-body-secondary' }}">{{ t(problem.key, problem.params) }}</div>{% endfor %}
+                                {% if module.failure %}<div class="small text-danger" id="module-{{ module.name }}-failure">{{ t(module.failure.key, module.failure.params) }}</div>{% endif %}
                             </td>
+                            {% if can_change %}
+                                <td class="text-end text-nowrap">
+                                    {% if module.enabled %}
+                                        <form method="post" action="{{ admin_url('system/modules/' ~ module.name ~ '/disable') }}" class="d-inline">
+                                            {{ csrf_field() }}
+                                            <button type="submit" class="btn btn-sm btn-outline-secondary" aria-label="{{ t('modules.disable_label', {label: module.label}) }}">{{ t('modules.disable') }}</button>
+                                        </form>
+                                    {% elseif module.status == 'off' %}
+                                        <a class="btn btn-sm btn-primary" href="{{ admin_url('system/modules/' ~ module.name ~ '/enable') }}" aria-label="{{ t('modules.enable_label', {label: module.label}) }}">{{ t('modules.enable') }}</a>
+                                    {% endif %}
+                                </td>
+                            {% endif %}
                         </tr>
                     {% endfor %}
                 </tbody>

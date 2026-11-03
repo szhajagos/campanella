@@ -1,0 +1,1 @@
+{"name": "ra_epul", "label": "R\u00e1\u00e9p\u00fcl", "version": "1.0.0", "campanella": "*", "autoload": {"RaEpul\\": "src/"}, "requires": {"hirlevel": "^1.0"}}

@@ -299,6 +299,11 @@ gets a new compiled copy even when its file time is older than the old copy's
 times). Twig's `auto_reload` (a file time check) is still on. The cost: the
 templates a request uses are read and hashed once per request.
 
+Since 0.4.6 `addModuleLayouts(string $module, string $dir): void` gives a
+module's layouts: `layout/<module>_….html.twig` is found in the module's
+templates' folder, only when no other path has that name (a module never
+replaces a template; [chapter 32](32-modules.md)).
+
 ## Twig extension
 
 `Campanella\View\CampanellaTwigExtension` · **Public** (the template functions) · the extension class is **Internal**
@@ -320,6 +325,7 @@ templates a request uses are read and hashed once per request.
 | `{{ contact_form() }}` | `contactForm()` | The contact form (since 0.1.5; [chapter 22](22-forms.md#the-contact-form)); empty while it is turned off |
 | `{{ path('login') }}` | `path(string $name)` | A system page's URL by its name (`login`, `logout`; `SitePaths`, since 0.1.4) |
 | `{{ theme_asset('style.css') }}` | `themeAsset(string $path)` | A file of the active theme (`public/themes/<name>/`), with the version as cache buster |
+| `{{ module_asset('newsletter', 'style.css') }}` | `moduleAsset(string $module, string $path)` | Since 0.4.6: a file of a module, copied to `public/modules/<name>/` when it was turned on, with its version as cache buster; `..` is left out ([chapter 32](32-modules.md)) |
 | `{{ admin_url('article') }}` | `adminUrl(string $subpath = '')` | The URL of an admin page ([chapter 13](13-admin.md)) |
 | `{{ admin_access() }}` | `adminAccess()` | Whether the current visitor may enter the admin (e.g. to show an "Admin" link) |
 | `{{ flash_messages() }}` | `flashMessages()` | The one-time messages, translated (`type`, `text`), removed from the session |

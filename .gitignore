@@ -8,3 +8,5 @@
 /var/files/
 /modules/*
 !/modules/README.md
+/public/modules/*
+!/public/modules/.htaccess
