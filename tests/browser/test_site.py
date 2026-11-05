@@ -467,7 +467,7 @@ ADMIN_PAGES = [
     "/admin/system/importers", "/admin/system/importers/new",
     "/admin/component", "/admin/component/new/source", "/admin/snippet/new",
 ]
-ADMINISTRATORS_ONLY = ["/admin/component", "/admin/system/modules", "/admin/component/new/source", "/admin/user", "/admin/user/new", "/admin/submission", "/admin/system", "/admin/system/settings", "/admin/system/mail", "/admin/system/color-schemes",
+ADMINISTRATORS_ONLY = ["/admin/component", "/admin/system/field-types", "/admin/system/modules", "/admin/component/new/source", "/admin/user", "/admin/user/new", "/admin/submission", "/admin/system", "/admin/system/settings", "/admin/system/mail", "/admin/system/color-schemes",
                        "/admin/system/blueprints", "/admin/system/lists", "/admin/system/model", "/admin/system/redirects",
                        "/admin/system/importers", "/admin/system/importers/new"]
 

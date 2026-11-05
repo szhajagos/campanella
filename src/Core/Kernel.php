@@ -513,6 +513,19 @@ final class Kernel
             return $loader;
         });
 
+        // The field types: the core's, and the modules' (since 0.4.8); if one is not valid, without them.
+        $c->set(\Campanella\Model\FieldTypeRegistry::class, static function (Container $c): \Campanella\Model\FieldTypeRegistry {
+            /** @var list<\Campanella\Model\CustomFieldType> $types */
+            $types = $c->get(\Campanella\Module\ModuleLoader::class)->all('field_types');
+            try {
+                return new \Campanella\Model\FieldTypeRegistry($types);
+            } catch (\InvalidArgumentException $e) {
+                error_log('Campanella: the modules\' field types are left out: ' . $e->getMessage());
+
+                return new \Campanella\Model\FieldTypeRegistry();
+            }
+        });
+
         $c->set(CapabilityRegistry::class, static function (Container $c): CapabilityRegistry {
             /** @var list<class-string<\Campanella\Capability\Capability>> $core */
             $core = array_values((array) $c->get(Config::class)->get('capabilities', []));
@@ -532,7 +545,7 @@ final class Kernel
         });
 
         $c->set(BlueprintRegistry::class, static function (Container $c) use ($root): BlueprintRegistry {
-            $registry = new BlueprintRegistry($c->get(CapabilityRegistry::class), require $root . '/config/blueprints.php');
+            $registry = new BlueprintRegistry($c->get(CapabilityRegistry::class), require $root . '/config/blueprints.php', $c->get(\Campanella\Model\FieldTypeRegistry::class));
             // The Blueprints made in the admin (since 0.2.3), after those of the file.
             try {
                 $registry->loadStored($c->get(BlueprintStore::class)->load());
@@ -1268,7 +1281,7 @@ final class Kernel
             new SiblingOrder($c->get(Connection::class), $c->get(BlueprintRegistry::class)),
             new UserPages($c->get(UserService::class), $c->get(AuthService::class), $c->get(Csrf::class), $c->get(Flash::class), $c->get(AdminAccess::class)),
             $c->get(UserService::class),
-            new StructurePages($c->get(BlueprintRegistry::class), $c->get(CapabilityRegistry::class), $c->get(QueryEngine::class), $c->get(AdminAccess::class)),
+            new StructurePages($c->get(BlueprintRegistry::class), $c->get(CapabilityRegistry::class), $c->get(QueryEngine::class), $c->get(AdminAccess::class), $c->get(\Campanella\Model\FieldTypeRegistry::class), $c->get(\Campanella\Module\ModuleLoader::class)),
             new SettingsPage($c->get(SiteSettings::class), $c->get(QueryEngine::class), $c->get(MediaStorage::class), $c->get(Csrf::class), $c->get(Flash::class), $c->get(AdminAccess::class), new ContentPathsChange(
                 $c->get(ContentPaths::class),
                 $c->get(Settings::class),

@@ -10,6 +10,23 @@ backward-incompatible.
 
 ## [Unreleased]
 
+**Field types of a module's own, part 1.** The second step of 0.5.0's extensibility.
+
+### Added
+
+- **A module's field types** ([PHP API, chapter 2](docs/php-api/02-objects.md#a-modules-field-types-customfieldtype);
+  `ModuleContext::fieldType()`, `CustomFieldType`, `AbstractFieldType`,
+  `FieldTypeRegistry`): built on one of the core's types, stored, queried and
+  filtered as that; their own normalizing, checks (with their own messages), the
+  text shown, the admin's widget (attributes for the base's, or a template of
+  the module) and the import's reading. A field of one is stored with its base
+  (`"type": "…", "base": "string"`), so while its module is off or gone it works
+  as its base type, its content kept. The trial checks them; a module is not
+  turned off while a field uses its type.
+- ***Structure → Field types***: the core's eleven types and the modules', where
+  each comes from, its base, how it is stored, and the fields that use it; the
+  fields whose module's type is missing.
+
 ## [0.4.7] – 2026-11-03
 
 **Modules.** The first step of 0.5.0's extensibility: what was planned as 0.4.6

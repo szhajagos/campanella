@@ -59,6 +59,9 @@ final class ModuleContext
     /** @var list<array{path: string, controller: string, prefix: bool}> */
     private array $routes = [];
 
+    /** @var list<\Campanella\Model\CustomFieldType> */
+    private array $fieldTypes = [];
+
     /** @var array{class: string, label: string, group: string, editors: bool}|null */
     private ?array $adminPage = null;
 
@@ -177,6 +180,23 @@ final class ModuleContext
     }
 
     /**
+     * A field type of the module's own (since 0.4.8): a CustomFieldType of the module, built on a
+     * core type, its name starting with `<module>_`.
+     *
+     * @param string $class A CustomFieldType class of the module
+     */
+    public function fieldType(string $class): self
+    {
+        $type = new ($this->own($class, \Campanella\Model\CustomFieldType::class))();
+        if (!str_starts_with($type->name(), $this->manifest->name . '_')) {
+            throw new ModuleException("A field type's name must start with {$this->manifest->name}_ ({$type->name()})");
+        }
+        $this->fieldTypes[] = $type;
+
+        return $this;
+    }
+
+    /**
      * A public page of the module (since 0.4.7): its Controller (made by the container, so a
      * service() of it can have its own services) at the path, or under it with `$prefix`. It
      * is routed after the system's routes and only where nothing else is routed (never the
@@ -224,7 +244,7 @@ final class ModuleContext
     /**
      * Everything registered.
      *
-     * @return array{capabilities: list<class-string<Capability>>, displays: list<class-string<Display>>, sources: list<class-string<SystemSource>>, tokens: list<class-string<TokenProvider>>, actions: array<class-string<Event>, list<class-string<Action>>>, listeners: list<array{0: class-string<Event>, 1: Closure}>, commands: list<Command>, services: array<class-string, Closure>, migrations: list<\Campanella\Database\Migration\Migration>, routes: list<array{path: string, controller: string, prefix: bool}>, admin: array{class: string, label: string, group: string, editors: bool}|null}
+     * @return array{capabilities: list<class-string<Capability>>, displays: list<class-string<Display>>, sources: list<class-string<SystemSource>>, tokens: list<class-string<TokenProvider>>, actions: array<class-string<Event>, list<class-string<Action>>>, listeners: list<array{0: class-string<Event>, 1: Closure}>, commands: list<Command>, services: array<class-string, Closure>, migrations: list<\Campanella\Database\Migration\Migration>, routes: list<array{path: string, controller: string, prefix: bool}>, field_types: list<\Campanella\Model\CustomFieldType>, admin: array{class: string, label: string, group: string, editors: bool}|null}
      */
     public function registered(): array
     {
@@ -239,6 +259,7 @@ final class ModuleContext
             'services' => $this->services,
             'migrations' => $this->migrations,
             'routes' => $this->routes,
+            'field_types' => $this->fieldTypes,
             'admin' => $this->adminPage,
         ];
     }

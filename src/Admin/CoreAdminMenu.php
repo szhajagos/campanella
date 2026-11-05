@@ -91,6 +91,7 @@ final class CoreAdminMenu
         $menu->add(AdminMenu::STRUCTURE, self::forSystem($access, [
             new AdminMenuItem('blueprints', 'structure.blueprints', 'system/blueprints'),
             new AdminMenuItem('capabilities', 'structure.capabilities', 'system/capabilities'),
+            new AdminMenuItem('field_types', 'structure.field_types', 'system/field-types'),
             new AdminMenuItem('lists', 'lists.title', 'system/lists'),
             new AdminMenuItem('model', 'model.title', 'system/model'),
         ]));

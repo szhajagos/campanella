@@ -55,7 +55,7 @@ final class BlueprintRegistry
     /**
      * @param array<string, array{label?: string, capabilities: list<class-string<Capability>|string>, fields?: list<Field>, queryable?: list<string>, relations?: list<Relation>, cardinality?: array<string, mixed>, form_order?: list<string>, defaults?: array<string, mixed>, editor?: array<string, string>, tree_scope?: string, admin_columns?: list<string>, lists?: array<string, array{label?: string, query: Closure(CampanellaObject): Query}>}> $config
      */
-    public function __construct(private readonly CapabilityRegistry $capabilities, array $config = [])
+    public function __construct(private readonly CapabilityRegistry $capabilities, array $config = [], private readonly ?FieldTypeRegistry $types = null)
     {
         foreach ($config as $name => $definition) {
             $this->define($name, $definition);
@@ -89,6 +89,10 @@ final class BlueprintRegistry
             }
             if (in_array($field->name, self::RESERVED_FIELD_NAMES, true)) {
                 throw new CapabilityException("Blueprint '{$name}': the field name '{$field->name}' is reserved.");
+            }
+            if ($field->customType !== null) {
+                // A module's type (since 0.4.8), if its module is on; else the field is its base type.
+                $field = $field->withCustom($this->types?->find($field->customType));
             }
             $fields[$field->name] = in_array($field->name, $queryable, true) ? $field->asTable() : $field->asData();
         }

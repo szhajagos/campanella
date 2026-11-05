@@ -1,0 +1,49 @@
+{% extends '@core/admin/base.html.twig' %}
+
+{# The field types (since 0.4.8): the core's and the modules', how each is stored, who uses it. #}
+{% block content %}
+    <h1 class="h3 mb-2">{{ t('structure.field_types') }}</h1>
+    <p class="text-body-secondary mb-4">{{ t('structure.field_types_intro') }}</p>
+
+    {% if missing %}
+        <div class="alert alert-warning" role="alert" id="field-types-missing">
+            <p class="mb-2">{{ t('structure.field_types_missing') }}</p>
+            <ul class="mb-0">
+                {% for item in missing %}<li><code>{{ item.blueprint }}</code> · <code>{{ item.field }}</code>: <code>{{ item.type }}</code> → <code>{{ item.base }}</code></li>{% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+
+    <div class="table-responsive">
+        <table class="table align-middle admin-list" id="field-types">
+            <thead>
+                <tr>
+                    <th scope="col">{{ t('structure.field_type') }}</th>
+                    <th scope="col">{{ t('structure.field_type_origin') }}</th>
+                    <th scope="col">{{ t('structure.field_type_stored') }}</th>
+                    <th scope="col">{{ t('structure.field_type_uses') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for type in types %}
+                    {% set description = type.description ? t(type.description) : '' %}
+                    <tr id="field-type-{{ type.name }}">
+                        <td>
+                            <span class="fw-semibold">{{ t(type.label) }}</span> <code class="small">{{ type.name }}</code>
+                            {% if description and description != type.description %}<div class="small text-body-secondary">{{ description }}</div>{% endif %}
+                        </td>
+                        <td class="small">
+                            {% if type.origin %}{{ t('structure.field_type_module', {module: type.origin}) }}{% else %}{{ t('structure.field_type_core') }}{% endif %}
+                            {% if type.base %}<div class="text-body-secondary">{{ t('structure.field_type_base', {base: t('field_type.' ~ type.base)}) }} <code>{{ type.base }}</code></div>{% endif %}
+                            {% if type.widget %}<div class="text-body-secondary">{{ t('structure.field_type_widget') }} <code>{{ type.widget }}</code></div>{% endif %}
+                        </td>
+                        <td class="small"><code>{{ type.column }}</code></td>
+                        <td class="small">
+                            {% for use in type.uses %}<div>{{ t(use.label) }} <code>{{ use.blueprint }}</code> · <code>{{ use.field }}</code></div>{% else %}<span class="text-body-secondary">–</span>{% endfor %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}

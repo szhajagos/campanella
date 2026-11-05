@@ -445,6 +445,11 @@ final class CampanellaTwigExtension extends AbstractExtension implements Globals
         $e = static fn (string $text): string => htmlspecialchars($text, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8');
         $core = $env->getExtension(CoreExtension::class);
         $text = is_scalar($value) || $value instanceof \Stringable ? (string) $value : '';
+        // A module's type (since 0.4.8): its own text, escaped; or as its base type.
+        $own = $value === null || $value === '' ? null : $field->custom?->format($value);
+        if ($own !== null) {
+            return $e($own);
+        }
 
         return match ($field->type) {
             FieldType::Text => nl2br($e($text), false),

@@ -29,7 +29,63 @@ final class StructurePages
         private readonly CapabilityRegistry $capabilities,
         private readonly QueryEngine $queries,
         private readonly AdminAccess $access,
+        private readonly ?\Campanella\Model\FieldTypeRegistry $types = null,
+        private readonly ?\Campanella\Module\ModuleLoader $modules = null,
     ) {
+    }
+
+    /**
+     * The field types (since 0.4.8; /admin/system/field-types): the core's and the modules',
+     * each with how it is stored and the Blueprints' fields that use it; and the fields of a
+     * module's type whose module is off or gone (they work as their base type).
+     *
+     * @return array{types: list<array<string, mixed>>, missing: list<array{blueprint: string, field: string, type: string, base: string}>}
+     */
+    public function fieldTypes(): array
+    {
+        $uses = [];
+        $missing = [];
+        foreach ($this->blueprints->all() as $blueprint) {
+            foreach ($blueprint->fields as $field) {
+                $uses[$field->typeName()][] = ['blueprint' => $blueprint->name, 'label' => $blueprint->label, 'field' => $field->name, 'editable' => $this->blueprints->isEditable($blueprint->name)];
+                if ($field->customType !== null && $field->custom === null) {
+                    $missing[] = ['blueprint' => $blueprint->name, 'field' => $field->name, 'type' => $field->customType, 'base' => $field->type->value];
+                }
+            }
+        }
+        $owners = [];
+        foreach ($this->modules?->loaded() ?? [] as $module => $registered) {
+            foreach ((array) ($registered['field_types'] ?? []) as $type) {
+                $owners[$type->name()] = $module;
+            }
+        }
+        $types = [];
+        foreach (\Campanella\Model\FieldType::cases() as $type) {
+            $types[] = [
+                'name' => $type->value,
+                'label' => 'field_type.' . $type->value,
+                'description' => 'field_type_info.' . $type->value,
+                'origin' => null,
+                'base' => null,
+                'column' => strtolower($type->columnType()->name),
+                'widget' => null,
+                'uses' => $uses[$type->value] ?? [],
+            ];
+        }
+        foreach ($this->types?->custom() ?? [] as $name => $type) {
+            $types[] = [
+                'name' => $name,
+                'label' => $type->label(),
+                'description' => $type->description(),
+                'origin' => $owners[$name] ?? null,
+                'base' => $type->base()->value,
+                'column' => strtolower($type->base()->columnType()->name),
+                'widget' => $type->widget(),
+                'uses' => $uses[$name] ?? [],
+            ];
+        }
+
+        return ['types' => $types, 'missing' => $missing];
     }
 
     /**

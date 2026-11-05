@@ -157,6 +157,19 @@ final class ModuleTrial
         } catch (\Throwable $e) {
             $problems[] = new Message('modules.trial.displays', ['error' => mb_substr($e->getMessage(), 0, 300)]);
         }
+        // Its field types (since 0.4.8), with the others'.
+        try {
+            new \Campanella\Model\FieldTypeRegistry($loader->all('field_types'));
+            $brings['field_types'] = array_map(static fn ($type): string => $type->name() . ' (' . $type->base()->value . ')', (array) $registered['field_types']);
+        } catch (\Throwable $e) {
+            $problems[] = new Message('modules.trial.field_types', ['error' => mb_substr($e->getMessage(), 0, 300)]);
+        }
+        foreach ((array) $registered['field_types'] as $type) {
+            $widget = $type->widget();
+            if ($widget !== null && !str_starts_with($widget, '@' . $manifest->name . '/')) {
+                $problems[] = new Message('modules.trial.field_types', ['error' => "the widget of {$type->name()} is not the module's: {$widget}"]);
+            }
+        }
         $names = [];
         foreach ($loader->all('commands') as $command) {
             if (isset($names[$command->name()])) {

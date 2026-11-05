@@ -129,6 +129,8 @@ must have choices; no other field may.
 | `isTooLong(mixed $value): bool` | For a single-valued `String`: whether the value is longer than `length` (checked on save since 0.0.4, `validation.value_too_long`) |
 | `isEmpty(mixed $value): bool` | `null`, empty string or empty list; the required-field check uses this |
 | `invalid(mixed $value): ?Message` | Whether a (non-empty) value is invalid for the type, checked on save (since 0.2.2): `validation.invalid_email`, `validation.invalid_web_address`, `validation.invalid_choice`, `validation.number_too_large`; null if it is fine |
+| `withCustom(?CustomFieldType $custom): self` | Since 0.4.8: the same field with its module's type (only one of its `customType` and base); null: as its base type |
+| `typeName(): string` | Since 0.4.8: its module's type's name (`customType`), or its base type's |
 | `static isWebAddress(string $url): bool` | An `http://` or `https://` address with a host, without whitespace, control characters or backslashes (a `Url` field's check; since 0.2.2) |
 | `choiceLabel(string $key): ?string` | A Choice field's label for a key (a message key or text), or null for a key not offered (since 0.2.2) |
 
@@ -232,6 +234,43 @@ in 0.0.6) was removed in 0.1.0.
 
 The `STORAGE_DATE_FORMAT` constant (`'Y-m-d H:i:s'`) is the format of stored
 dates.
+
+## A module's field types: CustomFieldType
+
+*Since 0.4.8.* `Campanella\Model\CustomFieldType` · **Public** · `interface`. A
+module's own type is built on one of the core's (its **base type**): stored,
+queried, filtered and synchronised as that, in the same columns; what it adds
+is its behaviour. A field of it has `type` = the base (FieldType) and
+`customType` = its name, and `custom` = the type while its module is on. Its
+stored form has both (`"type": "newsletter_phone", "base": "string"`), so while
+the module is off or gone the field works as its base type: its content stays
+readable and editable, only the type's behaviour is left out (*Structure →
+Field types* lists those fields).
+
+| Method | |
+|---|---|
+| `name(): string` | Small letters, digits, `_`, starting with its module's name and `_` |
+| `base(): FieldType` | The core's type it is built on |
+| `label(): string`, `description(): string` | Keys of its module's translations (`description` may be `''`) |
+| `normalize(mixed $value): mixed` | A value of the base type (cast already), as it is kept: run whenever the field casts a value, so saved values are normalized |
+| `invalid(mixed $value): ?Message` | After the base type's check (`Field::invalid()`), for a value that is not empty |
+| `format(mixed $value): ?string` | The text shown (`field_value()`, the table display, the admin's lists), escaped by the core; null: as the base type shows it |
+| `widget(): ?string` | Its own widget in the admin: a template of its module (`@<module>/…`, given `field`, `value`, `input_id`, `invalid` as the core's `admin/form/` widgets); null: the base type's |
+| `attributes(): array` | HTML attributes for the base type's widget (e.g. `inputmode`, `autocomplete`, `pattern`); never `on…`, `style`, `name`, `id`, `form`, `type`, `value`, `formaction` |
+| `import(string $value): mixed` | A value of an importer's file, read before it is cast to the base type |
+
+`Campanella\Model\AbstractFieldType` · **Public** · `abstract class`: the defaults
+(a value as it is, valid as the base type finds it, shown, edited and imported
+as the base type); a type overrides what it does differently.
+
+`Campanella\Model\FieldTypeRegistry` · **Public** · `final class`, a service:
+`__construct(list<CustomFieldType> $types)` (`InvalidArgumentException` for a name
+that is not one or is a core type's, one twice, an attribute it may not set, a
+widget that is not a module's template), `find(?string $name): ?CustomFieldType`,
+`custom(): array<string, CustomFieldType>`, `core(): list<FieldType>`;
+`NAME_PATTERN`. The Kernel's has the types of the modules that are on
+(`ModuleContext::fieldType()`, [chapter 32](32-modules.md)); `BlueprintRegistry`
+(its third argument) gives each field of a module's type its type.
 
 ## CalendarDate
 

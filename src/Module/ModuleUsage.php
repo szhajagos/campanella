@@ -61,6 +61,17 @@ final class ModuleUsage
             }
         }
 
+        // Its field types in Blueprints' fields (since 0.4.8).
+        $types = array_map(static fn ($type): string => $type->name(), (array) ($registered['field_types'] ?? []));
+        if ($types !== []) {
+            foreach ($this->blueprints->all() as $blueprint) {
+                $used = array_keys(array_filter($blueprint->fields, static fn ($field): bool => in_array($field->customType, $types, true)));
+                if ($used !== []) {
+                    $uses[] = new Message('modules.usage.field_type', ['blueprint' => $blueprint->name, 'fields' => implode(', ', $used)]);
+                }
+            }
+        }
+
         // Its displays and sources in components.
         $own = array_flip(array_map(strval(...), (array) $registered['displays']));
         $displays = array_values(array_map(static fn ($d): string => $d->name, array_filter($this->displays->definitions(), static fn ($d): bool => isset($own[$d->class]))));

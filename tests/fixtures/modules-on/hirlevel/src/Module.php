@@ -16,6 +16,8 @@ final class Module implements \Campanella\Module\Module
             ->display(DobozDisplay::class)
             ->tokens(Tokenek::class)
             ->on(ObjectPublished::class, Ertesites::class)
+            ->fieldType(TelefonType::class)
+            ->fieldType(SzinType::class)
             ->command(new Parancs())
             ->route('/hirlevel', Oldal::class)
             ->adminPage(Admin::class, 'hirlevel.admin', 'audience', editors: true);

@@ -153,7 +153,7 @@ final class ObjectForm
                     // plain body can be converted to a formatted one (AdminController's convert-html).
                     $field->type === FieldType::Text => ['rows' => $name === 'body' ? 14 : 4] + ($textual && !$object->isNew() ? ['convertible' => 1] : []),
                     default => [],
-                },
+                } + ($field->custom?->attributes() ?? []),
             );
         }
 
@@ -213,7 +213,7 @@ final class ObjectForm
                 },
                 options: $field->type === FieldType::Choice ? $this->choiceOptions($field) : [],
                 error: isset($errors[$name]) ? $errors[$name]->translate($this->translator) : null,
-                attributes: in_array($field->type, [FieldType::String, FieldType::Email, FieldType::Url], true) ? ['maxlength' => $field->length] : [],
+                attributes: (in_array($field->type, [FieldType::String, FieldType::Email, FieldType::Url], true) ? ['maxlength' => $field->length] : []) + ($field->custom?->attributes() ?? []),
             );
         }
 
@@ -303,6 +303,12 @@ final class ObjectForm
 
     private function widget(Field $field): string
     {
+        // A module's type may have its own widget (since 0.4.8): a template of its module.
+        $own = $field->custom?->widget();
+        if ($own !== null) {
+            return $own;
+        }
+
         return match ($field->type) {
             FieldType::String => 'string',
             FieldType::Text => 'text',

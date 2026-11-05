@@ -1,7 +1,8 @@
 {# One form row: label, the widget (repeated for a multi-valued field), help and error. #}
-{% set widget = '@core/admin/form/' ~ field.widget ~ '.html.twig' %}
+{# A module's field type may have its own widget, a template of its module (since 0.4.8). #}
+{% set widget = field.widget starts with '@' ? field.widget : '@core/admin/form/' ~ field.widget ~ '.html.twig' %}
 {% set invalid = field.error ? ' is-invalid' : '' %}
-<div class="mb-4 admin-field admin-field--{{ field.widget }}">
+<div class="mb-4 admin-field admin-field--{{ field.widget starts with '@' ? 'custom' : field.widget }}">
     {% if field.widget != 'boolean' or field.multiple %}
         <label class="form-label fw-semibold" for="{{ field.inputId }}">
             {{ t(field.label) }}{% if field.required %} <span class="text-danger" aria-hidden="true">*</span>{% endif %}

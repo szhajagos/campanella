@@ -142,8 +142,18 @@ final class BlueprintDefinition
      */
     public static function field(array $item): Field
     {
-        $type = FieldType::tryFrom(is_string($item['type'] ?? null) ? $item['type'] : '')
-            ?? throw new InvalidArgumentException('Unknown field type: ' . json_encode($item['type'] ?? null));
+        $given = is_string($item['type'] ?? null) ? $item['type'] : '';
+        $type = FieldType::tryFrom($given);
+        $customType = null;
+        if ($type === null) {
+            // A module's type (since 0.4.8), stored with its base: the field works as that while
+            // the module is off or gone.
+            $type = preg_match(FieldTypeRegistry::NAME_PATTERN, $given) === 1 && is_string($item['base'] ?? null) ? FieldType::tryFrom($item['base']) : null;
+            if ($type === null) {
+                throw new InvalidArgumentException('Unknown field type: ' . json_encode($item['type'] ?? null) . (isset($item['base']) ? '' : ' (a module\'s type needs its "base")'));
+            }
+            $customType = $given;
+        }
         $name = self::name($item['name'] ?? null);
         if (in_array($name, BlueprintRegistry::RESERVED_FIELD_NAMES, true)) {
             throw new InvalidArgumentException("The field name '{$name}' is reserved.");
@@ -196,6 +206,7 @@ final class BlueprintDefinition
             translatable: ($item['translatable'] ?? false) === true,
             choices: $choices,
             scale: is_int($item['scale'] ?? null) ? $item['scale'] : 2,
+            customType: $customType,
         );
         if ($default !== null && $default !== '') {
             try {
@@ -233,7 +244,7 @@ final class BlueprintDefinition
     {
         return [
             'name' => $field->name,
-            'type' => $field->type->value,
+            'type' => $field->typeName(),
             'label' => $field->label,
             'required' => $field->required,
             'queryable' => $field->storage === FieldStorage::Table,
@@ -247,7 +258,7 @@ final class BlueprintDefinition
                 array_values($field->choices),
             ),
             'default' => $field->default === null ? null : $field->type->toStorage($field->default),
-        ];
+        ] + ($field->customType !== null ? ['base' => $field->type->value] : []);
     }
 
     /**

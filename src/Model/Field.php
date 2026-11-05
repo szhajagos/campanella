@@ -57,6 +57,9 @@ final readonly class Field
         public bool $translatable = false,
         public array $choices = [],
         public int $scale = 2,
+        // A module's own type built on $type (since 0.4.8): its name, and the type if its module is on.
+        public ?string $customType = null,
+        public ?CustomFieldType $custom = null,
     ) {
         if (preg_match('/^[a-z][a-z0-9_]{0,62}$/', $name) !== 1) {
             throw new \InvalidArgumentException("Invalid field name: {$name}");
@@ -158,7 +161,41 @@ final readonly class Field
             translatable: $this->translatable,
             choices: $this->choices,
             scale: $this->scale,
+            customType: $this->customType,
+            custom: $this->custom,
         );
+    }
+
+    /**
+     * The same field with its module's type (since 0.4.8; null: the module is off or gone, the
+     * field works as its base type). A type of another base is not taken.
+     */
+    public function withCustom(?CustomFieldType $custom): self
+    {
+        return new self(
+            name: $this->name,
+            type: $this->type,
+            storage: $this->storage,
+            required: $this->required,
+            default: $this->default,
+            indexed: $this->indexed,
+            unique: $this->unique,
+            length: $this->length,
+            label: $this->label,
+            hidden: $this->hidden,
+            cardinality: $this->cardinality,
+            translatable: $this->translatable,
+            choices: $this->choices,
+            scale: $this->scale,
+            customType: $this->customType,
+            custom: $custom !== null && $custom->name() === $this->customType && $custom->base() === $this->type ? $custom : null,
+        );
+    }
+
+    /** The type's name: a module's (since 0.4.8), or the core's. */
+    public function typeName(): string
+    {
+        return $this->customType ?? $this->type->value;
     }
 
     public function isMultiple(): bool
@@ -216,7 +253,11 @@ final readonly class Field
     {
         $value = $this->type->cast($value);
         if ($this->type === FieldType::Decimal && is_string($value)) {
-            return self::round($value, $this->scale);
+            $value = self::round($value, $this->scale);
+        }
+        if ($this->custom !== null && $value !== null) {
+            // A module's type (since 0.4.8): normalized, and of its base type still.
+            $value = $this->type->cast($this->custom->normalize($value));
         }
 
         return $value;
@@ -265,6 +306,7 @@ final readonly class Field
                     : null,
                 default => null,
             };
+            $problem ??= $this->custom?->invalid($item);
             if ($problem !== null) {
                 return $problem;
             }

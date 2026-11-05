@@ -324,6 +324,10 @@ final class AdminController implements Controller
         if (($segments[0] ?? null) === 'blueprints' && $this->blueprintEditor !== null) {
             return $this->blueprintEditor->handle($request, array_slice($segments, 1), fn (string $template, string $active, array $context): Response => $this->render($template, $active, $context));
         }
+        // The field types (since 0.4.8).
+        if ($segments === ['field-types']) {
+            return $this->render('field_types', 'field_types', ['title' => 'structure.field_types'] + $this->structure->fieldTypes());
+        }
         if ($segments === ['capabilities']) {
             return $this->render('capabilities', 'capabilities', ['title' => 'structure.capabilities', 'capabilities' => $this->structure->capabilities()]);
         }

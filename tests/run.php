@@ -1840,7 +1840,7 @@ test('AdminMenu: the groups and their links, by who looks; a module\'s links', f
     $content = $items($full, 'content');
     check(in_array('article', $content, true) && in_array('snippet', $content, true) && !array_intersect(['user', 'submission', 'component', 'image', 'file'], $content), implode(',', $content));
     check($items($full, 'media') === ['media', 'image', 'file'] && $items($full, 'audience') === ['submission', 'user']);
-    check($items($full, 'appearance') === ['component', 'regions', 'layouts', 'color_schemes'] && $items($full, 'structure') === ['blueprints', 'capabilities', 'lists', 'model']);
+    check($items($full, 'appearance') === ['component', 'regions', 'layouts', 'color_schemes'] && $items($full, 'structure') === ['blueprints', 'capabilities', 'field_types', 'lists', 'model']);
     check($items($full, 'system') === ['system', 'settings', 'mail', 'importers', 'redirects', 'modules']);
     check($names($menu->build($editor)) === ['content', 'media'], 'an editor sees the system groups: ' . implode(',', $names($menu->build($editor))));
 
@@ -6981,6 +6981,132 @@ test('Security review (0.4.7): the modules: what they may register, their files,
     check(\Campanella\Module\ModuleManager::publicFiles($manifest) === ['hirlevel.css', 'img/ikon.gif'], 'only plain files');
     $htaccess = (string) file_get_contents(dirname(__DIR__) . '/public/modules/.htaccess');
     check(str_contains($htaccess, 'php_flag engine off') && str_contains($htaccess, 'html?)$') && str_contains($htaccess, 'sandbox'), 'public/modules/.htaccess');
+});
+
+test('Field types of a module (0.4.8): the registry, a field of one, stored with its base; normalized, checked, shown, edited, imported; off: its base', function () use ($newUser): void {
+    // The registry and the definitions.
+    $refused = static function (callable $make): bool {
+        try {
+            $make();
+        } catch (\InvalidArgumentException) {
+            return true;
+        }
+
+        return false;
+    };
+    $type = static fn (string $name, array $attributes = [], ?string $widget = null) => new class($name, $attributes, $widget) extends \Campanella\Model\AbstractFieldType {
+        public function __construct(private string $n, private array $a, private ?string $w)
+        {
+        }
+
+        public function name(): string { return $this->n; }
+        public function base(): \Campanella\Model\FieldType { return \Campanella\Model\FieldType::String; }
+        public function label(): string { return $this->n; }
+        public function attributes(): array { return $this->a; }
+        public function widget(): ?string { return $this->w; }
+    };
+    check($refused(fn () => new \Campanella\Model\FieldTypeRegistry([$type('string')])) && $refused(fn () => new \Campanella\Model\FieldTypeRegistry([$type('Rossz')])) && $refused(fn () => new \Campanella\Model\FieldTypeRegistry([$type('egy_tipus'), $type('egy_tipus')])), 'a name of its own, once');
+    foreach (['onclick', 'style', 'name', 'id', 'value', 'formaction', 'Data-x'] as $attribute) {
+        check($refused(fn () => new \Campanella\Model\FieldTypeRegistry([$type('egy_tipus', [$attribute => 'x'])])), 'not the attribute ' . $attribute);
+    }
+    check(!$refused(fn () => new \Campanella\Model\FieldTypeRegistry([$type('egy_tipus', ['inputmode' => 'tel', 'data-x' => 1])])) && $refused(fn () => new \Campanella\Model\FieldTypeRegistry([$type('egy_tipus', [], 'admin/form/string.html.twig')])), 'attributes; a widget of a module');
+    $field = \Campanella\Model\BlueprintDefinition::field(['name' => 'telefon', 'type' => 'hirlevel_telefon', 'base' => 'string', 'label' => 'Telefon']);
+    check($field->type === \Campanella\Model\FieldType::String && $field->customType === 'hirlevel_telefon' && $field->custom === null && $field->typeName() === 'hirlevel_telefon', 'stored with its base');
+    $stored = \Campanella\Model\BlueprintDefinition::fieldArray($field);
+    check($stored['type'] === 'hirlevel_telefon' && $stored['base'] === 'string', 'written with its base: ' . json_encode($stored));
+    check($refused(fn () => \Campanella\Model\BlueprintDefinition::field(['name' => 'x', 'type' => 'hirlevel_telefon'])) && $refused(fn () => \Campanella\Model\BlueprintDefinition::field(['name' => 'x', 'type' => 'hirlevel_telefon', 'base' => 'nincs'])), 'not without a base of the core');
+    check($field->cast(' +36 30 123-4567 ') === ' +36 30 123-4567 ' && $field->invalid('rossz') === null, 'without its module: its base');
+
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $root = dirname(__DIR__);
+    $fixtures = __DIR__ . '/fixtures/modules-on';
+    $boot = static fn (array $enabled) => new \Campanella\Core\Kernel($root, ['modules' => ['directory' => $fixtures, 'enabled' => $enabled]]);
+    $on = $boot(['hirlevel'])->container();
+    $db = $on->get(Connection::class);
+    if ($db->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $db->execute('DROP TABLE IF EXISTS ' . $db->table('bp_hirlevel_tag'));
+    $definition = ['version' => 1, 'label' => 'Tag', 'capabilities' => ['titled'], 'fields' => [
+        ['name' => 'telefon', 'type' => 'hirlevel_telefon', 'base' => 'string', 'label' => 'Telefon', 'queryable' => true],
+        ['name' => 'szin', 'type' => 'hirlevel_szin', 'base' => 'string', 'label' => 'Szín'],
+    ], 'relations' => []];
+    $import = $on->get(\Campanella\Transfer\ModelImport::class);
+    $plan = $import->plan(['blueprints' => ['hirlevel_tag' => $definition], 'lists' => []]);
+    check(!$plan->hasErrors(), json_encode(array_map(static fn ($i) => [$i->name, (string) $i->error], $plan->items), JSON_UNESCAPED_UNICODE));
+    $import->apply($plan);
+
+    $on = $boot(['hirlevel'])->container();
+    $tag = $on->get(\Campanella\Model\BlueprintRegistry::class)->get('hirlevel_tag');
+    check($tag->fields['telefon']->custom?->name() === 'hirlevel_telefon' && $tag->fields['telefon']->isQueryable(), 'its module\'s type, queryable as its base');
+    $objects = $on->get(ObjectService::class);
+    $member = $objects->create(Actor::system(), 'hirlevel_tag', ['title' => 'Tag 1', 'telefon' => ' +36 30 123-4567 ', 'szin' => ' #AABBCC ']);
+    $fresh = $on->get(\Campanella\Model\ObjectRepository::class)->find((int) $member->id());
+    check($fresh->get('telefon') === '+36301234567' && $fresh->get('szin') === '#aabbcc', 'normalized: ' . json_encode([$fresh->get('telefon'), $fresh->get('szin')]));
+    $threw = null;
+    try {
+        $objects->create(Actor::system(), 'hirlevel_tag', ['title' => 'Tag 2', 'telefon' => 'nem szám']);
+    } catch (\Campanella\Model\ValidationException $e) {
+        $threw = $e->errors['telefon'] ?? null;
+    }
+    check(($threw instanceof \Campanella\I18n\Message ? $threw->key : (string) $threw) === 'hirlevel.invalid_phone', 'checked, with its own message');
+    $found = $on->get(\Campanella\Query\QueryEngine::class)->execute(Query::objects()->blueprint('hirlevel_tag')->where('telefon', '=', '+36301234567'), Actor::system());
+    check(count($found) === 1, 'queried as its base');
+    $twig = $on->get(\Twig\Environment::class);
+    check(trim($twig->createTemplate('{{ field_value(item, "telefon") }}')->render(['item' => $fresh])) === '+36 30 123 4567', 'shown as it formats it, escaped');
+
+    // In the admin's form: its base's widget with its attributes; its own widget.
+    $form = $on->get(\Campanella\Admin\Form\ObjectForm::class);
+    $built = $form->build($fresh, Actor::system());
+    $byName = [];
+    foreach ($built as $formField) {
+        $byName[$formField->name] = $formField;
+    }
+    check(($byName['telefon']->attributes['inputmode'] ?? null) === 'tel' && $byName['telefon']->widget === 'string' && $byName['szin']->widget === '@hirlevel/form/szin.html.twig', 'the form: ' . json_encode([$byName['telefon']->attributes, $byName['szin']->widget]));
+    $storage = new ArraySessionStorage();
+    $admin = $boot(['hirlevel']);
+    $admin->container()->set(Session::class, static fn () => new Session($storage));
+    $admin->container()->get(AuthService::class)->login(new Request('GET', '/'), $newUser('mezotipus@example.hu', 'mezotipus-jelszo-1', ['administrator']));
+    $send = function (string $path) use ($boot, $storage) {
+        $storage->endRequest();
+        $k = $boot(['hirlevel']);
+        $k->container()->set(Session::class, static fn () => new Session($storage));
+
+        return $k->handle(new Request('GET', $path));
+    };
+    $page = $send('/admin/hirlevel_tag/' . $member->id());
+    check(str_contains($page->body, 'inputmode="tel"') && str_contains($page->body, 'data-hirlevel-szin') && str_contains($page->body, 'value="#aabbcc"'), 'the page of the form');
+
+    // Imported as it reads it.
+    $values = new \Campanella\Import\ImportValues(new \DateTimeZone('UTC'));
+    $read = $values->convert($tag->fields['telefon'], 'tel:+36 1 234 5678', '|');
+    check($read === '+36 1 234 5678' && $tag->fields['telefon']->cast($read) === '+3612345678', 'imported as it reads it, normalized when saved: ' . json_encode($read));
+
+    // The Field types page; the module off: its base, said.
+    $types = $send('/admin/system/field-types');
+    check($types->status === 200 && str_contains($types->body, 'id="field-type-string"') && str_contains($types->body, 'id="field-type-choice"') && preg_match('#id="field-type-hirlevel_telefon".*?Telefonszám.*?A\(z\) hirlevel modul.*?Alaptípusa: Szöveg \(egy sor\).*?<code>hirlevel_tag</code> · <code>telefon</code>#s', $types->body) === 1, 'the core\'s and the module\'s, who uses them');
+    check(str_contains($types->body, 'href="/admin/system/field-types" aria-current="page">Mezőtípusok</a>') && !str_contains($types->body, 'id="field-types-missing"'), 'in the Structure group; nothing missing');
+    $off = $boot([])->container();
+    $plain = $off->get(\Campanella\Model\BlueprintRegistry::class)->get('hirlevel_tag')->fields['telefon'];
+    check($plain->custom === null && $plain->customType === 'hirlevel_telefon' && $plain->invalid('nem szám') === null, 'off: its base');
+    $offObjects = $off->get(ObjectService::class);
+    $offObjects->update(Actor::system(), $off->get(\Campanella\Model\ObjectRepository::class)->find((int) $member->id()), ['telefon' => '06 30 111 2222']);
+    check($off->get(\Campanella\Model\ObjectRepository::class)->find((int) $member->id())->get('telefon') === '06 30 111 2222', 'still editable as its base');
+    $storage->endRequest();
+    $offKernel = $boot([]);
+    $offKernel->container()->set(Session::class, static fn () => new Session($storage));
+    $offPage = $offKernel->handle(new Request('GET', '/admin/system/field-types'));
+    check(str_contains($offPage->body, 'id="field-types-missing"') && str_contains($offPage->body, '<code>hirlevel_telefon</code> → <code>string</code>'), 'the page says so');
+
+    $on = $boot(['hirlevel'])->container();
+    $usage = (new \Campanella\Module\ModuleUsage($on->get(\Campanella\Module\ModuleLoader::class), $on->get(\Campanella\Model\BlueprintRegistry::class), $on->get(\Campanella\Capability\CapabilityRegistry::class), $on->get(\Campanella\Display\DisplayRegistry::class), $on->get(\Campanella\Query\QueryEngine::class), $on->get(\Campanella\Settings\Settings::class)))->of('hirlevel');
+    check(in_array('modules.usage.field_type', array_map(static fn ($m): string => $m->key, $usage), true), 'not off while its type is used');
+    $on->get(ObjectService::class)->delete(Actor::system(), $on->get(\Campanella\Model\ObjectRepository::class)->find((int) $member->id()));
+    $on->get(\Campanella\Model\BlueprintStore::class)->delete('hirlevel_tag');
+    $db->execute('DROP TABLE IF EXISTS ' . $db->table('bp_hirlevel_tag'));
+    putenv('CAMPANELLA_DB_PREFIX');
 });
 
 test('Security review (0.4.2): the colour schemes made in the admin', function () use ($newUser): void {

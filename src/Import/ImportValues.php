@@ -84,6 +84,13 @@ final class ImportValues
         if (is_array($raw)) {
             self::invalid($field);
         }
+        // A module's type (since 0.4.8) reads its own form of the value first.
+        if ($field->custom !== null) {
+            $raw = $field->custom->import(self::text($raw));
+            if ($raw === null || is_string($raw) && trim($raw) === '') {
+                return null;
+            }
+        }
 
         return match ($field->type) {
             FieldType::String, FieldType::Text, FieldType::Email, FieldType::Url => trim(self::text($raw)),
