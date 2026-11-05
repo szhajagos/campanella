@@ -507,7 +507,8 @@ def color_schemes(page):
 
 def modules(page):
     """Chapter 17 (since 0.4.7): the Modules page with a module put into the modules folder, and
-    its trial before it is turned on (not turned on: the site stays as it was)."""
+    its trial before it is turned on; turned on for the Field types page (since 0.4.8), then off
+    again, so the site is as it was for the chapters after."""
     import shutil
     source = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "fixtures", "modules-on", "hirlevel")
     target = os.path.join(SITE, "modules", "hirlevel")
@@ -517,6 +518,14 @@ def modules(page):
         shot(page, "modules", full_page=True)
         page.goto(BASE + "/admin/system/modules/hirlevel/enable")
         shot(page, "module-enable", full_page=True)
+        # Since 0.4.8: turned on for the Field types page with its types, then off again.
+        page.locator("form[action$='/hirlevel/enable'] button[type=submit]").click()
+        page.wait_for_load_state("load")
+        page.goto(BASE + "/admin/system/field-types")
+        shot(page, "field-types", full_page=True)
+        page.goto(BASE + "/admin/system/modules")
+        page.locator("form[action$='/hirlevel/disable'] button[type=submit]").click()
+        page.wait_for_load_state("load")
     finally:
         shutil.rmtree(target, ignore_errors=True)
 

@@ -70,6 +70,7 @@ final class ModelImport
         private readonly ObjectReferences $references,
         private readonly ?\Campanella\Appearance\ColorSchemeRegistry $schemeRegistry = null,
         private readonly ?\Campanella\Appearance\ColorSchemeStore $schemeStore = null,
+        private readonly ?\Campanella\Model\FieldTypeRegistry $fieldTypes = null,
     ) {
     }
 
@@ -322,7 +323,7 @@ final class ModelImport
             return [new ImportItem(ImportItem::BLUEPRINT, $name, $label, ImportItem::CREATE, [new Message('transfer.change.created', [
                 'fields' => count($definition['fields']),
                 'relations' => count($definition['relations']),
-            ])]), $definition];
+            ])], $this->unknownTypes($definition)), $definition];
         }
 
         $before = self::normalize($stored[$name]);
@@ -331,7 +332,26 @@ final class ModelImport
             return [new ImportItem(ImportItem::BLUEPRINT, $name, $label, ImportItem::ERROR, $changes, $warnings, $problem), null];
         }
 
-        return [new ImportItem(ImportItem::BLUEPRINT, $name, $label, $changes === [] ? ImportItem::UNCHANGED : ImportItem::UPDATE, $changes, $warnings), $merged];
+        return [new ImportItem(ImportItem::BLUEPRINT, $name, $label, $changes === [] ? ImportItem::UNCHANGED : ImportItem::UPDATE, $changes, [...$warnings, ...$this->unknownTypes($definition)]), $merged];
+    }
+
+    /**
+     * The fields of a module's type that no module of this site brings (since 0.4.8): imported,
+     * they work as their base type until a module with the type is on.
+     *
+     * @param array{fields: list<array<string, mixed>>} $definition
+     * @return list<Message>
+     */
+    private function unknownTypes(array $definition): array
+    {
+        $warnings = [];
+        foreach ($definition['fields'] as $item) {
+            if (isset($item['base']) && $this->fieldTypes?->find((string) $item['type']) === null) {
+                $warnings[] = new Message('transfer.warning.type_unknown', ['field' => (string) $item['name'], 'type' => (string) $item['type'], 'base' => (string) $item['base']]);
+            }
+        }
+
+        return $warnings;
     }
 
     /**
@@ -390,7 +410,10 @@ final class ModelImport
                 continue;
             }
             $field = $blueprint->fields[$name] ?? null;
-            if ($existing['type'] !== $item['type'] && !in_array($item['type'], BlueprintEditor::WIDER_TYPES[$existing['type']] ?? [], true)) {
+            // By the base types (since 0.4.8): a module's type and its base share one column.
+            $from = (string) ($existing['base'] ?? $existing['type']);
+            $to = (string) ($item['base'] ?? $item['type']);
+            if ($from !== $to && !in_array($to, BlueprintEditor::WIDER_TYPES[$from] ?? [], true)) {
                 return [[], $changes, $warnings, new Message('transfer.error.type_narrower', ['field' => $name, 'from' => (string) $existing['type'], 'to' => (string) $item['type']])];
             }
             if (array_diff(array_column($existing['choices'], 'key'), array_column($item['choices'], 'key')) !== []) {

@@ -60,10 +60,59 @@ final class BlueprintEditor
         'choice' => ['string', 'text'],
     ];
 
-    /** @return list<string> The field's type and those it may change to. */
-    private static function typesFor(Field $field): array
+    /**
+     * The field's type and those it may change to: the wider ones of its base, and (since 0.4.8)
+     * the modules' types built on any of these, and back from a module's type to its base.
+     *
+     * @return list<string>
+     */
+    private function typesFor(Field $field): array
     {
-        return [$field->type->value, ...(self::WIDER_TYPES[$field->type->value] ?? [])];
+        $bases = [$field->type->value, ...(self::WIDER_TYPES[$field->type->value] ?? [])];
+        $types = $field->customType !== null ? [$field->customType, ...$bases] : $bases;
+        foreach ($this->types?->custom() ?? [] as $name => $type) {
+            if (in_array($type->base()->value, $bases, true) && !in_array($name, $types, true)) {
+                $types[] = $name;
+            }
+        }
+
+        return $types;
+    }
+
+    /** @return list<string> The types offered for a new field: the core's, then the modules' (since 0.4.8). */
+    private function offeredTypes(): array
+    {
+        return [...self::TYPES, ...array_keys($this->types?->custom() ?? [])];
+    }
+
+    /** A type's base: the core type itself, or a module's type's base (since 0.4.8); null if unknown. */
+    private function baseOf(string $type): ?string
+    {
+        return FieldType::tryFrom($type)->value ?? $this->types?->find($type)?->base()->value;
+    }
+
+    /**
+     * Each type's label (a message key), by name; a type of the Blueprint's fields whose module
+     * is off is shown by its name.
+     *
+     * @return array<string, string>
+     */
+    private function typeLabels(Blueprint $blueprint): array
+    {
+        $labels = [];
+        foreach (self::TYPES as $type) {
+            $labels[$type] = 'field_type.' . $type;
+        }
+        foreach ($this->types?->custom() ?? [] as $name => $type) {
+            $labels[$name] = $type->label();
+        }
+        foreach ($blueprint->fields as $field) {
+            if ($field->customType !== null) {
+                $labels[$field->customType] ??= $field->customType;
+            }
+        }
+
+        return $labels;
     }
 
     /** The field types offered, in this order. */
@@ -87,6 +136,7 @@ final class BlueprintEditor
         private readonly AdminAccess $access,
         private readonly Translator $translator,
         private readonly ?ListStore $lists = null,
+        private readonly ?\Campanella\Model\FieldTypeRegistry $types = null,
     ) {
     }
 
@@ -206,10 +256,11 @@ final class BlueprintEditor
             'errors' => $errors,
             'alert_text' => $alert,
             'capabilities' => $this->offeredCapabilities(),
+            'type_labels' => $this->typeLabels($blueprint),
             'fields' => array_map(static fn (Field $f): array => [
                 'name' => $f->name,
                 'label' => $f->label,
-                'type' => $f->type->value,
+                'type' => $f->typeName(),
                 'required' => $f->required,
                 'queryable' => $f->storage === FieldStorage::Table,
                 'multiple' => $f->isMultiple(),
@@ -273,7 +324,8 @@ final class BlueprintEditor
             'form' => $form,
             'errors' => $errors,
             'alert_text' => $alert,
-            'types' => $field === null ? self::TYPES : self::typesFor($field),
+            'types' => $field === null ? $this->offeredTypes() : $this->typesFor($field),
+            'type_labels' => $this->typeLabels($blueprint),
             'multiple_before' => $field?->isMultiple() ?? false,
             'value_count' => $field === null ? 0 : count($this->objectsWithValue($blueprint, $field)),
         ]);
@@ -296,7 +348,7 @@ final class BlueprintEditor
         if ($field !== null) {
             // The name never changes; the type only to a wider one (since 0.2.4).
             $item = BlueprintDefinition::fieldArray($field);
-            if (!in_array($form['type'], self::typesFor($field), true)) {
+            if (!in_array($form['type'], $this->typesFor($field), true)) {
                 $errors['type'] = new Message('blueprints.type_not_widening');
             }
             $item['type'] = $form['type'];
@@ -313,9 +365,15 @@ final class BlueprintEditor
             } catch (\InvalidArgumentException) {
                 $errors['name'] = new Message('blueprints.invalid_name');
             }
-            if (!in_array($form['type'], self::TYPES, true)) {
+            if (!in_array($form['type'], $this->offeredTypes(), true)) {
                 $errors['type'] = new Message('validation.required');
             }
+        }
+        // A module's type is stored with its base (since 0.4.8).
+        $base = $this->baseOf((string) ($item['type'] ?? '')) ?? '';
+        unset($item['base']);
+        if ($base !== '' && $base !== $item['type']) {
+            $item['base'] = $base;
         }
         $item['cardinality'] = 1;
         if ($form['multiple']) {
@@ -340,7 +398,7 @@ final class BlueprintEditor
         $item['label'] = $form['label'];
         $item['translatable'] = $form['translatable'];
         $scale = trim((string) $form['scale']);
-        if (($item['type'] ?? '') === FieldType::Decimal->value) {
+        if ($base === FieldType::Decimal->value) {
             if (ctype_digit($scale) && (int) $scale <= FieldType::DECIMAL_SCALE) {
                 $item['scale'] = (int) $scale;
             } else {
@@ -349,7 +407,7 @@ final class BlueprintEditor
         }
         // Choices: one per line, "key | label", or only a label (its key is made from it).
         $choices = [];
-        if (($item['type'] ?? '') === FieldType::Choice->value) {
+        if ($base === FieldType::Choice->value) {
             foreach (preg_split('/\R/', (string) $form['choices']) ?: [] as $line) {
                 if (trim($line) === '') {
                     continue;
@@ -374,7 +432,7 @@ final class BlueprintEditor
         // Made required: the SchemaSync gives the empty values the default, or refuses without one.
         $item['required'] = $form['required'];
         $item['default'] = trim((string) $form['default']) === '' ? null : trim((string) $form['default']);
-        if (($item['type'] ?? '') === FieldType::Boolean->value) {
+        if ($base === FieldType::Boolean->value) {
             $item['default'] = $item['default'] === null ? null : in_array(mb_strtolower((string) $item['default'], 'UTF-8'), ['1', 'igen', 'yes', 'true'], true);
         }
         if ($errors === []) {
@@ -432,7 +490,7 @@ final class BlueprintEditor
         return [
             'name' => $field->name,
             'label' => $field->label,
-            'type' => $field->type->value,
+            'type' => $field->typeName(),
             'required' => $field->required,
             'queryable' => $field->storage === FieldStorage::Table,
             'multiple' => $field->isMultiple(),

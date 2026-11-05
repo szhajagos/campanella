@@ -106,7 +106,8 @@ relation condition is not imported.
 - A Blueprint the site has (made in the admin) gets the file's name, label and
   capabilities, its fields and relations in the file's order, with the
   editor's safe changes only: a field's type only to a wider one
-  (`BlueprintEditor::WIDER_TYPES`), its choices in use kept, several values not
+  (`BlueprintEditor::WIDER_TYPES`; since 0.4.8 compared by the base types, so a
+  module's type and its base are one), its choices in use kept, several values not
   made one while there are objects, a new required queryable field with a
   default while there are objects, a relation's targets and number unchanged.
   Its fields and relations that the file does not have stay, after the others.
@@ -114,6 +115,10 @@ relation condition is not imported.
   messages (since 0.3.0, as in the editor).
   The columns of its list in the admin (`admin_columns`, since 0.2.8) are the
   file's, of the fields and relations it has then.
+- A field of a module's type is written with its base (`"type": "hirlevel_telefon",
+  "base": "string"`, since 0.4.8). Imported where no module that is on brings
+  the type, it is a warning (`transfer.warning.type_unknown`): the field works
+  as its base type until one does.
 - Every Blueprint is defined again with the file's (as on every request), and
   the SchemaSync plans the database's changes; what it cannot do (e.g. a field
   made required without a default while objects lack it) is an error of that

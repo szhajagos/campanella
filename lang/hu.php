@@ -1169,6 +1169,7 @@ return [
     'transfer.change.list.columns' => 'Az oszlopai',
     'transfer.change.list.path' => 'Az útvonala',
     'transfer.warning.field_kept' => 'A(z) {field} mező nincs a fájlban: megmarad (ha nem kell, az adminban törölhető).',
+    'transfer.warning.type_unknown' => 'A(z) {field} mező: a(z) {type} típust egy modul sem hozza ezen a webhelyen; alaptípusaként ({base}) működik, amíg egy be nem kapcsol.',
     'transfer.warning.relation_kept' => 'A(z) {relation} kapcsolat nincs a fájlban: megmarad.',
     'transfer.warning.target_missing' => '{relation} kapcsolat: „{object}” nincs ezen a webhelyen; a feltétel nélküle lesz.',
     'transfer.warning.list_breaks' => 'Az import után ez a lista nem tölthető be: {reason}',

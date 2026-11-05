@@ -7079,6 +7079,48 @@ test('Field types of a module (0.4.8): the registry, a field of one, stored with
     $page = $send('/admin/hirlevel_tag/' . $member->id());
     check(str_contains($page->body, 'inputmode="tel"') && str_contains($page->body, 'data-hirlevel-szin') && str_contains($page->body, 'value="#aabbcc"'), 'the page of the form');
 
+    // The Blueprint editor (since 0.4.8 b): the modules' types offered, saved with their base; to the base and back.
+    $sendPost = function (string $path, array $post) use ($boot, $storage) {
+        $storage->endRequest();
+        $k = $boot(['hirlevel']);
+        $k->container()->set(Session::class, static fn () => new Session($storage));
+
+        return $k->handle(new Request('POST', $path, post: $post));
+    };
+    $fieldPage = $send('/admin/system/blueprints/hirlevel_tag/fields/telefon');
+    $token = preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $fieldPage->body, $m) === 1 ? $m[1] : '';
+    check($fieldPage->status === 200 && preg_match('#<option value="hirlevel_telefon" selected>Telefonszám</option>.*<option value="string"[^>]*>.*<option value="hirlevel_szin"#s', $fieldPage->body) === 1 && !str_contains($fieldPage->body, 'value="integer"'), 'the field\'s types: its own, its base and wider, the modules\' on those');
+    $newPage = $send('/admin/system/blueprints/hirlevel_tag/fields/new');
+    check(str_contains($newPage->body, '<option value="hirlevel_szin">Szín</option>') && str_contains($newPage->body, '<option value="integer">'), 'a new field: the core\'s and the modules\' types');
+    $editPage = $send('/admin/system/blueprints/hirlevel_tag');
+    check(str_contains($editPage->body, 'Telefonszám'), 'the Blueprint\'s page names the type');
+    $post = static fn (array $values): array => ['_csrf' => $token] + $values + ['required' => '', 'queryable' => '1', 'multiple' => '', 'max' => '', 'length' => '255', 'scale' => '2', 'choices' => '', 'default' => '', 'confirm' => '1'];
+    $added = $sendPost('/admin/system/blueprints/hirlevel_tag/fields/new', $post(['name' => 'mobil', 'label' => 'Mobil', 'type' => 'hirlevel_telefon', 'queryable' => '']));
+    $store = $on->get(\Campanella\Model\BlueprintStore::class);
+    $storedField = static fn (string $name): array => array_column((array) ($store->find('hirlevel_tag')['fields'] ?? []), null, 'name')[$name] ?? [];
+    check($added->status === 303 && ($storedField('mobil')['type'] ?? null) === 'hirlevel_telefon' && ($storedField('mobil')['base'] ?? null) === 'string', 'a new field of a module\'s type: ' . $added->status . ' ' . json_encode($storedField('mobil')));
+    $toBase = $sendPost('/admin/system/blueprints/hirlevel_tag/fields/telefon', $post(['name' => 'telefon', 'label' => 'Telefon', 'type' => 'string']));
+    check($toBase->status === 303 && ($storedField('telefon')['type'] ?? null) === 'string' && !isset($storedField('telefon')['base']), 'to its base: ' . $toBase->status . ' ' . json_encode($storedField('telefon')));
+    $back = $sendPost('/admin/system/blueprints/hirlevel_tag/fields/telefon', $post(['name' => 'telefon', 'label' => 'Telefon', 'type' => 'hirlevel_telefon']));
+    check($back->status === 303 && ($storedField('telefon')['base'] ?? null) === 'string' && $on->get(\Campanella\Model\ObjectRepository::class)->find((int) $member->id())?->get('telefon') === '+36301234567', 'and back, the value kept: ' . $back->status);
+    check($sendPost('/admin/system/blueprints/hirlevel_tag/fields/telefon', $post(['name' => 'telefon', 'label' => 'Telefon', 'type' => 'hirlevel_nincs']))->status === 422, 'not a type nobody brings');
+
+    // The content model's file: with the base; imported where no module brings it: a warning.
+    $exported = $on->get(\Campanella\Transfer\ModelExport::class)->model();
+    $exportedFields = array_column($exported['blueprints']['hirlevel_tag']['fields'], null, 'name');
+    check(($exportedFields['telefon']['type'] ?? null) === 'hirlevel_telefon' && ($exportedFields['telefon']['base'] ?? null) === 'string', 'exported with its base');
+    $offPlan = $boot([])->container()->get(\Campanella\Transfer\ModelImport::class)->plan(['blueprints' => ['hirlevel_tag' => $exported['blueprints']['hirlevel_tag']], 'lists' => []]);
+    $warned = array_map(static fn ($w): string => $w->key . ':' . ($w->params['field'] ?? ''), $offPlan->items[0]->warnings ?? []);
+    check(!$offPlan->hasErrors() && in_array('transfer.warning.type_unknown:telefon', $warned, true), 'no module brings it: a warning ' . json_encode($warned));
+    $onPlan = $boot(['hirlevel'])->container()->get(\Campanella\Transfer\ModelImport::class)->plan(['blueprints' => ['hirlevel_tag' => $exported['blueprints']['hirlevel_tag']], 'lists' => []]);
+    check($onPlan->items[0]->action === \Campanella\Transfer\ImportItem::UNCHANGED && ($onPlan->items[0]->warnings ?? []) === [], 'the module on: unchanged, nothing to warn');
+    $plainFile = $exported['blueprints']['hirlevel_tag'];
+    $plainFile['fields'] = array_map(static fn (array $f): array => $f['name'] === 'telefon' ? array_diff_key(['type' => 'text'] + $f, ['base' => 0]) : $f, $plainFile['fields']);
+    $wider = $boot(['hirlevel'])->container()->get(\Campanella\Transfer\ModelImport::class)->plan(['blueprints' => ['hirlevel_tag' => $plainFile], 'lists' => []]);
+    check(!$wider->hasErrors() && $wider->items[0]->action === \Campanella\Transfer\ImportItem::UPDATE, 'to a wider core type by its base');
+    $plainFile['fields'] = array_map(static fn (array $f): array => $f['name'] === 'telefon' ? ['type' => 'integer'] + $f : $f, $plainFile['fields']);
+    check($boot(['hirlevel'])->container()->get(\Campanella\Transfer\ModelImport::class)->plan(['blueprints' => ['hirlevel_tag' => $plainFile], 'lists' => []])->hasErrors(), 'not to a narrower one');
+
     // Imported as it reads it.
     $values = new \Campanella\Import\ImportValues(new \DateTimeZone('UTC'));
     $read = $values->convert($tag->fields['telefon'], 'tel:+36 1 234 5678', '|');
@@ -7107,6 +7149,56 @@ test('Field types of a module (0.4.8): the registry, a field of one, stored with
     $on->get(\Campanella\Model\BlueprintStore::class)->delete('hirlevel_tag');
     $db->execute('DROP TABLE IF EXISTS ' . $db->table('bp_hirlevel_tag'));
     putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('Security review (0.4.8): a module\'s field types: their widget, its attributes, their text', function (): void {
+    $make = static fn (string $name, array $attributes = [], ?string $widget = null, string $shown = '') => new class($name, $attributes, $widget, $shown) extends \Campanella\Model\AbstractFieldType {
+        public function __construct(private string $n, private array $a, private ?string $w, private string $s)
+        {
+        }
+
+        public function name(): string { return $this->n; }
+        public function base(): \Campanella\Model\FieldType { return \Campanella\Model\FieldType::String; }
+        public function label(): string { return $this->n; }
+        public function attributes(): array { return $this->a; }
+        public function widget(): ?string { return $this->w; }
+        public function format(mixed $value): ?string { return $this->s === '' ? null : $this->s; }
+    };
+    $refused = static function (callable $build): bool {
+        try {
+            $build();
+        } catch (\InvalidArgumentException) {
+            return true;
+        }
+
+        return false;
+    };
+    foreach (['@hirlevel/../../templates/admin/layout.html.twig', '@hirlevel//x.twig', 'admin/form/string.html.twig', '@Hirlevel/x.twig', '@hirlevel/x.php', '/etc/passwd'] as $widget) {
+        check($refused(fn () => new \Campanella\Model\FieldTypeRegistry([$make('egy_tipus', [], $widget)])), 'not the widget ' . $widget);
+    }
+    foreach (['onfocus', 'ONCLICK', 'style', 'formaction', 'type', 'name', 'x y', 'a"b'] as $attribute) {
+        check($refused(fn () => new \Campanella\Model\FieldTypeRegistry([$make('egy_tipus', [$attribute => 'x'])])), 'not the attribute ' . $attribute);
+    }
+    check(!$refused(fn () => new \Campanella\Model\FieldTypeRegistry([$make('egy_tipus', ['inputmode' => 'tel'], '@hirlevel/form/egy.html.twig')])), 'its own widget and attributes');
+
+    // What it shows is text: escaped.
+    $type = $make('egy_tipus', shown: '<script>alert(1)</script>');
+    $field = \Campanella\Model\BlueprintDefinition::field(['name' => 'x', 'type' => 'egy_tipus', 'base' => 'string', 'label' => 'X'])->withCustom($type);
+    $twig = new \Twig\Environment(new \Twig\Loader\ArrayLoader([]), ['autoescape' => 'html']);
+    $extension = (new \ReflectionClass(\Campanella\View\CampanellaTwigExtension::class))->newInstanceWithoutConstructor();
+    $html = (new \ReflectionMethod($extension, 'fieldHtml'))->invoke($extension, $twig, $field, 'a');
+    check($html === '&lt;script&gt;alert(1)&lt;/script&gt;', 'escaped: ' . $html);
+
+    // A module's types: its own name only.
+    $manifest = \Campanella\Module\ModuleManifest::read(__DIR__ . '/fixtures/modules-on/hirlevel');
+    check($manifest instanceof \Campanella\Module\ModuleManifest);
+    $threw = false;
+    try {
+        (new \Campanella\Module\ModuleContext($manifest))->fieldType($type::class);
+    } catch (\Campanella\Module\ModuleException) {
+        $threw = true;
+    }
+    check($threw, 'not a class or a name of another');
 });
 
 test('Security review (0.4.2): the colour schemes made in the admin', function () use ($newUser): void {

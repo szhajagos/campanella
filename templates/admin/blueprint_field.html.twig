@@ -26,7 +26,7 @@
                 <div class="col-md-6">
                     <label for="bp-type" class="form-label fw-semibold">{{ t('blueprints.type') }}</label>
                     <select class="form-select{{ m.invalid(errors, 'type') }}" id="bp-type" name="type">
-                        {% for type in types %}<option value="{{ type }}"{{ type == form.type ? ' selected' }}>{{ t('field_type.' ~ type) }}</option>{% endfor %}
+                        {% for type in types %}<option value="{{ type }}"{{ type == form.type ? ' selected' }}>{{ t(type_labels[type] ?? ('field_type.' ~ type)) }}</option>{% endfor %}
                     </select>
                     {% if field %}<div class="form-text">{{ t('blueprints.type_help') }}</div>{% endif %}
                     {{ m.error(errors, 'type') }}

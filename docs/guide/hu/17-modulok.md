@@ -59,6 +59,26 @@ A **Kikapcsolás** gomb kikapcsolja a modult; **az adatai megmaradnak**, egy
   megjelenítését, vagy a webhely az elrendezését, a színsémáját. Az oldal
   felsorolja, mit kell előbb megváltoztatni.
 
+## Egy modul mezőtípusai
+
+Egy modul saját **mezőtípusokat** is hozhat, például egy telefonszámot, amely
+egységes alakban tárolódik, és csoportosítva jelenik meg. Ezek a tartalomtípusok
+mezőinél választhatók (11. fejezet), a webhely beépített típusai után.
+
+A **Szerkezet → Mezőtípusok** oldal felsorolja a beépített tizenegy típust és a
+bekapcsolt modulokéit: honnan jön, mire épül (az *alaptípusa*), hogyan tárolódik,
+és mely tartalomtípusok mely mezői használják.
+
+![A mezőtípusok](../images/hu/field-types.png)
+
+Egy modul minden típusa egy beépített típusra épül, és a mező ezzel együtt
+tárolódik. Ezért ha a modult kikapcsolod vagy törlöd, a mező tartalma
+megmarad, és a mező az alaptípusaként működik tovább (például egyszerű
+szövegként); az oldal alján egy doboz mutatja ezeket a mezőket. A modult nem
+lehet kikapcsolni, amíg egy mező használja a típusát: előbb a mezőt állítsd át
+az alaptípusára (a mező szerkesztésekor a **Típus** listában), a tartalma
+ekkor is megmarad.
+
 ## Egy modul új verziója
 
 Töltsd fel az új verziót a régi mappa helyére. Ha az új verzió a tábláit is

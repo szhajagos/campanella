@@ -91,6 +91,10 @@ The form, with the **Kind** field:
   | E-mail address, Web address | A checked address. |
   | Choice | One of the values given here, from a drop-down. |
 
+  The modules that are on can bring field types of their own (a phone number,
+  say); they come at the end of the list. Which types there are, and which
+  field uses which, is shown on **Structure → Field types** (chapter 17).
+
 - **Choices** (for the Choice type only): one per line, as `key | label`, e.g.
   `concert | Concert`. Editors and visitors see the label; the site stores the
   key, which is also what the addresses show (with the filters). A line with a

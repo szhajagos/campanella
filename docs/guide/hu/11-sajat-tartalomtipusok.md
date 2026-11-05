@@ -93,6 +93,11 @@ mezőt. A programnaptárhoz ezt az ötöt:
   | E-mail-cím, Webcím | Ellenőrzött cím. |
   | Választás | Előre megadott értékek egyike, egy legördülő listából. |
 
+  A bekapcsolt modulok saját mezőtípusokat is hozhatnak (például egy
+  telefonszámot); ezek a lista végén vannak. Hogy milyen típusok vannak, és
+  melyik mező melyiket használja, a **Szerkezet → Mezőtípusok** oldal mutatja
+  (17. fejezet).
+
 - **Választható értékek** (csak a Választás típusnál): soronként egy, `kulcs |
   címke` alakban, például `koncert | Koncert`. A címkét látják a szerkesztők
   és a látogatók; a kulcsot a webhely tárolja, és a webcímekben is ez jelenik

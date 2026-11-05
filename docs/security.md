@@ -126,6 +126,45 @@ version: upgrade it to 0.3.x ([Upgrading](upgrading.md)).
   may see, and puts an apostrophe before a text a spreadsheet would run as a
   formula (`=`, `+`, `-`, `@`).
 
+## Review of a module's field types, 0.4.8 (2026-11-05)
+
+A module's field type puts its code into three places a content field passes:
+saving (normalizing and checking), the admin's form (its widget) and the pages
+(the text shown). Like the rest of a module it is trusted code; the review
+looked at what a type that is *wrong* can reach, and at a field whose module is
+gone. Tests: `Security review (0.4.8)` and the field types' test.
+
+- **Stored as a core type.** A type is built on one of the core's eleven types
+  and a field of it is stored with that base, in the base's column or JSON, so
+  the database, queries and filters see only the core's types; whatever the
+  type's `normalize()` returns goes through the base's cast. Its module off or
+  gone, the field works as its base type, its content kept, nothing of the
+  module called.
+- **Its text is text.** `format()` returns plain text, which the core escapes; a
+  type cannot put HTML into a page.
+- **Its widget.** Attributes added to the base's widget are checked when the
+  types are registered: names of small letters and hyphens only, never an event
+  handler (`on…`), `style`, or what the form relies on (`name`, `id`, `form`,
+  `type`, `value`, `formaction`); Twig escapes their values. A widget of its own
+  must be a template of its module (`@<module>/….twig`, no `..`, checked by the
+  trial too); it gets the field's value and name like the core's widgets, and
+  the admin's CSRF token and Content-Security-Policy are unchanged.
+- **Its name** must start with its module's name, and cannot be a core type's,
+  so a type cannot stand in for another module's or the core's.
+- **The content model's file** writes the base with a module's type; imported
+  where no module brings that type, the field is made as its base type and the
+  import says so; a change of type is checked by the base types, by the editor's
+  rules.
+
+Also in 0.4.8: **symfony/html-sanitizer 7.4.23** (with league/uri 7.10.0 and
+masterminds/html5 2.12.0), for three advisories of the sanitizer published after
+0.4.7 (found by the CI's `composer audit`). They concern the host checks of links
+and media (`allowLinkHosts()`, `allowMediaHosts()`), an image's `srcset` and a
+`meta` element's refresh; Campanella's default HTML configuration
+(`config/html.php`) uses none of them, so a default site was not affected. A
+site that allowed `srcset` (or `meta`) in its own `config/html.php` should
+upgrade. Nothing else needed fixing.
+
 ## Review of the modules, 0.4.7 (2026-11-03)
 
 A module is program code with every right: turned on, it can do anything

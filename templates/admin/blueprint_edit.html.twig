@@ -29,7 +29,7 @@
                             <tr>
                                 <td><a href="{{ admin_url('system/blueprints/' ~ blueprint.name ~ '/fields/' ~ field.name) }}">{{ field.label }}</a></td>
                                 <td><code>{{ field.name }}</code></td>
-                                <td>{{ t('field_type.' ~ field.type) }}</td>
+                                <td>{{ t(type_labels[field.type] ?? ('field_type.' ~ field.type)) }}</td>
                                 <td class="small">
                                     {% if field.required %}<span class="badge text-bg-light border">{{ t('blueprints.required') }}</span>{% endif %}
                                     {% if field.queryable %}<span class="badge text-bg-light border">{{ t('blueprints.queryable') }}</span>{% endif %}

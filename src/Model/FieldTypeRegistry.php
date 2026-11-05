@@ -38,7 +38,7 @@ final class FieldTypeRegistry
                 }
             }
             $widget = $type->widget();
-            if ($widget !== null && preg_match('#^@[a-z][a-z0-9_]{1,40}/[A-Za-z0-9_/.-]+\.twig$#D', $widget) !== 1) {
+            if ($widget !== null && (preg_match('#^@[a-z][a-z0-9_]{1,40}/[A-Za-z0-9_/.-]+\.twig$#D', $widget) !== 1 || str_contains($widget, '..') || str_contains($widget, '//'))) {
                 throw new \InvalidArgumentException("The field type {$name}'s widget must be a template of its module: {$widget}");
             }
             $this->custom[$name] = $type;

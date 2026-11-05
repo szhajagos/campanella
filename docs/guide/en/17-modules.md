@@ -58,6 +58,25 @@ goes on where it was. It cannot be turned off while
 - the site uses it: a content type its capability, a component its display, or
   the site its layout or colour scheme. The page lists what to change first.
 
+## A module's field types
+
+A module can bring **field types** of its own, a phone number for example,
+stored in one form and shown grouped. They can be chosen for a content type's
+fields (chapter 11), after the site's own types.
+
+**Structure → Field types** lists the eleven built-in types and those of the
+modules that are on: where each comes from, what it is built on (its *base
+type*), how it is stored, and which fields of which content types use it.
+
+![The field types](../images/en/field-types.png)
+
+Every type of a module is built on a built-in type, and a field is stored with
+it. So if you turn the module off or remove it, the field's content is kept and
+the field goes on working as its base type (as plain text, say); a box at the
+bottom of the page lists such fields. The module cannot be turned off while a
+field uses its type: first change the field to its base type (the **Type** list
+when you edit the field); its content is kept then too.
+
 ## A newer version of a module
 
 Upload the new version in place of the old folder. If the new version changes

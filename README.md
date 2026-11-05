@@ -1,4 +1,4 @@
-# Campanella 0.4.7
+# Campanella 0.4.8
 
 [![CI](https://github.com/szhajagos/campanella/actions/workflows/ci.yml/badge.svg)](https://github.com/szhajagos/campanella/actions/workflows/ci.yml)
 
@@ -17,7 +17,17 @@ with a light and a dark mode, sample content in the site's language; and what
 0.4.x keeps is promised (see the [compatibility promise](docs/compatibility.md)).
 Plans are in the [ROADMAP](ROADMAP.md), changes in the [CHANGELOG](CHANGELOG.md).
 
-## What is new in 0.4.7
+## What is new in 0.4.8
+
+**Field types of a module's own** (Structure → Field types): a module can bring
+a field type, a phone number say, built on one of the core's types; a field of
+it is stored as that type, so its content is kept and it works as that type
+when the module is off ([guide](docs/guide/en/17-modules.md#a-modules-field-types),
+[PHP API](docs/php-api/02-objects.md#a-modules-field-types-customfieldtype)).
+And **symfony/html-sanitizer 7.4.23** for three advisories that a default site
+was not affected by ([security](docs/security.md#review-of-a-modules-field-types-048-2026-11-05)).
+
+## What was new in 0.4.7
 
 **Modules** (System → Modules): a folder in `modules/` brings capabilities,
 displays, pages, tables and more; never uploaded through the browser, tried

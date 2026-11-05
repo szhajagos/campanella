@@ -1171,6 +1171,7 @@ return [
     'transfer.change.list.columns' => 'Its columns',
     'transfer.change.list.path' => 'Its path',
     'transfer.warning.field_kept' => 'Field {field} is not in the file: it stays (delete it in the admin if it is not needed).',
+    'transfer.warning.type_unknown' => 'Field {field}: no module of this site brings the type {type}; it works as its base type ({base}) until one does.',
     'transfer.warning.relation_kept' => 'Relation {relation} is not in the file: it stays.',
     'transfer.warning.target_missing' => 'Relation {relation}: “{object}” is not on this site; the condition is without it.',
     'transfer.warning.list_breaks' => 'After the import this list cannot be loaded: {reason}',

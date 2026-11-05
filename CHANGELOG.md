@@ -10,7 +10,13 @@ backward-incompatible.
 
 ## [Unreleased]
 
-**Field types of a module's own, part 1.** The second step of 0.5.0's extensibility.
+## [0.4.8] – 2026-11-05
+
+**Field types of a module's own.** The second step of 0.5.0's extensibility.
+
+**Upgrading from 0.4.x (or 0.3.x):** upload the new files (`vendor/` included:
+symfony/html-sanitizer is newer) and run the upgrade as usual; no table changes.
+From older versions: see [docs/upgrading.md](docs/upgrading.md).
 
 ### Added
 
@@ -26,6 +32,31 @@ backward-incompatible.
 - ***Structure → Field types***: the core's eleven types and the modules', where
   each comes from, its base, how it is stored, and the fields that use it; the
   fields whose module's type is missing.
+- **The Blueprint editor offers them**: a new field the core's types, then the
+  modules'; an existing one also the modules' types built on its base or a
+  wider one, so a field can be changed to its base type and back (its column and
+  content unchanged), e.g. before its module is turned off.
+- **The content model's file** writes a module's type with its base; imported
+  where no module brings it, it is a warning and the field works as its base
+  type. A change of type is checked by the base types.
+
+### Security
+
+- **symfony/html-sanitizer 7.4.23** (with league/uri 7.10.0, masterminds/html5
+  2.12.0) for three advisories published after 0.4.7 (the host checks of links
+  and media, an image's `srcset`, a `meta` refresh). The default
+  `config/html.php` uses none of these, so a default site was not affected; a
+  site that allowed `srcset` or `meta` in its own should upgrade.
+- A module's field type's own widget cannot be a template path with `..`.
+
+### Documentation and tests
+
+- The guide (chapters 11 and 17, hu, en): a module's field types, the Field types
+  page with a screenshot, changing a field to its base type.
+- Reviewed ([the review](docs/security.md#review-of-a-modules-field-types-048-2026-11-05)).
+  Tests: the registry's checks, a field of a module's type saved, checked,
+  shown, edited, imported and queried; the module off; the editor offering,
+  saving and switching the types; the model's file and its import.
 
 ## [0.4.7] – 2026-11-03
 

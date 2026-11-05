@@ -934,6 +934,7 @@ final class Kernel
             $c->get(ObjectReferences::class),
             $c->get(ColorSchemeRegistry::class),
             $c->get(ColorSchemeStore::class),
+            $c->get(\Campanella\Model\FieldTypeRegistry::class),
         ));
         $c->set(SchemaSync::class, static fn (Container $c): SchemaSync => new SchemaSync(
             $c->get(Connection::class),
@@ -1309,6 +1310,7 @@ final class Kernel
                 $c->get(AdminAccess::class),
                 $c->get(Translator::class),
                 $c->get(ListStore::class),
+                $c->get(\Campanella\Model\FieldTypeRegistry::class),
             ),
             new ListEditor(
                 $c->get(ListStore::class),
