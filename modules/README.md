@@ -11,3 +11,9 @@ the browser. It is checked, tried, then turned on and off by an administrator un
 
 A module is program code with every right: only add one whose source you trust.
 How to write one: [docs/php-api/32-modules.md](../docs/php-api/32-modules.md).
+
+Campanella's own modules come in this folder, turned off (since 0.4.9):
+
+- `feeds`: web sources, files at web addresses that an importer of the site
+  imports on a schedule (*System → Web sources* when it is on). Needs cron
+  (*System → Scheduled tasks*) and PHP's curl extension.

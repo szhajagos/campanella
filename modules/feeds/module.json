@@ -1,0 +1,8 @@
+{
+    "name": "feeds",
+    "label": "Feeds",
+    "description": "Imports from web addresses on a schedule: CSV and JSON files, through the site's importers.",
+    "version": "1.0.0",
+    "campanella": ">=0.4.8 <0.6",
+    "autoload": {"CampanellaFeeds\\": "src/"}
+}

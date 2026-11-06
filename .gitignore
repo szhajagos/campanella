@@ -8,5 +8,6 @@
 /var/files/
 /modules/*
 !/modules/README.md
+!/modules/feeds/
 /public/modules/*
 !/public/modules/.htaccess

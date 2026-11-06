@@ -1,0 +1,49 @@
+{% extends '@core/admin/base.html.twig' %}
+
+{# A source's form: its importer, its address, how often. #}
+{% block content %}
+    <p class="mb-2"><a href="{{ admin_url('module/feeds') }}">← {{ t('feeds.title') }}</a></p>
+    <h1 class="h3 mb-3">{{ t(source ? 'feeds.edit' : 'feeds.new') }}</h1>
+    <form method="post" action="{{ admin_url('module/feeds/' ~ (source ? source.id : 'new')) }}" class="card card-body mb-4" id="feeds-form" novalidate>
+        {{ csrf_field() }}
+        <div class="mb-3">
+            <label for="feeds-importer" class="form-label fw-semibold">{{ t('feeds.importer') }} <span class="text-danger" aria-hidden="true">*</span></label>
+            {% if source %}
+                <input type="text" class="form-control" id="feeds-importer" value="{{ importers[source.importer] is defined ? importers[source.importer].label : source.importer }}" readonly>
+            {% else %}
+                <select class="form-select{{ errors.importer is defined ? ' is-invalid' }}" id="feeds-importer" name="importer" required aria-describedby="feeds-importer-help">
+                    <option value="">–</option>
+                    {% for name, importer in importers %}<option value="{{ name }}"{{ values.importer == name ? ' selected' }}>{{ importer.label }} ({{ importer.format|upper }})</option>{% endfor %}
+                </select>
+                {% if errors.importer is defined %}<div class="invalid-feedback">{{ t(errors.importer.key, errors.importer.params) }}</div>{% endif %}
+            {% endif %}
+            <div class="form-text" id="feeds-importer-help">{{ t('feeds.importer_help') }}</div>
+        </div>
+        <div class="mb-3">
+            <label for="feeds-url" class="form-label fw-semibold">{{ t('feeds.url') }} <span class="text-danger" aria-hidden="true">*</span></label>
+            <input type="url" class="form-control{{ errors.url is defined ? ' is-invalid' }}" id="feeds-url" name="url" value="{{ values.url }}" required maxlength="2000" autocomplete="off" aria-describedby="feeds-url-help">
+            {% if errors.url is defined %}<div class="invalid-feedback">{{ t(errors.url.key, errors.url.params) }}</div>{% endif %}
+            <div class="form-text" id="feeds-url-help">{{ t('feeds.url_help') }}</div>
+        </div>
+        <div class="mb-3">
+            <label for="feeds-every" class="form-label fw-semibold">{{ t('feeds.column.every') }}</label>
+            <select class="form-select{{ errors.every is defined ? ' is-invalid' }}" id="feeds-every" name="every">
+                {% for minutes in every %}<option value="{{ minutes }}"{{ values.every == minutes ? ' selected' }}>{{ t('feeds.every.' ~ minutes) }}</option>{% endfor %}
+            </select>
+            {% if errors.every is defined %}<div class="invalid-feedback">{{ t(errors.every.key, errors.every.params) }}</div>{% endif %}
+        </div>
+        <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" id="feeds-enabled" name="enabled" value="1"{{ values.enabled ? ' checked' }}>
+            <label class="form-check-label" for="feeds-enabled">{{ t('feeds.enabled') }}</label>
+        </div>
+        <div><button type="submit" class="btn btn-primary">{{ t('feeds.save') }}</button></div>
+    </form>
+    {% if source %}
+        {% if run %}<p class="small text-body-secondary" id="feeds-run">{{ t('feeds.last_run', {created: run.created, updated: run.updated, unchanged: run.unchanged, failed: run.failed}) }} <a href="{{ admin_url('system/importers/' ~ source.importer ~ '/runs/' ~ run.id) }}">{{ t('feeds.run_log') }}</a></p>{% endif %}
+        <form method="post" action="{{ admin_url('module/feeds/' ~ source.id ~ '/delete') }}" id="feeds-delete">
+            {{ csrf_field() }}
+            <button type="submit" class="btn btn-outline-danger btn-sm">{{ t('feeds.delete') }}</button>
+            <span class="small text-body-secondary ms-2">{{ t('feeds.delete_help') }}</span>
+        </form>
+    {% endif %}
+{% endblock %}

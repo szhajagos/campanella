@@ -1,0 +1,40 @@
+{% extends '@core/admin/base.html.twig' %}
+
+{# A source fetched now: what its first items would become (nothing changed). #}
+{% block content %}
+    <p class="mb-2"><a href="{{ admin_url('module/feeds') }}">← {{ t('feeds.title') }}</a></p>
+    <h1 class="h3 mb-1">{{ t('feeds.trial') }}</h1>
+    <p class="text-body-secondary text-break mb-3">{{ source.url }}</p>
+    {% if problem %}
+        <div class="alert alert-danger" role="alert" id="feeds-trial-problem">{{ t(problem.key, problem.params) }}</div>
+    {% elseif trial %}
+        <section class="card card-body mb-4" id="trial">
+            <p class="mb-2">{{ t('feeds.trial_intro', {total: trial.total, shown: trial.shown}) }}</p>
+            {% for missing in trial.missing %}<div class="alert alert-warning py-2" role="alert">{{ t('import.trial.missing_source', {source: missing}) }}</div>{% endfor %}
+            <p class="small text-body-secondary">{{ t('importers.columns') }}: {% for column in trial.columns %}<code>{{ column }}</code>{{ not loop.last ? ', ' }}{% else %}–{% endfor %}</p>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead><tr><th scope="col">#</th><th scope="col">{{ t('importers.key_short') }}</th><th scope="col">{{ t('importers.what') }}</th><th scope="col">{{ t('importers.values') }}</th></tr></thead>
+                    <tbody>
+                        {% for row in trial.rows %}
+                            <tr>
+                                <td>{{ row.row }}</td>
+                                <td><code>{{ row.key }}</code></td>
+                                <td><span class="badge text-bg-{{ row.action == 'error' ? 'danger' : (row.action == 'create' ? 'primary' : (row.action == 'update' ? 'info' : 'secondary')) }}">{{ t('import.action.' ~ row.action) }}</span></td>
+                                <td class="small">
+                                    {% if row.error %}<span class="text-danger">{{ row.error }}</span>{% endif %}
+                                    {% for name, value in row.values %}{% if value != '' %}<span class="d-block"><span class="text-body-secondary">{{ name }}:</span> {{ value }}</span>{% endif %}{% endfor %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <form method="post" action="{{ admin_url('module/feeds/' ~ source.id ~ '/fetch') }}">
+                {{ csrf_field() }}
+                <button type="submit" class="btn btn-primary">{{ t('feeds.fetch_next') }}</button>
+                <span class="small text-body-secondary ms-2">{{ t('feeds.fetch_next_help') }}</span>
+            </form>
+        </section>
+    {% endif %}
+{% endblock %}

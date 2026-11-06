@@ -35,6 +35,7 @@ final class Console
             new ImportRunCommand(),
             new ImportUndoCommand(),
             new SubmissionsPruneCommand(),
+            new CronRunCommand(),
             new ModuleListCommand(),
             new ModuleEnableCommand(),
             new ModuleDisableCommand(),

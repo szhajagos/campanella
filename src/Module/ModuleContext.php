@@ -65,6 +65,9 @@ final class ModuleContext
     /** @var array{class: string, label: string, group: string, editors: bool}|null */
     private ?array $adminPage = null;
 
+    /** @var list<\Campanella\Schedule\ScheduledTask> */
+    private array $scheduled = [];
+
     /** Paths a module's route can never have (the system's folders). */
     private const array RESERVED_PATHS = ['/assets', '/themes', '/media', '/modules', '/files', '/install'];
 
@@ -242,9 +245,29 @@ final class ModuleContext
     }
 
     /**
+     * A scheduled task of the module (since 0.4.9): run by cron:run every interval() seconds
+     * (at least Scheduler::MIN_INTERVAL); its name `<module>:<name>`.
+     *
+     * @param string $class A ScheduledTask class of the module
+     */
+    public function scheduled(string $class): self
+    {
+        $task = new ($this->own($class, \Campanella\Schedule\ScheduledTask::class))();
+        if (!str_starts_with($task->name(), $this->manifest->name . ':') || preg_match(\Campanella\Schedule\Scheduler::NAME_PATTERN, $task->name()) !== 1) {
+            throw new ModuleException("A scheduled task's name must be {$this->manifest->name}:<name> ({$task->name()})");
+        }
+        if ($task->interval() < \Campanella\Schedule\Scheduler::MIN_INTERVAL) {
+            throw new ModuleException('A scheduled task runs at most every ' . \Campanella\Schedule\Scheduler::MIN_INTERVAL . " seconds ({$task->name()})");
+        }
+        $this->scheduled[] = $task;
+
+        return $this;
+    }
+
+    /**
      * Everything registered.
      *
-     * @return array{capabilities: list<class-string<Capability>>, displays: list<class-string<Display>>, sources: list<class-string<SystemSource>>, tokens: list<class-string<TokenProvider>>, actions: array<class-string<Event>, list<class-string<Action>>>, listeners: list<array{0: class-string<Event>, 1: Closure}>, commands: list<Command>, services: array<class-string, Closure>, migrations: list<\Campanella\Database\Migration\Migration>, routes: list<array{path: string, controller: string, prefix: bool}>, field_types: list<\Campanella\Model\CustomFieldType>, admin: array{class: string, label: string, group: string, editors: bool}|null}
+     * @return array{capabilities: list<class-string<Capability>>, displays: list<class-string<Display>>, sources: list<class-string<SystemSource>>, tokens: list<class-string<TokenProvider>>, actions: array<class-string<Event>, list<class-string<Action>>>, listeners: list<array{0: class-string<Event>, 1: Closure}>, commands: list<Command>, services: array<class-string, Closure>, migrations: list<\Campanella\Database\Migration\Migration>, routes: list<array{path: string, controller: string, prefix: bool}>, field_types: list<\Campanella\Model\CustomFieldType>, admin: array{class: string, label: string, group: string, editors: bool}|null, scheduled: list<\Campanella\Schedule\ScheduledTask>}
      */
     public function registered(): array
     {
@@ -261,6 +284,7 @@ final class ModuleContext
             'routes' => $this->routes,
             'field_types' => $this->fieldTypes,
             'admin' => $this->adminPage,
+            'scheduled' => $this->scheduled,
         ];
     }
 

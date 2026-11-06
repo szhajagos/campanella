@@ -30,6 +30,8 @@ final class CoreSchema
     public const string IMPORT_RUNS = 'import_runs';
     public const string IMPORT_ITEMS = 'import_items';
     public const string COLOR_SCHEMES = 'color_schemes';
+    public const string SCHEDULED_TASKS = 'scheduled_tasks';
+    public const string SCHEDULED_RUNS = 'scheduled_runs';
 
     /** @return list<Table> */
     public static function tables(): array
@@ -343,6 +345,35 @@ final class CoreSchema
                     new Column('updated_at', ColumnType::DateTime),
                 ],
                 primaryKey: ['name'],
+            ),
+            // The scheduled tasks (since 0.4.9, schema version 23): where each stands, by name
+            // (Campanella\Schedule\Scheduler); its last result as a message's JSON, not queried.
+            new Table(
+                name: self::SCHEDULED_TASKS,
+                columns: [
+                    new Column('name', ColumnType::String, length: 100),
+                    new Column('next_due', ColumnType::DateTime, nullable: true),
+                    new Column('requested', ColumnType::Boolean, default: 0),
+                    new Column('last_started', ColumnType::DateTime, nullable: true),
+                    new Column('last_finished', ColumnType::DateTime, nullable: true),
+                    new Column('last_status', ColumnType::String, length: 16, nullable: true),
+                    new Column('last_message', ColumnType::Text, nullable: true),
+                    new Column('failures', ColumnType::Integer, default: 0),
+                ],
+                primaryKey: ['name'],
+            ),
+            // Their runs' log (since 0.4.9): the last Scheduler::LOG_SIZE.
+            new Table(
+                name: self::SCHEDULED_RUNS,
+                columns: [
+                    new Column('id', ColumnType::Id, autoIncrement: true),
+                    new Column('task', ColumnType::String, length: 100),
+                    new Column('started_at', ColumnType::DateTime),
+                    new Column('finished_at', ColumnType::DateTime, nullable: true),
+                    new Column('status', ColumnType::String, length: 16),
+                    new Column('message', ColumnType::Text, nullable: true),
+                ],
+                primaryKey: ['id'],
             ),
             // Throttling of attempts (e.g. login). The SHA-256 hash of the key.
             new Table(

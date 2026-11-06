@@ -100,6 +100,7 @@ final class CoreAdminMenu
             new AdminMenuItem('settings', 'settings.title', 'system/settings'),
             new AdminMenuItem('mail', 'mail.log.menu', 'system/mail'),
             new AdminMenuItem('importers', 'importers.title', 'system/importers'),
+            new AdminMenuItem('cron', 'cron.title', CronPages::PATH),
             new AdminMenuItem('redirects', 'redirects.title', 'system/redirects'),
             new AdminMenuItem('modules', 'modules.title', ModulePages::PATH),
         ]));

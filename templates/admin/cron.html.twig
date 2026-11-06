@@ -1,0 +1,111 @@
+{% extends '@core/admin/base.html.twig' %}
+
+{# The scheduled tasks (since 0.4.9): when cron last ran, each task, the last runs. #}
+{% block content %}
+    <h1 class="h3 mb-2">{{ t('cron.title') }}</h1>
+    <p class="text-body-secondary mb-4">{{ t('cron.intro') }}</p>
+
+    <div class="card mb-4 {{ stale ? 'border-warning' : '' }}" id="cron-status">
+        <div class="card-body">
+            {% if cron %}
+                <p class="mb-1">{{ t('cron.last_started', {time: date(cron.started, 'UTC')|date}) }}
+                    {% if cron.finished and cron.finished >= cron.started %}
+                        · {{ t('cron.last_result', {ran: cron.ran, failed: cron.failed, seconds: (date(cron.finished, 'UTC').timestamp - date(cron.started, 'UTC').timestamp)}) }}
+                    {% else %}
+                        · {{ t('cron.still_running') }}
+                    {% endif %}
+                </p>
+            {% else %}
+                <p class="mb-1">{{ t('cron.never') }}</p>
+            {% endif %}
+            {% if stale %}
+                <div class="alert alert-warning mt-2 mb-2" role="status" id="cron-stale">{{ t('cron.stale') }}</div>
+            {% endif %}
+            <p class="small mb-1 mt-2">{{ t('cron.line_help') }}</p>
+            <pre class="small bg-body-tertiary border rounded p-2 mb-0" id="cron-line"><code>{{ line }}</code></pre>
+        </div>
+    </div>
+
+    <h2 class="h5">{{ t('cron.tasks') }}</h2>
+    <div class="table-responsive mb-4">
+        <table class="table align-middle admin-list" id="cron-tasks">
+            <thead>
+                <tr>
+                    <th scope="col">{{ t('cron.column.task') }}</th>
+                    <th scope="col">{{ t('cron.column.interval') }}</th>
+                    <th scope="col">{{ t('cron.column.last') }}</th>
+                    <th scope="col">{{ t('cron.column.next') }}</th>
+                    <th scope="col"><span class="visually-hidden">{{ t('cron.column.actions') }}</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for task in tasks %}
+                    <tr id="cron-task-{{ task.name|replace({':': '-'}) }}" class="{{ task.due ? 'table-info' : '' }}">
+                        <td>
+                            <span class="fw-semibold">{{ t(task.label) }}</span> <code class="small text-body-secondary">{{ task.name }}</code>
+                            <div class="small text-body-secondary">{{ task.source ? t('cron.from_module', {module: task.source}) : t('cron.from_core') }}</div>
+                        </td>
+                        <td class="small text-nowrap">{{ t(task.interval.key, task.interval.params) }}</td>
+                        <td class="small">
+                            {% set state = task.state %}
+                            {% if state and state.last_started %}
+                                <div class="text-nowrap">{{ date(state.last_started, 'UTC')|date }}</div>
+                                {% set badge = {ok: 'text-bg-success', failed: 'text-bg-danger', running: 'text-bg-warning'}[state.last_status] ?? 'text-bg-light border' %}
+                                <span class="badge {{ badge }} fw-normal">{{ t('cron.status.' ~ state.last_status) }}</span>
+                                {% if state.last_message %}<div class="{{ state.last_status == 'failed' ? 'text-danger' : 'text-body-secondary' }}">{{ t(state.last_message.key, state.last_message.params) }}</div>{% endif %}
+                                {% if state.failures > 1 %}<div class="text-danger">{{ t('cron.failures', {count: state.failures}) }}</div>{% endif %}
+                            {% else %}
+                                <span class="text-body-secondary">{{ t('cron.not_yet') }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="small">
+                            {% if task.due %}
+                                <span class="badge text-bg-info fw-normal">{{ t(task.state and task.state.requested ? 'cron.requested_badge' : 'cron.due') }}</span>
+                            {% elseif task.state and task.state.next_due %}
+                                <div class="text-nowrap">{{ date(task.state.next_due, 'UTC')|date }}</div>
+                            {% endif %}
+                            {% for message in task.pending %}<div class="text-body-secondary">{{ t(message.key, message.params) }}</div>{% endfor %}
+                        </td>
+                        <td class="text-end">
+                            {% if not task.due %}
+                                <form method="post" action="{{ admin_url('system/cron/' ~ task.name ~ '/request') }}" class="d-inline">
+                                    {{ csrf_field() }}
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary" aria-label="{{ t('cron.request_label', {task: t(task.label)}) }}">{{ t('cron.request') }}</button>
+                                </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <h2 class="h5">{{ t('cron.runs') }}</h2>
+    {% if runs is empty %}
+        <p class="text-body-secondary" id="cron-runs-empty">{{ t('cron.runs_empty') }}</p>
+    {% else %}
+        <div class="table-responsive">
+            <table class="table table-sm align-middle" id="cron-runs">
+                <thead>
+                    <tr>
+                        <th scope="col">{{ t('cron.column.started') }}</th>
+                        <th scope="col">{{ t('cron.column.task') }}</th>
+                        <th scope="col">{{ t('cron.column.result') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for run in runs %}
+                        <tr>
+                            <td class="small text-nowrap">{{ date(run.started_at, 'UTC')|date }}</td>
+                            <td class="small">{{ labels[run.task] is defined ? t(labels[run.task]) : run.task }}</td>
+                            <td class="small">
+                                <span class="badge {{ {ok: 'text-bg-success', failed: 'text-bg-danger', running: 'text-bg-warning'}[run.status] ?? 'text-bg-light border' }} fw-normal">{{ t('cron.status.' ~ run.status) }}</span>
+                                {% if run.message %}<span class="{{ run.status == 'failed' ? 'text-danger' : 'text-body-secondary' }}">{{ t(run.message.key, run.message.params) }}</span>{% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+{% endblock %}

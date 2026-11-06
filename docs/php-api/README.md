@@ -37,6 +37,7 @@ namespace, in the `src/` folder (PSR-4).
 30. [Tokens](30-tokens.md): `[site:name]`, `[date:year]` … in the snippets' texts (`TokenRegistry`, `TokenProvider`), the `tokens` filter (since 0.3.4)
 31. [Appearance](31-appearance.md): colour schemes from JSON, readable by their contrast (`ColorScheme`, `ColorSchemeRegistry`), the colour mode and the visitor's own (`Appearance`), `color_mode()`, `color_scheme_url()` (since 0.3.6)
 32. [Modules](32-modules.md): a module's folder and `module.json` (`ModuleManifest`), versions and constraints (`Semver`), the modules found, checked and where each stands (`ModuleRegistry`, `ModuleState`), *System → Modules*, `module:list` (since 0.4.6)
+33. [Scheduled tasks and fetching from the web](33-scheduled-tasks.md): work the site does by itself (`ScheduledTask`, `Scheduler`, `cron:run`, *System → Scheduled tasks*), fetching a file from a web address safely (`SafeFetcher`, `AddressPolicy`) (since 0.4.9)
 
 ## Namespaces
 

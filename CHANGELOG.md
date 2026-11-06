@@ -10,6 +10,44 @@ backward-incompatible.
 
 ## [Unreleased]
 
+**Web sources, part 1.** The third step of 0.5.0: the feeds module, the first of
+Campanella's own, and what it builds on in the core.
+
+### Added
+
+- **Scheduled tasks** (*System → Scheduled tasks*): work the site does by
+  itself, run by `php bin/campanella cron:run`, which the server's cron starts
+  every five minutes; one at a time, never in a visitor's request. The page
+  shows when `cron:run` last ran (and warns when it does not seem to), the line
+  for the crontab, each task (where it comes from, how often, its last result,
+  when it is due, what its next run would do), a button to ask for one in the
+  next run, and the last 100 runs. The core's first task deletes the old
+  contact messages daily. A module registers its own with
+  `ModuleContext::scheduled()`. Two new tables (`scheduled_tasks`,
+  `scheduled_runs`, schema version 23).
+- **Fetching from web addresses safely** (`SafeFetcher`, for modules):
+  `https://` only (`fetch.allow_http` for `http://`), ports 443 and 80, never an
+  address of the server's own machine or network (checked for every address
+  of the host, after every redirect, and the connection made to the address
+  checked), time and size limits, the certificate checked. `fetch.*` in
+  `config/local.php.dist`. Needs PHP's curl extension.
+- **The feeds module** (`modules/feeds/`, shipped turned off; *System → Web
+  sources* when it is on): a web address whose CSV or JSON file an importer of
+  the site imports, every 15 minutes, hourly, every 6 hours or daily; tried in
+  the admin (what the first items would become); fetched and imported only
+  when the file changed (the server's ETag or date, the content's hash); each
+  import in the importer's log, which can undo it; after three failures in a
+  row, tried less often (at most daily) until it works again.
+
+### Documentation and tests
+
+- PHP API chapter 33 (scheduled tasks, `SafeFetcher`); chapter 32's
+  `scheduled()`; `modules/README.md`.
+- Tests: the addresses refused (IPv4, IPv6, mapped), the redirects, the limits
+  (curl with a local server), the scheduler (due, asked for, one at a time,
+  the time, the log), `cron:run`, the admin's page; the feeds module's trial,
+  pages, task, imports and failures.
+
 ## [0.4.8] – 2026-11-05
 
 **Field types of a module's own.** The second step of 0.5.0's extensibility.

@@ -161,6 +161,7 @@ final class AdminController implements Controller
         private readonly ?\Campanella\Admin\ModulePages $modulePages = null,
         private readonly ?\Campanella\Module\ModuleLoader $modules = null,
         private readonly ?\Closure $makeModulePage = null,
+        private readonly ?\Campanella\Admin\CronPages $cronPages = null,
     ) {
     }
 
@@ -303,6 +304,10 @@ final class AdminController implements Controller
         // The colour schemes (since 0.3.6).
         if (($segments[0] ?? null) === 'color-schemes' && $this->colorSchemes !== null) {
             return $this->colorSchemes->handle($request, array_slice($segments, 1), fn (string $template, string $active, array $context): Response => $this->render($template, $active, $context));
+        }
+        // The scheduled tasks (since 0.4.9).
+        if (($segments[0] ?? null) === 'cron' && $this->cronPages !== null) {
+            return $this->cronPages->handle($request, array_slice($segments, 1), fn (string $template, string $active, array $context): Response => $this->render($template, $active, $context));
         }
         // The modules (since 0.4.6).
         if (($segments[0] ?? null) === 'modules' && $this->modulePages !== null) {

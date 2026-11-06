@@ -87,6 +87,14 @@ return [
         'disabled' => [],
     ],
 
+    // Fetching from web addresses (since 0.4.9, Campanella\Net\SafeFetcher; e.g. the feeds
+    // module): https:// only unless `allow_http`, never an address of the site's own network.
+    'fetch' => [
+        'allow_http' => false,
+        'timeout' => 10,                 // seconds, 1–60
+        'max_bytes' => 5 * 1024 * 1024,  // the body, at most 50 MB
+    ],
+
     // The site's own migrations (class names), run after Campanella's own.
     // See docs/php-api/17-migrations.md.
     'migrations' => [],

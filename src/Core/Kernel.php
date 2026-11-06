@@ -454,6 +454,37 @@ final class Kernel
             $c->get(Config::class)->get('database'),
         ));
 
+        // Fetching from web addresses (since 0.4.9), safely: `fetch.*`.
+        $c->set(\Campanella\Net\SafeFetcher::class, static function (Container $c): \Campanella\Net\SafeFetcher {
+            $config = $c->get(Config::class);
+
+            return new \Campanella\Net\SafeFetcher(
+                allowHttp: $config->get('fetch.allow_http', false) === true,
+                timeout: max(1, min(60, (int) $config->get('fetch.timeout', 10))),
+                maxBytes: max(1024, min(50 * 1024 * 1024, (int) $config->get('fetch.max_bytes', 5 * 1024 * 1024))),
+            );
+        });
+
+        // The scheduled tasks (since 0.4.9): the core's and the modules' (run by cron:run).
+        $c->set(\Campanella\Schedule\Scheduler::class, static fn (Container $c): \Campanella\Schedule\Scheduler => new \Campanella\Schedule\Scheduler(
+            $c->get(Connection::class),
+            static function () use ($c): array {
+                $tasks = [new \Campanella\Schedule\SubmissionsPruneTask()];
+                try {
+                    foreach ($c->get(\Campanella\Module\ModuleLoader::class)->all('scheduled') as $task) {
+                        if ($task instanceof \Campanella\Schedule\ScheduledTask) {
+                            $tasks[] = $task;
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    error_log('Campanella: the modules\' scheduled tasks are left out: ' . $e->getMessage());
+                }
+
+                return $tasks;
+            },
+            $root . '/var/cache/cron.lock',
+        ));
+
         // The modules (since 0.4.6): found and checked; those turned on are in the settings,
         // config/local.php's `modules.disabled` turns one off whatever the settings say.
         $c->set(\Campanella\Module\ModuleRegistry::class, static function (Container $c) use ($root): \Campanella\Module\ModuleRegistry {
@@ -1397,6 +1428,7 @@ final class Kernel
             ),
             $c->get(\Campanella\Module\ModuleLoader::class),
             static fn (string $class): object => $c->has($class) ? $c->get($class) : new $class(),
+            new \Campanella\Admin\CronPages($c->get(\Campanella\Schedule\Scheduler::class), $c, $root, $c->get(Csrf::class), $c->get(Flash::class), $c->get(AdminAccess::class)),
         ));
 
         $c->set(ObjectForm::class, static fn (Container $c): ObjectForm => new ObjectForm(

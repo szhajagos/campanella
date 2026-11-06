@@ -1,0 +1,72 @@
+{% extends '@core/admin/base.html.twig' %}
+
+{# The feeds module's sources: where each stands. #}
+{% block content %}
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+        <h1 class="h3 mb-0">{{ t('feeds.title') }}</h1>
+        {% if has_importers %}<a class="btn btn-primary" href="{{ admin_url('module/feeds/new') }}">{{ t('feeds.new') }}</a>{% endif %}
+    </div>
+    <p class="text-body-secondary mb-3">{{ t('feeds.intro') }}</p>
+    {% if not curl %}<div class="alert alert-danger" role="alert" id="feeds-no-curl">{{ t('fetch.no_curl') }}</div>{% endif %}
+    {% if cron_stale %}
+        <div class="alert alert-warning" role="status" id="feeds-cron">{{ t('feeds.cron_stale') }} <a href="{{ admin_url('system/cron') }}">{{ t('cron.title') }}</a></div>
+    {% endif %}
+    {% if not has_importers %}
+        <p class="text-body-secondary" id="feeds-no-importers">{{ t('feeds.no_importers') }} <a href="{{ admin_url('system/importers') }}">{{ t('importers.title') }}</a></p>
+    {% elseif sources is empty %}
+        <p class="text-body-secondary" id="feeds-empty">{{ t('feeds.empty') }}</p>
+    {% else %}
+        <div class="table-responsive">
+            <table class="table align-middle admin-list" id="feeds-sources">
+                <thead>
+                    <tr>
+                        <th scope="col">{{ t('feeds.column.source') }}</th>
+                        <th scope="col">{{ t('feeds.column.every') }}</th>
+                        <th scope="col">{{ t('feeds.column.last') }}</th>
+                        <th scope="col">{{ t('feeds.column.next') }}</th>
+                        <th scope="col"><span class="visually-hidden">{{ t('cron.column.actions') }}</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in sources %}
+                        {% set source = item.source %}
+                        <tr id="feeds-source-{{ source.id }}">
+                            <td>
+                                <a class="fw-semibold" href="{{ admin_url('module/feeds/' ~ source.id) }}">{{ item.importer ? item.importer.label : source.importer }}</a>
+                                {% if not source.enabled %}<span class="badge text-bg-light border fw-normal">{{ t('feeds.off') }}</span>{% endif %}
+                                <div class="small text-body-secondary text-break">{{ source.url }}</div>
+                                {% if not item.importer %}<div class="small text-danger">{{ t('feeds.error.no_importer', {importer: source.importer}) }}</div>{% endif %}
+                            </td>
+                            <td class="small text-nowrap">{{ t('feeds.every.' ~ source.everyMinutes) }}</td>
+                            <td class="small">
+                                {% if source.lastStatus %}
+                                    {% if source.lastFetched %}<div class="text-nowrap">{{ date(source.lastFetched, 'UTC')|date }}</div>{% endif %}
+                                    <span class="badge {{ {ok: 'text-bg-success', unchanged: 'text-bg-light border', running: 'text-bg-warning', failed: 'text-bg-danger'}[source.lastStatus] }} fw-normal">{{ t('feeds.status.' ~ source.lastStatus) }}</span>
+                                    {% if source.lastMessage %}<div class="{{ source.lastStatus == 'failed' ? 'text-danger' : 'text-body-secondary' }}">{{ t(source.lastMessage.key, source.lastMessage.params) }}</div>{% endif %}
+                                    {% if source.failures >= 3 %}<div class="text-danger">{{ t('feeds.backoff', {count: source.failures}) }}</div>{% endif %}
+                                {% else %}
+                                    <span class="text-body-secondary">{{ t('cron.not_yet') }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="small text-nowrap">
+                                {% if not source.enabled %}–{% elseif source.nextDue %}{{ date(source.nextDue, 'UTC')|date }}{% else %}{{ t('cron.due') }}{% endif %}
+                            </td>
+                            <td class="text-end text-nowrap">
+                                <form method="post" action="{{ admin_url('module/feeds/' ~ source.id ~ '/try') }}" class="d-inline">
+                                    {{ csrf_field() }}
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary">{{ t('feeds.try') }}</button>
+                                </form>
+                                {% if source.enabled %}
+                                    <form method="post" action="{{ admin_url('module/feeds/' ~ source.id ~ '/fetch') }}" class="d-inline">
+                                        {{ csrf_field() }}
+                                        <button type="submit" class="btn btn-sm btn-outline-primary">{{ t('feeds.fetch_next') }}</button>
+                                    </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+{% endblock %}

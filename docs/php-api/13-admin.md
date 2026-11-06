@@ -452,6 +452,7 @@ here, marked "defined in code") or are made here (since 0.2.3, see below).
 | Page | Contents |
 |---|---|
 | `/admin/system/blueprints` | Each Blueprint: its capabilities (with the dependencies), its own fields (type, storage, properties), its relations (what they can point to, one or many, required, and which capability brings them), `tree_scope`, the lists on its page, the number of objects with a link to its list; "New Blueprint", and "Edit" for those made here; a stored definition that could not be loaded, with the reason |
+| `/admin/system/cron` | Since 0.4.9 (*System → Scheduled tasks*, `CronPages`): when `cron:run` last ran, a warning when it does not seem to, the crontab line, each task and its last runs; POST `…/<task>/request` asks for one in the next run ([chapter 33](33-scheduled-tasks.md)) |
 | `/admin/system/field-types` | Since 0.4.8 (*Structure → Field types*, `fieldTypes(): array`): the core's types and those of the modules that are on, each with where it comes from, its base type and its own widget (a module's), how it is stored, and the Blueprints' fields that use it; the fields of a module's type whose module is off or gone (they work as their base type) |
 | `/admin/system/capabilities` | Each capability: a short explanation (`capability.<name>.description` in the language files; a custom capability may add its own), class, table, what it builds on, its query scopes, its fields and relations, and the Blueprints that use it |
 

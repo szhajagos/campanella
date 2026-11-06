@@ -91,6 +91,21 @@ return [
     // ],
 
     // ------------------------------------------------------------------------------
+    // Fetching files from web addresses (since 0.4.9), e.g. the feeds module's sources.
+    // Only https:// addresses on ports 443 and 80, and never an address of the server's
+    // own machine or network (localhost, 10.x, 192.168.x, 169.254.x …): an address
+    // typed in the admin cannot reach what only the server can. `allow_http` lets in
+    // plain http:// addresses too (their content can be changed on the way: only for
+    // sources that have no https://). `timeout`: seconds for one file (1–60);
+    // `max_bytes`: its largest size, as decompressed (at most 50 MB). Needs PHP's curl
+    // extension. A proxy of the server's environment (HTTPS_PROXY) is not used.
+    // 'fetch' => [
+    //     'allow_http' => false,
+    //     'timeout' => 10,
+    //     'max_bytes' => 5 * 1024 * 1024,
+    // ],
+
+    // ------------------------------------------------------------------------------
     // The admin: its address, the roles that may enter it, and the roles that may open
     // its System pages (settings, e-mail, upgrades, colour schemes, modules …).
     // 'admin' => [

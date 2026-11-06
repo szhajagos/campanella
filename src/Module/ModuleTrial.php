@@ -178,6 +178,7 @@ final class ModuleTrial
             $names[$command->name()] = true;
         }
         $brings['commands'] = array_map(static fn ($command): string => $command->name(), (array) $registered['commands']);
+        $brings['scheduled'] = array_map(static fn ($task): string => $task->name(), (array) ($registered['scheduled'] ?? []));
 
         // Its pages (since 0.4.7): at their paths, not where something else is (a route, an object).
         $router = $c->get(\Campanella\Http\Router::class);

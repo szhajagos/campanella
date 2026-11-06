@@ -1841,7 +1841,7 @@ test('AdminMenu: the groups and their links, by who looks; a module\'s links', f
     check(in_array('article', $content, true) && in_array('snippet', $content, true) && !array_intersect(['user', 'submission', 'component', 'image', 'file'], $content), implode(',', $content));
     check($items($full, 'media') === ['media', 'image', 'file'] && $items($full, 'audience') === ['submission', 'user']);
     check($items($full, 'appearance') === ['component', 'regions', 'layouts', 'color_schemes'] && $items($full, 'structure') === ['blueprints', 'capabilities', 'field_types', 'lists', 'model']);
-    check($items($full, 'system') === ['system', 'settings', 'mail', 'importers', 'redirects', 'modules']);
+    check($items($full, 'system') === ['system', 'settings', 'mail', 'importers', 'cron', 'redirects', 'modules']);
     check($names($menu->build($editor)) === ['content', 'media'], 'an editor sees the system groups: ' . implode(',', $names($menu->build($editor))));
 
     $menu->add(\Campanella\Admin\AdminMenu::SYSTEM, static fn (Actor $actor): array => [new \Campanella\Admin\AdminMenuItem('backup', 'Mentések', 'system/backup')]);
@@ -7148,6 +7148,376 @@ test('Field types of a module (0.4.8): the registry, a field of one, stored with
     $on->get(ObjectService::class)->delete(Actor::system(), $on->get(\Campanella\Model\ObjectRepository::class)->find((int) $member->id()));
     $on->get(\Campanella\Model\BlueprintStore::class)->delete('hirlevel_tag');
     $db->execute('DROP TABLE IF EXISTS ' . $db->table('bp_hirlevel_tag'));
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('Safe fetching (0.4.9): public addresses only, every redirect checked, the limits', function (): void {
+    $public = ['8.8.8.8', '172.32.0.1', '2a00:1450:4001::1', '::ffff:8.8.8.8', '[2606:4700::1]'];
+    $private = ['127.0.0.1', '10.1.2.3', '172.16.0.1', '192.168.1.1', '169.254.169.254', '100.64.0.1', '0.0.0.0', '224.0.0.1', '255.255.255.255', '198.18.0.1',
+        '::1', '::', 'fd00::1', 'fe80::1', 'ff02::1', '::ffff:127.0.0.1', '::ffff:10.0.0.1', '64:ff9b::a00:1', '2002:7f00:1::', '2001:db8::1', 'nem-ip'];
+    foreach ($public as $ip) {
+        check(\Campanella\Net\AddressPolicy::isPublic($ip), 'public: ' . $ip);
+    }
+    foreach ($private as $ip) {
+        check(!\Campanella\Net\AddressPolicy::isPublic($ip), 'not public: ' . $ip);
+    }
+
+    // A resolver and a transport of the test's: what was asked is written down.
+    $resolver = new class implements \Campanella\Net\Resolver {
+        public array $names = [];
+
+        public function resolve(string $host): array
+        {
+            return $this->names[$host] ?? [];
+        }
+    };
+    $transport = new class implements \Campanella\Net\Transport {
+        public array $answers = [];
+        public array $asked = [];
+
+        public function get(string $url, string $ip, int $port, array $headers, int $timeout, int $maxBytes): array
+        {
+            $this->asked[] = [$url, $ip, $port, $headers];
+
+            return $this->answers[$url] ?? ['status' => 404, 'headers' => [], 'body' => ''];
+        }
+    };
+    $resolver->names = [
+        'hirek.example.org' => ['93.184.216.34', '2606:2800:220:1::1'],
+        'belso.example.org' => ['10.0.0.5'],
+        'vegyes.example.org' => ['93.184.216.34', '127.0.0.1'],
+        'mashol.example.org' => ['93.184.216.35'],
+    ];
+    $fetcher = new \Campanella\Net\SafeFetcher($resolver, $transport);
+    $problem = static fn (string $url): ?string => $fetcher->problem($url)?->key;
+    check($problem('https://hirek.example.org/rss') === null && $problem('https://hirek.example.org:443/a?b=c') === null, 'an https:// address');
+    check($problem('http://hirek.example.org/') === 'fetch.http_not_allowed' && $problem('ftp://hirek.example.org/') === 'fetch.scheme' && $problem('file:///etc/passwd') === 'fetch.invalid_url', 'only https://');
+    check($problem('https://user:pass@hirek.example.org/') === 'fetch.userinfo' && $problem('https://hirek.example.org:8080/') === 'fetch.port' && $problem('https://hirek.example.org:22/') === 'fetch.port', 'no password, ports 443 and 80');
+    check($problem('https://127.0.0.1/') === 'fetch.private' && $problem('https://[::1]/') === 'fetch.private' && $problem('https://169.254.169.254/latest/meta-data/') === 'fetch.private', 'not an address of the network');
+    check($problem('https://exa mple.org/') === 'fetch.invalid_url' && $problem('https://-rossz.org/') === 'fetch.invalid_host' && $problem('https://localhost/') === 'fetch.invalid_host' && $problem('') === 'fetch.invalid_url', 'a host name');
+    check((new \Campanella\Net\SafeFetcher($resolver, $transport, allowHttp: true))->problem('http://hirek.example.org/') === null, 'http:// where allowed');
+
+    $refused = static function (callable $fetch): ?string {
+        try {
+            $fetch();
+        } catch (\Campanella\Net\FetchException $e) {
+            return $e->reason->key;
+        }
+
+        return null;
+    };
+    $transport->answers['https://hirek.example.org/rss'] = ['status' => 200, 'headers' => ['content-type' => 'application/rss+xml', 'etag' => '"v1"', 'last-modified' => 'Fri, 06 Nov 2026 10:00:00 GMT'], 'body' => '<rss/>'];
+    $result = $fetcher->fetch('https://hirek.example.org/rss');
+    check($result->body === '<rss/>' && $result->etag === '"v1"' && $result->contentType === 'application/rss+xml' && $transport->asked[0][1] === '93.184.216.34' && $transport->asked[0][2] === 443, 'fetched from the address checked (IPv4 first)');
+    $transport->asked = [];
+    check($refused(fn () => $fetcher->fetch('https://belso.example.org/')) === 'fetch.private' && $refused(fn () => $fetcher->fetch('https://vegyes.example.org/')) === 'fetch.private' && $transport->asked === [], 'a name of the network, or one of its addresses: nothing asked');
+    check($refused(fn () => $fetcher->fetch('https://nincs.example.org/')) === 'fetch.unknown_host', 'an unknown host');
+
+    // Redirects: followed, each checked again.
+    $transport->answers['https://hirek.example.org/regi'] = ['status' => 301, 'headers' => ['location' => '/rss'], 'body' => ''];
+    check($fetcher->fetch('https://hirek.example.org/regi')->url === 'https://hirek.example.org/rss', 'a redirect followed');
+    $transport->answers['https://hirek.example.org/be'] = ['status' => 302, 'headers' => ['location' => 'https://belso.example.org/titok'], 'body' => ''];
+    $transport->answers['https://hirek.example.org/ip'] = ['status' => 307, 'headers' => ['location' => 'https://169.254.169.254/latest/'], 'body' => ''];
+    $transport->answers['https://hirek.example.org/http'] = ['status' => 308, 'headers' => ['location' => 'http://mashol.example.org/'], 'body' => ''];
+    $transport->asked = [];
+    check($refused(fn () => $fetcher->fetch('https://hirek.example.org/be')) === 'fetch.private' && $refused(fn () => $fetcher->fetch('https://hirek.example.org/ip')) === 'fetch.private' && count($transport->asked) === 2, 'not redirected into the network');
+    check($refused(fn () => $fetcher->fetch('https://hirek.example.org/http')) === 'fetch.http_not_allowed', 'not from https:// to http://');
+    foreach (range(1, 4) as $i) {
+        $transport->answers['https://hirek.example.org/kor' . $i] = ['status' => 302, 'headers' => ['location' => '/kor' . ($i + 1)], 'body' => ''];
+    }
+    check($refused(fn () => $fetcher->fetch('https://hirek.example.org/kor1')) === 'fetch.redirects', 'at most three redirects');
+
+    // Not modified, other statuses.
+    $transport->answers['https://mashol.example.org/feed'] = ['status' => 304, 'headers' => [], 'body' => ''];
+    $transport->asked = [];
+    $same = $fetcher->fetch('https://mashol.example.org/feed', '"v1"', 'Fri, 06 Nov 2026 10:00:00 GMT');
+    check($same->notModified && $same->body === '' && ($transport->asked[0][3]['If-None-Match'] ?? null) === '"v1"' && isset($transport->asked[0][3]['If-Modified-Since']), 'not modified');
+    check($refused(fn () => $fetcher->fetch('https://mashol.example.org/nincs')) === 'fetch.status', 'a status other than 200');
+    check(\Campanella\Net\SafeFetcher::resolveUrl('https://a.example.org/x/y.xml?q=1', 'z.xml') === 'https://a.example.org/x/z.xml'
+        && \Campanella\Net\SafeFetcher::resolveUrl('https://a.example.org/x/y', '//b.example.org/c') === 'https://b.example.org/c'
+        && \Campanella\Net\SafeFetcher::resolveUrl('https://a.example.org/x/y', '?p=2') === 'https://a.example.org/x/y?p=2'
+        && \Campanella\Net\SafeFetcher::resolveUrl('https://a.example.org/x', '') === null, 'a redirect\'s address made absolute');
+
+    // curl: connected to the address given, whatever the name; the size limit.
+    if (!\Campanella\Net\CurlTransport::available()) {
+        return;
+    }
+    $docroot = sys_get_temp_dir() . '/campanella-fetch-' . getmypid();
+    @mkdir($docroot);
+    file_put_contents($docroot . '/kicsi.json', '{"items":[1,2,3]}');
+    file_put_contents($docroot . '/nagy.txt', str_repeat('x', 300000));
+    $port = 18000 + getmypid() % 1000;
+    $server = proc_open(['php', '-S', '127.0.0.1:' . $port, '-t', $docroot], [1 => ['file', '/dev/null', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes);
+    usleep(400000);
+    try {
+        $curl = new \Campanella\Net\CurlTransport();
+        $got = $curl->get('http://forras.campanella.test:' . $port . '/kicsi.json', '127.0.0.1', $port, ['Accept' => '*/*'], 5, 1000);
+        check($got['status'] === 200 && $got['body'] === '{"items":[1,2,3]}' && str_starts_with($got['headers']['content-type'] ?? '', 'application/json'), 'curl: the address pinned: ' . json_encode($got));
+        $tooLarge = null;
+        try {
+            $curl->get('http://forras.campanella.test:' . $port . '/nagy.txt', '127.0.0.1', $port, [], 5, 100000);
+        } catch (\Campanella\Net\FetchException $e) {
+            $tooLarge = $e->reason->key;
+        }
+        check($tooLarge === 'fetch.too_large', 'curl: stopped at the size limit');
+    } finally {
+        proc_terminate($server);
+        proc_close($server);
+        array_map('unlink', glob($docroot . '/*') ?: []);
+        @rmdir($docroot);
+    }
+});
+
+test('Scheduled tasks (0.4.9): due ones run by cron:run, one at a time, logged; asked for in the admin; the page', function () use ($newUser): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $c = $kernel->container();
+    $db = $c->get(Connection::class);
+    if ($db->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $db->execute('DELETE FROM {scheduled_tasks}');
+    $db->execute('DELETE FROM {scheduled_runs}');
+    $db->execute("DELETE FROM {system} WHERE name LIKE 'cron\\_%'");
+    $task = static fn (string $name, int $interval, ?\Closure $work = null) => new class($name, $interval, $work) implements \Campanella\Schedule\ScheduledTask {
+        public int $runs = 0;
+
+        public function __construct(private string $n, private int $i, private ?\Closure $w)
+        {
+        }
+
+        public function name(): string { return $this->n; }
+        public function label(): string { return 'cron.title'; }
+        public function interval(): int { return $this->i; }
+        public function pending(\Campanella\Core\Container $container): array { return [new \Campanella\I18n\Message('cron.due')]; }
+        public function run(\Campanella\Core\Container $container, float $seconds): ?\Campanella\I18n\Message
+        {
+            ++$this->runs;
+
+            return $this->w === null ? new \Campanella\I18n\Message('cron.status.ok') : ($this->w)();
+        }
+    };
+    $hourly = $task('proba:orankent', 3600);
+    $failing = $task('proba:hibas', 300, static fn () => throw new \RuntimeException('Elromlott'));
+    $lock = sys_get_temp_dir() . '/campanella-cron-' . getmypid() . '.lock';
+    $scheduler = new \Campanella\Schedule\Scheduler($db, static fn (): array => [$hourly, $failing, $task('proba:gyakori', 60), $task('Rossz nev', 3600), $task('proba:orankent', 600)], $lock);
+    check(array_keys($scheduler->tasks()) === ['proba:orankent', 'proba:hibas'], 'too often, a bad name, a name twice: left out');
+    check($scheduler->lastCron() === null && $scheduler->isStale(), 'never ran: stale');
+
+    $now = new DateTimeImmutable('2026-11-06 10:00:00', new DateTimeZone('UTC'));
+    $reported = [];
+    $done = $scheduler->run($c, static function (string $name, string $status) use (&$reported): void {
+        $reported[] = $name . ':' . $status;
+    }, now: $now);
+    check($done === ['ran' => ['proba:orankent'], 'failed' => ['proba:hibas'], 'left' => []] && $reported === ['proba:orankent:ok', 'proba:hibas:failed'], 'never run: due ' . json_encode($done));
+    $states = $scheduler->states();
+    check($states['proba:orankent']['next_due'] === '2026-11-06 11:00:00' && $states['proba:orankent']['last_status'] === 'ok' && $states['proba:orankent']['last_message']?->key === 'cron.status.ok', 'its next time and result');
+    check($states['proba:hibas']['last_status'] === 'failed' && $states['proba:hibas']['failures'] === 1 && $states['proba:hibas']['last_message']?->key === 'cron.error' && str_contains((string) $states['proba:hibas']['last_message']->params['error'], 'Elromlott'), 'a failure logged');
+    check(!$scheduler->isStale(new DateTimeImmutable('now', new DateTimeZone('UTC'))) && $scheduler->lastCron()['ran'] === 1 && $scheduler->lastCron()['failed'] === 1, 'cron ran');
+
+    $later = $now->modify('+10 minutes');
+    $done = $scheduler->run($c, now: $later);
+    check($done['ran'] === [] && $done['failed'] === ['proba:hibas'] && $hourly->runs === 1 && $scheduler->states()['proba:hibas']['failures'] === 2, 'only what is due');
+    check($scheduler->request('proba:orankent') && !$scheduler->request('proba:nincs') && $scheduler->isDue('proba:orankent', $later), 'asked for');
+    $scheduler->run($c, now: $later);
+    check($hourly->runs === 2 && !$scheduler->states()['proba:orankent']['requested'], 'asked for: run once');
+
+    // One at a time.
+    $held = fopen($lock, 'c');
+    flock($held, LOCK_EX);
+    check($scheduler->run($c, now: $later->modify('+2 hours')) === null && $hourly->runs === 2, 'not while another runs');
+    flock($held, LOCK_UN);
+    fclose($held);
+    // Out of time: left for the next.
+    $scheduler->request('proba:orankent');
+    check($scheduler->run($c, budget: 0, now: $later)['left'] === ['proba:orankent'], 'out of time: left');
+    // The log: the last LOG_SIZE.
+    for ($i = 0; $i < 105; ++$i) {
+        $db->insert(\Campanella\Database\Schema\CoreSchema::SCHEDULED_RUNS, ['task' => 'proba:hibas', 'started_at' => '2026-11-06 09:00:00', 'status' => 'ok']);
+    }
+    $scheduler->run($c, now: $later);
+    check((int) $db->fetchValue('SELECT COUNT(*) FROM {scheduled_runs}') === \Campanella\Schedule\Scheduler::LOG_SIZE && count($scheduler->runs()) === \Campanella\Schedule\Scheduler::LOG_SIZE, 'the last 100 runs kept');
+    @unlink($lock);
+
+    // cron:run, with the site's tasks.
+    $db->execute('DELETE FROM {scheduled_tasks}');
+    $stream = fopen('php://memory', 'w+');
+    $code = (new \Campanella\Cli\CronRunCommand())->run($c, [], new \Campanella\Cli\Output($stream, $stream));
+    rewind($stream);
+    $printed = (string) stream_get_contents($stream);
+    check($code === 0 && str_contains($printed, 'submissions_prune'), 'cron:run: ' . $printed);
+    $stream = fopen('php://memory', 'w+');
+    (new \Campanella\Cli\CronRunCommand())->run($c, [], new \Campanella\Cli\Output($stream, $stream));
+    rewind($stream);
+    $again = (string) stream_get_contents($stream);
+    check(!str_contains($again, 'submissions_prune'), 'cron:run again: not due ' . $again);
+
+    // The page: for the system roles.
+    $storage = new ArraySessionStorage();
+    $admin = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $admin->container()->set(Session::class, static fn () => new Session($storage));
+    $admin->container()->get(AuthService::class)->login(new Request('GET', '/'), $newUser('cron-admin@example.hu', 'cron-admin-jelszo-1', ['administrator']));
+    $send = static function (string $method, string $path, array $post = []) use ($storage) {
+        $storage->endRequest();
+        $k = new \Campanella\Core\Kernel(dirname(__DIR__));
+        $k->container()->set(Session::class, static fn () => new Session($storage));
+
+        return $k->handle(new Request($method, $path, post: $post));
+    };
+    $page = $send('GET', '/admin/system/cron');
+    check($page->status === 200 && str_contains($page->body, 'id="cron-task-submissions_prune"') && str_contains($page->body, 'bin/campanella cron:run') && str_contains($page->body, 'href="/admin/system/cron" aria-current="page"'), 'the page ' . $page->status);
+    check(!str_contains($page->body, 'id="cron-stale"') && str_contains($page->body, 'id="cron-runs"'), 'cron ran; its log');
+    $token = preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $page->body, $m) === 1 ? $m[1] : '';
+    $db->update(\Campanella\Database\Schema\CoreSchema::SCHEDULED_TASKS, ['next_due' => '2099-01-01 00:00:00'], ['name' => 'submissions_prune']);
+    $asked = $send('POST', '/admin/system/cron/submissions_prune/request', ['_csrf' => $token]);
+    check($asked->status === 303 && (bool) $db->fetchValue("SELECT requested FROM {scheduled_tasks} WHERE name = 'submissions_prune'"), 'asked for in the admin');
+    check($send('POST', '/admin/system/cron/nincs/request', ['_csrf' => $token])->status === 404 && $send('GET', '/admin/system/cron/submissions_prune/request')->status === 405, 'not a task; not GET');
+    $db->execute("UPDATE {system} SET value = '2020-01-01 00:00:00' WHERE name = 'cron_finished'");
+    check(str_contains($send('GET', '/admin/system/cron')->body, 'id="cron-stale"'), 'stale: the warning');
+    $editor = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $editorStorage = new ArraySessionStorage();
+    $editor->container()->set(Session::class, static fn () => new Session($editorStorage));
+    $editor->container()->get(AuthService::class)->login(new Request('GET', '/'), $newUser('cron-szerkeszto@example.hu', 'cron-szerk-jelszo-1', ['editor']));
+    $editorStorage->endRequest();
+    $k = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $k->container()->set(Session::class, static fn () => new Session($editorStorage));
+    check($k->handle(new Request('GET', '/admin/system/cron'))->status === 403, 'not for an editor');
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('The feeds module (0.4.9): a source of an importer, tried, fetched by its task, imported when it changed, failures', function () use ($newUser): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $root = dirname(__DIR__);
+    $transport = new class implements \Campanella\Net\Transport {
+        public array $answers = [];
+        public array $asked = [];
+
+        public function get(string $url, string $ip, int $port, array $headers, int $timeout, int $maxBytes): array
+        {
+            $this->asked[] = [$url, $headers];
+            $answer = $this->answers[$url] ?? ['status' => 404, 'headers' => [], 'body' => ''];
+
+            return is_callable($answer) ? $answer($headers) : $answer;
+        }
+    };
+    $resolver = new class implements \Campanella\Net\Resolver {
+        public function resolve(string $host): array
+        {
+            return $host === 'adatok.example.org' ? ['93.184.216.34'] : ['10.0.0.1'];
+        }
+    };
+    $boot = static function () use ($root, $transport, $resolver): \Campanella\Core\Kernel {
+        $kernel = new \Campanella\Core\Kernel($root, ['modules' => ['directory' => $root . '/modules', 'enabled' => ['feeds']]]);
+        $kernel->container()->set(\Campanella\Net\SafeFetcher::class, static fn () => new \Campanella\Net\SafeFetcher($resolver, $transport));
+
+        return $kernel;
+    };
+    $c = $boot()->container();
+    $db = $c->get(Connection::class);
+    if ($db->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    check(($c->get(\Campanella\Module\ModuleRegistry::class)->get('feeds')?->status) === \Campanella\Module\ModuleState::ON, 'the module is there, valid');
+    $trial = $c->get(\Campanella\Module\ModuleTrial::class)->run('feeds');
+    check($trial['problems'] === [] && in_array('feeds:fetch', $trial['brings']['scheduled'], true), 'it passes its trial: ' . json_encode(array_map('strval', $trial['problems'])));
+    $db->execute('DROP TABLE IF EXISTS ' . $db->table('feeds_sources'));
+    $db->execute("DELETE FROM {migrations} WHERE id LIKE 'feeds:%'");
+    $c->get(\Campanella\Database\Installer::class)->migrator()?->run();
+    check($db->tableExists('feeds_sources') && !$c->get(\Campanella\Database\Installer::class)->needsUpgrade(), 'its table, by its migration');
+    $editor = $newUser('feeds-szerkeszto@example.hu', 'feeds-szerk-jelszo-1', ['editor']);
+    $administrator = $newUser('feeds-admin@example.hu', 'feeds-admin-jelszo-1', ['administrator']);
+    $c->get(\Campanella\Import\ImporterStore::class)->save('feeds_proba', ['version' => 1, 'label' => 'Események a webről', 'blueprint' => 'article', 'format' => 'json', 'delimiter' => 'auto', 'items' => 'items',
+        'key' => 'id', 'publish' => false, 'missing_target' => 'error', 'missing_items' => 'keep', 'user' => (int) $administrator->id(),
+        'mapping' => [['source' => 'title', 'target' => 'title'], ['source' => 'lead', 'target' => 'lead']]]);
+    $url = 'https://adatok.example.org/esemenyek.json';
+    $body = json_encode(['items' => [['id' => 'e1', 'title' => 'Feeds egy', 'lead' => 'Első'], ['id' => 'e2', 'title' => 'Feeds kettő', 'lead' => 'Második']]], JSON_UNESCAPED_UNICODE);
+    $transport->answers[$url] = static fn (array $headers): array => ($headers['If-None-Match'] ?? null) === '"v2"'
+        ? ['status' => 304, 'headers' => [], 'body' => '']
+        : ['status' => 200, 'headers' => ['etag' => '"v1"', 'content-type' => 'application/json'], 'body' => $body];
+
+    // The admin's pages.
+    $storage = new ArraySessionStorage();
+    $admin = $boot();
+    $admin->container()->set(Session::class, static fn () => new Session($storage));
+    $admin->container()->get(AuthService::class)->login(new Request('GET', '/'), $administrator);
+    $send = static function (string $method, string $path, array $post = []) use ($boot, $storage) {
+        $storage->endRequest();
+        $k = $boot();
+        $k->container()->set(Session::class, static fn () => new Session($storage));
+
+        return $k->handle(new Request($method, $path, post: $post));
+    };
+    $list = $send('GET', '/admin/module/feeds');
+    check($list->status === 200 && str_contains($list->body, 'id="feeds-empty"') && str_contains($list->body, 'href="/admin/module/feeds/new"'), 'the page, no source yet ' . $list->status);
+    $form = $send('GET', '/admin/module/feeds/new');
+    $token = preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $form->body, $m) === 1 ? $m[1] : '';
+    check(str_contains($form->body, '<option value="feeds_proba">Események a webről (JSON)</option>'), 'the importers offered');
+    $bad = $send('POST', '/admin/module/feeds/new', ['_csrf' => $token, 'importer' => 'feeds_proba', 'url' => 'https://169.254.169.254/latest/meta-data/', 'every' => '60', 'enabled' => '1']);
+    check($bad->status === 422 && str_contains($bad->body, 'is-invalid') && $db->fetchValue('SELECT COUNT(*) FROM {feeds_sources}') == 0, 'not an address of the network');
+    check($send('POST', '/admin/module/feeds/new', ['_csrf' => $token, 'importer' => 'nincs', 'url' => $url, 'every' => '7'])->status === 422, 'not an importer there is not; not any interval');
+    $saved = $send('POST', '/admin/module/feeds/new', ['_csrf' => $token, 'importer' => 'feeds_proba', 'url' => $url, 'every' => '60', 'enabled' => '1']);
+    $store = $c->get(\CampanellaFeeds\SourceStore::class);
+    $source = $store->findByImporter('feeds_proba');
+    check($saved->status === 303 && $source !== null && $source->nextDue === null && $source->enabled, 'saved, due at once');
+    check($send('POST', '/admin/module/feeds/new', ['_csrf' => $token, 'importer' => 'feeds_proba', 'url' => $url, 'every' => '60'])->status === 422, 'one source for an importer');
+    $tried = $send('POST', '/admin/module/feeds/' . $source->id . '/try', ['_csrf' => $token]);
+    check($tried->status === 200 && str_contains($tried->body, 'id="trial"') && str_contains($tried->body, 'Feeds kettő') && $db->fetchValue("SELECT COUNT(*) FROM {import_runs} WHERE importer = 'feeds_proba'") == 0, 'tried: nothing imported');
+    check(str_contains($send('GET', '/admin/system/cron')->body, 'feeds:fetch'), 'its task on the Scheduled tasks page');
+
+    // Its task: fetched and imported; then not changed.
+    $task = new \CampanellaFeeds\FetchTask();
+    check(str_contains((string) $task->pending($c)[0]->params['sources'] ?? '', 'feeds_proba'), 'due');
+    $result = $task->run($c, 30);
+    $source = $store->find($source->id);
+    $run = $c->get(\Campanella\Import\Importer::class)->run((int) $source?->runId);
+    check($result->params === ['ok' => 1, 'failed' => 0, 'left' => 0] && $source?->lastStatus === 'ok' && $run?->created === 2 && $source->etag === '"v1"' && $source->failures === 0, 'imported: ' . json_encode($source?->lastMessage?->params));
+    check($source !== null && $source->nextDue > \Campanella\Schedule\Scheduler::format(new DateTimeImmutable('+59 minutes', new DateTimeZone('UTC'))), 'next in an hour');
+    $feeds = $c->get(\CampanellaFeeds\Feeds::class);
+    check($feeds->process($source, 10)->key === 'feeds.result.unchanged' && ($transport->asked[count($transport->asked) - 1][1]['If-None-Match'] ?? null) === '"v1"', 'the same file: not imported again');
+    $db->update('feeds_sources', ['etag' => '"v2"'], ['id' => $source->id]);
+    check($feeds->process($store->find($source->id) ?? $source, 10)->key === 'feeds.result.unchanged', 'not modified (304)');
+    check((int) $db->fetchValue("SELECT COUNT(*) FROM {import_runs} WHERE importer = 'feeds_proba'") === 1, 'one run in the importer\'s log');
+
+    // Failures: recorded, tried less often after three.
+    $transport->answers[$url] = ['status' => 500, 'headers' => [], 'body' => ''];
+    $now = new DateTimeImmutable('2026-11-06 12:00:00', new DateTimeZone('UTC'));
+    foreach ([1 => '13:00', 2 => '13:00', 3 => '14:00', 4 => '16:00'] as $count => $next) {
+        $message = $feeds->process($store->find($source->id) ?? $source, 10, $now);
+        $after = $store->find($source->id);
+        check($message->key === 'fetch.status' && $after?->failures === $count && $after->lastStatus === 'failed' && $after->nextDue === '2026-11-06 ' . $next . ':00', "failure {$count}: next at {$after?->nextDue}");
+    }
+    check(\CampanellaFeeds\Feeds::nextMinutes(15, 10) === 1440 && \CampanellaFeeds\Feeds::nextMinutes(1440, 6) === 1440 && \CampanellaFeeds\Feeds::nextMinutes(60, 2) === 60, 'at most once a day');
+    $db->update('feeds_sources', ['url' => 'https://belso.example.org/x', 'etag' => null], ['id' => $source->id]);
+    check($feeds->process($store->find($source->id) ?? $source, 10, $now)->key === 'fetch.private', 'a name of the network: refused at fetching too');
+    $listed = $send('GET', '/admin/module/feeds');
+    check(str_contains($listed->body, 'id="feeds-source-' . $source->id . '"') && str_contains($listed->body, 'text-bg-danger'), 'the failure on the page');
+
+    // In the next run; deleted.
+    $send('POST', '/admin/module/feeds/' . $source->id . '/fetch', ['_csrf' => $token]);
+    check($store->find($source->id)?->nextDue === null && $c->get(\Campanella\Schedule\Scheduler::class)->states()['feeds:fetch']['requested'], 'asked for the next run');
+    check($send('GET', '/admin/module/feeds/' . $source->id . '/fetch')->status === 405 && $send('GET', '/admin/module/feeds/999999')->status === 404, 'POST only; not a source');
+    $send('POST', '/admin/module/feeds/' . $source->id . '/delete', ['_csrf' => $token]);
+    check($store->find($source->id) === null && (int) $db->fetchValue("SELECT COUNT(*) FROM {import_items} WHERE importer = 'feeds_proba'") === 2, 'deleted; what it imported stays');
+
+    // Not for an editor.
+    $editorStorage = new ArraySessionStorage();
+    $k = $boot();
+    $k->container()->set(Session::class, static fn () => new Session($editorStorage));
+    $k->container()->get(AuthService::class)->login(new Request('GET', '/'), $editor);
+    $editorStorage->endRequest();
+    $k = $boot();
+    $k->container()->set(Session::class, static fn () => new Session($editorStorage));
+    check($k->handle(new Request('GET', '/admin/module/feeds'))->status === 403, 'not for an editor');
+
+    $importers = $c->get(\Campanella\Import\Importer::class);
+    $importers->undo((int) $run?->id);
+    $importers->delete('feeds_proba');
+    $db->execute('DROP TABLE IF EXISTS ' . $db->table('feeds_sources'));
+    $db->execute("DELETE FROM {migrations} WHERE id LIKE 'feeds:%'");
     putenv('CAMPANELLA_DB_PREFIX');
 });
 
