@@ -5,7 +5,7 @@ declare(strict_types=1);
 // The feeds module's texts (its keys start with feeds.).
 return [
     'feeds.title' => 'Web sources',
-    'feeds.intro' => 'Files at web addresses that an importer of the site imports on a schedule: a CSV or JSON file, fetched by cron (System → Scheduled tasks), imported only when it changed. Which objects its items become is the importer\'s (System → Importers), as for an uploaded file; each import is in the importer\'s log and can be undone.',
+    'feeds.intro' => 'Web addresses whose file or feed an importer of the site imports on a schedule: a CSV or JSON file, or an RSS or Atom feed, fetched by cron (System → Scheduled tasks), imported only when it changed. Which objects its items become is the importer\'s (System → Importers), as for an uploaded file; each import is in the importer\'s log and can be undone.',
     'feeds.task' => 'Web sources fetched',
     'feeds.task_result' => '{ok} sources done, {failed} failed, {left} left for the next run',
     'feeds.pending' => '{count} due: {sources}',
@@ -56,4 +56,14 @@ return [
     'feeds.error.importer_taken' => 'This importer has a source already.',
     'feeds.error.every' => 'Choose how often.',
     'feeds.error.failed' => 'It failed: {error}',
+    'feeds.kind' => 'What the address gives',
+    'feeds.kind.file' => 'A file the importer reads (CSV or JSON)',
+    'feeds.kind.feed' => 'An RSS or Atom feed',
+    'feeds.kind_help' => 'A feed is made into JSON for its importer: its importer reads JSON, its items at items, each with the sources {keys}.',
+    'feeds.drafts_warning' => 'Its importer makes the items missing from the source drafts: a feed only has its latest items, so the older ones would be unpublished at each fetch. For a feed, keep them (the importer\'s setting).',
+    'feeds.error.kind' => 'Choose what the address gives.',
+    'feeds.error.feed_importer' => 'For a feed, the importer must read JSON, its items at items (the path of the items), each with the sources {keys}.',
+    'feeds.error.not_feed' => 'It is not an RSS or Atom feed.',
+    'feeds.error.doctype' => 'The feed has a document type declaration (<!DOCTYPE>): it is not read.',
+    'feeds.error.xml' => 'The feed is not valid XML.',
 ];

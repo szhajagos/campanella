@@ -86,6 +86,7 @@ final class Admin implements \Campanella\Module\AdminPage
                 'host' => $s->host(),
                 'importer' => $importers[$s->importer] ?? null,
                 'run' => $s->runId === null ? null : $this->importer->run($s->runId),
+                'drafts' => $s->kind === 'feed' && ($importers[$s->importer] ?? null)?->missingItems === 'draft',
             ], $this->sources->all()),
             'has_importers' => $importers !== [],
             'cron_stale' => $this->scheduler->isStale(),
@@ -97,13 +98,14 @@ final class Admin implements \Campanella\Module\AdminPage
     private function form(Request $request, ?Source $source, Closure $render): Response
     {
         $values = $source === null
-            ? ['importer' => '', 'url' => '', 'every' => '60', 'enabled' => true]
-            : ['importer' => $source->importer, 'url' => $source->url, 'every' => (string) $source->everyMinutes, 'enabled' => $source->enabled];
+            ? ['importer' => '', 'url' => '', 'kind' => 'file', 'every' => '60', 'enabled' => true]
+            : ['importer' => $source->importer, 'url' => $source->url, 'kind' => $source->kind, 'every' => (string) $source->everyMinutes, 'enabled' => $source->enabled];
         $errors = [];
         if ($request->isPost()) {
             $values = [
                 'importer' => trim($request->postString('importer')),
                 'url' => trim($request->postString('url')),
+                'kind' => $request->postString('kind'),
                 'every' => $request->postString('every'),
                 'enabled' => $request->postString('enabled') === '1',
             ];
@@ -111,10 +113,10 @@ final class Admin implements \Campanella\Module\AdminPage
             if ($errors === []) {
                 $every = (int) $values['every'];
                 if ($source === null) {
-                    $id = $this->sources->create($values['importer'], $values['url'], $every, $values['enabled']);
+                    $id = $this->sources->create($values['importer'], $values['url'], $values['kind'], $every, $values['enabled']);
                     $this->flash->add(Flash::SUCCESS, new Message('feeds.created', ['importer' => $values['importer']]));
                 } else {
-                    $this->sources->update($source, $values['url'], $every, $values['enabled']);
+                    $this->sources->update($source, $values['url'], $values['kind'], $every, $values['enabled']);
                     $id = $source->id;
                     $this->flash->add(Flash::SUCCESS, new Message('feeds.saved', ['importer' => $source->importer]));
                 }
@@ -132,13 +134,16 @@ final class Admin implements \Campanella\Module\AdminPage
             'importers' => $importers,
             'every' => Source::EVERY,
             'run' => $source?->runId === null ? null : $this->importer->run($source->runId),
+            'kinds' => Source::KINDS,
+            'keys' => FeedReader::KEYS,
+            'drafts' => array_keys(array_filter($importers, static fn (ImporterDefinition $d): bool => $d->missingItems === 'draft')),
         ]);
 
         return $errors === [] ? $response : new Response($response->body, 422, $response->headers);
     }
 
     /**
-     * @param array{importer: string, url: string, every: string, enabled: bool} $values
+     * @param array{importer: string, url: string, kind: string, every: string, enabled: bool} $values
      * @return array<string, Message>
      */
     private function problems(array $values, ?Source $source): array
@@ -149,6 +154,15 @@ final class Admin implements \Campanella\Module\AdminPage
                 $errors['importer'] = new Message('feeds.error.choose_importer');
             } elseif ($this->sources->findByImporter($values['importer']) !== null) {
                 $errors['importer'] = new Message('feeds.error.importer_taken');
+            }
+        }
+        $definition = $this->importer->find($source->importer ?? $values['importer']);
+        if (!in_array($values['kind'], Source::KINDS, true)) {
+            $errors['kind'] = new Message('feeds.error.kind');
+        } elseif ($definition !== null && !isset($errors['importer'])) {
+            $problem = Feeds::importerProblem($values['kind'], $definition);
+            if ($problem !== null) {
+                $errors['kind'] = $problem;
             }
         }
         $problem = $this->fetcher->problem($values['url']);

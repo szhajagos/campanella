@@ -25,6 +25,19 @@
             {% if errors.url is defined %}<div class="invalid-feedback">{{ t(errors.url.key, errors.url.params) }}</div>{% endif %}
             <div class="form-text" id="feeds-url-help">{{ t('feeds.url_help') }}</div>
         </div>
+        <fieldset class="mb-3" aria-describedby="feeds-kind-help">
+            <legend class="form-label fw-semibold fs-6">{{ t('feeds.kind') }}</legend>
+            {% for kind in kinds %}
+                <div class="form-check">
+                    <input class="form-check-input{{ errors.kind is defined ? ' is-invalid' }}" type="radio" name="kind" id="feeds-kind-{{ kind }}" value="{{ kind }}"{{ values.kind == kind ? ' checked' }}>
+                    <label class="form-check-label" for="feeds-kind-{{ kind }}">{{ t('feeds.kind.' ~ kind) }}</label>
+                </div>
+            {% endfor %}
+            {% if errors.kind is defined %}<div class="invalid-feedback d-block">{{ t(errors.kind.key, errors.kind.params) }}</div>{% endif %}
+            <div class="form-text" id="feeds-kind-help">{{ t('feeds.kind_help', {keys: keys|join(', ')}) }}</div>
+            {% set importer_name = source ? source.importer : values.importer %}
+            {% if values.kind == 'feed' and importer_name in drafts %}<div class="alert alert-warning py-2 mt-2 mb-0" role="status" id="feeds-drafts">{{ t('feeds.drafts_warning') }}</div>{% endif %}
+        </fieldset>
         <div class="mb-3">
             <label for="feeds-every" class="form-label fw-semibold">{{ t('feeds.column.every') }}</label>
             <select class="form-select{{ errors.every is defined ? ' is-invalid' }}" id="feeds-every" name="every">

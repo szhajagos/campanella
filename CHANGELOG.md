@@ -10,8 +10,17 @@ backward-incompatible.
 
 ## [Unreleased]
 
-**Web sources, part 1.** The third step of 0.5.0: the feeds module, the first of
+## [0.4.9] – 2026-11-06
+
+**Web sources.** The third step of 0.5.0: the feeds module, the first of
 Campanella's own, and what it builds on in the core.
+
+**Upgrading from 0.4.x (or 0.3.x):** upload the new files and run the upgrade
+as usual; it adds two tables (schema 23). Then set up cron to run
+`php bin/campanella cron:run` every five minutes: *System → Scheduled tasks*
+shows the line and warns until it runs ([guide, chapter 18](docs/guide/en/18-web-sources.md)).
+In Docker, `compose.yaml` has a `cron` service for it. From older versions: see
+[docs/upgrading.md](docs/upgrading.md).
 
 ### Added
 
@@ -38,15 +47,29 @@ Campanella's own, and what it builds on in the core.
   when the file changed (the server's ETag or date, the content's hash); each
   import in the importer's log, which can undo it; after three failures in a
   row, tried less often (at most daily) until it works again.
+- **RSS and Atom feeds** as web sources: RSS 2.0, 0.9x and 1.0 and Atom 1.0
+  read alike into JSON for an importer (its items at `items`, each with `id`,
+  `title`, `link`, `summary`, `content`, `published`, `updated`, `author`,
+  `categories`, `enclosure`); read safely (a file with a document type
+  declaration is refused, no entity, nothing from the network); at most 1000
+  items. The source's form says what its importer must be, and warns when the
+  importer would make the items missing from the feed drafts (a feed only has
+  its latest items).
+- `compose.yaml`: a `cron` service running `cron:run` every five minutes.
 
 ### Documentation and tests
 
+- The guide's chapter 18 (hu, en): setting up cron (a web host, a server,
+  Docker), the Scheduled tasks page, the web sources, RSS and Atom, what to do
+  when it does not work; with screenshots.
+- Reviewed ([the review](docs/security.md#review-of-the-scheduled-tasks-and-the-web-sources-049-2026-11-06)).
 - PHP API chapter 33 (scheduled tasks, `SafeFetcher`); chapter 32's
   `scheduled()`; `modules/README.md`.
 - Tests: the addresses refused (IPv4, IPv6, mapped), the redirects, the limits
   (curl with a local server), the scheduler (due, asked for, one at a time,
   the time, the log), `cron:run`, the admin's page; the feeds module's trial,
-  pages, task, imports and failures.
+  pages, task, imports and failures; RSS 2.0, 1.0 and Atom read, a DOCTYPE
+  (XXE, entity expansion) refused; host names in other forms refused.
 
 ## [0.4.8] – 2026-11-05
 

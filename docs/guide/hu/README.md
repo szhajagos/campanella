@@ -44,5 +44,8 @@ felületet mutatják, a Campanella saját példatartalmával.
     változatban, a színmód, a látogató színmód-váltója.
 17. [Modulok](17-modulok.md): egy modul feltöltése, kipróbálása, be- és
     kikapcsolása, ha miatta nem indul el a webhely, az adatai törlése.
+18. [Ütemezett feladatok és webes források](18-webes-forrasok.md): a cron
+    beállítása, az ütemezett feladatok oldala, tartalom behozása egy webcímről
+    (CSV, JSON, RSS, Atom).
 
 [English version](../en/README.md)

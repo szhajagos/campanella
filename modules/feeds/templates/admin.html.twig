@@ -36,6 +36,8 @@
                                 {% if not source.enabled %}<span class="badge text-bg-light border fw-normal">{{ t('feeds.off') }}</span>{% endif %}
                                 <div class="small text-body-secondary text-break">{{ source.url }}</div>
                                 {% if not item.importer %}<div class="small text-danger">{{ t('feeds.error.no_importer', {importer: source.importer}) }}</div>{% endif %}
+                                {% if source.kind == 'feed' %}<span class="badge text-bg-light border fw-normal">RSS/Atom</span>{% endif %}
+                                {% if item.drafts %}<div class="small text-warning-emphasis">{{ t('feeds.drafts_warning') }}</div>{% endif %}
                             </td>
                             <td class="small text-nowrap">{{ t('feeds.every.' ~ source.everyMinutes) }}</td>
                             <td class="small">

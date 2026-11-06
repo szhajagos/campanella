@@ -786,6 +786,31 @@ def importing(page):
 MAILS = os.environ.get("CAMPANELLA_GUIDE_MAILS", "")
 
 
+def web_sources(page):
+    """Chapter 18 (since 0.4.9): cron:run once (as the server's cron would), the feeds module
+    turned on, a source of chapter 12's importer (not fetched: no network here), the Scheduled
+    tasks page; the module off again, so the site is as it was for the chapters after."""
+    import subprocess
+    subprocess.run(["php", "bin/campanella", "cron:run"], cwd=SITE, check=True, capture_output=True)
+    page.goto(BASE + "/admin/system/modules/feeds/enable")
+    page.locator("form[action$='/feeds/enable'] button[type=submit]").click()
+    page.wait_for_load_state("load")
+    page.goto(BASE + "/admin/module/feeds/new")
+    page.select_option("#feeds-importer", IMPORT["name"])
+    page.fill("#feeds-url", "https://example.org/" + IMPORT["file"])
+    page.select_option("#feeds-every", "1440")
+    shot(page, "feeds-form", full_page=True)
+    page.locator("#feeds-form button[type=submit]").click()
+    page.wait_for_load_state("load")
+    page.goto(BASE + "/admin/module/feeds")
+    shot(page, "feeds", full_page=True)
+    page.goto(BASE + "/admin/system/cron")
+    shot(page, "cron", full_page=True)
+    page.goto(BASE + "/admin/system/modules")
+    page.locator("form[action$='/feeds/disable'] button[type=submit]").click()
+    page.wait_for_load_state("load")
+
+
 def last_mail_text():
     """The text of the newest caught e-mail (printed for the guide's author)."""
     import email
@@ -957,6 +982,7 @@ def main():
         modules(page)
         own_types(page, browser, article_url)
         importing(page)
+        web_sources(page)
         users(page, browser)
         contact(page, browser)
         mail(page)

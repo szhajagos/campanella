@@ -3,12 +3,13 @@
 # Sample data:  docker compose exec web php bin/campanella seed
 # Open:         http://localhost:8080
 # E-mails:      http://localhost:8025 (Mailpit catches every e-mail the site sends; since 0.1.3)
+# Scheduled tasks: the cron service runs cron:run every five minutes (since 0.4.9).
 services:
   web:
     build: .
     ports:
       - "8080:80"
-    environment:
+    environment: &environment
       CAMPANELLA_DEBUG: "1"
       CAMPANELLA_DB_HOST: db
       CAMPANELLA_DB_NAME: campanella
@@ -27,6 +28,19 @@ services:
         condition: service_healthy
       mailpit:
         condition: service_started
+
+  # The scheduled tasks (since 0.4.9): php bin/campanella cron:run every five minutes, as the
+  # server's cron would (System → Scheduled tasks shows when it last ran).
+  cron:
+    build: .
+    user: www-data
+    command: ["sh", "-c", "while true; do php bin/campanella cron:run; sleep 300; done"]
+    environment: *environment
+    volumes:
+      - ./:/var/www/html
+    depends_on:
+      db:
+        condition: service_healthy
 
   db:
     image: mariadb:10.11

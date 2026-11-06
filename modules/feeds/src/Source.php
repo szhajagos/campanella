@@ -12,6 +12,9 @@ final readonly class Source
     /** How often a source can be fetched, in minutes. */
     public const array EVERY = [15, 60, 360, 1440];
 
+    /** What its address gives: a file the importer reads (CSV, JSON), or an RSS or Atom feed. */
+    public const array KINDS = ['file', 'feed'];
+
     public const string OK = 'ok';
     public const string UNCHANGED = 'unchanged';
     public const string RUNNING = 'running';

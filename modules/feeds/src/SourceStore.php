@@ -48,14 +48,14 @@ final class SourceStore
     }
 
     /** A new source, due at once; its ID. */
-    public function create(string $importer, string $url, int $everyMinutes, bool $enabled): int
+    public function create(string $importer, string $url, string $kind, int $everyMinutes, bool $enabled): int
     {
         $now = Scheduler::format(Scheduler::now());
 
         return $this->db->insert('feeds_sources', [
             'importer' => $importer,
             'url' => $url,
-            'kind' => 'file',
+            'kind' => $kind,
             'every_minutes' => $everyMinutes,
             'enabled' => (int) $enabled,
             'failures' => 0,
@@ -65,10 +65,10 @@ final class SourceStore
     }
 
     /** Its settings changed; a new address is fetched in full next time, at once. */
-    public function update(Source $source, string $url, int $everyMinutes, bool $enabled): void
+    public function update(Source $source, string $url, string $kind, int $everyMinutes, bool $enabled): void
     {
-        $values = ['every_minutes' => $everyMinutes, 'enabled' => (int) $enabled, 'updated_at' => Scheduler::format(Scheduler::now())];
-        if ($url !== $source->url) {
+        $values = ['every_minutes' => $everyMinutes, 'enabled' => (int) $enabled, 'kind' => $kind, 'updated_at' => Scheduler::format(Scheduler::now())];
+        if ($url !== $source->url || $kind !== $source->kind) {
             $values += ['url' => $url, 'etag' => null, 'last_modified' => null, 'content_hash' => null, 'next_due' => null, 'failures' => 0];
         }
         $this->db->update('feeds_sources', $values, ['id' => $source->id]);

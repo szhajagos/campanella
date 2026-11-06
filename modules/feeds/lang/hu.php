@@ -5,7 +5,7 @@ declare(strict_types=1);
 // The feeds module's texts (its keys start with feeds.).
 return [
     'feeds.title' => 'Webes források',
-    'feeds.intro' => 'Webcímeken lévő fájlok, amelyeket a webhely egy importálója ütemezve behoz: egy CSV- vagy JSON-fájl, amelyet a cron tölt le (Rendszer → Ütemezett feladatok), és csak akkor hoz be, ha változott. Hogy a tételekből milyen objektumok lesznek, azt az importáló adja meg (Rendszer → Importálók), mint egy feltöltött fájlnál; minden behozás ott van az importáló naplójában, és visszavonható.',
+    'feeds.intro' => 'Webcímek, amelyek fájlját vagy csatornáját a webhely egy importálója ütemezve behozza: egy CSV- vagy JSON-fájl, vagy egy RSS- vagy Atom-csatorna, amelyet a cron tölt le (Rendszer → Ütemezett feladatok), és csak akkor hoz be, ha változott. Hogy a tételekből milyen objektumok lesznek, azt az importáló adja meg (Rendszer → Importálók), mint egy feltöltött fájlnál; minden behozás ott van az importáló naplójában, és visszavonható.',
     'feeds.task' => 'Webes források letöltése',
     'feeds.task_result' => '{ok} forrás kész, {failed} hibás, {left} a következő futásra maradt',
     'feeds.pending' => '{count} esedékes: {sources}',
@@ -56,4 +56,14 @@ return [
     'feeds.error.importer_taken' => 'Ennek az importálónak már van forrása.',
     'feeds.error.every' => 'Válaszd ki a gyakoriságot.',
     'feeds.error.failed' => 'Nem sikerült: {error}',
+    'feeds.kind' => 'Mit ad a cím',
+    'feeds.kind.file' => 'Az importáló által olvasott fájlt (CSV vagy JSON)',
+    'feeds.kind.feed' => 'RSS- vagy Atom-csatornát',
+    'feeds.kind_help' => 'A csatornából JSON lesz az importálónak: az importáló JSON-t olvas, a tételek útvonala items, és minden tételnek ezek a forrásai: {keys}.',
+    'feeds.drafts_warning' => 'Az importáló a forrásból eltűnt tételeket piszkozattá teszi: egy csatornában csak a legutóbbi tételek vannak, így minden letöltéskor a régebbiek közzététele visszavonódna. Csatornánál válaszd a megtartást (az importáló beállítása).',
+    'feeds.error.kind' => 'Válaszd ki, mit ad a cím.',
+    'feeds.error.feed_importer' => 'Csatornához az importálónak JSON-t kell olvasnia, a tételek útvonala items, és minden tételnek ezek a forrásai: {keys}.',
+    'feeds.error.not_feed' => 'Ez nem RSS- vagy Atom-csatorna.',
+    'feeds.error.doctype' => 'A csatornában dokumentumtípus-deklaráció (<!DOCTYPE>) van: nem olvassuk be.',
+    'feeds.error.xml' => 'A csatorna nem érvényes XML.',
 ];

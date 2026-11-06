@@ -1865,4 +1865,6 @@ return [
     'fetch.timeout' => 'No answer in {seconds} seconds.',
     'fetch.failed' => 'It could not be fetched: {error}',
     'fetch.no_curl' => 'PHP\'s curl extension is needed to fetch from web addresses.',
+    'cron.every_day' => 'every day',
+    'cron.every_hour' => 'every hour',
 ];

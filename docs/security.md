@@ -126,6 +126,43 @@ version: upgrade it to 0.3.x ([Upgrading](upgrading.md)).
   may see, and puts an apostrophe before a text a spreadsheet would run as a
   formula (`=`, `+`, `-`, `@`).
 
+## Review of the scheduled tasks and the web sources, 0.4.9 (2026-11-06)
+
+0.4.9 makes the server fetch addresses typed in the admin, and run work by
+itself. The review looked at what an address can reach, what a fetched file can
+do, and who can start what. Tests: `Security review (0.4.9)`, `Safe fetching`,
+`Scheduled tasks` and the feeds module's.
+
+- **Server-side request forgery.** `SafeFetcher` fetches what any visitor's
+  browser could, nothing more: `https://` only (`http://` by `fetch.allow_http`),
+  ports 443 and 80, no user name or password in the address. Every address the
+  host resolves to must be public (`AddressPolicy`: loopback, private,
+  link-local with the cloud metadata services, shared, documentation, reserved,
+  multicast refused, IPv6 too, and the IPv4 an IPv6 address carries), and curl
+  connects to the address checked (`CURLOPT_RESOLVE`), so the name cannot be
+  resolved again to another (DNS rebinding). A redirect is followed by
+  `SafeFetcher`, checked again each time, at most three, never down to
+  `http://`. Host names in other forms (`2130706433`, `0x7f.1`, `0177.0.0.1`, an
+  IPv6 zone) are not host names: refused. A proxy of the environment is not used
+  (it would resolve the name itself).
+- **What a file can do.** Its size is limited as it is decompressed (5 MB), the
+  time (10 s). An RSS or Atom feed is read without a document type: a file with
+  `<!DOCTYPE` or `<!ENTITY` is refused, so no entity is defined, expanded
+  (“billion laughs”) or loaded from a file or the network (XXE); libxml never
+  goes to the network (`LIBXML_NONET`). At most 1000 items. A feed's HTML goes
+  through the field's HTML sanitizer when it is saved, as everything imported;
+  its links are kept only if they are `http(s)://`. The file is imported by the
+  importer, with its user's rights, as an uploaded file; each import can be
+  undone.
+- **Who starts what.** A scheduled task runs only from `cron:run`, on the
+  command line, never in a visitor's request; one at a time (a lock file), in
+  a limited time. The Scheduled tasks and the Web sources pages are for the
+  system roles; their buttons are POSTs with the CSRF token, and “in the next
+  run” only marks a task due. Only *Try* fetches in the admin's request, with the
+  same limits. The crontab line on the page shows the site's path, to the
+  system roles only.
+- **Errors** are shown to the system roles as messages, the details logged.
+
 ## Review of a module's field types, 0.4.8 (2026-11-05)
 
 A module's field type puts its code into three places a content field passes:

@@ -1,14 +1,14 @@
 # Upgrading to 0.4.0
 
 This guide takes a site from **any 0.4.x, 0.3.x, 0.2.x or 0.1.x version** to
-the newest 0.4.x (now **0.4.8**), in one go. You do not need to install
+the newest 0.4.x (now **0.4.9**), in one go. You do not need to install
 the versions in between: one upgrade runs every change since your version. The
 CHANGELOG has the same steps version by version; this page puts them
 together, and adds what to check and how to go back.
 
 | Your version | What to do |
 |---|---|
-| 0.4.0 – 0.4.7 | Upload the new files and run the upgrade (steps 1–3); 0.4.1, 0.4.3, 0.4.4, 0.4.5, 0.4.7 and 0.4.8 change no table, 0.4.2 adds the colour schemes' (schema 22). Since 0.4.5 a list in `config/local.php` replaces the default whole: check the lists you changed there (below). CI upgrades every 0.4.x to the current code on every push. |
+| 0.4.0 – 0.4.8 | Upload the new files and run the upgrade (steps 1–3); 0.4.1, 0.4.3, 0.4.4, 0.4.5, 0.4.7 and 0.4.8 change no table, 0.4.2 adds the colour schemes' (schema 22), 0.4.9 the scheduled tasks' (schema 23). Since 0.4.9 set up cron for `cron:run` every five minutes (*System → Scheduled tasks* shows the line; [guide, chapter 18](guide/en/18-web-sources.md#setting-up-cron)). Since 0.4.5 a list in `config/local.php` replaces the default whole: check the lists you changed there (below). CI upgrades every 0.4.x to the current code on every push. |
 | 0.3.0 – 0.3.7 | Upload the new files and run the upgrade (steps 1–3); read [From 0.3.x](#from-03x) for what 0.4.0 changes. 0.3.1 adds the importers' tables (schema 17), 0.3.2 the files' (schema 18), 0.3.3 the components' (schema 19), 0.3.4 a component's region (schema 20) and makes the header and footer components, 0.3.5 a component's page (schema 21); 0.3.6 and 0.3.7 change no table. Back up `var/files/` from 0.3.2 on (step 1). CI upgrades every 0.3.x to the current code on every push, 0.3.7 with everything of 0.3.2–0.3.7 in use (restricted files, components in regions, a layout with a sidebar, a page of components as the front page, a colour scheme), in Hungarian and as an English site. |
 | 0.2.0 – 0.2.9 | This guide. Supported and tested: CI upgrades 0.2.0 and 0.2.9 to the current code on every push, the latter with a content model made in the admin (`tests/upgrade/run.sh`). |
 | 0.1.0 – 0.1.5 | This guide, and also [From 0.1.x](#from-01x) below. Tested too: CI upgrades 0.1.0 and 0.1.5. |
@@ -70,7 +70,7 @@ on); what behaves differently in [What behaves differently](#what-behaves-differ
 
    Copy them off the server.
 
-2. **Upload the new version.** Use the release package (`campanella-0.4.8.zip`
+2. **Upload the new version.** Use the release package (`campanella-0.4.9.zip`
    from the GitHub release); it includes the `vendor/` folder. With git:
    `git pull`, then `composer install --no-dev`.
 
@@ -161,6 +161,7 @@ used only when an administrator starts using it.
 | 0.4.4 | Dragging: the components of the regions and of a page, a menu's items (also under one another) | Appearance → Regions; a page's components; a menu's page: *Arrange by dragging* |
 | 0.4.7 | Modules: folders in `modules/`, tried and turned on in the admin | System → Modules; `module:list`, `module:enable`, `module:disable`, `module:uninstall`; `modules.disabled` |
 | 0.4.8 | A module's field types, built on a core type | Structure → Field types; the Blueprint editor's Type list |
+| 0.4.9 | Scheduled tasks (`cron:run` from cron); the feeds module: web sources of the importers (CSV, JSON, RSS, Atom) | System → Scheduled tasks; System → Modules → Feeds, then System → Web sources; `fetch.*` |
 
 New settings: `paths.search` (0.2.7, default `/search`), the search page's
 address, like the other `paths`; `paths.files` (0.3.2, default `/files`), the
@@ -433,7 +434,8 @@ in the [CHANGELOG](../CHANGELOG.md) list every change of the
 
 ## Checklist after the upgrade
 
-- [ ] The System page (*System → Status*) shows 0.4.8, no error and no warning
+- [ ] The System page (*System → Status*) shows 0.4.9, no error and no warning
+- [ ] cron runs `cron:run` every five minutes (0.4.9): *System → Scheduled tasks* shows no warning
 - [ ] The lists you set in `config/local.php` (if any) are complete (0.4.5): e.g. the
       editors can or cannot enter the admin, as you meant
       about PHP's JIT, the tables match the definitions, and no page is missing

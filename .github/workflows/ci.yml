@@ -184,6 +184,7 @@ jobs:
           - { from: 'v0.4.4', db: 'mysql:8.4' }
           - { from: 'v0.4.5', db: 'mariadb:10.6' }
           - { from: 'v0.4.7', db: 'mysql:8.0' }
+          - { from: 'v0.4.8', db: 'mariadb:10.6' }
 
     services:
       db:

@@ -43,7 +43,15 @@ final class Feeds
             return new Message('feeds.error.no_importer', ['importer' => $source->importer]);
         }
 
-        return $definition;
+        return self::importerProblem($source->kind, $definition) ?? $definition;
+    }
+
+    /** Why the importer cannot read what the source gives: a feed needs JSON, its items at `items`. */
+    public static function importerProblem(string $kind, ImporterDefinition $definition): ?Message
+    {
+        return $kind === 'feed' && ($definition->format !== 'json' || $definition->items !== 'items')
+            ? new Message('feeds.error.feed_importer', ['keys' => implode(', ', FeedReader::KEYS)])
+            : null;
     }
 
     /** What the first items of the file would become (nothing changed): fetched now, for the admin. */
@@ -54,7 +62,7 @@ final class Feeds
             return $definition;
         }
         try {
-            $file = $this->download($source, $definition, false);
+            $file = $this->download($source, $definition);
             try {
                 return $this->importer->trial($definition, $file);
             } finally {
@@ -96,7 +104,7 @@ final class Feeds
 
                 return $message;
             }
-            $file = $this->save($result->body, $definition);
+            $file = $this->save($this->forImporter($source, $result->body), $definition);
             try {
                 $run = $this->importer->start($definition, $file, $source->host());
             } finally {
@@ -157,11 +165,15 @@ final class Feeds
     }
 
     /** The file fetched now, saved for the importer; its path. */
-    private function download(Source $source, ImporterDefinition $definition, bool $conditional): string
+    private function download(Source $source, ImporterDefinition $definition): string
     {
-        $result = $this->fetcher->fetch($source->url, $conditional ? $source->etag : null, $conditional ? $source->lastModified : null);
+        return $this->save($this->forImporter($source, $this->fetcher->fetch($source->url)->body), $definition);
+    }
 
-        return $this->save($result->body, $definition);
+    /** What the importer reads: the file as it is, or a feed made into JSON (FeedReader). */
+    private function forImporter(Source $source, string $body): string
+    {
+        return $source->kind === 'feed' ? FeedReader::toJson($body) : $body;
     }
 
     private function save(string $body, ImporterDefinition $definition): string

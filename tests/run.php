@@ -7387,6 +7387,60 @@ test('Scheduled tasks (0.4.9): due ones run by cron:run, one at a time, logged; 
     putenv('CAMPANELLA_DB_PREFIX');
 });
 
+test('The feeds module (0.4.9): RSS 2.0, RSS 1.0 and Atom read alike; a DOCTYPE, entities, anything else refused', function (): void {
+    $refused = static function (string $xml): ?string {
+        try {
+            \CampanellaFeeds\FeedReader::read($xml);
+        } catch (\Campanella\Import\ImportException $e) {
+            return $e->reason->key;
+        }
+
+        return null;
+    };
+    if (!class_exists(\CampanellaFeeds\FeedReader::class)) {
+        $manifest = \Campanella\Module\ModuleManifest::read(dirname(__DIR__) . '/modules/feeds');
+        check($manifest instanceof \Campanella\Module\ModuleManifest);
+        \Campanella\Module\ModuleLoader::autoload($manifest);
+    }
+    $reader = static fn (string $xml) => \CampanellaFeeds\FeedReader::read($xml);
+    $rss = $reader("\xEF\xBB\xBF" . '<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/"><channel><title>Csatorna</title>
+  <item><title>Első &amp; <![CDATA[<b>vastag</b>]]></title><link>https://example.org/1</link><guid isPermaLink="false">tag:example.org,2026:1</guid>
+    <description>&lt;p&gt;Röviden&lt;/p&gt;</description><content:encoded><![CDATA[<p>Hosszan</p>]]></content:encoded>
+    <pubDate>Fri, 06 Nov 2026 10:00:00 +0100</pubDate><category>Hírek</category><category> Hírek </category><dc:creator>Kiss Anna</dc:creator>
+    <enclosure url="https://example.org/kep.jpg" type="image/jpeg" length="1"/></item>
+  <item><title>Második</title><link>javascript:alert(1)</link><description>Csak szöveg</description></item>
+</channel></rss>');
+    check(count($rss) === 2 && array_keys($rss[0]) === \CampanellaFeeds\FeedReader::KEYS, 'every item the same keys');
+    check($rss[0]['id'] === 'tag:example.org,2026:1' && $rss[0]['title'] === 'Első & vastag' && $rss[0]['link'] === 'https://example.org/1' && $rss[0]['summary'] === '<p>Röviden</p>' && $rss[0]['content'] === '<p>Hosszan</p>', 'RSS 2.0: ' . json_encode($rss[0], JSON_UNESCAPED_UNICODE));
+    check($rss[0]['published'] === '2026-11-06T10:00:00+01:00' && $rss[0]['categories'] === ['Hírek'] && $rss[0]['author'] === 'Kiss Anna' && $rss[0]['enclosure'] === 'https://example.org/kep.jpg', 'its date, categories, author, file');
+    check($rss[1]['link'] === '' && $rss[1]['content'] === 'Csak szöveg' && str_starts_with((string) $rss[1]['id'], 'sha1:') && $rss[1]['published'] === '', 'no web address but http(s); no key: a hash');
+
+    $rdf = $reader('<?xml version="1.0"?><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns="http://purl.org/rss/1.0/" xmlns:dc="http://purl.org/dc/elements/1.1/">
+<channel rdf:about="https://example.org/"><title>C</title></channel>
+<item rdf:about="https://example.org/a"><title>RDF tétel</title><link>https://example.org/a</link><dc:date>2026-11-06T09:00:00Z</dc:date><dc:subject>Téma</dc:subject></item></rdf:RDF>');
+    check(count($rdf) === 1 && $rdf[0]['id'] === 'https://example.org/a' && $rdf[0]['title'] === 'RDF tétel' && $rdf[0]['published'] === '2026-11-06T09:00:00+00:00' && $rdf[0]['categories'] === ['Téma'], 'RSS 1.0: ' . json_encode($rdf, JSON_UNESCAPED_UNICODE));
+
+    $atom = $reader('<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom"><title>A</title><id>urn:a</id><updated>2026-11-06T09:00:00Z</updated>
+<entry><id>urn:uuid:1</id><title type="html">&lt;i&gt;Atom&lt;/i&gt; cím</title><link rel="alternate" href="https://example.org/atom/1"/><link rel="enclosure" href="https://example.org/a.mp3"/>
+  <updated>2026-11-06T09:30:00Z</updated><published>2026-11-05T08:00:00+01:00</published><author><name>Nagy Béla</name></author><category term="hirek" label="Hírek"/>
+  <summary>Szöveg &lt;nem HTML&gt;</summary><content type="xhtml"><div xmlns="http://www.w3.org/1999/xhtml"><p>Az <b>XHTML</b></p></div></content></entry>
+<entry><id>urn:uuid:2</id><title>Csak frissítve</title><updated>2026-11-06T10:00:00Z</updated><content type="html">&lt;p&gt;HTML&lt;/p&gt;</content></entry></feed>');
+    check($atom[0]['id'] === 'urn:uuid:1' && $atom[0]['title'] === 'Atom cím' && $atom[0]['link'] === 'https://example.org/atom/1' && $atom[0]['enclosure'] === 'https://example.org/a.mp3', 'Atom: ' . json_encode($atom[0], JSON_UNESCAPED_UNICODE));
+    check($atom[0]['summary'] === 'Szöveg &lt;nem HTML&gt;' && str_contains((string) $atom[0]['content'], '<p>Az <b>XHTML</b></p>') && $atom[0]['author'] === 'Nagy Béla' && $atom[0]['categories'] === ['Hírek'], 'text escaped, XHTML as it is');
+    check($atom[0]['published'] === '2026-11-05T08:00:00+01:00' && $atom[1]['published'] === '2026-11-06T10:00:00+00:00' && $atom[1]['content'] === '<p>HTML</p>', 'published, else updated');
+
+    // Refused: a document type (entities, external ones too), what is not a feed.
+    $xxe = '<?xml version="1.0"?><!DOCTYPE rss [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><rss version="2.0"><channel><item><title>&xxe;</title></item></channel></rss>';
+    $laughs = '<?xml version="1.0"?><!DOCTYPE lolz [<!ENTITY lol "lol"><!ENTITY lol2 "&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;">]><rss><channel><item><title>&lol2;</title></item></channel></rss>';
+    check($refused($xxe) === 'feeds.error.doctype' && $refused($laughs) === 'feeds.error.doctype' && $refused('<?xml version="1.0"?><!doctype x SYSTEM "http://example.org/x.dtd"><rss/>') === 'feeds.error.doctype', 'no DOCTYPE, no entity');
+    check($refused('<rss><channel><item><title>&nincs;</title></item></channel></rss>') === 'feeds.error.xml' && $refused('<html><body>nem</body></html>') === 'feeds.error.not_feed' && $refused('{"items": []}') === 'feeds.error.not_feed' && $refused('<rss><channel>') === 'feeds.error.xml', 'not a feed, not XML');
+    check($reader('<rss version="2.0"><channel></channel></rss>') === [], 'an empty feed');
+    $many = '<rss version="2.0"><channel>' . str_repeat('<item><title>t</title><guid>g</guid></item>', 1005) . '</channel></rss>';
+    check(count($reader($many)) === \CampanellaFeeds\FeedReader::MAX_ITEMS, 'at most ' . \CampanellaFeeds\FeedReader::MAX_ITEMS . ' items');
+    check(json_decode(\CampanellaFeeds\FeedReader::toJson('<rss version="2.0"><channel><item><title>J</title><guid>j</guid></item></channel></rss>'), true)['items'][0]['title'] === 'J', 'as the importer\'s JSON');
+});
+
 test('The feeds module (0.4.9): a source of an importer, tried, fetched by its task, imported when it changed, failures', function () use ($newUser): void {
     putenv('CAMPANELLA_DB_PREFIX=test_');
     $root = dirname(__DIR__);
@@ -7456,14 +7510,14 @@ test('The feeds module (0.4.9): a source of an importer, tried, fetched by its t
     $form = $send('GET', '/admin/module/feeds/new');
     $token = preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $form->body, $m) === 1 ? $m[1] : '';
     check(str_contains($form->body, '<option value="feeds_proba">Események a webről (JSON)</option>'), 'the importers offered');
-    $bad = $send('POST', '/admin/module/feeds/new', ['_csrf' => $token, 'importer' => 'feeds_proba', 'url' => 'https://169.254.169.254/latest/meta-data/', 'every' => '60', 'enabled' => '1']);
+    $bad = $send('POST', '/admin/module/feeds/new', ['_csrf' => $token, 'importer' => 'feeds_proba', 'url' => 'https://169.254.169.254/latest/meta-data/', 'kind' => 'file', 'every' => '60', 'enabled' => '1']);
     check($bad->status === 422 && str_contains($bad->body, 'is-invalid') && $db->fetchValue('SELECT COUNT(*) FROM {feeds_sources}') == 0, 'not an address of the network');
-    check($send('POST', '/admin/module/feeds/new', ['_csrf' => $token, 'importer' => 'nincs', 'url' => $url, 'every' => '7'])->status === 422, 'not an importer there is not; not any interval');
-    $saved = $send('POST', '/admin/module/feeds/new', ['_csrf' => $token, 'importer' => 'feeds_proba', 'url' => $url, 'every' => '60', 'enabled' => '1']);
+    check($send('POST', '/admin/module/feeds/new', ['_csrf' => $token, 'importer' => 'nincs', 'url' => $url, 'kind' => 'file', 'every' => '7'])->status === 422, 'not an importer there is not; not any interval');
+    $saved = $send('POST', '/admin/module/feeds/new', ['_csrf' => $token, 'importer' => 'feeds_proba', 'url' => $url, 'kind' => 'file', 'every' => '60', 'enabled' => '1']);
     $store = $c->get(\CampanellaFeeds\SourceStore::class);
     $source = $store->findByImporter('feeds_proba');
     check($saved->status === 303 && $source !== null && $source->nextDue === null && $source->enabled, 'saved, due at once');
-    check($send('POST', '/admin/module/feeds/new', ['_csrf' => $token, 'importer' => 'feeds_proba', 'url' => $url, 'every' => '60'])->status === 422, 'one source for an importer');
+    check($send('POST', '/admin/module/feeds/new', ['_csrf' => $token, 'importer' => 'feeds_proba', 'url' => $url, 'kind' => 'file', 'every' => '60'])->status === 422, 'one source for an importer');
     $tried = $send('POST', '/admin/module/feeds/' . $source->id . '/try', ['_csrf' => $token]);
     check($tried->status === 200 && str_contains($tried->body, 'id="trial"') && str_contains($tried->body, 'Feeds kettő') && $db->fetchValue("SELECT COUNT(*) FROM {import_runs} WHERE importer = 'feeds_proba'") == 0, 'tried: nothing imported');
     check(str_contains($send('GET', '/admin/system/cron')->body, 'feeds:fetch'), 'its task on the Scheduled tasks page');
@@ -7496,6 +7550,35 @@ test('The feeds module (0.4.9): a source of an importer, tried, fetched by its t
     $listed = $send('GET', '/admin/module/feeds');
     check(str_contains($listed->body, 'id="feeds-source-' . $source->id . '"') && str_contains($listed->body, 'text-bg-danger'), 'the failure on the page');
 
+    // An RSS feed: made into JSON for an importer of JSON whose items are at `items`.
+    $c->get(\Campanella\Import\ImporterStore::class)->save('feeds_rss', ['version' => 1, 'label' => 'Hírek RSS', 'blueprint' => 'article', 'format' => 'json', 'delimiter' => 'auto', 'items' => 'items',
+        'key' => 'id', 'publish' => true, 'missing_target' => 'error', 'missing_items' => 'draft', 'user' => (int) $administrator->id(),
+        'mapping' => [['source' => 'title', 'target' => 'title'], ['source' => 'summary', 'target' => 'body'], ['source' => 'published', 'target' => 'published_at']]]);
+    $c->get(\Campanella\Import\ImporterStore::class)->save('feeds_csv', ['version' => 1, 'label' => 'CSV', 'blueprint' => 'article', 'format' => 'csv', 'delimiter' => 'auto', 'items' => '',
+        'key' => 'id', 'publish' => false, 'missing_target' => 'error', 'missing_items' => 'keep', 'user' => (int) $administrator->id(),
+        'mapping' => [['source' => 'title', 'target' => 'title']]]);
+    $rssUrl = 'https://adatok.example.org/hirek.rss';
+    $transport->answers[$rssUrl] = ['status' => 200, 'headers' => [], 'body' => '<?xml version="1.0"?><rss version="2.0"><channel><title>Hírek</title>'
+        . '<item><guid>h-1</guid><title>Feeds hír &amp; egy</title><description>&lt;p&gt;Az első&lt;/p&gt;</description><pubDate>Fri, 06 Nov 2026 10:00:00 +0100</pubDate></item>'
+        . '<item><guid>h-2</guid><title>Feeds hír kettő</title><description><![CDATA[<p>A második <script>x()</script></p>]]></description></item></channel></rss>'];
+    check($send('POST', '/admin/module/feeds/new', ['_csrf' => $token, 'importer' => 'feeds_csv', 'url' => $rssUrl, 'kind' => 'feed', 'every' => '60'])->status === 422, 'a feed: not for an importer of CSV');
+    $feedForm = $send('POST', '/admin/module/feeds/new', ['_csrf' => $token, 'importer' => 'feeds_rss', 'url' => $rssUrl, 'kind' => 'feed', 'every' => '15', 'enabled' => '1']);
+    $rss = $store->findByImporter('feeds_rss');
+    check($feedForm->status === 303 && $rss?->kind === 'feed', 'a feed\'s source');
+    check(str_contains($send('GET', '/admin/module/feeds/' . $rss->id)->body, 'id="feeds-drafts"') && str_contains($send('GET', '/admin/module/feeds')->body, 'RSS/Atom'), 'its importer makes the missing ones drafts: a warning');
+    $rssTrial = $send('POST', '/admin/module/feeds/' . $rss->id . '/try', ['_csrf' => $token]);
+    check($rssTrial->status === 200 && str_contains($rssTrial->body, 'Feeds hír &amp; egy') && str_contains($rssTrial->body, '<code>published</code>'), 'tried: its items');
+    check($feeds->process($rss, 10)->key === 'feeds.result.imported', 'imported');
+    $imported = array_map(static fn ($o): array => [(string) $o->get('title'), (string) $o->get('body')], iterator_to_array($c->get(\Campanella\Query\QueryEngine::class)->execute(\Campanella\Query\Query::objects()->blueprint('article')->where('title', 'LIKE', 'Feeds hír%')->orderBy('title'), \Campanella\Access\Actor::system())));
+    check(count($imported) === 2 && $imported[0][0] === 'Feeds hír & egy' && !str_contains($imported[1][1], 'script'), 'its items, the HTML cleaned: ' . json_encode($imported, JSON_UNESCAPED_UNICODE));
+    $transport->answers[$rssUrl] = ['status' => 200, 'headers' => [], 'body' => '<?xml version="1.0"?><!DOCTYPE rss [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><rss version="2.0"><channel><item><guid>x</guid><title>&xxe;</title></item></channel></rss>'];
+    check($feeds->process($store->find($rss->id) ?? $rss, 10)->key === 'feeds.error.doctype', 'a DOCTYPE: refused');
+    $rssRun = $store->find($rss->id)?->runId;
+    $c->get(\Campanella\Import\Importer::class)->undo((int) $rssRun);
+    $c->get(\Campanella\Import\Importer::class)->delete('feeds_rss');
+    $c->get(\Campanella\Import\Importer::class)->delete('feeds_csv');
+    $store->delete($store->find($rss->id) ?? $rss);
+
     // In the next run; deleted.
     $send('POST', '/admin/module/feeds/' . $source->id . '/fetch', ['_csrf' => $token]);
     check($store->find($source->id)?->nextDue === null && $c->get(\Campanella\Schedule\Scheduler::class)->states()['feeds:fetch']['requested'], 'asked for the next run');
@@ -7519,6 +7602,59 @@ test('The feeds module (0.4.9): a source of an importer, tried, fetched by its t
     $db->execute('DROP TABLE IF EXISTS ' . $db->table('feeds_sources'));
     $db->execute("DELETE FROM {migrations} WHERE id LIKE 'feeds:%'");
     putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('Security review (0.4.9): no other form of a host, no way into the network, the scheduled tasks for the system roles only', function (): void {
+    $resolver = new class implements \Campanella\Net\Resolver {
+        public array $asked = [];
+
+        public function resolve(string $host): array
+        {
+            $this->asked[] = $host;
+
+            return $host === 'rebind.example.org' ? ['93.184.216.34', '169.254.169.254'] : ['93.184.216.34'];
+        }
+    };
+    $transport = new class implements \Campanella\Net\Transport {
+        public int $calls = 0;
+
+        public function get(string $url, string $ip, int $port, array $headers, int $timeout, int $maxBytes): array
+        {
+            ++$this->calls;
+
+            return ['status' => 200, 'headers' => [], 'body' => 'x'];
+        }
+    };
+    $fetcher = new \Campanella\Net\SafeFetcher($resolver, $transport);
+    foreach (['https://2130706433/', 'https://0x7f.1/', 'https://0177.0.0.1/', 'https://127.1/', 'https://[fe80::1%25eth0]/', 'https://[::ffff:169.254.169.254]/', 'https://[::]/', 'https://0.0.0.0/',
+        'https://localhost/', 'https://example.org:8443/', 'https://example.org:0/', "https://example.org\r\nHost: x/", 'gopher://example.org/', 'dict://example.org:11211/', 'file://example.org/etc/passwd', '//example.org/', 'https:///x'] as $url) {
+        check($fetcher->problem($url) !== null, 'refused: ' . $url);
+    }
+    $refused = static function (callable $fetch): bool {
+        try {
+            $fetch();
+        } catch (\Campanella\Net\FetchException) {
+            return true;
+        }
+
+        return false;
+    };
+    check($refused(fn () => $fetcher->fetch('https://rebind.example.org/')) && $transport->calls === 0, 'one address of the network among the public ones: refused, nothing asked');
+    check(!$refused(fn () => $fetcher->fetch('https://hirek.example.org/')) && $transport->calls === 1, 'a public one');
+    check(\Campanella\Net\SafeFetcher::PORTS === [443, 80] && \Campanella\Net\SafeFetcher::MAX_REDIRECTS === 3, 'the ports, the redirects');
+
+    // The scheduled tasks: a module's only with its prefix, not more often than every five minutes.
+    $manifest = \Campanella\Module\ModuleManifest::read(dirname(__DIR__) . '/modules/feeds');
+    check($manifest instanceof \Campanella\Module\ModuleManifest);
+    $threw = 0;
+    foreach ([\Campanella\Schedule\SubmissionsPruneTask::class] as $class) {
+        try {
+            (new \Campanella\Module\ModuleContext($manifest))->scheduled($class);
+        } catch (\Campanella\Module\ModuleException) {
+            ++$threw;
+        }
+    }
+    check($threw === 1, 'not a task of another');
 });
 
 test('Security review (0.4.8): a module\'s field types: their widget, its attributes, their text', function (): void {

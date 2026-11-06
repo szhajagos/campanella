@@ -1,4 +1,4 @@
-# Campanella 0.4.8
+# Campanella 0.4.9
 
 [![CI](https://github.com/szhajagos/campanella/actions/workflows/ci.yml/badge.svg)](https://github.com/szhajagos/campanella/actions/workflows/ci.yml)
 
@@ -17,7 +17,18 @@ with a light and a dark mode, sample content in the site's language; and what
 0.4.x keeps is promised (see the [compatibility promise](docs/compatibility.md)).
 Plans are in the [ROADMAP](ROADMAP.md), changes in the [CHANGELOG](CHANGELOG.md).
 
-## What is new in 0.4.8
+## What is new in 0.4.9
+
+**Web sources and scheduled tasks**: the site does work by itself, run by
+`cron:run` from the server's cron (System → Scheduled tasks shows when it last
+ran and what is due), and the **feeds module**, Campanella's first, shipped
+turned off: web addresses whose CSV or JSON file, or RSS or Atom feed, an
+importer imports on a schedule, fetched safely (never from the server's own
+network) ([guide](docs/guide/en/18-web-sources.md),
+[PHP API](docs/php-api/33-scheduled-tasks.md),
+[security](docs/security.md#review-of-the-scheduled-tasks-and-the-web-sources-049-2026-11-06)).
+
+## What was new in 0.4.8
 
 **Field types of a module's own** (Structure → Field types): a module can bring
 a field type, a phone number say, built on one of the core's types; a field of

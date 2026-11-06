@@ -45,5 +45,8 @@ interface, with Campanella's own sample content in English.
     in a light and a dark variant, the colour mode, the visitor's colour mode switch.
 17. [Modules](17-modules.md): adding a module, trying it, turning it on and
     off, when the site does not start because of one, removing its data.
+18. [Scheduled tasks and web sources](18-web-sources.md): setting up cron, the
+    scheduled tasks page, importing content from a web address (CSV, JSON, RSS,
+    Atom).
 
 [Magyar változat](../hu/README.md)

@@ -108,6 +108,8 @@ final class CronPages
     private static function interval(int $seconds): Message
     {
         return match (true) {
+            $seconds === 86400 => new Message('cron.every_day'),
+            $seconds === 3600 => new Message('cron.every_hour'),
             $seconds % 86400 === 0 => new Message('cron.every_days', ['count' => intdiv($seconds, 86400)]),
             $seconds % 3600 === 0 => new Message('cron.every_hours', ['count' => intdiv($seconds, 3600)]),
             default => new Message('cron.every_minutes', ['count' => intdiv($seconds, 60)]),

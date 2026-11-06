@@ -1863,4 +1863,6 @@ return [
     'fetch.timeout' => '{seconds} másodperc alatt nem jött válasz.',
     'fetch.failed' => 'Nem sikerült letölteni: {error}',
     'fetch.no_curl' => 'A webcímről letöltéshez a PHP curl kiterjesztése kell.',
+    'cron.every_day' => 'naponta',
+    'cron.every_hour' => 'óránként',
 ];
