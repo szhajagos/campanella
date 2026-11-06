@@ -330,12 +330,24 @@ jobs:
 
       - run: composer install --no-interaction --no-progress
 
+      # Chromium kept between runs (since 0.4.9: downloading it, and installing its system
+      # libraries with apt on every run, made this the slowest step).
+      - name: Playwright's Chromium from the cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('tests/browser/requirements.txt') }}
+
       - name: Playwright and Chromium
+        timeout-minutes: 15
         run: |
           python -m pip install -r tests/browser/requirements.txt
-          python -m playwright install --with-deps chromium
+          python -m playwright install chromium
+          # Its system libraries: the runner's image has them (it has Chrome); apt only if it does not start.
+          python -c "from playwright.sync_api import sync_playwright; p = sync_playwright().start(); p.chromium.launch().close(); p.stop()" \
+            || python -m playwright install-deps chromium
           # gdb: if PHP's built-in web server itself crashes, its backtrace is printed (since 0.3.2).
-          sudo apt-get install -y -q gdb
+          command -v gdb >/dev/null || sudo apt-get install -y -q gdb
 
       - name: Wait for the database
         run: |
@@ -403,13 +415,24 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Playwright's Chromium from the cache
+        if: steps.has.outputs.check == '1'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('tests/browser/requirements.txt') }}
+
       - name: Playwright and Chromium
         if: steps.has.outputs.check == '1'
+        timeout-minutes: 15
         run: |
           python -m pip install -r tests/browser/requirements.txt
-          python -m playwright install --with-deps chromium
+          python -m playwright install chromium
+          # Its system libraries: the runner's image has them (it has Chrome); apt only if it does not start.
+          python -c "from playwright.sync_api import sync_playwright; p = sync_playwright().start(); p.chromium.launch().close(); p.stop()" \
+            || python -m playwright install-deps chromium
           # gdb: if PHP's built-in web server itself crashes, its backtrace is printed (since 0.3.2).
-          sudo apt-get install -y -q gdb
+          command -v gdb >/dev/null || sudo apt-get install -y -q gdb
 
       - name: Wait for the database
         if: steps.has.outputs.check == '1'
