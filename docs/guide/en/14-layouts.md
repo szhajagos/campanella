@@ -62,6 +62,49 @@ On the **Appearance → Layouts** page:
 
 **Save** makes them count on the site.
 
+## A layout of your own
+
+You can make a layout of your own, without programming: rows of columns
+between the header and the footer. Every column is a **region** where
+components can be placed, as in the built-in layouts' regions.
+
+At the top of **Appearance → Layouts** are all the layouts, each with a small
+sketch and where it is used. Start with **New layout** from nothing, or with
+**Copy** from a layout there is (the one with a sidebar, say).
+
+![Editing a layout](../images/en/layout-editor.png)
+
+- **Name** and **machine name:** the machine name cannot be changed later, and
+  cannot be a built-in layout's.
+- **Rows:** for each, set:
+  - the **proportion** (2/3 – 1/3, say, or three equal columns); choosing one
+    gives the row as many columns, in those widths;
+  - from which screen width its columns are **side by side** (below it they
+    are stacked);
+  - whether the row is in **the full width of the window** (a highlighted
+    band, say).
+- **Columns:** for each:
+  - the **region**'s machine name and its name; choosing the name of a region
+    there is shows the components placed there in this one too;
+  - its **width** (of 12);
+  - its place when **stacked**, on small screens (the sidebar above the
+    content, say);
+  - whether it is a **sidebar** (as screen readers know it) or a plain block;
+  - how it shows **on small screens** (always, collapsed or hidden);
+  - whether **a page's own components** can be placed in it (chapter 15).
+- Drag rows and columns by the **⠿** handle, or move them with the arrows; add
+  or take one out there too.
+- The **Sketch** shows the layout on a large screen and on a phone, and follows
+  every change.
+
+The **content** region (`content`) must be in it once: the page's own content
+goes there. The header, the navigation and the footer are always there, at the
+top and the bottom. After **Save** the layout can be chosen for the site or a
+content type, further down the same page.
+
+A layout of your own cannot be deleted while the site or a content type uses
+it. When it is deleted, the components placed in its regions stay.
+
 ## The regions and the components' order
 
 On the **Appearance → Regions** page you see a layout's regions, each with its

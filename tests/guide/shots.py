@@ -538,6 +538,21 @@ def layouts(page, article_url):
     page.locator("form.admin-form button[type=submit]").first.click()
     page.wait_for_load_state("load")
 
+    # Since 0.4.10: the editor, a copy of the sidebar layout with a third column (not saved).
+    page.goto(BASE + "/admin/system/layouts/new?from=sidebar")
+    page.fill("#layout-label", "Három hasáb" if LANG == "hu" else "Three columns")
+    page.fill("#layout-name", "harom_hasab" if LANG == "hu" else "three_columns")
+    page.locator("button[value='add_column:0']").click()
+    page.wait_for_load_state("load")
+    page.fill("#layout-0-2-region", "kiemeles" if LANG == "hu" else "highlights")
+    page.fill("#layout-0-2-label", "Kiemelések" if LANG == "hu" else "Highlights")
+    page.select_option("#layout-0-2-landmark", "aside")
+    page.select_option("#layout-0-0-width", "6")
+    page.select_option("#layout-0-1-width", "3")
+    page.select_option("#layout-0-2-width", "3")
+    page.select_option("#layout-0-1-look", "hide:md")
+    shot(page, "layout-editor", full_page=True)
+
     page.goto(BASE + "/admin/component/regions?layout=sidebar")
     region = page.locator("#region-sidebar")
     region.locator("select[name=component]").select_option(label=COMPONENTS["box_title"])

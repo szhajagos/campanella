@@ -1,0 +1,23 @@
+{% extends '@core/admin/base.html.twig' %}
+
+{# Deleting a layout made in the admin (since 0.4.10); not while the site or a Blueprint uses it. #}
+{% block content %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb small mb-2">
+            <li class="breadcrumb-item"><a href="{{ admin_url('system/layouts') }}">{{ t('layouts.title') }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ layout.label }}</li>
+        </ol>
+    </nav>
+    <h1 class="h3 mb-4">{{ t('layouts.editor.delete') }}</h1>
+    {% if used %}
+        <div class="alert alert-warning" role="alert" id="layout-in-use">{{ t('layouts.editor.delete_in_use', {used: used|map(u => u == 'site' ? t('layouts.editor.used_site') : u)|join(', ')}) }}</div>
+        <a class="btn btn-outline-secondary" href="{{ admin_url('system/layouts') }}">{{ t('admin.form.cancel') }}</a>
+    {% else %}
+        <div class="alert alert-warning" role="alert">{{ t('layouts.editor.delete_warning', {label: layout.label}) }}</div>
+        <form method="post" action="{{ admin_url('system/layouts/' ~ layout.name ~ '/delete') }}" class="d-flex gap-2">
+            {{ csrf_field() }}
+            <button type="submit" class="btn btn-danger">{{ t('admin.delete.confirm') }}</button>
+            <a class="btn btn-outline-secondary" href="{{ admin_url('system/layouts') }}">{{ t('admin.form.cancel') }}</a>
+        </form>
+    {% endif %}
+{% endblock %}

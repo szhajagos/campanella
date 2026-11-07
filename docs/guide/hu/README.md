@@ -37,7 +37,7 @@ felületet mutatják, a Campanella saját példatartalmával.
     lépésben (forrás, megjelenítés, beállítások), ki láthatja, a sablonban.
 14. [Elrendezések és régiók](14-elrendezesek.md): a fejléc és a lábléc
     komponensei, egy oldalsáv a cikkek mellé, a régiók sorrendje, hol jelenjen
-    meg egy komponens, kis képernyőn.
+    meg egy komponens, kis képernyőn, saját elrendezés sorokból és hasábokból.
 15. [Oldalak komponensekből](15-oldalak.md): egy oldal saját komponensei és
     elrendezése (a szerkesztőknek is), új komponens egy oldalnak, a címlap.
 16. [Színsémák és színmód](16-szinsemak.md): a webhely színei világos és sötét

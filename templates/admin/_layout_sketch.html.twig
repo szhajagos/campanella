@@ -1,0 +1,24 @@
+{# A sketch of a layout of rows (since 0.4.10): at a large width its rows of columns, at a small
+   one the columns stacked in their order, those hidden on small screens shown so. Drawn again
+   by admin-layout-editor.js in the editor as the form changes. A picture only: the form (or the
+   list) says the same in words. #}
+{%- set main_label = t('layout.region.content') -%}
+<div class="layout-sketch layout-sketch--{{ mode }}" data-layout-sketch="{{ mode }}" data-hidden-text="{{ t('layouts.editor.hidden_small') }}" aria-hidden="true">
+    <div class="layout-sketch-bar">{{ t('layout.region.header') }}</div>
+    {%- if mode == 'large' %}
+        {%- for row in rows %}
+            <div class="row g-1 mx-0 layout-sketch-row{{ row.full ? ' layout-sketch-full' }}">
+                {%- for column in row.columns %}
+                    <div class="col-{{ column.width }}"><div class="layout-sketch-box{{ column.region == 'content' ? ' layout-sketch-main' }}">{{ t(column.label) }}</div></div>
+                {%- endfor %}
+            </div>
+        {%- endfor %}
+    {%- else %}
+        {%- for row in rows %}
+            {%- for column in row.columns|sort((a, b) => (a.order ?? 0) <=> (b.order ?? 0)) %}
+                <div class="layout-sketch-box{{ column.region == 'content' ? ' layout-sketch-main' }}{{ column.hidden ? ' layout-sketch-hidden' }}">{{ t(column.label) }}{% if column.hidden %} · {{ t('layouts.editor.hidden_small') }}{% endif %}</div>
+            {%- endfor %}
+        {%- endfor %}
+    {%- endif %}
+    <div class="layout-sketch-bar">{{ t('layout.region.footer') }}</div>
+</div>

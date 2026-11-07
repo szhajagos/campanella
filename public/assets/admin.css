@@ -107,3 +107,36 @@
 .admin-tree { list-style: none; margin: 0; padding: 0 0 0 1.75rem; min-height: .5rem; }
 .admin-tree[data-level="0"] { padding-left: 0; }
 .admin-tree__row { padding: .35rem .5rem; border: 1px solid var(--bs-border-color); border-radius: var(--bs-border-radius); background-color: var(--bs-body-bg); margin-bottom: .25rem; }
+
+/* The sketch of a layout of rows (since 0.4.10): the admin's Layouts page and its editor. */
+.layout-sketch {
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius);
+    background: var(--bs-body-bg);
+    padding: .25rem;
+    font-size: .7rem;
+    line-height: 1.2;
+}
+.layout-sketch-bar {
+    background: var(--bs-secondary-bg);
+    color: var(--bs-secondary-color);
+    border-radius: var(--bs-border-radius-sm);
+    padding: .2rem .35rem;
+    margin: .2rem 0;
+}
+.layout-sketch-row { margin-bottom: .25rem; padding: 0 .5rem; }
+.layout-sketch-row.layout-sketch-full { padding: 0; }
+.layout-sketch-box {
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius-sm);
+    background: var(--bs-tertiary-bg);
+    padding: .5rem .3rem;
+    min-height: 2.2rem;
+    overflow-wrap: anywhere;
+}
+.layout-sketch--small .layout-sketch-box { margin: .2rem 0; }
+.layout-sketch-main { background: var(--bs-primary-bg-subtle); border-color: var(--bs-primary-border-subtle); font-weight: 600; }
+.layout-sketch-hidden { opacity: .55; border-style: dashed; }
+.layout-drag { cursor: grab; user-select: none; color: var(--bs-secondary-color); }
+.layout-column-main { background: var(--bs-primary-bg-subtle); }
+.layout-sketches { position: sticky; top: 1rem; }

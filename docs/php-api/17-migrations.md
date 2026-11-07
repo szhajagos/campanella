@@ -376,6 +376,7 @@ for real (`tests/upgrade/`). CI runs it on every push:
 | 0.4.5 | MariaDB 10.6 | the previous version (since 0.4.7) |
 | 0.4.7 | MySQL 8.0 | the previous version (since 0.4.8) |
 | 0.4.8 | MariaDB 10.6 | the previous version (since 0.4.9) |
+| 0.4.9 | MySQL 8.0 | the previous version (since 0.4.10) |
 
 From 0.2.6 on the old site's content model also has Blueprints called `file`
 (since 0.3.2, up to 0.3.1) and `snippet` (since 0.3.3, up to 0.3.2), made in

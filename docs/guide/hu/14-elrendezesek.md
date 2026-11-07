@@ -65,6 +65,51 @@ A **Megjelenés → Elrendezések** oldalon:
 
 A **Mentés** gombbal érvényesek a webhelyen.
 
+## Saját elrendezés
+
+Saját elrendezést is készíthetsz, programozás nélkül: sorokból és hasábokból,
+a fejléc és a lábléc között. Minden hasáb egy **régió**, amelybe komponenseket
+tehetsz, ugyanúgy, mint a beépített elrendezések régióiba.
+
+A **Megjelenés → Elrendezések** oldal tetején láthatod az összes elrendezést,
+egy kis vázlattal, és azzal, hogy hol használják őket. Az **Új elrendezés**
+gombbal üresen kezdhetsz, a **Másolat** gombbal egy meglévő elrendezésből
+(például az Oldalsávvalból).
+
+![Egy elrendezés szerkesztése](../images/hu/layout-editor.png)
+
+- **Név** és **gépi név:** a gépi név később nem változtatható, és nem lehet
+  egy beépített elrendezés neve.
+- **Sorok:** minden sornál beállíthatod:
+  - az **arányt** (például 2/3 – 1/3, vagy három egyforma hasáb); a választás
+    ennyi hasábot ad a sornak, a megfelelő szélességekkel;
+  - hogy milyen képernyőszélességtől álljanak a hasábok **egymás mellett**
+    (alatta egymás alá kerülnek);
+  - hogy a sor **az ablak teljes szélességében** legyen-e (például egy kiemelt
+    sáv).
+- **Hasábok:** mindegyiknél:
+  - a **régió** gépi neve és a neve; egy már meglévő régió nevét választva az
+    oda tett komponensek itt is megjelennek;
+  - a **szélesség** (12-ből);
+  - a helye **egymás alatt**, kis képernyőn (például az oldalsáv a tartalom
+    fölé kerülhet);
+  - hogy **oldalsáv** legyen-e (a felolvasóprogramok így ismerik fel) vagy
+    egyszerű doboz;
+  - hogyan látsszon **kis képernyőn** (mindig, összecsukva vagy rejtve);
+  - hogy **az oldal saját komponensei** is kerülhetnek-e bele (15. fejezet).
+- A sorokat és a hasábokat a **⠿** fogantyúval áthúzhatod, vagy a nyilakkal
+  mozgathatod. Ugyanitt vehetsz fel újat, vagy vehetsz ki egyet.
+- A **Vázlat** megmutatja az elrendezést nagy képernyőn és telefonon, és minden
+  módosításra frissül.
+
+A **tartalom** (`content`) régiónak pontosan egyszer szerepelnie kell: ide kerül
+az oldal saját tartalma. A fejléc, a navigáció és a lábléc mindig ott van,
+felül és alul. A **Mentés** után az elrendezés választható a webhelynek vagy egy
+tartalomtípusnak, ugyanazon az oldalon lejjebb.
+
+Egy saját elrendezés addig nem törölhető, amíg a webhely vagy egy tartalomtípus
+használja. Törléskor a régióiba tett komponensek megmaradnak.
+
 ## A régiók és a komponensek sorrendje
 
 A **Megjelenés → Régiók** oldalon egy elrendezés régióit látod, mindegyikben a

@@ -21,6 +21,10 @@ use Closure;
  * roles (Appearance → Layouts): the site's layout, the Blueprints' own (those whose
  * objects have pages), and how each layout's regions show on small screens. The rules
  * are LayoutService::save()'s.
+ *
+ * Since 0.4.10 it lists the layouts with a sketch of each layout of rows and where it is used,
+ * and leads to the editor of those made in the admin (LayoutEditor: new, copied, edited,
+ * deleted).
  */
 final class LayoutPages
 {
@@ -30,6 +34,7 @@ final class LayoutPages
         private readonly Csrf $csrf,
         private readonly Flash $flash,
         private readonly AdminAccess $access,
+        private readonly ?LayoutEditor $editor = null,
     ) {
     }
 
@@ -57,7 +62,11 @@ final class LayoutPages
     public function handle(Request $request, array $segments, Closure $render): Response
     {
         if ($segments !== []) {
-            throw HttpException::notFound();
+            if ($this->editor === null) {
+                throw HttpException::notFound();
+            }
+
+            return $this->editor->handle($request, $segments, $render);
         }
         if (!$request->isPost()) {
             return $render('layouts', 'layouts', $this->context($this->current(), []));
@@ -146,15 +155,21 @@ final class LayoutPages
             'form' => $form,
             'errors' => $errors,
             'enabled' => $this->layouts->isEnabled(),
-            'layouts' => array_map(static fn (LayoutDefinition $l): array => [
+            'layouts' => array_map(fn (LayoutDefinition $l): array => [
                 'name' => $l->name,
                 'label' => $l->label,
                 'origin' => $l->origin,
+                // Since 0.4.10: its sketch, where it is used, whether it can be edited or copied.
+                'sketch' => LayoutEditor::sketch($l),
+                'used' => $this->editor?->usedBy($l->name) ?? [],
+                'editable' => $l->origin === 'admin' && $this->editor !== null,
+                'copyable' => $l->hasRows() && $this->editor !== null,
                 'regions' => array_map(static fn (RegionDefinition $r): array => ['name' => $r->name, 'label' => $r->label, 'default' => self::lookValue($r)], $l->regions),
             ], $layouts),
             'broken' => $this->layouts->registry()->errors(),
             'blueprints' => array_map(static fn ($b): array => ['name' => $b->name, 'label' => $b->label], $this->routable()),
             'looks' => self::looks(),
+            'can_make' => $this->editor !== null,
         ];
     }
 

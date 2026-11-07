@@ -14,6 +14,41 @@
         <div class="alert alert-warning" role="alert">{{ t('layouts.broken', {name: name}) }} <code>{{ why }}</code></div>
     {% endfor %}
 
+    {# Since 0.4.10: the layouts, a sketch of each of rows, where each is used; those made here edited. #}
+    <section class="mb-4" id="layouts-list">
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+            <h2 class="h5 mb-0 me-auto">{{ t('layouts.list') }}</h2>
+            {% if can_make %}<a class="btn btn-primary btn-sm" href="{{ admin_url('system/layouts/new') }}">{{ t('layouts.editor.new') }}</a>{% endif %}
+        </div>
+        <div class="row g-3">
+            {% for layout in layouts %}
+                <div class="col-sm-6 col-lg-4 col-xxl-3" id="layouts-item-{{ layout.name }}">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h3 class="h6 mb-1">{{ t(layout.label) }}</h3>
+                            <div class="small text-body-secondary mb-2">
+                                <code>{{ layout.name }}</code> · {{ t('layouts.origin.' ~ layout.origin) }}
+                                {% if layout.used %}· {{ t('layouts.used', {used: layout.used|map(u => u == 'site' ? t('layouts.editor.used_site') : u)|join(', ')}) }}{% endif %}
+                            </div>
+                            {% if layout.sketch %}
+                                {{ include('@core/admin/_layout_sketch.html.twig', {rows: layout.sketch, mode: 'large'}) }}
+                            {% else %}
+                                <p class="small text-body-secondary mb-0">{{ t('layouts.own_template') }}</p>
+                            {% endif %}
+                        </div>
+                        {% if layout.editable or layout.copyable %}
+                            <div class="card-footer d-flex flex-wrap gap-2">
+                                {% if layout.editable %}<a class="btn btn-sm btn-outline-primary" href="{{ admin_url('system/layouts/' ~ layout.name) }}">{{ t('layouts.editor.edit_short') }}</a>{% endif %}
+                                {% if layout.copyable %}<a class="btn btn-sm btn-outline-secondary" href="{{ admin_url('system/layouts/new') }}?from={{ layout.name|url_encode }}">{{ t('layouts.editor.copy') }}</a>{% endif %}
+                                {% if layout.editable %}<a class="btn btn-sm btn-outline-danger ms-auto" href="{{ admin_url('system/layouts/' ~ layout.name ~ '/delete') }}">{{ t('layouts.editor.delete_short') }}</a>{% endif %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </section>
+
     <form method="post" action="{{ admin_url('system/layouts') }}" class="admin-form" novalidate>
         {{ csrf_field() }}
         <div class="row g-4">
@@ -24,7 +59,7 @@
                         <div class="form-check mb-2">
                             <input class="form-check-input" type="radio" name="site" id="layouts-site-{{ layout.name }}" value="{{ layout.name }}"{{ form.site == layout.name ? ' checked' }} aria-describedby="layouts-site-{{ layout.name }}-regions">
                             <label class="form-check-label fw-semibold" for="layouts-site-{{ layout.name }}">{{ t(layout.label) }}</label>
-                            {% if layout.origin == 'theme' %}<span class="badge text-bg-secondary ms-1">{{ t('layouts.from_theme') }}</span>{% endif %}
+                            {% if layout.origin == 'theme' %}<span class="badge text-bg-secondary ms-1">{{ t('layouts.from_theme') }}</span>{% elseif layout.origin == 'admin' %}<span class="badge text-bg-light border ms-1">{{ t('layouts.origin.admin') }}</span>{% endif %}
                             <div class="form-text" id="layouts-site-{{ layout.name }}-regions">{{ t('layouts.regions_list', {regions: layout.regions|map(r => t(r.label))|join(', ')}) }}</div>
                         </div>
                     {% endfor %}

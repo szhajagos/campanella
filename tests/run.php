@@ -7604,6 +7604,62 @@ test('The feeds module (0.4.9): a source of an importer, tried, fetched by its t
     putenv('CAMPANELLA_DB_PREFIX');
 });
 
+test('Security review (0.4.10): a layout made in the admin: names and numbers only, the token, no template code, its labels escaped', function () use ($newUser): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $container = $kernel->container();
+    $db = $container->get(Connection::class);
+    if ($db->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $db->execute('DELETE FROM {layouts}');
+    $storage = new ArraySessionStorage();
+    $container->set(Session::class, static fn () => new Session($storage));
+    $send = static function (string $method, string $path, array $post = [], array $query = []) use ($storage) {
+        $storage->endRequest();
+        $k = new \Campanella\Core\Kernel(dirname(__DIR__));
+        $k->container()->set(Session::class, static fn () => new Session($storage));
+
+        return $k->handle(new Request($method, $path, $query, $post));
+    };
+    $container->get(AuthService::class)->login(new Request('GET', '/'), $newUser('elr-biztonsag@example.hu', 'elr-bizt-jelszo-1', ['administrator']));
+    $new = $send('GET', '/admin/system/layouts/new', [], ['from' => '../../../etc/passwd']);
+    $token = preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $new->body, $m) === 1 ? $m[1] : '';
+    check($new->status === 200 && str_contains($new->body, 'name="row[0][col][0][region]" value="content"'), 'not a layout to copy: a new one');
+
+    $hostile = ['op' => 'save', 'name' => 'tamadas', 'label' => '<script>alert(1)</script>', 'row' => [[
+        'position' => '0', 'breakpoint' => 'lg" onmouseover="x', 'full' => '1', 'preset' => '{{ 7*7 }}',
+        'col' => [
+            ['position' => '0', 'region' => 'content', 'label' => '', 'width' => '6; d-none', 'order' => '', 'landmark' => 'nav onload=x', 'look' => '<x>', 'page' => '1'],
+            ['position' => '1', 'region' => 'oldal', 'label' => '{{ _self }}"><img src=x onerror=alert(1)>', 'width' => '6', 'order' => '', 'landmark' => 'aside', 'look' => 'hide:md'],
+        ],
+    ]]];
+    check($send('POST', '/admin/system/layouts/new', $hostile)->status === 400 && $db->fetchValue('SELECT COUNT(*) FROM {layouts}') == 0, 'no token: nothing saved');
+    check($send('POST', '/admin/system/layouts/new', ['_csrf' => $token] + array_replace_recursive($hostile, ['row' => [['col' => [1 => ['region' => 'oldal" x="1']]]]]))->status === 422, 'a region\'s name: only its pattern');
+    $saved = $send('POST', '/admin/system/layouts/new', ['_csrf' => $token] + $hostile);
+    $stored = json_decode((string) $db->fetchValue("SELECT definition FROM {layouts} WHERE name = 'tamadas'"), true);
+    check($saved->status === 303 && is_array($stored), 'saved, its values made safe ' . $saved->status);
+    check(($stored['rows'][0]['breakpoint'] ?? 'lg') === 'lg' && ($stored['rows'][0]['columns'][0]['width'] ?? null) === 6 && !isset($stored['rows'][0]['columns'][0]['landmark']) && !isset($stored['regions']['content']['small']), 'what is not a value offered: the default');
+    $settings = $container->get(\Campanella\Settings\Settings::class);
+    $settings->set(['layout.enabled' => '1', 'layout.site' => 'tamadas']);
+    try {
+        $page = $send('GET', '/search');
+        check($page->status === 200 && !str_contains($page->body, '<img src=x') && !str_contains($page->body, 'onmouseover') && str_contains($page->body, 'aria-label="{{ _self }}&quot;&gt;&lt;img src=x onerror=alert(1)&gt;"'), 'a page in it: the label as text (its template code too), nothing else of it');
+        $list = $send('GET', '/admin/system/layouts');
+        check(!str_contains($list->body, '<script>alert(1)</script>') && str_contains($list->body, '&lt;script&gt;alert(1)&lt;/script&gt;'), 'the list: the name escaped');
+    } finally {
+        $settings->set(['layout.enabled' => null, 'layout.site' => null]);
+    }
+    // At most 10 rows of 4 columns are read.
+    $many = ['_csrf' => $token, 'op' => 'refresh', 'name' => 'sok', 'label' => 'Sok', 'row' => array_fill(0, 50, ['position' => '0', 'breakpoint' => 'lg', 'col' => array_fill(0, 30, ['position' => '0', 'region' => 'content', 'width' => '1'])])];
+    $shown = $send('POST', '/admin/system/layouts/new', $many);
+    check($shown->status === 200 && !str_contains($shown->body, 'name="row[10]') && !str_contains($shown->body, '[col][4]'), 'at most 10 rows of 4 columns');
+    $db->execute('DELETE FROM {layouts}');
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
 test('Security review (0.4.9): no other form of a host, no way into the network, the scheduled tasks for the system roles only', function (): void {
     $resolver = new class implements \Campanella\Net\Resolver {
         public array $asked = [];
@@ -7943,6 +7999,105 @@ test('Layouts made in the admin (0.4.10): stored, read after the files\' (whose 
     $store->delete('harom_hasab');
     $store->delete('uj_elrendezes');
     check($store->load() === [], 'deleted');
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
+test('Kernel: the layout editor (0.4.10): a layout made, copied, changed with the buttons, checked, saved, used, deleted; for administrators', function () use ($newUser): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $container = $kernel->container();
+    $db = $container->get(Connection::class);
+    if ($db->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $db->execute('DELETE FROM {layouts}');
+    $settings = $container->get(\Campanella\Settings\Settings::class);
+    $storage = new ArraySessionStorage();
+    $container->set(Session::class, static fn () => new Session($storage));
+    $send = static function (string $method, string $path, array $post = [], array $query = []) use ($storage) {
+        $storage->endRequest();
+        $k = new \Campanella\Core\Kernel(dirname(__DIR__));
+        $k->container()->set(Session::class, static fn () => new Session($storage));
+
+        return $k->handle(new Request($method, $path, $query, $post));
+    };
+    $container->get(AuthService::class)->login(new Request('GET', '/'), $newUser('szerkeszto-elr@example.hu', 'szerk-elr-jelszo-1', ['editor']));
+    check($send('GET', '/admin/system/layouts/new')->status === 403, 'not for editors');
+    $container->get(AuthService::class)->login(new Request('GET', '/'), $newUser('elrendezes-admin@example.hu', 'elr-admin-jelszo-1', ['administrator']));
+
+    $list = $send('GET', '/admin/system/layouts');
+    check(str_contains($list->body, 'id="layouts-list"') && str_contains($list->body, 'href="/admin/system/layouts/new?from=sidebar"') && substr_count($list->body, 'data-layout-sketch="large"') >= 2, 'the list: sketches, copies');
+    check(!str_contains($list->body, 'href="/admin/system/layouts/sidebar"') && $send('GET', '/admin/system/layouts/sidebar')->status === 404, 'the core\'s not edited');
+    $new = $send('GET', '/admin/system/layouts/new');
+    $token = preg_match('/name="_csrf" value="([0-9a-f]{64})"/', $new->body, $m) === 1 ? $m[1] : '';
+    check($new->status === 200 && str_contains($new->body, 'name="row[0][col][0][region]" value="content"') && !str_contains($new->body, 'name="row[1]'), 'new: one row, the content');
+
+    $column = static fn (string $region, string $label, int $width, array $more = []): array => $more + ['position' => '0', 'region' => $region, 'label' => $label, 'width' => (string) $width, 'order' => '', 'landmark' => 'none', 'look' => 'always'];
+    $post = static fn (string $op, array $rows, string $name = 'harom_resz', string $label = 'Három rész'): array => ['_csrf' => $token, 'op' => $op, 'name' => $name, 'label' => $label, 'row' => $rows];
+    $oneRow = [['position' => '0', 'breakpoint' => 'lg', 'col' => [$column('content', '', 12, ['page' => '1'])]]];
+
+    // The buttons: nothing saved.
+    $added = $send('POST', '/admin/system/layouts/new', $post('add_row', $oneRow));
+    check($added->status === 200 && str_contains($added->body, 'name="row[1][col][0][region]"') && $db->fetchValue('SELECT COUNT(*) FROM {layouts}') == 0, 'a row added, nothing saved');
+    $preset = $send('POST', '/admin/system/layouts/new', $post('refresh', [['position' => '0', 'breakpoint' => 'lg', 'preset' => '8-4', 'col' => [$column('content', '', 12)]]]));
+    check(str_contains($preset->body, 'name="row[0][col][1][width]"') && preg_match('#name="row\[0\]\[col\]\[0\]\[width\]".*?<option value="8" selected>#s', $preset->body) === 1, 'a proportion: two columns, 8 and 4');
+    $moved = $send('POST', '/admin/system/layouts/new', $post('column_right:0:0', [['position' => '0', 'breakpoint' => 'lg', 'col' => [$column('content', '', 8), $column('oldal', 'Oldal', 4, ['position' => '1'])]]]));
+    check(preg_match('#name="row\[0\]\[col\]\[0\]\[region\]" value="oldal".*name="row\[0\]\[col\]\[1\]\[region\]" value="content"#s', $moved->body) === 1, 'a column moved');
+    $dragged = $send('POST', '/admin/system/layouts/new', $post('refresh', [['position' => '0', 'breakpoint' => 'lg', 'col' => [$column('content', '', 8, ['position' => '1']), $column('oldal', 'Oldal', 4, ['position' => '0'])]]]));
+    check(preg_match('#value="oldal".*value="content"#s', $dragged->body) === 1, 'dragged: by the positions');
+
+    // Checked.
+    $bad = $send('POST', '/admin/system/layouts/new', $post('save', [
+        ['position' => '0', 'breakpoint' => 'lg', 'col' => [$column('kiemeles', '', 8), $column('kiemeles', 'Kettő', 6, ['position' => '1'])]],
+        ['position' => '1', 'breakpoint' => 'xxl', 'col' => [$column('header', 'Fej', 12)]],
+    ], 'sidebar', ''));
+    check($bad->status === 422 && substr_count($bad->body, 'invalid-feedback d-block') >= 6 && $db->fetchValue('SELECT COUNT(*) FROM {layouts}') == 0, 'a file\'s name, no label, a region without a name and twice, too wide, the header, no content: ' . substr_count($bad->body, 'invalid-feedback d-block'));
+
+    $module = $send('POST', '/admin/system/layouts/new', $post('save', $oneRow, 'feeds_sajat'));
+    check($module->status === 422 && str_contains($module->body, 'feeds_'), 'a module\'s prefix');
+
+    // Saved.
+    $rows = [
+        ['position' => '0', 'breakpoint' => 'md', 'col' => [
+            $column('bal_hasab', 'Bal <b>hasáb</b>', 3, ['landmark' => 'aside', 'order' => '2', 'look' => 'hide:md']),
+            $column('content', '', 6, ['position' => '1', 'page' => '1', 'order' => '1']),
+            $column('jobb_hasab', 'Jobb hasáb', 3, ['position' => '2', 'landmark' => 'aside', 'order' => '3']),
+        ]],
+        ['position' => '1', 'breakpoint' => 'lg', 'full' => '1', 'col' => [$column('also_sav', 'Alsó sáv', 12)]],
+    ];
+    $saved = $send('POST', '/admin/system/layouts/new', $post('save', $rows));
+    $layout = $container->get(\Campanella\Layout\LayoutRegistry::class);
+    $layout->reset();
+    $made = $layout->all()['harom_resz'] ?? null;
+    check($saved->status === 303 && $made?->origin === 'admin' && count($made->rows) === 2 && $made->rows[1]->full && $made->regions['bal_hasab']->small === 'hide' && $made->regions['content']->page, 'saved ' . $saved->status);
+    $edit = $send('GET', '/admin/system/layouts/harom_resz');
+    check($edit->status === 200 && str_contains($edit->body, 'id="layout-name" name="name" value="harom_resz" maxlength="63" pattern="[a-z][a-z0-9_]*" aria-describedby="layout-name-help" readonly') && str_contains($edit->body, 'Bal &lt;b&gt;hasáb&lt;/b&gt;'), 'its form, the name fixed, the label escaped');
+    check(str_contains($send('GET', '/admin/system/layouts/new')->body, 'name="row[0][col][0][region]" value="content"') && $send('POST', '/admin/system/layouts/new', $post('save', $oneRow))->status === 422, 'its name taken');
+    $copy = $send('GET', '/admin/system/layouts/new', [], ['from' => 'sidebar']);
+    check(preg_match('#value="content".*value="sidebar"#s', $copy->body) === 1 && str_contains($copy->body, 'id="layout-name" name="name" value=""'), 'a copy of the core\'s: its rows, no name');
+    $changed = $send('POST', '/admin/system/layouts/harom_resz', $post('save', $rows, 'mas_nev', 'Három rész, új'));
+    $layout->reset();
+    check($changed->status === 303 && ($layout->all()['harom_resz'] ?? null)?->label === 'Három rész, új' && !isset($layout->all()['mas_nev']), 'changed; its name kept');
+
+    // Used: a page in it; not deleted while used.
+    $settings->set(['layout.enabled' => '1', 'layout.site' => 'harom_resz']);
+    try {
+        $page = $send('GET', '/search');
+        check(preg_match('#<aside class="col-md-3 order-2 order-md-0 d-none d-md-block" aria-label="Bal &lt;b&gt;hasáb&lt;/b&gt;">.*<main class="col-md-6 order-1 order-md-0" id="main"#s', $page->body) === 1 && str_contains($page->body, '<div class="container-fluid py-3">'), 'a page in it');
+        $confirm = $send('GET', '/admin/system/layouts/harom_resz/delete');
+        check(str_contains($confirm->body, 'id="layout-in-use"') && str_contains($send('GET', '/admin/system/layouts')->body, 'a webhely'), 'used by the site');
+        $send('POST', '/admin/system/layouts/harom_resz/delete', ['_csrf' => $token]);
+        $layout->reset();
+        check(isset($layout->all()['harom_resz']), 'not deleted while used');
+    } finally {
+        $settings->set(['layout.enabled' => null, 'layout.site' => null]);
+    }
+    $deleted = $send('POST', '/admin/system/layouts/harom_resz/delete', ['_csrf' => $token]);
+    $layout->reset();
+    check($deleted->status === 303 && !isset($layout->all()['harom_resz']) && $db->fetchValue('SELECT COUNT(*) FROM {layouts}') == 0, 'deleted');
+    check($send('GET', '/admin/system/layouts/nincs')->status === 404 && $send('GET', '/admin/system/layouts/new/x')->status === 404, 'not a layout');
     putenv('CAMPANELLA_DB_PREFIX');
 });
 

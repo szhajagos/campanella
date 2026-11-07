@@ -1402,7 +1402,16 @@ final class Kernel
             $c->get(AdminMenu::class),
             $c->has(ComponentPages::class) ? $c->get(ComponentPages::class) : null,
             $c->get(TokenRegistry::class),
-            new LayoutPages($c->get(LayoutService::class), $c->get(BlueprintRegistry::class), $c->get(Csrf::class), $c->get(Flash::class), $c->get(AdminAccess::class)),
+            new LayoutPages($c->get(LayoutService::class), $c->get(BlueprintRegistry::class), $c->get(Csrf::class), $c->get(Flash::class), $c->get(AdminAccess::class), new \Campanella\Admin\LayoutEditor(
+                $c->get(LayoutService::class),
+                $c->get(\Campanella\Layout\LayoutStore::class),
+                $c->get(BlueprintRegistry::class),
+                $c->get(Csrf::class),
+                $c->get(Flash::class),
+                $c->get(AdminAccess::class),
+                static fn (): array => array_keys($c->get(\Campanella\Module\ModuleRegistry::class)->all()),
+                $c->get(Translator::class),
+            )),
             $c->has(ComponentPages::class) ? new PageComponentPages(
                 $c->get(ComponentService::class),
                 $c->get(ComponentPages::class),

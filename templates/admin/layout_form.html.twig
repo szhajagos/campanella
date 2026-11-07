@@ -1,0 +1,174 @@
+{% extends '@core/admin/base.html.twig' %}
+
+{# A layout made in the admin (since 0.4.10): its rows of columns, each column a region; the
+   sketch beside it. The buttons send the form and show it again changed (nothing saved until
+   Save); admin-layout-editor.js adds dragging and redraws the sketch as the form changes. #}
+{% macro error(errors, key) %}{% if errors[key] ?? null %}<div class="invalid-feedback d-block">{{ t(errors[key].key, errors[key].params) }}</div>{% endif %}{% endmacro %}
+
+{% block content %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb small mb-2">
+            <li class="breadcrumb-item"><a href="{{ admin_url('system/layouts') }}">{{ t('layouts.title') }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ layout ? layout.label : t('layouts.editor.new') }}</li>
+        </ol>
+    </nav>
+    <h1 class="h3 mb-2">{{ t(layout ? 'layouts.editor.edit' : 'layouts.editor.new') }}</h1>
+    <p class="text-body-secondary mb-4">{{ t('layouts.editor.intro') }}</p>
+    {% if alert %}<div class="alert alert-danger" role="alert">{{ t(alert) }}</div>{% endif %}
+    {{ _self.error(errors, 'form') }}
+
+    <form method="post" action="{{ admin_url('system/layouts/' ~ (layout ? layout.name : 'new')) }}" class="admin-form" id="layout-editor" data-layout-editor novalidate>
+        {{ csrf_field() }}
+        {# The default button (Enter in a field) saves. #}
+        <button type="submit" name="op" value="save" class="visually-hidden" tabindex="-1" aria-hidden="true">{{ t('layouts.save') }}</button>
+        <button type="submit" name="op" value="refresh" class="d-none" tabindex="-1" aria-hidden="true" data-layout-refresh>{{ t('layouts.editor.refresh') }}</button>
+
+        <div class="row g-4">
+            <div class="col-xl-8">
+                <div class="card card-body mb-4">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold" for="layout-label">{{ t('layouts.editor.label') }} <span class="text-danger" aria-hidden="true">*</span></label>
+                            <input type="text" class="form-control{{ errors.label is defined ? ' is-invalid' }}" id="layout-label" name="label" value="{{ form.label }}" maxlength="100" required>
+                            {{ _self.error(errors, 'label') }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold" for="layout-name">{{ t('layouts.editor.name') }}{% if not layout %} <span class="text-danger" aria-hidden="true">*</span>{% endif %}</label>
+                            <input type="text" class="form-control font-monospace{{ errors.name is defined ? ' is-invalid' }}" id="layout-name" name="name" value="{{ form.name }}" maxlength="63" pattern="[a-z][a-z0-9_]*" aria-describedby="layout-name-help"{{ layout ? ' readonly' : ' required' }}>
+                            {{ _self.error(errors, 'name') }}
+                            <div class="form-text" id="layout-name-help">{{ t(layout ? 'layouts.editor.name_fixed' : 'layouts.editor.name_help') }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <datalist id="layout-regions">{% for region in regions %}<option value="{{ region }}">{% endfor %}</datalist>
+
+                <div data-layout-rows>
+                {% for row in form.rows %}
+                    {% set i = loop.index0 %}
+                    <fieldset class="card mb-3 layout-row" data-layout-row>
+                        <legend class="card-header h6 mb-0 d-flex flex-wrap align-items-center gap-2">
+                            <span class="layout-drag layout-drag-row d-none" aria-hidden="true" title="{{ t('layouts.editor.drag') }}">⠿</span>
+                            <span>{{ t('layouts.editor.row', {number: loop.index}) }}</span>
+                        </legend>
+                        <div class="card-body">
+                            <input type="hidden" name="row[{{ i }}][position]" value="{{ i }}" data-layout-position>
+                            <div class="row g-2 mb-3 align-items-end">
+                                <div class="col-sm-4">
+                                    <label class="form-label small" for="layout-row-{{ i }}-preset">{{ t('layouts.editor.preset') }}</label>
+                                    <select class="form-select form-select-sm" id="layout-row-{{ i }}-preset" name="row[{{ i }}][preset]" data-layout-preset>
+                                        <option value="">{{ t('layouts.editor.preset_own') }}</option>
+                                        {% for preset in presets %}<option value="{{ preset }}">{{ t('layouts.editor.preset.' ~ preset) }}</option>{% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-sm-4">
+                                    <label class="form-label small" for="layout-row-{{ i }}-breakpoint">{{ t('layouts.editor.breakpoint') }}</label>
+                                    <select class="form-select form-select-sm" id="layout-row-{{ i }}-breakpoint" name="row[{{ i }}][breakpoint]" data-layout-field="breakpoint">
+                                        {% for breakpoint in breakpoints %}<option value="{{ breakpoint }}"{{ row.breakpoint == breakpoint ? ' selected' }}>{{ t('layouts.editor.from', {breakpoint: t('layouts.breakpoint.' ~ breakpoint)}) }}</option>{% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-sm-4">
+                                    <div class="form-check mb-1">
+                                        <input class="form-check-input" type="checkbox" id="layout-row-{{ i }}-full" name="row[{{ i }}][full]" value="1"{{ row.full ? ' checked' }} data-layout-field="full">
+                                        <label class="form-check-label small" for="layout-row-{{ i }}-full">{{ t('layouts.editor.full') }}</label>
+                                    </div>
+                                </div>
+                            </div>
+                            {{ _self.error(errors, 'row.' ~ i) }}
+
+                            <div class="row g-2" data-layout-columns>
+                            {% for column in row.columns %}
+                                {% set j = loop.index0 %}
+                                {% set key = 'column.' ~ i ~ '.' ~ j %}
+                                {% set id = 'layout-' ~ i ~ '-' ~ j %}
+                                <div class="col-md-6 col-xxl-3" data-layout-column>
+                                    <div class="border rounded p-2 h-100 layout-column{{ column.region == 'content' ? ' layout-column-main' }}{{ errors[key] is defined ? ' border-danger' }}">
+                                        <input type="hidden" name="row[{{ i }}][col][{{ j }}][position]" value="{{ j }}" data-layout-position>
+                                        <div class="d-flex align-items-center gap-1 mb-2">
+                                            <span class="layout-drag layout-drag-column d-none" aria-hidden="true" title="{{ t('layouts.editor.drag') }}">⠿</span>
+                                            <span class="small fw-semibold me-auto">{{ t('layouts.editor.column', {number: loop.index}) }}</span>
+                                            <button type="submit" name="op" value="column_left:{{ i }}:{{ j }}" class="btn btn-sm btn-outline-secondary py-0 px-1"{{ loop.first ? ' disabled' }} aria-label="{{ t('layouts.editor.column_left', {number: loop.index}) }}">←</button>
+                                            <button type="submit" name="op" value="column_right:{{ i }}:{{ j }}" class="btn btn-sm btn-outline-secondary py-0 px-1"{{ loop.last ? ' disabled' }} aria-label="{{ t('layouts.editor.column_right', {number: loop.index}) }}">→</button>
+                                            <button type="submit" name="op" value="remove_column:{{ i }}:{{ j }}" class="btn btn-sm btn-outline-danger py-0 px-1"{{ row.columns|length == 1 ? ' disabled' }} aria-label="{{ t('layouts.editor.column_remove', {number: loop.index}) }}">×</button>
+                                        </div>
+                                        <label class="form-label small mb-0" for="{{ id }}-region">{{ t('layouts.editor.region') }}</label>
+                                        <input type="text" class="form-control form-control-sm font-monospace mb-1{{ errors[key] is defined ? ' is-invalid' }}" id="{{ id }}-region" name="row[{{ i }}][col][{{ j }}][region]" value="{{ column.region }}" list="layout-regions" maxlength="63" data-layout-field="region">
+                                        <label class="form-label small mb-0" for="{{ id }}-label">{{ t('layouts.editor.region_label') }}</label>
+                                        <input type="text" class="form-control form-control-sm mb-1" id="{{ id }}-label" name="row[{{ i }}][col][{{ j }}][label]" value="{{ column.label }}" maxlength="100" data-layout-field="label">
+                                        <div class="row g-1">
+                                            <div class="col-6">
+                                                <label class="form-label small mb-0" for="{{ id }}-width">{{ t('layouts.editor.width') }}</label>
+                                                <select class="form-select form-select-sm" id="{{ id }}-width" name="row[{{ i }}][col][{{ j }}][width]" data-layout-field="width">
+                                                    {% for width in 1..12 %}<option value="{{ width }}"{{ column.width == width ? ' selected' }}>{{ width }}/12</option>{% endfor %}
+                                                </select>
+                                            </div>
+                                            <div class="col-6">
+                                                <label class="form-label small mb-0" for="{{ id }}-order">{{ t('layouts.editor.order') }}</label>
+                                                <select class="form-select form-select-sm" id="{{ id }}-order" name="row[{{ i }}][col][{{ j }}][order]" data-layout-field="order">
+                                                    <option value="">{{ t('layouts.editor.order_same') }}</option>
+                                                    {% for order in 1..max_columns %}<option value="{{ order }}"{{ column.order == order ~ '' ? ' selected' }}>{{ order }}.</option>{% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <label class="form-label small mb-0 mt-1" for="{{ id }}-landmark">{{ t('layouts.editor.landmark') }}</label>
+                                        <select class="form-select form-select-sm mb-1" id="{{ id }}-landmark" name="row[{{ i }}][col][{{ j }}][landmark]">
+                                            <option value="none"{{ column.landmark == 'none' ? ' selected' }}>{{ t('layouts.editor.landmark.none') }}</option>
+                                            <option value="aside"{{ column.landmark == 'aside' ? ' selected' }}>{{ t('layouts.editor.landmark.aside') }}</option>
+                                        </select>
+                                        <label class="form-label small mb-0" for="{{ id }}-look">{{ t('layouts.editor.look') }}</label>
+                                        <select class="form-select form-select-sm mb-1" id="{{ id }}-look" name="row[{{ i }}][col][{{ j }}][look]" data-layout-field="look">
+                                            {% for value, look in looks %}<option value="{{ value }}"{{ column.look == value ? ' selected' }}>{% if look.breakpoint is null %}{{ t('layouts.look.always') }}{% else %}{{ t('layouts.look.' ~ look.small, {breakpoint: t('layouts.breakpoint.' ~ look.breakpoint)}) }}{% endif %}</option>{% endfor %}
+                                        </select>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="{{ id }}-page" name="row[{{ i }}][col][{{ j }}][page]" value="1"{{ column.page ? ' checked' }}>
+                                            <label class="form-check-label small" for="{{ id }}-page">{{ t('layouts.editor.page') }}</label>
+                                        </div>
+                                        {{ _self.error(errors, key) }}
+                                    </div>
+                                </div>
+                            {% endfor %}
+                            </div>
+                            <div class="d-flex flex-wrap gap-2 mt-3">
+                                {% if row.columns|length < max_columns %}<button type="submit" name="op" value="add_column:{{ i }}" class="btn btn-sm btn-outline-primary">{{ t('layouts.editor.add_column') }}</button>{% endif %}
+                                <span class="ms-auto"></span>
+                                <button type="submit" name="op" value="row_up:{{ i }}" class="btn btn-sm btn-outline-secondary"{{ loop.first ? ' disabled' }} aria-label="{{ t('layouts.editor.row_up', {number: loop.index}) }}">↑</button>
+                                <button type="submit" name="op" value="row_down:{{ i }}" class="btn btn-sm btn-outline-secondary"{{ loop.last ? ' disabled' }} aria-label="{{ t('layouts.editor.row_down', {number: loop.index}) }}">↓</button>
+                                <button type="submit" name="op" value="remove_row:{{ i }}" class="btn btn-sm btn-outline-danger"{{ form.rows|length == 1 ? ' disabled' }}>{{ t('layouts.editor.row_remove') }}</button>
+                            </div>
+                        </div>
+                    </fieldset>
+                {% endfor %}
+                </div>
+                {% if form.rows|length < max_rows %}<button type="submit" name="op" value="add_row" class="btn btn-outline-primary mb-4">{{ t('layouts.editor.add_row') }}</button>{% endif %}
+
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="submit" name="op" value="save" class="btn btn-primary">{{ t('layouts.save') }}</button>
+                    <a class="btn btn-outline-secondary" href="{{ admin_url('system/layouts') }}">{{ t('admin.form.cancel') }}</a>
+                    {% if layout %}<a class="btn btn-outline-danger ms-auto" href="{{ admin_url('system/layouts/' ~ layout.name ~ '/delete') }}">{{ t('layouts.editor.delete') }}</a>{% endif %}
+                </div>
+            </div>
+
+            <div class="col-xl-4">
+                <div class="card card-body layout-sketches" id="layout-sketch">
+                    <h2 class="h6">{{ t('layouts.editor.sketch') }}</h2>
+                    <p class="form-text mt-0">{{ t('layouts.editor.sketch_help') }}</p>
+                    <div class="row g-3">
+                        <div class="col-8 col-xl-12 col-xxl-8">
+                            <div class="small text-body-secondary mb-1">{{ t('layouts.editor.sketch_large') }}</div>
+                            {{ include('@core/admin/_layout_sketch.html.twig', {rows: sketch, mode: 'large'}) }}
+                        </div>
+                        <div class="col-4 col-xl-6 col-xxl-4">
+                            <div class="small text-body-secondary mb-1">{{ t('layouts.editor.sketch_small') }}</div>
+                            {{ include('@core/admin/_layout_sketch.html.twig', {rows: sketch, mode: 'small'}) }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+{% endblock %}
+
+{% block scripts %}
+    <script src="{{ asset('vendor/sortablejs/Sortable.min.js') }}" defer></script>
+    <script src="{{ asset('admin-layout-editor.js') }}" defer></script>
+{% endblock %}

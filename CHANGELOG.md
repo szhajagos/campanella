@@ -10,7 +10,14 @@ backward-incompatible.
 
 ## [Unreleased]
 
-**Layouts edited in the admin, part 1.** The fourth step of 0.5.0.
+## [0.4.10] – 2026-11-07
+
+**Layouts edited in the admin.** The fourth step of 0.5.0.
+
+**Upgrading from 0.4.x (or 0.3.x):** upload the new files and run the upgrade
+as usual; it adds the `layouts` table (schema 24). A theme's own layout
+templates keep working. From older versions: see
+[docs/upgrading.md](docs/upgrading.md).
 
 ### Added
 
@@ -27,13 +34,34 @@ backward-incompatible.
 - **The layouts made in the admin** are stored in a new `layouts` table
   (schema version 24), read after those of the files (whose names win), and
   carried by the content model's file (`layouts`), like the colour schemes.
-  Their editor comes in part 2.
+- **The layout editor** (Appearance → Layouts): the layouts listed with a
+  sketch and where each is used; a new layout, or a copy of a layout of rows;
+  its rows (a proportion: 1/2–1/2, 2/3–1/3, 3/4–1/4, three or four columns …;
+  from which width side by side; the full width) and columns (the region's
+  name and label, its width, its place when stacked, a sidebar or a block, its
+  look on small screens, a page's own components); rows and columns dragged
+  (SortableJS) or moved with buttons, which work without JavaScript; a sketch
+  at a large width and a phone's, drawn again at each change; the problems shown
+  by field; deleted only while nothing uses it.
 
 ### Changed
 
 - The core's two layouts (*One column*, *With a sidebar*) are layouts of rows;
   their HTML is that of 0.4.9 (a test compares them), and a theme's template of
   their name still takes their place.
+
+### Documentation and tests
+
+- The guide's chapter 14 (hu, en): a layout of your own, with a screenshot of
+  the editor; the Layouts page's screenshot anew.
+- PHP API chapter 29: a layout of rows, made in the admin, `LayoutEditor`;
+  chapter 24: `layouts` in the content model's file.
+- Reviewed ([the review](docs/security.md#review-of-the-layouts-made-in-the-admin-0410-2026-11-07)).
+- Tests: the rows checked (20 kinds of refusal), the core's HTML unchanged, the
+  classes, the table and the registry, the model file, a page in a layout made
+  in the admin; the editor (its buttons, a proportion, the positions dragged,
+  the problems, a copy, used, deleted), hostile values; in the browser a column
+  dragged, the sketch drawn again, the editor at a phone's width.
 
 ## [0.4.9] – 2026-11-06
 

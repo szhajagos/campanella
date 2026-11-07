@@ -259,6 +259,44 @@ layouts yet; what is saved counts from then on. A layout left out of the registr
 `LayoutPages::looks()` lists the looks offered: `always`, `collapse:<breakpoint>`,
 `hide:<breakpoint>`; an `always` look is saved with the layout's own breakpoint.
 
+Since 0.4.10 the page first lists the layouts: each with a sketch (a layout of
+rows), its origin, where it is used (the site, Blueprints), and buttons to edit
+or delete one made in the admin and to copy a layout of rows.
+
+### In the admin: LayoutEditor
+
+*Since 0.4.10.* `Campanella\Admin\LayoutEditor` · Internal, for the system roles:
+
+| Address | |
+|---|---|
+| `/admin/system/layouts/new` | A new layout: one row, the content; `?from=<name>` a copy of a layout of rows (its labels as text) |
+| `/admin/system/layouts/<name>` | One made in the admin (`origin` `admin`), edited; its name stays |
+| `/admin/system/layouts/<name>/delete` | Deleted, asked first; not while the site or a Blueprint uses it (`usedBy()`); the components in its regions stay, a page whose own layout it was shows its Blueprint's |
+
+The form: the layout's name (machine name, not of a layout of the files, not
+starting with a module's name and `_`) and label; its rows: a proportion
+(`PRESETS`: 12, 6-6, 8-4, 4-8, 9-3, 3-9, 4-4-4, 3-6-3, 3-3-3-3, which sets the
+row's columns and their widths), the breakpoint, the full width; each column:
+its region (a machine name, existing regions offered) and label, its width
+(1–12), its place when stacked, `aside` or a block, its look on small screens,
+whether a page's own components may be placed in it. The buttons (a row or
+column added, taken out, moved) send the form with `op` and show it again
+changed: nothing is saved until *Save*, and it works without JavaScript.
+`admin-layout-editor.js` adds dragging rows and columns (SortableJS, each one's
+`position` written; the server orders by them), sends the form when a
+proportion is chosen, and draws the sketch again (a large width and a phone's,
+`_layout_sketch.html.twig`) as the form changes, with text only. On *Save* the
+form's problems are shown by field (the name, the label, a region's name, the
+same region twice, `header`/`navigation`/`footer`, the widths more than 12, an
+order twice, the content not once), then it is checked as a layout of rows
+(`LayoutDefinition::fromJson()`) and stored (`LayoutStore`).
+
+| Method | |
+|---|---|
+| `handle(Request $request, array $segments, Closure $render): Response` | Called by `LayoutPages` for the addresses above |
+| `usedBy(string $name): list<string>` | `site` and the Blueprints whose layout it is |
+| `static sketch(LayoutDefinition $layout): array` | A layout of rows for the sketch: each column's region, label, width, order, whether hidden on small screens |
+
 ## The header and footer: LayoutSetup
 
 `Campanella\Layout\LayoutSetup` · Internal

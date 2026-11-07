@@ -126,6 +126,35 @@ version: upgrade it to 0.3.x ([Upgrading](upgrading.md)).
   may see, and puts an apostrophe before a text a spreadsheet would run as a
   formula (`=`, `+`, `-`, `@`).
 
+## Review of the layouts made in the admin, 0.4.10 (2026-11-07)
+
+0.4.10 lets an administrator make a page's structure. The review looked at what
+of a layout made in the admin (or imported with the content model) can reach a
+page, and at the editor. Tests: `Security review (0.4.10)`, `Layouts of rows`,
+`Layouts made in the admin`, the layout editor's.
+
+- **No template code, no markup, no classes.** A layout made in the admin is
+  data only: names of the region pattern, numbers in their ranges (widths 1–12,
+  at most 12 a row, places 1–4), and values of short lists (breakpoints,
+  `aside`/`none`, the looks); a key not of the format is refused. The one shared
+  template (`layout/_rows.html.twig`) makes the elements and the Bootstrap
+  classes from them (`LayoutRow`, `LayoutColumn`); nothing of the JSON goes
+  into a page as it is. In the form, what is not a value offered becomes the
+  default. Labels are text, escaped (Twig, and `textContent` in the sketch).
+- **The page's structure stays sound.** The content region is the `<main>`,
+  exactly once; the header's, navigation's and footer's regions are always
+  there and cannot be put in a row; at most 10 rows of 4 columns (and the
+  existing 20 regions) are read, the form's too.
+- **Names.** An admin-made layout cannot take the name of a layout of the
+  files (core, module, theme): one stored or imported under such a name is left
+  out, the file's wins. Names starting with a module's prefix are refused.
+  Copying (`?from=`) reads only a layout of rows the registry has.
+- **Who.** The editor is for the system roles; every POST (its buttons too)
+  needs the CSRF token, and changes nothing without it. A layout in use (the
+  site, a Blueprint) cannot be deleted.
+
+Nothing needed fixing.
+
 ## Review of the scheduled tasks and the web sources, 0.4.9 (2026-11-06)
 
 0.4.9 makes the server fetch addresses typed in the admin, and run work by

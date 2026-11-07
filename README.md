@@ -1,4 +1,4 @@
-# Campanella 0.4.9
+# Campanella 0.4.10
 
 [![CI](https://github.com/szhajagos/campanella/actions/workflows/ci.yml/badge.svg)](https://github.com/szhajagos/campanella/actions/workflows/ci.yml)
 
@@ -17,7 +17,18 @@ with a light and a dark mode, sample content in the site's language; and what
 0.4.x keeps is promised (see the [compatibility promise](docs/compatibility.md)).
 Plans are in the [ROADMAP](ROADMAP.md), changes in the [CHANGELOG](CHANGELOG.md).
 
-## What is new in 0.4.9
+## What is new in 0.4.10
+
+**Layouts edited in the admin** (Appearance → Layouts): a layout of your own,
+rows of columns between the header and the footer, each column a region; their
+proportions, from which width they are side by side, their order when stacked
+on a phone, a full-width row; dragged, with a sketch at a large width and a
+phone's. No template code: the page is made from names and numbers only
+([guide](docs/guide/en/14-layouts.md#a-layout-of-your-own),
+[PHP API](docs/php-api/29-layouts.md#a-layout-of-rows),
+[security](docs/security.md#review-of-the-layouts-made-in-the-admin-0410-2026-11-07)).
+
+## What was new in 0.4.9
 
 **Web sources and scheduled tasks**: the site does work by itself, run by
 `cron:run` from the server's cron (System → Scheduled tasks shows when it last

@@ -713,6 +713,59 @@ def test_layouts(browser):
 
 
 
+def test_layout_editor(browser):
+    """A layout made from a copy (since 0.4.10): a column dragged, the sketch drawn again, a proportion, saved;
+    the editor at a phone's width; deleted."""
+    context = new_context(browser)
+    page = context.new_page()
+    page.set_viewport_size({"width": 1400, "height": 1600})
+    login(page, ADMIN)
+    page.goto(BASE + "/admin/system/layouts/new?from=sidebar")
+    check(page.locator(".layout-drag-column").first.is_visible(), "no drag handle")
+    page.fill("#layout-label", "Böngészős elrendezés")
+    page.fill("#layout-name", "bongeszos")
+    check(sketch_boxes(page) == ["Tartalom", "Oldalsáv"], "the sketch: " + str(sketch_boxes(page)))
+    # The sidebar dragged before the content.
+    handle = page.locator("[data-layout-column]").nth(1).locator(".layout-drag-column").bounding_box()
+    target = page.locator("[data-layout-column]").nth(0).bounding_box()
+    page.mouse.move(handle["x"] + handle["width"] / 2, handle["y"] + handle["height"] / 2)
+    page.mouse.down()
+    page.mouse.move(handle["x"] + handle["width"] / 2 - 5, handle["y"] + handle["height"] / 2, steps=3)
+    page.mouse.move(target["x"] + target["width"] * 0.2, target["y"] + target["height"] / 2, steps=15)
+    page.mouse.move(target["x"] + target["width"] * 0.2 + 2, target["y"] + target["height"] / 2, steps=2)
+    page.mouse.up()
+    check(sketch_boxes(page) == ["Oldalsáv", "Tartalom"], "not dragged: " + str(sketch_boxes(page)))
+    check(page.locator("[data-layout-column]").nth(0).locator("[data-layout-position]").input_value() == "0", "its place not written")
+    # A width changed (the sidebar's, now the first): the sketch follows.
+    page.select_option("#layout-0-1-width", "6")
+    check("col-6" in (page.locator("#layout-sketch [data-layout-sketch=large] .layout-sketch-row > div").nth(0).get_attribute("class") or ""), "the sketch not drawn again")
+    # A proportion: sent, shown with its widths.
+    with page.expect_navigation():
+        page.select_option("#layout-row-0-preset", "3-6-3")
+    check(page.locator("[data-layout-column]").count() == 3 and page.locator("#layout-0-2-width").input_value() == "3", "the proportion not applied")
+    check(page.locator("#layout-0-0-region").input_value() == "sidebar", "the dragged order not kept")
+    page.fill("#layout-0-2-region", "harmadik")
+    page.fill("#layout-0-2-label", "Harmadik")
+    with page.expect_navigation():
+        page.locator("#layout-editor button.btn-primary[value=save]").click()
+    check(page.locator(".alert-success").count() == 1, "not saved")
+    # At a phone's width: nothing wider than the screen.
+    page.set_viewport_size({"width": 375, "height": 800})
+    page.reload()
+    check(page.evaluate("() => document.documentElement.scrollWidth <= window.innerWidth + 1"), "wider than a phone")
+    page.set_viewport_size({"width": 1400, "height": 1600})
+    page.goto(BASE + "/admin/system/layouts/bongeszos/delete")
+    with page.expect_navigation():
+        page.click("main form button.btn-danger")
+    check(page.locator("#layouts-item-bongeszos").count() == 0, "not deleted")
+    context.close()
+
+
+def sketch_boxes(page):
+    """The labels of the large sketch's boxes, in order."""
+    return [text.strip() for text in page.locator("#layout-sketch [data-layout-sketch=large] .layout-sketch-box").all_inner_texts()]
+
+
 def test_content_paths(browser):
     """The news' path changed in the Site settings: the old address leads on, the menu follows; set back (since 0.4.1)."""
     context = new_context(browser)
@@ -1022,6 +1075,7 @@ TESTS = [
     test_dragging,
     test_tree_dragging,
     test_layouts,
+    test_layout_editor,
     test_page_components,
     test_color_schemes,
     test_color_mode_switch,

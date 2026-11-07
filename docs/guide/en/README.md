@@ -38,7 +38,7 @@ interface, with Campanella's own sample content in English.
     source, the display, the settings), who sees it, in a template.
 14. [Layouts and regions](14-layouts.md): the header's and footer's
     components, a sidebar beside the articles, the regions' order, where a
-    component shows, on small screens.
+    component shows, on small screens, a layout of your own of rows and columns.
 15. [Pages assembled from components](15-pages.md): a page's own components and
     layout (for editors too), a new component for a page, the front page.
 16. [Colour schemes and the colour mode](16-colour-schemes.md): the site's colours
