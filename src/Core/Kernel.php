@@ -950,6 +950,7 @@ final class Kernel
             $c->get(ListStore::class),
             $c->get(ObjectReferences::class),
             $c->get(ColorSchemeStore::class),
+            $c->get(\Campanella\Layout\LayoutStore::class),
         ));
         $c->set(ModelImport::class, static fn (Container $c): ModelImport => new ModelImport(
             $c->get(CapabilityRegistry::class),
@@ -966,6 +967,8 @@ final class Kernel
             $c->get(ColorSchemeRegistry::class),
             $c->get(ColorSchemeStore::class),
             $c->get(\Campanella\Model\FieldTypeRegistry::class),
+            $c->get(LayoutRegistry::class),
+            $c->get(\Campanella\Layout\LayoutStore::class),
         ));
         $c->set(SchemaSync::class, static fn (Container $c): SchemaSync => new SchemaSync(
             $c->get(Connection::class),
@@ -1194,8 +1197,10 @@ final class Kernel
 
             $dirs = [$root . '/templates', ...$c->get(\Campanella\Module\ModuleLoader::class)->layoutDirs()];
 
-            return new LayoutRegistry($theme->templateDir === null ? $dirs : [...$dirs, $theme->templateDir]);
+            // Since 0.4.10 the layouts made in the admin too.
+            return new LayoutRegistry($theme->templateDir === null ? $dirs : [...$dirs, $theme->templateDir], static fn (): array => $c->get(\Campanella\Layout\LayoutStore::class)->load());
         });
+        $c->set(\Campanella\Layout\LayoutStore::class, static fn (Container $c): \Campanella\Layout\LayoutStore => new \Campanella\Layout\LayoutStore($c->get(Connection::class)));
         $c->set(LayoutService::class, static fn (Container $c): LayoutService => new LayoutService(
             $c->get(LayoutRegistry::class),
             $c->get(Settings::class),

@@ -71,13 +71,15 @@ final class ModelImport
         private readonly ?\Campanella\Appearance\ColorSchemeRegistry $schemeRegistry = null,
         private readonly ?\Campanella\Appearance\ColorSchemeStore $schemeStore = null,
         private readonly ?\Campanella\Model\FieldTypeRegistry $fieldTypes = null,
+        private readonly ?\Campanella\Layout\LayoutRegistry $layoutRegistry = null,
+        private readonly ?\Campanella\Layout\LayoutStore $layoutStore = null,
     ) {
     }
 
     /**
      * What importing the file's model would do.
      *
-     * @param array{blueprints: array<string, array<string, mixed>>, lists: array<string, array<string, mixed>>, color_schemes?: array<string, array<string, mixed>>} $model ModelFile::decode()
+     * @param array{blueprints: array<string, array<string, mixed>>, lists: array<string, array<string, mixed>>, color_schemes?: array<string, array<string, mixed>>, layouts?: array<string, array<string, mixed>>} $model ModelFile::decode()
      */
     public function plan(array $model): ImportPlan
     {
@@ -182,10 +184,13 @@ final class ModelImport
         // The colour schemes (since 0.4.2): checked as a scheme's file, never under a file's name.
         [$schemeItems, $schemes, $storedSchemes] = $this->schemes($model['color_schemes'] ?? []);
         $items += $schemeItems;
+        // The layouts (since 0.4.10): checked as a layout's file of rows, never under a file's name.
+        [$layoutItems, $layouts, $storedLayouts] = $this->layouts($model['layouts'] ?? []);
+        $items += $layoutItems;
 
-        $fingerprint = hash('sha256', json_encode([$storedBlueprints, $storedLists, $save, $lists, $storedSchemes, array_keys($schemes)], JSON_THROW_ON_ERROR));
+        $fingerprint = hash('sha256', json_encode([$storedBlueprints, $storedLists, $save, $lists, $storedSchemes, array_keys($schemes), $storedLayouts, array_keys($layouts)], JSON_THROW_ON_ERROR));
 
-        return new ImportPlan(array_values($items), $errors, $database, $backup, $save, $lists, $fingerprint, $sync, $schemes);
+        return new ImportPlan(array_values($items), $errors, $database, $backup, $save, $lists, $fingerprint, $sync, $schemes, $layouts);
     }
 
     /**
@@ -235,8 +240,69 @@ final class ModelImport
         if ($plan->schemes !== []) {
             $this->schemeRegistry?->reset();
         }
+        foreach ($plan->layouts as $layout) {
+            $this->layoutStore?->save($layout);
+        }
+        if ($plan->layouts !== []) {
+            $this->layoutRegistry?->reset();
+        }
 
         return $file;
+    }
+
+    /**
+     * The file's layouts (since 0.4.10): their lines, those to save, and the site's stored ones.
+     *
+     * @param array<string, array<string, mixed>> $incoming
+     * @return array{0: array<string, ImportItem>, 1: array<string, \Campanella\Layout\LayoutDefinition>, 2: array<string, string>}
+     */
+    private function layouts(array $incoming): array
+    {
+        if ($this->layoutStore === null || $this->layoutRegistry === null) {
+            return [[], [], []];
+        }
+        $stored = $this->layoutStore->load();
+        $items = [];
+        $save = [];
+        foreach ($incoming as $name => $definition) {
+            $name = (string) $name;
+            $label = is_string($definition['label'] ?? null) ? $definition['label'] : $name;
+            if ($this->layoutRegistry->isFileName($name)) {
+                $items['layout:' . $name] = new ImportItem(ImportItem::LAYOUT, $name, $label, ImportItem::ERROR, error: new Message('transfer.error.layout_file_name'));
+                continue;
+            }
+            try {
+                $layout = \Campanella\Layout\LayoutDefinition::fromJson($name, (string) json_encode($definition), 'admin', false);
+                if (!$layout->hasRows()) {
+                    throw new InvalidArgumentException("Layout {$name}: a layout made in the admin is one of rows.");
+                }
+            } catch (InvalidArgumentException $e) {
+                $items['layout:' . $name] = new ImportItem(ImportItem::LAYOUT, $name, $label, ImportItem::ERROR, error: new Message('transfer.error.invalid', ['reason' => $e->getMessage()]));
+                continue;
+            }
+            $before = null;
+            if (isset($stored[$name])) {
+                try {
+                    $before = \Campanella\Layout\LayoutDefinition::fromJson($name, $stored[$name], 'admin', false)->toArray();
+                } catch (InvalidArgumentException) {
+                    $before = [];
+                }
+            }
+            if ($before === $layout->toArray()) {
+                $items['layout:' . $name] = new ImportItem(ImportItem::LAYOUT, $name, $layout->label, ImportItem::UNCHANGED);
+                continue;
+            }
+            $items['layout:' . $name] = new ImportItem(ImportItem::LAYOUT, $name, $layout->label, $before === null ? ImportItem::CREATE : ImportItem::UPDATE, [new Message($before === null ? 'transfer.change.layout_created' : 'transfer.change.layout_changed')]);
+            $save[$name] = $layout;
+        }
+        foreach ($stored as $name => $json) {
+            if (!isset($incoming[$name])) {
+                $definition = json_decode($json, true);
+                $items['layout:' . $name] = new ImportItem(ImportItem::LAYOUT, (string) $name, is_array($definition) && is_string($definition['label'] ?? null) ? $definition['label'] : (string) $name, ImportItem::KEPT);
+            }
+        }
+
+        return [$items, $save, $stored];
     }
 
     /**

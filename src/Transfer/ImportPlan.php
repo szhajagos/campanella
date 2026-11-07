@@ -24,6 +24,7 @@ final readonly class ImportPlan
      * @param string $fingerprint Of the site's model and the changes: an import confirmed later applies only if it is the same
      * @internal $sync The SchemaSync with the new definitions
      * @param array<string, \Campanella\Appearance\ColorScheme> $schemes The colour schemes to save (since 0.4.2)
+     * @param array<string, \Campanella\Layout\LayoutDefinition> $layouts The layouts to save (since 0.4.10)
      */
     public function __construct(
         public array $items,
@@ -35,6 +36,7 @@ final readonly class ImportPlan
         public string $fingerprint,
         public ?SchemaSync $sync = null,
         public array $schemes = [],
+        public array $layouts = [],
     ) {
     }
 
@@ -55,7 +57,7 @@ final readonly class ImportPlan
     /** Whether applying it would change anything. */
     public function hasChanges(): bool
     {
-        return $this->blueprints !== [] || $this->lists !== [] || $this->schemes !== [];
+        return $this->blueprints !== [] || $this->lists !== [] || $this->schemes !== [] || $this->layouts !== [];
     }
 
     /**

@@ -140,6 +140,6 @@ final class LayoutService
             $regions[$name] = $saved === null ? $region : $region->withLook($small, $breakpoint);
         }
 
-        return new LayoutDefinition($layout->name, $layout->label, $regions, $layout->origin);
+        return new LayoutDefinition($layout->name, $layout->label, $regions, $layout->origin, $layout->rows, $layout->ownTemplate);
     }
 }

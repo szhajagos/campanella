@@ -1867,4 +1867,8 @@ return [
     'fetch.no_curl' => 'PHP\'s curl extension is needed to fetch from web addresses.',
     'cron.every_day' => 'every day',
     'cron.every_hour' => 'every hour',
+    'transfer.kind.layout' => 'Layout',
+    'transfer.change.layout_created' => 'Made.',
+    'transfer.change.layout_changed' => 'Its rows, its regions or its name change.',
+    'transfer.error.layout_file_name' => 'A layout of the core, a module or the theme has this name: it is not imported.',
 ];

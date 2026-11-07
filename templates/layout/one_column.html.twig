@@ -1,7 +1,3 @@
-{# The one-column layout (since 0.3.4): header, navigation, content (the page's own first: main), footer. #}
-{{ include('layout/_header.html.twig') }}
-<main class="container site-container flex-grow-1 py-4 py-md-5" id="main" tabindex="-1">
-    {{ main }}
-    {{ region('content', {class: 'mt-4'}) }}
-</main>
-{{ include('layout/_footer.html.twig') }}
+{# The one-column layout (since 0.3.4): header, navigation, content (the page's own first: main), footer.
+   Since 0.4.10 a layout of rows (one_column.json): the shared template makes it. #}
+{{ include('layout/_rows.html.twig') }}

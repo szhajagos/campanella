@@ -1,6 +1,7 @@
 {
     "version": 1,
     "label": "layout.sidebar",
+    "rows": [{"columns": [{"region": "content", "width": 8}, {"region": "sidebar", "width": 4, "landmark": "aside"}]}],
     "regions": {
         "header": {"label": "layout.region.header"},
         "navigation": {"label": "layout.region.navigation", "small": "collapse", "breakpoint": "md"},

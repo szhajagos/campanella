@@ -1,6 +1,7 @@
 {
     "version": 1,
     "label": "layout.one_column",
+    "rows": [{"columns": [{"region": "content", "width": 12}]}],
     "regions": {
         "header": {"label": "layout.region.header"},
         "navigation": {"label": "layout.region.navigation", "small": "collapse", "breakpoint": "md"},

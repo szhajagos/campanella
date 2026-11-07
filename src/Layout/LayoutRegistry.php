@@ -10,6 +10,10 @@ namespace Campanella\Layout;
  * takes its place. A layout is its JSON file and its template beside it; one whose JSON is
  * not valid, or that has no template, is left out, and errors() says why (the System page
  * shows it).
+ *
+ * Since 0.4.10 a layout of rows (`rows` in its JSON) needs no template of its own, and the
+ * layouts made in the admin (LayoutStore, origin `admin`) come after those of the files; one
+ * with the name of a layout of the files is left out (the file's wins).
  */
 final class LayoutRegistry
 {
@@ -24,8 +28,9 @@ final class LayoutRegistry
 
     /**
      * @param list<string> $directories The template folders, the core's first: each one's `layout/`
+     * @param (\Closure(): array<string, string>)|null $stored The layouts made in the admin: name => JSON (since 0.4.10)
      */
-    public function __construct(private readonly array $directories)
+    public function __construct(private readonly array $directories, private readonly ?\Closure $stored = null)
     {
     }
 
@@ -38,19 +43,66 @@ final class LayoutRegistry
                 foreach (glob(rtrim($directory, '/') . '/layout/*.json') ?: [] as $file) {
                     $name = basename($file, '.json');
                     try {
-                        if (!is_file(dirname($file) . '/' . $name . '.html.twig')) {
-                            throw new \InvalidArgumentException("Layout {$name}: its template layout/{$name}.html.twig is missing.");
-                        }
-                        $this->layouts[$name] = LayoutDefinition::fromJson($name, (string) file_get_contents($file), $index === 0 ? 'core' : 'theme');
+                        $own = is_file(dirname($file) . '/' . $name . '.html.twig');
+                        $this->layouts[$name] = LayoutDefinition::fromJson($name, (string) file_get_contents($file), $index === 0 ? 'core' : 'theme', $own);
                         unset($this->errors[$name]);
                     } catch (\InvalidArgumentException $e) {
                         $this->errors[$name] = $e->getMessage();
                     }
                 }
             }
+            foreach ($this->storedLayouts() as $name => $json) {
+                if (isset($this->layouts[$name])) {
+                    $this->errors[$name] = "Layout {$name}: a layout of the files has this name; the one made in the admin is left out.";
+                    continue;
+                }
+                try {
+                    $layout = LayoutDefinition::fromJson($name, $json, 'admin', false);
+                    if (!$layout->hasRows()) {
+                        throw new \InvalidArgumentException("Layout {$name}: a layout made in the admin is one of rows.");
+                    }
+                    $this->layouts[$name] = $layout;
+                } catch (\InvalidArgumentException $e) {
+                    $this->errors[$name] = $e->getMessage();
+                }
+            }
         }
 
         return $this->layouts;
+    }
+
+    /** Whether a layout of the files (core, module, theme) has the name, used or not (since 0.4.10). */
+    public function isFileName(string $name): bool
+    {
+        foreach ($this->directories as $directory) {
+            if (is_file(rtrim($directory, '/') . '/layout/' . $name . '.json')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** Forgets what was read: the layouts are read again (since 0.4.10, after one is saved). */
+    public function reset(): void
+    {
+        $this->layouts = null;
+        $this->errors = [];
+    }
+
+    /** @return array<string, string> */
+    private function storedLayouts(): array
+    {
+        if ($this->stored === null) {
+            return [];
+        }
+        try {
+            return ($this->stored)();
+        } catch (\Throwable $e) {
+            error_log('Campanella: the layouts made in the admin could not be read: ' . $e->getMessage());
+
+            return [];
+        }
     }
 
     public function has(string $name): bool

@@ -31,6 +31,7 @@ final class CoreSchema
     public const string IMPORT_ITEMS = 'import_items';
     public const string COLOR_SCHEMES = 'color_schemes';
     public const string SCHEDULED_TASKS = 'scheduled_tasks';
+    public const string LAYOUTS = 'layouts';
     public const string SCHEDULED_RUNS = 'scheduled_runs';
 
     /** @return list<Table> */
@@ -338,6 +339,19 @@ final class CoreSchema
             // (Campanella\Appearance\ColorSchemeStore).
             new Table(
                 name: self::COLOR_SCHEMES,
+                columns: [
+                    new Column('name', ColumnType::String, length: 64),
+                    new Column('definition', ColumnType::Json),
+                    new Column('created_at', ColumnType::DateTime),
+                    new Column('updated_at', ColumnType::DateTime),
+                ],
+                primaryKey: ['name'],
+            ),
+            // The layouts made in the admin (since 0.4.10, schema version 24): each one's
+            // definition as JSON, as a layout's file of rows has it, loaded but never queried
+            // (Campanella\Layout\LayoutStore).
+            new Table(
+                name: self::LAYOUTS,
                 columns: [
                     new Column('name', ColumnType::String, length: 64),
                     new Column('definition', ColumnType::Json),

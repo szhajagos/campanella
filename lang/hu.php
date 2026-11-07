@@ -1865,4 +1865,8 @@ return [
     'fetch.no_curl' => 'A webcímről letöltéshez a PHP curl kiterjesztése kell.',
     'cron.every_day' => 'naponta',
     'cron.every_hour' => 'óránként',
+    'transfer.kind.layout' => 'Elrendezés',
+    'transfer.change.layout_created' => 'Létrejön.',
+    'transfer.change.layout_changed' => 'A sorai, a régiói vagy a neve változik.',
+    'transfer.error.layout_file_name' => 'A mag, egy modul vagy a téma egyik elrendezésének ez a neve: nem importálható.',
 ];

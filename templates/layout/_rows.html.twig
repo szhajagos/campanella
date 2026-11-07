@@ -1,0 +1,34 @@
+{# A layout of rows (since 0.4.10): the header, its rows of columns, the footer. Every class and
+   element comes from LayoutRow and LayoutColumn, made of the layout's numbers and names: nothing
+   of its JSON goes into the page as it is. The content's column is the page's <main>. #}
+{%- macro column_body(column, main) -%}
+    {%- if column.region == 'content' %}
+            {{ main }}
+            {{ region('content', {class: 'mt-4'}) }}
+    {%- else %}
+            {{ region(column.region) }}
+    {%- endif %}
+{%- endmacro -%}
+{%- macro attributes(column, layout) -%}
+    {%- if column.element == 'main' %} id="main" tabindex="-1"{% elseif column.element == 'aside' %} aria-label="{{ t(layout.regions[column.region].label) }}"{% endif -%}
+{%- endmacro -%}
+{{ include('layout/_header.html.twig') }}
+{% for row in layout.rows %}
+{%- if row.columns|length == 1 and row.columns[0].width == 12 %}
+{%- set column = row.columns[0] %}
+<{{ column.element }} class="{{ row.containerClass }}"{{ _self.attributes(column, layout) }}>
+    {{- _self.column_body(column, main) }}
+</{{ column.element }}>
+{%- else %}
+<div class="{{ row.containerClass }}">
+    <div class="row g-5">
+        {%- for column in row.columns %}
+        <{{ column.element }} class="{{ row.columnClass(column, layout.regions[column.region] ?? null) }}"{{ _self.attributes(column, layout) }}>
+            {{- _self.column_body(column, main) }}
+        </{{ column.element }}>
+        {%- endfor %}
+    </div>
+</div>
+{%- endif %}
+{% endfor %}
+{{ include('layout/_footer.html.twig') }}

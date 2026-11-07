@@ -11,7 +11,9 @@ and the theme; the admin chooses one for the site and one per Blueprint
 |---|---|---|
 | `LayoutDefinition` | **Public** | A layout: its name, label, regions, template |
 | `RegionDefinition` | **Public** | A region: its name, label, how it shows on small screens |
-| `LayoutRegistry` | **Public** | The layouts there are, from the core's and the theme's `layout/` folders |
+| `LayoutRow`, `LayoutColumn` | **Public** | Since 0.4.10: a layout's rows of columns, and their classes |
+| `LayoutRegistry` | **Public** | The layouts there are, from the core's and the theme's `layout/` folders (and the modules', and since 0.4.10 those made in the admin) |
+| `LayoutStore` | Internal | Since 0.4.10: the layouts made in the admin, in the `layouts` table |
 | `LayoutService` | **Public** | Which layout a page has, from the settings |
 | `Conditions` | **Public** | Where something shows: paths, Blueprints, the front page, except paths |
 | `Regions` | Internal | Renders a region's components (`region()`) |
@@ -54,7 +56,71 @@ and they run in the sandbox):
 | `regions` | 1 to 20 regions, in their order: name (lowercase letters, digits, `_`) ⇒ `label`, and how it shows on small screens: `small` is `always` (the default), `collapse` (below the breakpoint a button opens it) or `hide` (hidden below it); `breakpoint` is Bootstrap's `sm`, `md` (the default), `lg` or `xl`; `page` (since 0.3.5; `true` or `false`, the default): a page's own components may be placed in it |
 
 Every layout has a `content` region. A layout whose JSON is not valid, or that
-has no template, is left out; `LayoutRegistry::errors()` says why.
+has no template (and no rows, below), is left out; `LayoutRegistry::errors()` says why.
+
+### A layout of rows
+
+*Since 0.4.10.* A layout can describe its structure as **rows of columns**
+instead of a template of its own: the shared `layout/_rows.html.twig` makes its
+HTML (the header, the rows, the footer), so it needs no `.html.twig`. This is
+what a layout made in the admin is, and what the core's two are (their
+templates only include the shared one; the HTML is that of 0.4.9, a test checks
+it). The JSON gets the optional key `rows` (`version` stays 1):
+
+```json
+{
+    "version": 1,
+    "label": "Bal oldalsáv",
+    "rows": [
+        {"breakpoint": "lg", "columns": [
+            {"region": "sidebar", "width": 4, "order": 2, "landmark": "aside"},
+            {"region": "content", "width": 8, "order": 1}
+        ]},
+        {"full": true, "columns": [{"region": "kiemeles", "width": 12}]}
+    ],
+    "regions": {
+        "content": {"label": "layout.region.content", "page": true},
+        "sidebar": {"label": "layout.region.sidebar", "page": true, "small": "hide", "breakpoint": "lg"},
+        "kiemeles": {"label": "Kiemelt sáv"}
+    }
+}
+```
+
+| Key | |
+|---|---|
+| `rows` | 1 to 10 rows (`MAX_ROWS`), from the top |
+| a row's `columns` | 1 to 4 columns (`LayoutRow::MAX_COLUMNS`), side by side from the row's breakpoint up, stacked below it |
+| a row's `breakpoint` | `sm`, `md`, `lg` (the default) or `xl`: from which width its columns are side by side |
+| a row's `full` | `true`: the full width of the window (`container-fluid`), not the site's width |
+| a column's `region` | A region of `regions`; each in the rows once; not `header`, `navigation` or `footer` |
+| a column's `width` | Of the grid's 12 (`LayoutRow::GRID`), 1 to 12 (the default); a row's columns at most 12 together |
+| a column's `order` | 1 to 4, each once in a row: its place when the columns are stacked (none: their order) |
+| a column's `landmark` | `aside` (an `<aside>` with the region's label for assistive technology) or `none` (a `<div>`, the default). The `content` column is always the page's `<main>` |
+
+The regions of the header and the footer (`header`, `navigation`, `footer`)
+are always in a layout of rows, with the core's labels and looks unless
+`regions` describes them; every other region of `regions` must be in a row.
+A region hidden on small screens (`"small": "hide"`) hides its column too. A layout of rows lists its regions in the page's order
+(the header's, the rows' from the top, the footer), whatever the JSON's.
+Nothing of the JSON goes into the page as it is: the elements and the
+Bootstrap classes (`col-lg-8 order-2 order-lg-0`) are made by `LayoutRow` and
+`LayoutColumn` from the numbers and names checked.
+
+`LayoutRow` · **Public** · readonly: `columns`, `breakpoint`, `full`;
+`hasContent()`, `containerClass()`, `columnClass(LayoutColumn $column,
+?RegionDefinition $region = null)`, `toArray()`.
+`LayoutColumn` · **Public** · readonly: `region`, `width`, `order`, `landmark`
+(`ASIDE`, `NONE`); `element()` (`main`, `aside` or `div`), `toArray()`.
+
+### Made in the admin
+
+*Since 0.4.10.* The layouts made in the admin are layouts of rows, stored as
+JSON in the `layouts` table (`LayoutStore`: `load()`, `save(LayoutDefinition
+$layout)`, `delete(string $name)`), with the origin `admin`. They come after the
+files' layouts: one with the name of a layout of the files (core, module, theme)
+is left out, the file's wins (`errors()` says so). The content model's file
+carries them (`layouts`, like the colour schemes), checked as a layout's file
+of rows when imported, never under a file's name.
 
 The template is included by the core's `base.html.twig`, with the page's
 variables and:
@@ -78,6 +144,8 @@ variables and:
 |---|---|
 | `one_column` (*One column*, the default) | `header`, `navigation`, `content`, `footer`; `content` is `page` |
 | `sidebar` (*With a sidebar*) | the same and `sidebar`: beside the content from `lg` up, under it on smaller screens; `content` and `sidebar` are `page` |
+
+Since 0.4.10 both are layouts of rows (below), with the same HTML as before.
 
 `header` is always seen (the site's name); `navigation` (the menu, the search,
 the buttons) is beside it, and collapses below `md` behind a button, as the
@@ -116,11 +184,13 @@ layouts are off (below).
 
 | Member | |
 |---|---|
-| `name`, `label`, `regions` (name ⇒ `RegionDefinition`), `origin` (`core` or `theme`) | |
-| `template(): string` | `layout/<name>.html.twig` |
+| `name`, `label`, `regions` (name ⇒ `RegionDefinition`), `origin` (`core`, `theme`, since 0.4.10 `admin`), `rows` (since 0.4.10: list of `LayoutRow`), `ownTemplate` | |
+| `template(): string` | `layout/<name>.html.twig`; a layout of rows without its own: `layout/_rows.html.twig` |
+| `hasRows(): bool` | Since 0.4.10: whether it is a layout of rows (it can be copied in the admin) |
+| `toArray(): array` | Since 0.4.10: as its JSON writes it |
 | `hasRegion(string $name): bool` | |
-| `static fromJson(string $name, string $json, string $origin = 'core'): self` | `InvalidArgumentException` for a layout that is not valid |
-| `VERSION` (1), `MAX_REGIONS` (20), `CONTENT` (`content`) | |
+| `static fromJson(string $name, string $json, string $origin = 'core', bool $ownTemplate = true): self` | `InvalidArgumentException` for a layout that is not valid (since 0.4.10 also one without rows and without its template) |
+| `VERSION` (1), `MAX_REGIONS` (20), `CONTENT` (`content`), `MAX_ROWS` (10), `FIXED` (the header's and footer's regions), `NAME_PATTERN` | |
 
 `Campanella\Layout\RegionDefinition` · **Public** · readonly: `name`, `label`,
 `small` (`ALWAYS`, `COLLAPSE`, `HIDE`; the list `LOOKS`), `breakpoint` (one of
@@ -131,8 +201,10 @@ same region with another look (an invalid one is ignored).
 
 `Campanella\Layout\LayoutRegistry` · **Public**
 
-`new LayoutRegistry(array $directories)`: the template folders, the core's
-first; the Kernel gives the core's `templates/` and the theme's.
+`new LayoutRegistry(array $directories, ?Closure $stored = null)`: the template
+folders, the core's first; the Kernel gives the core's `templates/`, the
+modules' and the theme's; since 0.4.10 `$stored` gives the layouts made in the
+admin (name ⇒ JSON).
 
 | Method | |
 |---|---|
@@ -140,6 +212,8 @@ first; the Kernel gives the core's `templates/` and the theme's.
 | `has(string $name): bool` | |
 | `get(string $name): LayoutDefinition` | The layout, or the default (`DEFAULT`, `one_column`) for an unknown name |
 | `errors(): array<string, string>` | The layouts left out, and why |
+| `isFileName(string $name): bool` | Since 0.4.10: whether a layout of the files has the name (an admin-made one cannot) |
+| `reset(): void` | Since 0.4.10: read again (after one is saved) |
 | `regionNames(): list<string>` | Every layout's regions, each once: where a component can be placed |
 | `pageRegionNames(): list<string>` | Since 0.3.5: the regions that are `page` in any layout, each once: where a page's own component can be placed |
 

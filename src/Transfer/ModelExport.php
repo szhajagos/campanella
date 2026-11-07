@@ -22,11 +22,12 @@ final class ModelExport
         private readonly ListStore $lists,
         private readonly ObjectReferences $references,
         private readonly ?\Campanella\Appearance\ColorSchemeStore $schemes = null,
+        private readonly ?\Campanella\Layout\LayoutStore $layouts = null,
     ) {
     }
 
     /**
-     * @return array{blueprints: array<string, array<string, mixed>>, lists: array<string, array<string, mixed>>, color_schemes: array<string, array<string, mixed>>, campanella: string, exported_at: string}
+     * @return array{blueprints: array<string, array<string, mixed>>, lists: array<string, array<string, mixed>>, color_schemes: array<string, array<string, mixed>>, layouts: array<string, array<string, mixed>>, campanella: string, exported_at: string}
      */
     public function model(?DateTimeImmutable $now = null): array
     {
@@ -50,6 +51,8 @@ final class ModelExport
             'lists' => $lists,
             // The colour schemes made in the admin (since 0.4.2), as a scheme's file has them.
             'color_schemes' => array_map(self::scheme(...), $this->schemes?->load() ?? []),
+            // The layouts made in the admin (since 0.4.10), as a layout's file of rows has them.
+            'layouts' => array_map(self::layout(...), $this->layouts?->load() ?? []),
             'campanella' => Version::CAMPANELLA,
             'exported_at' => $now->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d\TH:i:s\Z'),
         ];
@@ -59,6 +62,23 @@ final class ModelExport
     public function json(?DateTimeImmutable $now = null): string
     {
         return ModelFile::encode($this->model($now));
+    }
+
+    /**
+     * A stored layout in a file's order (MySQL's JSON column sorts the keys): read as a layout
+     * and written again; as it is if it cannot be read.
+     *
+     * @return array<string, mixed>
+     */
+    private static function layout(string $json): array
+    {
+        try {
+            return \Campanella\Layout\LayoutDefinition::fromJson('stored', $json, 'admin', false)->toArray();
+        } catch (\InvalidArgumentException) {
+            $data = json_decode($json, true);
+
+            return is_array($data) ? $data : [];
+        }
     }
 
     /**

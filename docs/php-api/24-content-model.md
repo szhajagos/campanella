@@ -58,6 +58,11 @@ The uploaded file is never stored on the server.
 }
 ```
 
+`layouts` (since 0.4.10) is optional too, and only written when the site has
+layouts made in the admin: each as a layout's file of rows has it
+([chapter 29](29-layouts.md#a-layout-of-rows)); imported, checked as one, never
+under the name of a layout of the files.
+
 `color_schemes` (since 0.4.2) is optional and only written when the site has
 schemes made in the admin; a scheme is in the form of a scheme's file
 (`ColorScheme::VERSION`, the label, the eight colours of each variant). The file
@@ -77,7 +82,7 @@ relation condition is not imported.
 | `const FORMAT`, `const VERSION` | `campanella.content-model`, `1`; a file of a newer version is not read |
 | `const MAX_BYTES`, `const MAX_ITEMS` | At most 1 MB, and at most 200 Blueprints and 200 lists |
 | `const FILE_NAME` | `campanella-model.json`, the suggested name |
-| `static decode(string $json): array` | The file's `blueprints`, `lists`, `color_schemes` (an empty array if missing), `campanella` and `exported_at`, its frame checked (the format, the version, objects of names, at most 16 levels deep, a byte order mark allowed); `InvalidArgumentException` otherwise. The items themselves are checked by the import |
+| `static decode(string $json): array` | The file's `blueprints`, `lists`, `color_schemes`, `layouts` (since 0.4.10) (an empty array if missing), `campanella` and `exported_at`, its frame checked (the format, the version, objects of names, at most 16 levels deep, a byte order mark allowed); `InvalidArgumentException` otherwise. The items themselves are checked by the import |
 | `static encode(array $model): string` | The file's contents, as JSON with indentation |
 
 ## ModelExport

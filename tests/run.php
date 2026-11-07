@@ -7795,6 +7795,157 @@ test('ColorSchemeRegistry (0.4.2): the schemes made in the admin after the files
     $db->execute('DELETE FROM {color_schemes}');
 });
 
+test('Layouts of rows (0.4.10): the rows checked, the core\'s two made by the shared template as before, the classes from numbers only', function (): void {
+    $def = static fn (array $data, string $name = 'proba'): \Campanella\Layout\LayoutDefinition => \Campanella\Layout\LayoutDefinition::fromJson($name, (string) json_encode(['version' => 1, 'label' => 'Próba'] + $data), 'admin', false);
+    $render = static function (string $source, \Campanella\Layout\LayoutDefinition $layout): string {
+        $twig = new \Twig\Environment(new \Twig\Loader\ArrayLoader([
+            'page' => $source,
+            'layout/_rows.html.twig' => (string) file_get_contents(dirname(__DIR__) . '/templates/layout/_rows.html.twig'),
+            'layout/_header.html.twig' => '<header>[header]</header>',
+            'layout/_footer.html.twig' => '<footer>[footer]</footer>',
+        ]), ['autoescape' => 'html', 'strict_variables' => true]);
+        $twig->addFunction(new \Twig\TwigFunction('region', static fn (string $n, array $o = []): string => '[region ' . $n . ' ' . ($o['class'] ?? '') . ']', ['is_safe' => ['html']]));
+        $twig->addFunction(new \Twig\TwigFunction('t', static fn (string $k): string => $k));
+
+        return trim((string) preg_replace(['/>\s+/', '/\s+</', '/\s+/'], ['>', '<', ' '], $twig->render('page', ['main' => new \Twig\Markup('<p>MAIN</p>', 'UTF-8'), 'layout' => $layout])));
+    };
+    // The core's two: the HTML of 0.4.9.
+    foreach (['one_column', 'sidebar'] as $name) {
+        $layout = \Campanella\Layout\LayoutDefinition::fromJson($name, (string) file_get_contents(dirname(__DIR__) . "/templates/layout/{$name}.json"));
+        check($layout->hasRows() && $layout->template() === "layout/{$name}.html.twig", $name . ': rows, its own template');
+        check($render((string) file_get_contents(__DIR__ . "/fixtures/layouts/{$name}-0.4.9.html.twig"), $layout) === $render((string) file_get_contents(dirname(__DIR__) . '/templates/layout/_rows.html.twig'), $layout), $name . ': the HTML of 0.4.9');
+    }
+
+    // A layout of several rows.
+    $layout = $def([
+        'rows' => [
+            ['full' => true, 'columns' => [['region' => 'kiemeles', 'width' => 12]]],
+            ['breakpoint' => 'md', 'columns' => [['region' => 'bal', 'width' => 3, 'order' => 2, 'landmark' => 'aside'], ['region' => 'content', 'width' => 6, 'order' => 1], ['region' => 'jobb', 'width' => 3, 'order' => 3]]],
+            ['columns' => [['region' => 'also', 'width' => 8]]],
+        ],
+        'regions' => ['kiemeles' => ['label' => 'Kiemelt'], 'bal' => ['label' => 'Bal <script>x</script>', 'page' => true, 'small' => 'hide', 'breakpoint' => 'lg'], 'content' => ['label' => 'Tartalom', 'page' => true], 'jobb' => ['label' => 'Jobb'], 'also' => ['label' => 'Alsó']],
+    ]);
+    check(array_keys($layout->regions) === ['header', 'navigation', 'kiemeles', 'bal', 'content', 'jobb', 'also', 'footer'] && $layout->regions['navigation']->small === 'collapse', 'the header\'s and footer\'s regions always there, the regions in the page\'s order');
+    check($layout->template() === 'layout/_rows.html.twig', 'the shared template');
+    $html = $render((string) file_get_contents(dirname(__DIR__) . '/templates/layout/_rows.html.twig'), $layout);
+    check(str_contains($html, '<div class="container-fluid py-3">[region kiemeles ]</div>'), 'a full row: ' . $html);
+    check(str_contains($html, '<div class="container site-container flex-grow-1 py-4 py-md-5"><div class="row g-5"><aside class="col-md-3 order-2 order-md-0 d-none d-lg-block" aria-label="Bal &lt;script&gt;x&lt;/script&gt;">[region bal ]</aside>'), 'the order when stacked, hidden on small screens, its label escaped');
+    check(str_contains($html, '<main class="col-md-6 order-1 order-md-0" id="main" tabindex="-1"><p>MAIN</p>[region content mt-4]</main><div class="col-md-3 order-3 order-md-0">[region jobb ]</div>'), 'the content is main; a plain column');
+    check(str_contains($html, '<div class="container site-container py-3"><div class="row g-5"><div class="col-lg-8">[region also ]</div></div></div>'), 'a narrower single column: in the grid');
+    check(str_starts_with($html, '<header>') && str_ends_with($html, '<footer>[footer]</footer>'), 'the header and the footer');
+    $again = \Campanella\Layout\LayoutDefinition::fromJson('proba', (string) json_encode($layout->toArray()), 'admin', false);
+    check($again->toArray() === $layout->toArray() && $again->rows == $layout->rows, 'written and read again: the same');
+
+    // What is refused.
+    $content = ['content' => ['label' => 'T']];
+    $one = static fn (array $columns, array $row = []): array => ['rows' => [$row + ['columns' => $columns]], 'regions' => $content + ['b' => ['label' => 'B']]];
+    $invalid = [
+        'no rows' => ['rows' => [], 'regions' => $content],
+        'rows not a list' => ['rows' => ['a' => ['columns' => [['region' => 'content']]]], 'regions' => $content],
+        'too many rows' => ['rows' => array_fill(0, 11, ['columns' => [['region' => 'content']]]), 'regions' => $content],
+        'too many columns' => $one([['region' => 'content', 'width' => 2], ['region' => 'b', 'width' => 2], ['region' => 'c', 'width' => 2], ['region' => 'd', 'width' => 2], ['region' => 'e', 'width' => 2]]),
+        'width 0' => $one([['region' => 'content', 'width' => 0], ['region' => 'b', 'width' => 4]]),
+        'width 13' => $one([['region' => 'content', 'width' => 13], ['region' => 'b', 'width' => 4]]),
+        'width a text' => $one([['region' => 'content', 'width' => '6'], ['region' => 'b', 'width' => 4]]),
+        'more than 12' => $one([['region' => 'content', 'width' => 8], ['region' => 'b', 'width' => 6]]),
+        'an order twice' => $one([['region' => 'content', 'width' => 6, 'order' => 1], ['region' => 'b', 'width' => 6, 'order' => 1]]),
+        'an order of 5' => $one([['region' => 'content', 'width' => 6, 'order' => 5], ['region' => 'b', 'width' => 6]]),
+        'a landmark' => $one([['region' => 'content', 'width' => 6], ['region' => 'b', 'width' => 6, 'landmark' => 'nav']]),
+        'a breakpoint' => $one([['region' => 'content', 'width' => 6], ['region' => 'b', 'width' => 6]], ['breakpoint' => 'xxl']),
+        'full a text' => $one([['region' => 'content', 'width' => 6], ['region' => 'b', 'width' => 6]], ['full' => 'yes']),
+        'a key of a row' => $one([['region' => 'content', 'width' => 6], ['region' => 'b', 'width' => 6]], ['class' => 'x']),
+        'a key of a column' => $one([['region' => 'content', 'width' => 6, 'class' => 'x'], ['region' => 'b', 'width' => 6]]),
+        'a region not described' => $one([['region' => 'content', 'width' => 6], ['region' => 'c', 'width' => 6]]),
+        'a region twice' => ['rows' => [['columns' => [['region' => 'content']]], ['columns' => [['region' => 'content']]]], 'regions' => $content],
+        'the header in a row' => $one([['region' => 'content', 'width' => 6], ['region' => 'header', 'width' => 6]]),
+        'a region in no row' => ['rows' => [['columns' => [['region' => 'content']]]], 'regions' => $content + ['b' => ['label' => 'B']]],
+        'no content' => ['rows' => [['columns' => [['region' => 'b']]]], 'regions' => ['b' => ['label' => 'B']]],
+    ];
+    foreach ($invalid as $why => $data) {
+        $refused = false;
+        try {
+            $def($data);
+        } catch (\InvalidArgumentException) {
+            $refused = true;
+        }
+        check($refused, 'refused: ' . $why);
+    }
+    // A layout of the files without rows and without its template.
+    $refused = false;
+    try {
+        \Campanella\Layout\LayoutDefinition::fromJson('regi', (string) json_encode(['version' => 1, 'regions' => $content]), 'theme', false);
+    } catch (\InvalidArgumentException) {
+        $refused = true;
+    }
+    check($refused, 'no rows, no template: refused');
+});
+
+test('Layouts made in the admin (0.4.10): stored, read after the files\' (whose names win), in the content model\'s file, a page in one', function (): void {
+    putenv('CAMPANELLA_DB_PREFIX=test_');
+    $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));
+    $c = $kernel->container();
+    $db = $c->get(Connection::class);
+    if ($db->prefix() !== 'test_') {
+        putenv('CAMPANELLA_DB_PREFIX');
+
+        return;
+    }
+    $store = $c->get(\Campanella\Layout\LayoutStore::class);
+    $db->execute('DELETE FROM {layouts}');
+    $json = (string) json_encode(['version' => 1, 'label' => 'Három hasáb', 'rows' => [
+        ['breakpoint' => 'md', 'columns' => [['region' => 'bal_sav', 'width' => 3, 'landmark' => 'aside'], ['region' => 'content', 'width' => 6], ['region' => 'jobb_sav', 'width' => 3, 'landmark' => 'aside']]],
+        ['full' => true, 'columns' => [['region' => 'also_sav', 'width' => 12]]],
+    ], 'regions' => ['bal_sav' => ['label' => 'Bal sáv', 'page' => true], 'content' => ['label' => 'layout.region.content', 'page' => true], 'jobb_sav' => ['label' => 'Jobb sáv'], 'also_sav' => ['label' => 'Alsó sáv']]]);
+    $three = \Campanella\Layout\LayoutDefinition::fromJson('harom_hasab', $json, 'admin', false);
+    $store->save($three);
+    $db->insert(\Campanella\Database\Schema\CoreSchema::LAYOUTS, ['name' => 'sidebar', 'definition' => $json, 'created_at' => '2026-11-07 10:00:00', 'updated_at' => '2026-11-07 10:00:00']);
+    $db->insert(\Campanella\Database\Schema\CoreSchema::LAYOUTS, ['name' => 'rossz', 'definition' => '{"version": 1, "regions": {"content": {}}}', 'created_at' => '2026-11-07 10:00:00', 'updated_at' => '2026-11-07 10:00:00']);
+    $registry = $c->get(\Campanella\Layout\LayoutRegistry::class);
+    $all = $registry->all();
+    check(isset($all['harom_hasab']) && $all['harom_hasab']->origin === 'admin' && $all['harom_hasab']->template() === 'layout/_rows.html.twig', 'read from the table');
+    check($all['sidebar']->origin === 'core' && str_contains($registry->errors()['sidebar'] ?? '', 'files') && isset($registry->errors()['rossz']) && !isset($all['rossz']), 'a file\'s name wins; one without rows left out');
+    check($registry->isFileName('sidebar') && !$registry->isFileName('harom_hasab') && in_array('bal_sav', $registry->pageRegionNames(), true), 'the files\' names; its regions');
+    $db->execute("DELETE FROM {layouts} WHERE name IN ('sidebar', 'rossz')");
+
+    // A page in it.
+    $settings = $c->get(\Campanella\Settings\Settings::class);
+    $settings->set(['layout.enabled' => '1', 'layout.site' => 'harom_hasab']);
+    try {
+        $page = (new \Campanella\Core\Kernel(dirname(__DIR__)))->handle(new Request('GET', '/search'));
+        check($page->status === 200 && preg_match('#<aside class="col-md-3" aria-label="Bal sáv">.*<main class="col-md-6" id="main" tabindex="-1">.*</main>\s*<aside class="col-md-3" aria-label="Jobb sáv">#s', $page->body) === 1, 'a page in it ' . $page->status);
+    } finally {
+        $settings->set(['layout.enabled' => null, 'layout.site' => null]);
+    }
+
+    // The content model's file.
+    $exported = $c->get(\Campanella\Transfer\ModelExport::class)->model();
+    check(($exported['layouts']['harom_hasab'] ?? null) === $three->toArray() && str_contains(\Campanella\Transfer\ModelFile::encode($exported), '"layouts"'), 'exported as written');
+    $decoded = \Campanella\Transfer\ModelFile::decode(\Campanella\Transfer\ModelFile::encode($exported));
+    $import = $c->get(\Campanella\Transfer\ModelImport::class);
+    $kinds = static fn ($plan): array => array_map(static fn ($i): string => $i->name . ':' . $i->action, array_values(array_filter($plan->items, static fn ($i): bool => $i->kind === 'layout')));
+    check($kinds($import->plan($decoded)) === ['harom_hasab:unchanged'], 'the same: unchanged ' . json_encode($kinds($import->plan($decoded))));
+    $changed = $decoded;
+    $changed['layouts']['harom_hasab']['label'] = 'Három hasáb, új';
+    $changed['layouts']['uj_elrendezes'] = ['version' => 1, 'label' => 'Új', 'rows' => [['columns' => [['region' => 'content']]]], 'regions' => ['content' => ['label' => 'T']]];
+    $changed['layouts']['sidebar'] = $changed['layouts']['uj_elrendezes'];
+    $changed['layouts']['hibas'] = ['version' => 1, 'rows' => [['columns' => [['region' => 'content', 'width' => 20]]]], 'regions' => ['content' => ['label' => 'T']]];
+    $plan = $import->plan($changed);
+    $byName = array_column(array_map(static fn ($i): array => [$i->name, $i->action], array_filter($plan->items, static fn ($i): bool => $i->kind === 'layout')), 1, 0);
+    check($byName === ['harom_hasab' => 'update', 'uj_elrendezes' => 'create', 'sidebar' => 'error', 'hibas' => 'error'] && $plan->hasErrors(), 'changed, new, a file\'s name, not valid: ' . json_encode($byName));
+    unset($changed['layouts']['sidebar'], $changed['layouts']['hibas']);
+    $plan = $import->plan($changed);
+    check(!$plan->hasErrors() && count($plan->layouts) === 2, 'what is saved');
+    $import->apply($plan);
+    check(($c->get(\Campanella\Layout\LayoutRegistry::class)->all()['uj_elrendezes'] ?? null)?->origin === 'admin' && json_decode($store->load()['harom_hasab'], true)['label'] === 'Három hasáb, új', 'saved, read again');
+    unset($changed['layouts']['uj_elrendezes']);
+    check($kinds($import->plan($changed)) === ['harom_hasab:unchanged', 'uj_elrendezes:kept'], 'not in the file: kept');
+
+    $store->delete('harom_hasab');
+    $store->delete('uj_elrendezes');
+    check($store->load() === [], 'deleted');
+    putenv('CAMPANELLA_DB_PREFIX');
+});
+
 test('Kernel: the layouts page (Appearance → Layouts), for administrators', function () use ($newUser): void {
     putenv('CAMPANELLA_DB_PREFIX=test_');
     $kernel = new \Campanella\Core\Kernel(dirname(__DIR__));

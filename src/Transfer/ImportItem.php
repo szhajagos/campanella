@@ -18,6 +18,9 @@ final readonly class ImportItem
     /** A colour scheme made in the admin (since 0.4.2). */
     public const string COLOR_SCHEME = 'color_scheme';
 
+    /** A layout made in the admin (since 0.4.10). */
+    public const string LAYOUT = 'layout';
+
     /** New on this site. */
     public const string CREATE = 'create';
     /** On this site, changed by the file. */

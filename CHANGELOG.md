@@ -10,6 +10,31 @@ backward-incompatible.
 
 ## [Unreleased]
 
+**Layouts edited in the admin, part 1.** The fourth step of 0.5.0.
+
+### Added
+
+- **Layouts of rows**: a layout's JSON can describe its rows of columns
+  (`rows`, `version` still 1) instead of a template of its own: each column a
+  region, its width of a 12-column grid, from which width a row's columns are
+  side by side (`sm`, `md`, `lg`, `xl`) and their order when stacked, a row in
+  the full width of the window, a column as an `<aside>` (with its label for
+  assistive technology) or a plain `<div>`; the content's column is always the
+  page's `<main>`. The shared template `layout/_rows.html.twig` makes the
+  HTML; its elements and Bootstrap classes are made from the checked numbers
+  and names only. At most 10 rows of 4 columns. The header's and footer's
+  regions are always there.
+- **The layouts made in the admin** are stored in a new `layouts` table
+  (schema version 24), read after those of the files (whose names win), and
+  carried by the content model's file (`layouts`), like the colour schemes.
+  Their editor comes in part 2.
+
+### Changed
+
+- The core's two layouts (*One column*, *With a sidebar*) are layouts of rows;
+  their HTML is that of 0.4.9 (a test compares them), and a theme's template of
+  their name still takes their place.
+
 ## [0.4.9] – 2026-11-06
 
 **Web sources.** The third step of 0.5.0: the feeds module, the first of
